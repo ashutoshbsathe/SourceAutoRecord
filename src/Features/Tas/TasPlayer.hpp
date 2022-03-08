@@ -81,6 +81,7 @@ public:
 	inline int GetTick() const { return currentTick; };
 	inline int GetAbsoluteTick() const { return startTick + currentTick; };
 	inline int GetStartTick() const { return startTick; };
+    inline void UpdateLastTick(int tick) {this->lastTick = tick;}
 	inline bool IsActive() const { return active; };
 	inline bool IsRunning() const { return active && startTick != -1; }
 	inline bool IsUsingTools(int slot) const {
@@ -103,6 +104,7 @@ public:
 
 	TasFramebulk GetRawFramebulkAt(int slot, int tick);
 	TasPlayerInfo GetPlayerInfo(void *player, CUserCmd *cmd);
+    std::vector<TasFramebulk> GetFrameBulkQueue(int slot);
 	void SetFrameBulkQueue(int slot, std::vector<TasFramebulk> fbQueue);
 	void SetStartInfo(TasStartType type, std::string);
 	inline void SetLoadedFileName(int slot, std::string name) { tasFileName[slot] = name; };

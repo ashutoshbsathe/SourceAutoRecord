@@ -34,7 +34,7 @@ Variable sar_tas_interpolate("sar_tas_interpolate", "0", "Preserve client interp
 TasPlayer *tasPlayer;
 
 std::string TasFramebulk::ToString() {
-	std::string output = "[" + std::to_string(tick) + "] mov: (" + std::to_string(moveAnalog.x) + " " + std::to_string(moveAnalog.y) + "), ang:" + std::to_string(viewAnalog.x) + " " + std::to_string(viewAnalog.y) + "), btns:";
+	std::string output = "[" + std::to_string(tick) + "] mov: (" + std::to_string(moveAnalog.x) + " " + std::to_string(moveAnalog.y) + "), ang: (" + std::to_string(viewAnalog.x) + " " + std::to_string(viewAnalog.y) + "), btns:";
 	for (int i = 0; i < TAS_CONTROLLER_INPUT_COUNT; i++) {
 		output += (buttonStates[i]) ? "1" : "0";
 	}
@@ -342,6 +342,8 @@ void TasPlayer::AdvanceFrame() {
 TasFramebulk TasPlayer::GetRawFramebulkAt(int slot, int tick) {
 	int closestTime = INT_MAX;
 	TasFramebulk closest;
+    console->Print("slot = %d, tick = %d\n", slot, tick);
+    console->Print("Lengths of framebulkQueues, slot 0 = %d, slot 1 = %d\n", framebulkQueue[0].size(), framebulkQueue[1].size());
 	for (TasFramebulk framebulk : framebulkQueue[slot]) {
 		int timeDist = tick - framebulk.tick;
 		if (timeDist >= 0 && timeDist < closestTime) {
@@ -349,6 +351,7 @@ TasFramebulk TasPlayer::GetRawFramebulkAt(int slot, int tick) {
 			closest = framebulk;
 		}
 	}
+    console->Print("closest = %s\n", closest.ToString());
 	return closest;
 }
 
@@ -410,6 +413,10 @@ TasPlayerInfo TasPlayer::GetPlayerInfo(void *player, CUserCmd *cmd) {
 
 void TasPlayer::SetFrameBulkQueue(int slot, std::vector<TasFramebulk> fbQueue) {
 	this->framebulkQueue[slot] = fbQueue;
+}
+
+std::vector<TasFramebulk> TasPlayer::GetFrameBulkQueue(int slot) {
+    return this->framebulkQueue[slot];
 }
 
 void TasPlayer::SetStartInfo(TasStartType type, std::string param) {

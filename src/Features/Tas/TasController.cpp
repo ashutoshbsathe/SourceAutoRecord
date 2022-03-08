@@ -170,11 +170,14 @@ void TasController::ControllerMove(int nSlot, float flFrametime, CUserCmd *cmd) 
 	// handle all additional commands from the command queue (not in the original, but um why not?)
 	if (commandQueue.size() > 0) {
 		tasPlayer->inControllerCommands = true;
+        console->Print("commandQueue = [ ");
 		for (std::string cmd : commandQueue) {
 			char cmdbuf[128];
 			snprintf(cmdbuf, sizeof(cmdbuf), "%s", cmd.c_str());
+            console->Print("%s ", cmd.c_str());
 			engine->ExecuteCommand(cmdbuf, true);
 		}
+        console->Print("]\n");
 		commandQueue.clear();
 		tasPlayer->inControllerCommands = false;
 	}

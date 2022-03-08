@@ -181,11 +181,50 @@ static void update() {
 }
 
 static bool processCommands(ClientData &cl) {
+    static int count = 0;
 	while (true) {
+        console->Print("count = %d\n", count);
 		if (cl.cmdbuf.size() == 0) return true;
 
 		int extra = cl.cmdbuf.size() - 1;
-
+        
+        TasFramebulk rcvd_bulk;
+        rcvd_bulk.tick = (count + 1) * 4;
+        rcvd_bulk.moveAnalog.x = 0;
+        rcvd_bulk.moveAnalog.y = 1;
+        rcvd_bulk.viewAnalog.x = 0;
+        rcvd_bulk.viewAnalog.y = 0;
+        
+        std::vector<TasFramebulk> fbQueue;
+        if(tasPlayer->IsActive()) {
+            console->Print("Fetching fbQueue from active player\n");
+            fbQueue = tasPlayer->GetFrameBulkQueue(0);
+        }
+        fbQueue.push_back(rcvd_bulk);
+        tasPlayer->SetFrameBulkQueue(0, fbQueue);
+        tasPlayer->UpdateLastTick(rcvd_bulk.tick + 1);
+        if(!tasPlayer->IsActive()) {
+            Scheduler::OnMainThread([=](){
+                tasPlayer->Activate();
+                tasPlayer->Pause();
+            });
+        }
+        console->Print("cmdbuf[0] = %d, size = %d\ncmdbuf = [ ", cl.cmdbuf[0], cl.cmdbuf.size());
+        for(uint8_t byte: cl.cmdbuf) {
+            console->Print("%d ", byte);
+        }
+        console->Print("]\n");
+        console->Print("tasPlayer->framebulkQueue[0].size() = %d, ", tasPlayer->GetFrameBulkQueue(0).size());
+        console->Print("tasPlayer->framebulkQueue[1].size() = %d\n", tasPlayer->GetFrameBulkQueue(1).size());
+        
+        count += 1;
+        Scheduler::OnMainThread([=](){
+            tasPlayer->AdvanceFrame();
+            tasPlayer->AdvanceFrame();
+            tasPlayer->AdvanceFrame();
+            tasPlayer->AdvanceFrame();
+        });
+        return true;
 		switch (cl.cmdbuf[0]) {
 		case 0: // request playback
 			if (extra < 8) return true;
