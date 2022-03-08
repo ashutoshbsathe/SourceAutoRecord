@@ -181,7 +181,10 @@ static void update() {
 }
 
 static bool processCommands(ClientData &cl) {
-    static int count = 0;
+    /*
+     * It honestly might be cheaper to dump the TasFramebulk in a file 
+     * Run it using `bind l "sar_tas_stop; sar_tas_play rl_challenge_1_thr=0.45; sar_tas_playback_rate 100; sar_tas_pauseat 1599;"`
+     */
 	while (true) {
         console->Print("count = %d\n", count);
 		if (cl.cmdbuf.size() == 0) return true;
@@ -189,7 +192,7 @@ static bool processCommands(ClientData &cl) {
 		int extra = cl.cmdbuf.size() - 1;
         
         TasFramebulk rcvd_bulk;
-        rcvd_bulk.tick = (count + 1) * 4;
+        rcvd_bulk.tick = 4;
         rcvd_bulk.moveAnalog.x = 0;
         rcvd_bulk.moveAnalog.y = 1;
         rcvd_bulk.viewAnalog.x = 0;
@@ -202,7 +205,6 @@ static bool processCommands(ClientData &cl) {
         }
         fbQueue.push_back(rcvd_bulk);
         tasPlayer->SetFrameBulkQueue(0, fbQueue);
-        tasPlayer->UpdateLastTick(rcvd_bulk.tick + 1);
         if(!tasPlayer->IsActive()) {
             Scheduler::OnMainThread([=](){
                 tasPlayer->Activate();
@@ -217,13 +219,6 @@ static bool processCommands(ClientData &cl) {
         console->Print("tasPlayer->framebulkQueue[0].size() = %d, ", tasPlayer->GetFrameBulkQueue(0).size());
         console->Print("tasPlayer->framebulkQueue[1].size() = %d\n", tasPlayer->GetFrameBulkQueue(1).size());
         
-        count += 1;
-        Scheduler::OnMainThread([=](){
-            tasPlayer->AdvanceFrame();
-            tasPlayer->AdvanceFrame();
-            tasPlayer->AdvanceFrame();
-            tasPlayer->AdvanceFrame();
-        });
         return true;
 		switch (cl.cmdbuf[0]) {
 		case 0: // request playback
