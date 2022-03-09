@@ -192,31 +192,29 @@ static bool processCommands(ClientData &cl) {
      * Then at every rcvd_bulk, we simply do `sar_tas_stop; sar_tas_play dummy` that's it !!!!
      */
 	while (true) {
-        console->Print("count = %d\n", count);
 		if (cl.cmdbuf.size() == 0) return true;
 
 		int extra = cl.cmdbuf.size() - 1;
         
         TasFramebulk rcvd_bulk;
-        rcvd_bulk.tick = 4;
+        rcvd_bulk.tick = 0;
         rcvd_bulk.moveAnalog.x = 0;
         rcvd_bulk.moveAnalog.y = 1;
         rcvd_bulk.viewAnalog.x = 0;
         rcvd_bulk.viewAnalog.y = 0;
+
+        TasFramebulk end;
+        end.tick = 4;
+        end.commands.push_back("sar_tas_pause");
         
         std::vector<TasFramebulk> fbQueue;
-        if(tasPlayer->IsActive()) {
-            console->Print("Fetching fbQueue from active player\n");
-            fbQueue = tasPlayer->GetFrameBulkQueue(0);
-        }
         fbQueue.push_back(rcvd_bulk);
-        tasPlayer->SetFrameBulkQueue(0, fbQueue);
-        if(!tasPlayer->IsActive()) {
-            Scheduler::OnMainThread([=](){
-                tasPlayer->Activate();
-                tasPlayer->Pause();
-            });
-        }
+        fbQueue.push_back(end);
+        Scheduler::OnMainThread([=](){
+            tasPlayer->Stop(); // stop the pause from previous TAS player
+            tasPlayer->SetFrameBulkQueue(0, fbQueue);
+            tasPlayer->Activate();
+        });
         console->Print("cmdbuf[0] = %d, size = %d\ncmdbuf = [ ", cl.cmdbuf[0], cl.cmdbuf.size());
         for(uint8_t byte: cl.cmdbuf) {
             console->Print("%d ", byte);
