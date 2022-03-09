@@ -184,6 +184,12 @@ static bool processCommands(ClientData &cl) {
     /*
      * It honestly might be cheaper to dump the TasFramebulk in a file 
      * Run it using `bind l "sar_tas_stop; sar_tas_play rl_challenge_1_thr=0.45; sar_tas_playback_rate 100; sar_tas_pauseat 1599;"`
+     *
+     * Better idea: 
+     * Wrap the TasFramebulk as follows:
+     * Line 1: 0><rcvd_bulk>
+     * Line 2: n>|||sar_tas_pause|
+     * Then at every rcvd_bulk, we simply do `sar_tas_stop; sar_tas_play dummy` that's it !!!!
      */
 	while (true) {
         console->Print("count = %d\n", count);
