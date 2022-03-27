@@ -535,6 +535,10 @@ static bool IsTaunting(void *player, bool client = false) {
 	return false;
 }
 
+bool TasPlayer::IsPaused() {
+    return tasPlayer->paused;
+}
+
 // special tools have to be parsed in input processing part.
 // because of alternateticks, a pair of inputs are created and then executed at the same time,
 // meaning that second tick in pair reads outdated info.

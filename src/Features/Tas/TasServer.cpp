@@ -218,6 +218,7 @@ static bool processCommands(ClientData &cl) {
             tasPlayer->SetFrameBulkQueue(0, fbQueue);
             tasPlayer->Activate();
         });
+        // Note that I had to implement IsPaused because SAR code can just use `paused` lmao
         console->Print("cmdbuf[0] = %d, size = %d\ncmdbuf = [ ", cl.cmdbuf[0], cl.cmdbuf.size());
         for(uint8_t byte: cl.cmdbuf) {
             console->Print("%d ", byte);
@@ -233,10 +234,11 @@ static bool processCommands(ClientData &cl) {
         auto ang = server->GetAbsAngles(player);
         float player_data[] = {vel.x, vel.y, vel.z, pos.x, pos.y, pos.z, ang.x, ang.y, ang.z};
         char const *to_send = reinterpret_cast<char const *>(player_data);
+        console->Print("paused = %d\n", tasPlayer->IsPaused());
         console->Print("vel = %f %f %f\n", vel.x, vel.y, vel.z);
         console->Print("pos = %f %f %f\n", pos.x, pos.y, pos.z);
         console->Print("ang = %f %f %f\n", ang.x, ang.y, ang.z);
-        send(cl.sock, to_send, 9*sizeof(float), 0);
+        send(cl.sock, to_send, 36, 0);
 
         return true;
 		switch (cl.cmdbuf[0]) {
