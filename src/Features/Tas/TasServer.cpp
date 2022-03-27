@@ -16,6 +16,8 @@
 #include "Scheduler.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
+//#include "Modules/Client.hpp"
+#include "Modules/Server.hpp"
 
 #include <vector>
 #include <deque>
@@ -195,7 +197,8 @@ static bool processCommands(ClientData &cl) {
 		if (cl.cmdbuf.size() == 0) return true;
 
 		int extra = cl.cmdbuf.size() - 1;
-        
+        char message[] = "message";
+
         TasFramebulk rcvd_bulk;
         rcvd_bulk.tick = 0;
         rcvd_bulk.moveAnalog.x = 0;
@@ -223,6 +226,18 @@ static bool processCommands(ClientData &cl) {
         console->Print("tasPlayer->framebulkQueue[0].size() = %d, ", tasPlayer->GetFrameBulkQueue(0).size());
         console->Print("tasPlayer->framebulkQueue[1].size() = %d\n", tasPlayer->GetFrameBulkQueue(1).size());
         
+        auto player = server->GetPlayer(GET_SLOT() + 1);
+        console->Print("player = %p\n", player);
+        auto vel = server->GetLocalVelocity(player);
+        auto pos = server->GetAbsOrigin(player);
+        auto ang = server->GetAbsAngles(player);
+        float player_data[] = {vel.x, vel.y, vel.z, pos.x, pos.y, pos.z, ang.x, ang.y, ang.z};
+        char const *to_send = reinterpret_cast<char const *>(player_data);
+        console->Print("vel = %f %f %f\n", vel.x, vel.y, vel.z);
+        console->Print("pos = %f %f %f\n", pos.x, pos.y, pos.z);
+        console->Print("ang = %f %f %f\n", ang.x, ang.y, ang.z);
+        send(cl.sock, to_send, 9*sizeof(float), 0);
+
         return true;
 		switch (cl.cmdbuf[0]) {
 		case 0: // request playback
