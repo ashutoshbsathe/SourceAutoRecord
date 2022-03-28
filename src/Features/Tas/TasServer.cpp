@@ -51,6 +51,7 @@ static TasStatus g_last_status;
 static TasStatus g_current_status;
 static std::mutex g_status_mutex;
 
+
 static uint32_t popRaw32(std::deque<uint8_t> &buf) {
 	uint32_t val = 0;
 	for (int i = 0; i < 4; ++i) {
@@ -162,6 +163,23 @@ static void update() {
 			break;
 		case PlaybackState::PAUSED:
 			sendAll({4});
+            {
+                auto player = server->GetPlayer(GET_SLOT() + 1);
+                console->Print("player = %p\n", player);
+                auto vel = server->GetLocalVelocity(player);
+                auto pos = server->GetAbsOrigin(player);
+                auto ang = server->GetAbsAngles(player);
+                float player_data[] = {vel.x, vel.y, vel.z, pos.x, pos.y, pos.z, ang.x, ang.y, ang.z};
+                char const *to_send = reinterpret_cast<char const *>(player_data);
+                console->Print("paused = %d\n", tasPlayer->IsPaused());
+                console->Print("vel = %f %f %f\n", vel.x, vel.y, vel.z);
+                console->Print("pos = %f %f %f\n", pos.x, pos.y, pos.z);
+                console->Print("ang = %f %f %f\n", ang.x, ang.y, ang.z);
+                std::vector<uint8_t> arr;
+                for(int i = 0; i < 36; i++)
+                    arr.push_back(i);
+                sendAll(arr);
+            }
 			break;
 		case PlaybackState::SKIPPING:
 			sendAll({5});
@@ -218,7 +236,11 @@ static bool processCommands(ClientData &cl) {
             tasPlayer->SetFrameBulkQueue(0, fbQueue);
             tasPlayer->Activate();
         });
-        // Note that I had to implement IsPaused because SAR code can just use `paused` lmao
+        return true;
+        // This should be executed only after "m" TAS Framebulks
+        // Last framebulk has `sar_tas_pause` in the commands field
+        // so when the game is paused, we know that "m" Framebulks are over
+        /*
         console->Print("cmdbuf[0] = %d, size = %d\ncmdbuf = [ ", cl.cmdbuf[0], cl.cmdbuf.size());
         for(uint8_t byte: cl.cmdbuf) {
             console->Print("%d ", byte);
@@ -226,19 +248,9 @@ static bool processCommands(ClientData &cl) {
         console->Print("]\n");
         console->Print("tasPlayer->framebulkQueue[0].size() = %d, ", tasPlayer->GetFrameBulkQueue(0).size());
         console->Print("tasPlayer->framebulkQueue[1].size() = %d\n", tasPlayer->GetFrameBulkQueue(1).size());
-        
-        auto player = server->GetPlayer(GET_SLOT() + 1);
-        console->Print("player = %p\n", player);
-        auto vel = server->GetLocalVelocity(player);
-        auto pos = server->GetAbsOrigin(player);
-        auto ang = server->GetAbsAngles(player);
-        float player_data[] = {vel.x, vel.y, vel.z, pos.x, pos.y, pos.z, ang.x, ang.y, ang.z};
-        char const *to_send = reinterpret_cast<char const *>(player_data);
-        console->Print("paused = %d\n", tasPlayer->IsPaused());
-        console->Print("vel = %f %f %f\n", vel.x, vel.y, vel.z);
-        console->Print("pos = %f %f %f\n", pos.x, pos.y, pos.z);
-        console->Print("ang = %f %f %f\n", ang.x, ang.y, ang.z);
-        send(cl.sock, to_send, 36, 0);
+        */ 
+        // Note that I had to implement IsPaused because SAR code can just use `paused` lmao
+        // send(cl.sock, to_send, 36, 0);
 
         return true;
 		switch (cl.cmdbuf[0]) {
