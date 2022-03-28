@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstddef>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -42,6 +43,7 @@ int Renderer::segmentEndTick = -1;
 // Whether a demo is loading; used to detect whether we should autostart
 bool Renderer::isDemoLoading = false;
 
+void **Renderer::cached_g_videomode = NULL;
 // We reference this so we can make sure the output is stereo.
 // Supporting other output options is quite tricky; because Source
 // movies only support stereo output, the functions for outputting
@@ -1100,7 +1102,7 @@ ON_EVENT(DEMO_STOP) {
 
 void Renderer::Init(void **videomode) {
 	g_videomode = videomode;
-
+    cached_g_videomode = videomode;
 	snd_surround_speakers = Variable("snd_surround_speakers");
 
 #ifdef _WIN32

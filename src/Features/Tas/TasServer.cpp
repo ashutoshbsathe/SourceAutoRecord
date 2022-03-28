@@ -18,6 +18,8 @@
 #include "Modules/Engine.hpp"
 //#include "Modules/Client.hpp"
 #include "Modules/Server.hpp"
+
+// this is modified so that I also get `g_videomode` 
 #include "Features/Renderer.hpp"
 
 #include <vector>
@@ -169,6 +171,11 @@ static void update() {
 		case PlaybackState::PAUSED:
 			sendAll({4});
             {
+                /**/
+                if(Renderer::cached_g_videomode) {
+                    sendAll({1, 2, 3, 4, 5});
+                }
+                /**/
                 auto player = server->GetPlayer(GET_SLOT() + 1);
                 console->Print("player = %p\n", player);
                 auto vel = server->GetLocalVelocity(player);
