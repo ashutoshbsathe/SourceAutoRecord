@@ -170,15 +170,16 @@ static void update() {
                 auto pos = server->GetAbsOrigin(player);
                 auto ang = server->GetAbsAngles(player);
                 float player_data[] = {vel.x, vel.y, vel.z, pos.x, pos.y, pos.z, ang.x, ang.y, ang.z};
-                char const *to_send = reinterpret_cast<char const *>(player_data);
+                uint8_t *arr = reinterpret_cast<uint8_t *>(player_data);
+                std::vector<uint8_t> to_send;
+                for(int i = 0; i < 36; i++) {
+                    to_send.push_back(arr[i]);
+                }
                 console->Print("paused = %d\n", tasPlayer->IsPaused());
                 console->Print("vel = %f %f %f\n", vel.x, vel.y, vel.z);
                 console->Print("pos = %f %f %f\n", pos.x, pos.y, pos.z);
                 console->Print("ang = %f %f %f\n", ang.x, ang.y, ang.z);
-                std::vector<uint8_t> arr;
-                for(int i = 0; i < 36; i++)
-                    arr.push_back(i);
-                sendAll(arr);
+                sendAll(to_send);
             }
 			break;
 		case PlaybackState::SKIPPING:
