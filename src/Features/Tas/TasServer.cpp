@@ -134,7 +134,8 @@ static void update() {
 	g_status_mutex.lock();
 	TasStatus status = g_current_status;
 	g_status_mutex.unlock();
-
+    
+    /*
 	if (status.active != g_last_status.active || status.tas_path[0] != g_last_status.tas_path[0] || status.tas_path[1] != g_last_status.tas_path[1]) {
 		// big change; we might as well just do a full update
 		g_last_status = status;
@@ -153,14 +154,17 @@ static void update() {
 
 		g_last_status.playback_rate = status.playback_rate;
 	}
+    */
 
 	if (status.active && status.playback_state != g_last_status.playback_state) {
 		// state (3/4/5)
 
 		switch (status.playback_state) {
+        /*
 		case PlaybackState::PLAYING:
 			sendAll({3});
 			break;
+        */ 
 		case PlaybackState::PAUSED:
 			sendAll({4});
             {
@@ -182,14 +186,19 @@ static void update() {
                 sendAll(to_send);
             }
 			break;
-		case PlaybackState::SKIPPING:
+		/*
+        case PlaybackState::SKIPPING:
 			sendAll({5});
 			break;
+        */
+        default:
+            break;
 		}
 
 		g_last_status.playback_state = status.playback_state;
 	}
-
+    
+    /*
 	if (status.active && status.playback_tick != g_last_status.playback_tick) {
 		// tick (6)
 
@@ -199,6 +208,7 @@ static void update() {
 
 		g_last_status.playback_tick = status.playback_tick;
 	}
+    */ 
 }
 
 static bool processCommands(ClientData &cl) {
