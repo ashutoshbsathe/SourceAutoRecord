@@ -18,6 +18,7 @@
 #include "Modules/Engine.hpp"
 //#include "Modules/Client.hpp"
 #include "Modules/Server.hpp"
+#include "Features/Renderer.hpp"
 
 #include <vector>
 #include <deque>
@@ -183,6 +184,13 @@ static void update() {
                 console->Print("vel = %f %f %f\n", vel.x, vel.y, vel.z);
                 console->Print("pos = %f %f %f\n", pos.x, pos.y, pos.z);
                 console->Print("ang = %f %f %f\n", ang.x, ang.y, ang.z);
+                
+                /* Also send a frame 
+                 * Reading screen pixels -- https://github.com/p2sr/SourceAutoRecord/blob/master/src/Features/Renderer.cpp#L80-L82
+                 * `imageBuf` is just a `uint8_t *` -- https://github.com/p2sr/SourceAutoRecord/blob/master/src/Features/Renderer.cpp#L590
+                 * How to get videomode ? -- https://github.com/p2sr/SourceAutoRecord/blob/master/src/Modules/Engine.cpp#L786-L795
+                 * 192x192x3 = 110592 bytes just for the image
+                 */
                 sendAll(to_send);
             }
 			break;
