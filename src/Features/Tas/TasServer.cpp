@@ -226,7 +226,6 @@ static bool processCommands(ClientData &cl) {
 		if (cl.cmdbuf.size() == 0) return true;
 
 		int extra = cl.cmdbuf.size() - 1;
-        char message[] = "message";
 
         TasFramebulk rcvd_bulk;
         rcvd_bulk.tick = 0;
@@ -243,6 +242,7 @@ static bool processCommands(ClientData &cl) {
         fbQueue.push_back(rcvd_bulk);
         fbQueue.push_back(end);
         Scheduler::OnMainThread([=](){
+            engine->ExecuteCommand("unpause", true);
             tasPlayer->Stop(); // stop the pause from previous TAS player
             tasPlayer->SetFrameBulkQueue(0, fbQueue);
             tasPlayer->Activate();
