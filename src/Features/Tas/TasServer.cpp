@@ -16,6 +16,7 @@
 #include "Scheduler.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
+#include "Utils/SDK.hpp"
 //#include "Modules/Client.hpp"
 #include "Modules/Server.hpp"
 
@@ -170,12 +171,23 @@ static void update() {
         */ 
 		case PlaybackState::PAUSED:
 			sendAll({4});
-            {
-                /**/
-                if(Renderer::cached_g_videomode) {
-                    sendAll({1, 2, 3, 4, 5});
+            if(Renderer::cached_g_videomode) {
+                int width = Memory::VMT<int(__rescall *)(void *)>(*Renderer::cached_g_videomode, Offsets::GetModeWidth)(*Renderer::cached_g_videomode);
+                int height = Memory::VMT<int(__rescall *)(void *)>(*Renderer::cached_g_videomode, Offsets::GetModeHeight)(*Renderer::cached_g_videomode);
+                console->Print("Width = %d, Height = %d\n", width, height);
+                console->Print("Pixels malloced. ReadScreenPixels = %ld\n", Offsets::ReadScreenPixels);
+                std::vector<uint8_t> pixels(width*height*4);
+                Memory::VMT<void(__rescall *)(void *, int, int, int, int, void *, ImageFormat)>(*Renderer::cached_g_videomode, Offsets::ReadScreenPixels)(*Renderer::cached_g_videomode, 0, 0, width, height, pixels.data(), IMAGE_FORMAT_ABGR8888);
+                console->Print("Read Screen Pixels\n");
+                /* 
+                for (auto &cl : g_clients) {
+                    send(cl.sock, (const char *)pixels, width*height, 0);
+                    send(cl.sock, (const char *)pixels+width*height, width*height, 0);
+                    send(cl.sock, (const char *)pixels+2*width*height, width*height, 0);
                 }
-                /**/
+                */
+            }
+            {
                 auto player = server->GetPlayer(GET_SLOT() + 1);
                 console->Print("player = %p\n", player);
                 auto vel = server->GetLocalVelocity(player);
