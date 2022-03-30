@@ -2,6 +2,8 @@ import socket
 import random 
 import struct 
 import time 
+import numpy as np 
+from PIL import Image
 
 host = socket.gethostname()
 port = 6555
@@ -21,12 +23,16 @@ for i in range(10):
     s.sendall(bytearray(data))
     x = s.recv(1)
     print(x)
-    x = s.recv(97200//3)
-    print(len(x))
-    x = s.recv(97200//3)
-    print(len(x))
-    x = s.recv(97200//3)
-    print(len(x))
+    first = s.recv(97200//3)
+    second = s.recv(97200//3)
+    third = s.recv(97200//3)
+    all_pixels = first + second + third 
+    r_channel = np.asarray([all_pixels[idx] for idx in range(0, 97200, 3)]).reshape(180, 180, 1)
+    g_channel = np.asarray([all_pixels[idx] for idx in range(1, 97200, 3)]).reshape(180, 180, 1)
+    b_channel = np.asarray([all_pixels[idx] for idx in range(2, 97200, 3)]).reshape(180, 180, 1)
+    img = np.dstack((r_channel, g_channel, b_channel)).astype(np.uint8)
+    print(img.shape, img.min(), img.max())
+    Image.fromarray(img).save(f'./saved_imgs/idx={i:03d}.png')
     x = s.recv(36)
     print(struct.unpack('fffffffff', x[-36:]))
     print(64*'-')
