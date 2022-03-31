@@ -20,8 +20,8 @@
 //#include "Modules/Client.hpp"
 #include "Modules/Server.hpp"
 
-// this is modified so that I also get `g_videomode` 
-#include "Features/Renderer.hpp"
+#include "Features/Renderer.hpp" // this is modified so that I also get `g_videomode` 
+#include "Features/Session.hpp"  // this is required to get tick
 
 #include <vector>
 #include <deque>
@@ -57,6 +57,8 @@ static TasStatus g_last_status;
 static TasStatus g_current_status;
 static std::mutex g_status_mutex;
 
+static bool player_dead = true;
+static std::mutex modify_player_dead;
 
 static uint32_t popRaw32(std::deque<uint8_t> &buf) {
 	uint32_t val = 0;
@@ -200,6 +202,7 @@ static void update() {
                 float player_data[] = {vel.x, vel.y, vel.z, pos.x, pos.y, pos.z, ang.x, ang.y, ang.z};
                 uint8_t *arr = reinterpret_cast<uint8_t *>(player_data);
                 std::vector<uint8_t> to_send;
+                to_send.push_back(player_dead);
                 for(int i = 0; i < 36; i++) {
                     to_send.push_back(arr[i]);
                 }
@@ -215,6 +218,11 @@ static void update() {
                  * 192x192x3 = 110592 bytes just for the image
                  */
                 sendAll(to_send);
+                if(player_dead) {
+                    modify_player_dead.lock();
+                    player_dead = false;
+                    modify_player_dead.unlock();
+                }
             }
 			break;
 		/*
@@ -257,24 +265,64 @@ static bool processCommands(ClientData &cl) {
 		if (cl.cmdbuf.size() == 0) return true;
 
 		int extra = cl.cmdbuf.size() - 1;
-
-        TasFramebulk rcvd_bulk;
+        uint8_t first = cl.cmdbuf[0];
+        TasFramebulk rcvd_bulk, end;
         rcvd_bulk.tick = 0;
-        rcvd_bulk.moveAnalog.x = 0;
-        rcvd_bulk.moveAnalog.y = 1;
-        rcvd_bulk.viewAnalog.x = 0;
-        rcvd_bulk.viewAnalog.y = 0;
+        std::vector<TasFramebulk> fbQueue;
+        if(first > 127) {
+            console->Print("First command received\n");
+            // it is the "restart command"
+            rcvd_bulk.moveAnalog.x = 0;
+            rcvd_bulk.moveAnalog.y = 1;
+            rcvd_bulk.viewAnalog.x = 0;
+            rcvd_bulk.viewAnalog.y = 0;
 
-        TasFramebulk end;
+            end.tick = 350; // elevator opening is a long time
+            end.commands.push_back("sar_tas_pause");
+
+            fbQueue.push_back(rcvd_bulk);
+            fbQueue.push_back(end);
+
+            Scheduler::OnMainThread([=](){
+                engine->ExecuteCommand("unpause", true);
+                tasPlayer->Stop(); // stop the pause from previous TAS player
+                engine->ExecuteCommand("restart_level");
+                tasPlayer->SetStartInfo(TasStartType::WaitForNewSession, "");
+                tasPlayer->SetFrameBulkQueue(0, fbQueue);
+                tasPlayer->Activate();
+            });
+            return true;
+        }
+        // This goes from -1 to 0.99 but that's alright
+        rcvd_bulk.moveAnalog.x = -1 + cl.cmdbuf[1] * 1.0 / 128; 
+        rcvd_bulk.moveAnalog.y = -1 + cl.cmdbuf[2] * 1.0 / 128;
+        rcvd_bulk.viewAnalog.x = -1 + cl.cmdbuf[3] * 1.0 / 128;
+        rcvd_bulk.viewAnalog.y = -1 + cl.cmdbuf[4] * 1.0 / 128;
+
+        rcvd_bulk.buttonStates[5] = first % 2;
+        first /= 2;
+        rcvd_bulk.buttonStates[4] = first % 2;
+        first /= 2;
+        rcvd_bulk.buttonStates[3] = first % 2;
+        first /= 2;
+        rcvd_bulk.buttonStates[2] = first % 2;
+        first /= 2;
+        rcvd_bulk.buttonStates[1] = first % 2;
+        first /= 2;
+        rcvd_bulk.buttonStates[0] = first % 2;
+        first /= 2;
+    
         end.tick = 4;
         end.commands.push_back("sar_tas_pause");
         
-        std::vector<TasFramebulk> fbQueue;
         fbQueue.push_back(rcvd_bulk);
         fbQueue.push_back(end);
         Scheduler::OnMainThread([=](){
             engine->ExecuteCommand("unpause", true);
             tasPlayer->Stop(); // stop the pause from previous TAS player
+            // This shouldn't be technically required but I put it
+            // and now I'm too scared to remove it
+    		tasPlayer->SetStartInfo(TasStartType::StartImmediately, "");
             tasPlayer->SetFrameBulkQueue(0, fbQueue);
             tasPlayer->Activate();
         });
@@ -529,6 +577,38 @@ ON_EVENT(FRAME) {
 		g_net_thread = std::thread(mainThread);
 		g_running = true;
 	}
+}
+
+ON_EVENT(SESSION_END) {
+    console->Print("Player died\n");
+    // we don't want to deal with checkpoints, just restart the level
+    TasFramebulk rcvd_bulk, end;
+    rcvd_bulk.tick = 0;
+    std::vector<TasFramebulk> fbQueue;
+
+    modify_player_dead.lock();
+    player_dead = true;
+    modify_player_dead.unlock();
+
+    rcvd_bulk.moveAnalog.x = 0;
+    rcvd_bulk.moveAnalog.y = 1;
+    rcvd_bulk.viewAnalog.x = 0;
+    rcvd_bulk.viewAnalog.y = 0;
+
+    end.tick = 350; // elevator opening is a long time
+    end.commands.push_back("sar_tas_pause");
+
+    fbQueue.push_back(rcvd_bulk);
+    fbQueue.push_back(end);
+
+    Scheduler::OnMainThread([=](){
+        engine->ExecuteCommand("unpause", true);
+        tasPlayer->Stop(); // stop the pause from previous TAS player
+        engine->ExecuteCommand("restart_level");
+        tasPlayer->SetStartInfo(TasStartType::WaitForNewSession, "");
+        tasPlayer->SetFrameBulkQueue(0, fbQueue);
+        tasPlayer->Activate();
+    });
 }
 
 ON_EVENT_P(SAR_UNLOAD, -100) {
