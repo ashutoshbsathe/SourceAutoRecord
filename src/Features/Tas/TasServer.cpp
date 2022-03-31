@@ -60,6 +60,9 @@ static std::mutex g_status_mutex;
 static bool player_dead = true;
 static std::mutex modify_player_dead;
 
+static bool restart_trigger = true;
+static std::mutex modify_restart_trigger;
+
 static uint32_t popRaw32(std::deque<uint8_t> &buf) {
 	uint32_t val = 0;
 	for (int i = 0; i < 4; ++i) {
@@ -205,7 +208,7 @@ static void update() {
                 float player_data[] = {vel.x, vel.y, vel.z, pos.x, pos.y, pos.z, ang.x, ang.y, ang.z};
                 uint8_t *arr = reinterpret_cast<uint8_t *>(player_data);
                 std::vector<uint8_t> to_send;
-                to_send.push_back(player_dead);
+                to_send.push_back(player_dead ? 1 : 0);
                 for(int i = 0; i < 36; i++) {
                     to_send.push_back(arr[i]);
                 }
@@ -273,6 +276,10 @@ static bool processCommands(ClientData &cl) {
         rcvd_bulk.tick = 0;
         std::vector<TasFramebulk> fbQueue;
         if(first > 127) {
+            modify_restart_trigger.lock();
+            restart_trigger = true;
+            modify_restart_trigger.unlock();
+
             console->Print("First command received\n");
             // it is the "restart command"
             rcvd_bulk.moveAnalog.x = 0;
@@ -583,35 +590,42 @@ ON_EVENT(FRAME) {
 }
 
 ON_EVENT(SESSION_END) {
-    console->Print("Player died\n");
-    // we don't want to deal with checkpoints, just restart the level
-    TasFramebulk rcvd_bulk, end;
-    rcvd_bulk.tick = 0;
-    std::vector<TasFramebulk> fbQueue;
+    if(restart_trigger) {
+        modify_restart_trigger.lock();
+        restart_trigger = false;
+        modify_restart_trigger.unlock();
+    }
+    else {
+        console->Print("Player died\n");
+        // we don't want to deal with checkpoints, just restart the level
+        TasFramebulk rcvd_bulk, end;
+        rcvd_bulk.tick = 0;
+        std::vector<TasFramebulk> fbQueue;
 
-    modify_player_dead.lock();
-    player_dead = true;
-    modify_player_dead.unlock();
+        modify_player_dead.lock();
+        player_dead = true;
+        modify_player_dead.unlock();
 
-    rcvd_bulk.moveAnalog.x = 0;
-    rcvd_bulk.moveAnalog.y = 1;
-    rcvd_bulk.viewAnalog.x = 0;
-    rcvd_bulk.viewAnalog.y = 0;
+        rcvd_bulk.moveAnalog.x = 0;
+        rcvd_bulk.moveAnalog.y = 1;
+        rcvd_bulk.viewAnalog.x = 0;
+        rcvd_bulk.viewAnalog.y = 0;
 
-    end.tick = 350; // elevator opening is a long time
-    end.commands.push_back("sar_tas_pause");
+        end.tick = 350; // elevator opening is a long time
+        end.commands.push_back("sar_tas_pause");
 
-    fbQueue.push_back(rcvd_bulk);
-    fbQueue.push_back(end);
+        fbQueue.push_back(rcvd_bulk);
+        fbQueue.push_back(end);
 
-    Scheduler::OnMainThread([=](){
-        engine->ExecuteCommand("unpause", true);
-        tasPlayer->Stop(); // stop the pause from previous TAS player
-        engine->ExecuteCommand("restart_level");
-        tasPlayer->SetStartInfo(TasStartType::WaitForNewSession, "");
-        tasPlayer->SetFrameBulkQueue(0, fbQueue);
-        tasPlayer->Activate();
-    });
+        Scheduler::OnMainThread([=](){
+            engine->ExecuteCommand("unpause", true);
+            tasPlayer->Stop(); // stop the pause from previous TAS player
+            engine->ExecuteCommand("restart_level");
+            tasPlayer->SetStartInfo(TasStartType::WaitForNewSession, "");
+            tasPlayer->SetFrameBulkQueue(0, fbQueue);
+            tasPlayer->Activate();
+        });
+    }
 }
 
 ON_EVENT_P(SAR_UNLOAD, -100) {

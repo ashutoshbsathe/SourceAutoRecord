@@ -9,7 +9,7 @@ from PIL import Image
 # `-condebug` can be theoretically ommitted
 # -vulkan -sw -w 180 -h 180 -condebug +map rl_challenge_1 +plugin_load sar +sar_tas_server 1 +sar_tas_debug 1 +sar_tas_playback_rate 100 +hud_quickinfo 0 +sar_quickhud_mode 1 +sar_quickhud_size 4
 
-host = socket.gethostname()
+host = '' #socket.gethostname()
 port = 6555
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
