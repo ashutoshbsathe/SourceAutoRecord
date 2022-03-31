@@ -342,8 +342,8 @@ void TasPlayer::AdvanceFrame() {
 TasFramebulk TasPlayer::GetRawFramebulkAt(int slot, int tick) {
 	int closestTime = INT_MAX;
 	TasFramebulk closest;
-    console->Print("slot = %d, tick = %d\n", slot, tick);
-    console->Print("Lengths of framebulkQueues, slot 0 = %d, slot 1 = %d\n", framebulkQueue[0].size(), framebulkQueue[1].size());
+    //console->Print("slot = %d, tick = %d\n", slot, tick);
+    //console->Print("Lengths of framebulkQueues, slot 0 = %d, slot 1 = %d\n", framebulkQueue[0].size(), framebulkQueue[1].size());
 	for (TasFramebulk framebulk : framebulkQueue[slot]) {
 		int timeDist = tick - framebulk.tick;
 		if (timeDist >= 0 && timeDist < closestTime) {
@@ -351,7 +351,7 @@ TasFramebulk TasPlayer::GetRawFramebulkAt(int slot, int tick) {
 			closest = framebulk;
 		}
 	}
-    console->Print("closest = %s\n", closest.ToString());
+    //console->Print("closest = %s\n", closest.ToString());
 	return closest;
 }
 

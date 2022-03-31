@@ -230,6 +230,11 @@ static void update() {
                     modify_player_dead.unlock();
                 }
             }
+            if(restart_trigger) {
+                modify_restart_trigger.lock();
+                restart_trigger = false;
+                modify_restart_trigger.unlock();
+            }
 			break;
 		/*
         case PlaybackState::SKIPPING:
@@ -275,6 +280,8 @@ static bool processCommands(ClientData &cl) {
         TasFramebulk rcvd_bulk, end;
         rcvd_bulk.tick = 0;
         std::vector<TasFramebulk> fbQueue;
+        console->Print("First = %d\n", first);
+        cl.cmdbuf.pop_front();
         if(first > 127) {
             modify_restart_trigger.lock();
             restart_trigger = true;
@@ -303,6 +310,7 @@ static bool processCommands(ClientData &cl) {
             });
             return true;
         }
+        console->Print("Other values = %d %d %d %d\n", cl.cmdbuf[1], cl.cmdbuf[2], cl.cmdbuf[3], cl.cmdbuf[4]);
         // This goes from -1 to 0.99 but that's alright
         rcvd_bulk.moveAnalog.x = -1 + cl.cmdbuf[1] * 1.0 / 128; 
         rcvd_bulk.moveAnalog.y = -1 + cl.cmdbuf[2] * 1.0 / 128;
@@ -327,6 +335,9 @@ static bool processCommands(ClientData &cl) {
         
         fbQueue.push_back(rcvd_bulk);
         fbQueue.push_back(end);
+
+        cl.cmdbuf.pop_front();cl.cmdbuf.pop_front();cl.cmdbuf.pop_front();cl.cmdbuf.pop_front();
+
         Scheduler::OnMainThread([=](){
             engine->ExecuteCommand("unpause", true);
             tasPlayer->Stop(); // stop the pause from previous TAS player
@@ -501,7 +512,10 @@ static void processConnections() {
 			continue;
 		}
 
-		cl.cmdbuf.insert(cl.cmdbuf.end(), std::begin(buf), std::begin(buf) + len);
+		//cl.cmdbuf.insert(cl.cmdbuf.end(), std::begin(buf), std::begin(buf) + len);
+        cl.cmdbuf.clear();
+        for (auto buf_i = 0; buf_i < len; buf_i++)
+            cl.cmdbuf.push_back(buf[buf_i]);
 
 		if (!processCommands(cl)) {
 			// Client sent a bad command; terminate connection
@@ -590,12 +604,8 @@ ON_EVENT(FRAME) {
 }
 
 ON_EVENT(SESSION_END) {
-    if(restart_trigger) {
-        modify_restart_trigger.lock();
-        restart_trigger = false;
-        modify_restart_trigger.unlock();
-    }
-    else {
+    /*
+    if(!restart_trigger) {
         console->Print("Player died\n");
         // we don't want to deal with checkpoints, just restart the level
         TasFramebulk rcvd_bulk, end;
@@ -617,6 +627,10 @@ ON_EVENT(SESSION_END) {
         fbQueue.push_back(rcvd_bulk);
         fbQueue.push_back(end);
 
+        modify_restart_trigger.lock();
+        restart_trigger = true;
+        modify_restart_trigger.unlock();
+
         Scheduler::OnMainThread([=](){
             engine->ExecuteCommand("unpause", true);
             tasPlayer->Stop(); // stop the pause from previous TAS player
@@ -626,6 +640,7 @@ ON_EVENT(SESSION_END) {
             tasPlayer->Activate();
         });
     }
+    */
 }
 
 ON_EVENT_P(SAR_UNLOAD, -100) {

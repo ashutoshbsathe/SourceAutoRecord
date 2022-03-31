@@ -22,7 +22,7 @@ s.sendall(bytearray(data))
 x = s.recv(1024)
 print(x)
 
-def observe(s, fname):
+def observe(s, fname=None):
     x = s.recv(1)
     print(x)
     assert x == bytes([4])
@@ -54,15 +54,17 @@ for i in range(10):
     num_steps = random.randint(10, 20)
     restart = bytes([128])
     s.sendall(bytearray(restart))
-    observe(s, f'./restart_tests/restart_{i:03d}_start.png')
+    observe(s) #, f'./restart_tests/restart_{i:03d}_start.png')
     for j in range(num_steps):
         print(f'i = {i}, j = {j}')
         buttons = random.randint(0, 127).to_bytes(1, 'little')
         movement = random.randint(0, 511).to_bytes(2, 'little')
         view = random.randint(0, 511).to_bytes(2, 'little')
         data = buttons + movement + view
+        print(data)
+        assert len(data) == 5
         s.sendall(bytearray(data))
-        observe(s, f'./restart_tests/restart_{i:03d}_observation_{j:03d}.png')
+        observe(s) #, f'./restart_tests/restart_{i:03d}_observation_{j:03d}.png')
     print(64*'-')
 end_time = time.time()
 
