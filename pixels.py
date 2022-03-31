@@ -27,9 +27,13 @@ def observe(s, fname):
     print(x)
     assert x == bytes([4])
     first = s.recv(97200//3)
+    print(len(first))
     second = s.recv(97200//3)
+    print(len(second))
     third = s.recv(97200//3)
-    all_pixels = first + second + third 
+    print(len(third))
+    all_pixels = first + second + third
+    print(len(all_pixels))
     r_channel = np.asarray([all_pixels[idx] for idx in range(0, 97200, 3)]).reshape(180, 180, 1)
     g_channel = np.asarray([all_pixels[idx] for idx in range(1, 97200, 3)]).reshape(180, 180, 1)
     b_channel = np.asarray([all_pixels[idx] for idx in range(2, 97200, 3)]).reshape(180, 180, 1)
@@ -52,6 +56,7 @@ for i in range(10):
     s.sendall(bytearray(restart))
     observe(s, f'./restart_tests/restart_{i:03d}_start.png')
     for j in range(num_steps):
+        print(f'i = {i}, j = {j}')
         buttons = random.randint(0, 127).to_bytes(1, 'little')
         movement = random.randint(0, 511).to_bytes(2, 'little')
         view = random.randint(0, 511).to_bytes(2, 'little')

@@ -181,14 +181,17 @@ static void update() {
                 console->Print("Width = %d, Height = %d\n", width, height);
                 console->Print("Pixels malloced. ReadScreenPixels = %ld\n", Offsets::ReadScreenPixels);
                 std::vector<uint8_t> pixels(width*height*3);
-                Memory::VMT<void(__rescall *)(void *, int, int, int, int, void *, ImageFormat)>(*Renderer::cached_g_videomode, Offsets::ReadScreenPixels)(*Renderer::cached_g_videomode, 0, 0, width, height, pixels.data(), IMAGE_FORMAT_RGB888);
+                Memory::VMT<void(__rescall *)(void *, int, int, int, int, void *, ImageFormat)>(*Renderer::cached_g_videomode, Offsets::ReadScreenPixels)(*Renderer::cached_g_videomode, 0, 0, width, height, pixels.data(), IMAGE_FORMAT_BGR888);
                 console->Print("Read Screen Pixels\n");
                 std::vector<uint8_t> to_send(width*height);
                 copy_n(pixels.begin(), width*height, to_send.begin());
+                to_send.resize(width*height);
                 sendAll(to_send);
                 copy_n(pixels.begin() + width*height, width*height, to_send.begin());
+                to_send.resize(width*height);
                 sendAll(to_send);
                 copy_n(pixels.begin() + 2*width*height, width*height, to_send.begin());
+                to_send.resize(width*height);
                 sendAll(to_send);
                 to_send.clear();
                 pixels.clear();
