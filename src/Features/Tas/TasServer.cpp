@@ -63,7 +63,7 @@ static std::mutex modify_player_dead;
 static bool restart_trigger = true;
 static std::mutex modify_restart_trigger;
 
-std::vector<uint8_t> pixels(97200);
+uint8_t pixels[97200];
 int width = 180, height = 180;
 
 static uint32_t popRaw32(std::deque<uint8_t> &buf) {
@@ -90,7 +90,11 @@ static void sendAll(const std::vector<uint8_t> &buf) {
         //console->Print("Sent %d bytes\n", sent);
 	}
 }
-
+static void sendAll(const uint8_t *buf, unsigned int num_bytes) {
+    for (auto &cl : g_clients) {
+        int sent = send(cl.sock, buf, num_bytes, 0);
+    }
+}
 static void fullUpdate(ClientData &cl, bool first_packet = false) {
 	std::vector<uint8_t> buf;
 
@@ -216,7 +220,10 @@ static void update() {
                 console->Print("vel = %f %f %f\n", vel.x, vel.y, vel.z);
                 console->Print("pos = %f %f %f\n", pos.x, pos.y, pos.z);
                 console->Print("ang = %f %f %f\n", ang.x, ang.y, ang.z);
-                
+                // At this point `sar_rla_capture` is finished so we can send that data first
+                sendAll(pixels, 32400); 
+                sendAll(pixels + 32400, 32400); 
+                sendAll(pixels + 64800, 32400); 
                 /* Also send a frame 
                  * Reading screen pixels -- https://github.com/p2sr/SourceAutoRecord/blob/master/src/Features/Renderer.cpp#L80-L82
                  * `imageBuf` is just a `uint8_t *` -- https://github.com/p2sr/SourceAutoRecord/blob/master/src/Features/Renderer.cpp#L590
@@ -295,8 +302,8 @@ static bool processCommands(ClientData &cl) {
             rcvd_bulk.viewAnalog.y = 0;
 
             end.tick = 350; // elevator opening is a long time
-            end.commands.push_back("sar_tas_pause");
             end.commands.push_back("sar_rla_capture");
+            end.commands.push_back("sar_tas_pause");
 
             fbQueue.push_back(rcvd_bulk);
             fbQueue.push_back(end);
@@ -333,8 +340,8 @@ static bool processCommands(ClientData &cl) {
         first /= 2;
     
         end.tick = 4;
-        end.commands.push_back("sar_tas_pause");
         end.commands.push_back("sar_rla_capture");
+        end.commands.push_back("sar_tas_pause");
         
         fbQueue.push_back(rcvd_bulk);
         fbQueue.push_back(end);
@@ -656,7 +663,7 @@ ON_EVENT_P(SAR_UNLOAD, -100) {
 
 CON_COMMAND(sar_rla_capture, "sar_rla_capture - captures frame into `pixels` array\n") {
     console->Print("inside sar_rla_capture\n");
-    Memory::VMT<void(__rescall *)(void *, int, int, int, int, void *, ImageFormat)>(*Renderer::cached_g_videomode, Offsets::ReadScreenPixels)(*Renderer::cached_g_videomode, 0, 0, width, height, pixels.data(), IMAGE_FORMAT_BGR888);
+    Memory::VMT<void(__rescall *)(void *, int, int, int, int, void *, ImageFormat)>(*Renderer::cached_g_videomode, Offsets::ReadScreenPixels)(*Renderer::cached_g_videomode, 0, 0, width, height, pixels, IMAGE_FORMAT_BGR888);
     console->Print("done with sar_rla_capture\n");
 }
 
