@@ -9,7 +9,7 @@ from PIL import Image
 # `-condebug` can be theoretically ommitted
 # -vulkan -high -novid -sw -w 180 -h 180 -condebug +map rl_challenge_1 +plugin_load sar +sar_tas_server 1 +sar_tas_debug 1 +sar_tas_playback_rate 100 +hud_quickinfo 0 +sar_quickhud_mode 1 +sar_quickhud_size 4
 
-host = '' #socket.gethostname()
+host = '192.168.3.5' #socket.gethostname()
 port = 6555
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -23,9 +23,10 @@ x = s.recv(1024)
 print(x)
 
 def observe(s, fname=None):
-    x = s.recv(1)
+    x = s.recv(1)[0]
     print(x)
-    assert x == bytes([4])
+    assert x == 4
+    """
     first = s.recv(97200//3)
     print(len(first))
     second = s.recv(97200//3)
@@ -33,6 +34,10 @@ def observe(s, fname=None):
     third = s.recv(97200//3)
     print(len(third))
     all_pixels = first + second + third
+    """
+    all_pixels = bytearray(97200)
+    for i in range(97200):
+        all_pixels[i] = s.recv(1)[0]
     print(len(all_pixels))
     r_channel = np.asarray([all_pixels[idx] for idx in range(0, 97200, 3)]).reshape(180, 180, 1)
     g_channel = np.asarray([all_pixels[idx] for idx in range(1, 97200, 3)]).reshape(180, 180, 1)
