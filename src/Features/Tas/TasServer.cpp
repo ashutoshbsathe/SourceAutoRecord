@@ -185,19 +185,19 @@ static void update() {
 		case PlaybackState::PAUSED:
 			sendAll({4});
  
-            Scheduler::OnMainThread([=](){
-                if(Renderer::cached_g_videomode) {
-                    console->Print("Width = %d, Height = %d\n", width, height);
-                    console->Print("Pixels malloced. ReadScreenPixels = %ld\n", Offsets::ReadScreenPixels);
-                    Memory::VMT<void(__rescall *)(void *, int, int, int, int, void *, ImageFormat)>(*Renderer::cached_g_videomode, Offsets::ReadScreenPixels)(*Renderer::cached_g_videomode, 0, 0, width, height, pixels.data(), IMAGE_FORMAT_BGR888);
-                    console->Print("Read Screen Pixels\n");
-                    /*
-                    for(auto idx = 0; idx < width*height*3; idx++) {
-                        sendAll({pixels[idx]});
-                    }
-                    */
-                }
-            });           
+//            Scheduler::OnMainThread([=](){
+//                if(Renderer::cached_g_videomode) {
+//                    console->Print("Width = %d, Height = %d\n", width, height);
+//                    console->Print("Pixels malloced. ReadScreenPixels = %ld\n", Offsets::ReadScreenPixels);
+//                    Memory::VMT<void(__rescall *)(void *, int, int, int, int, void *, ImageFormat)>(*Renderer::cached_g_videomode, Offsets::ReadScreenPixels)(*Renderer::cached_g_videomode, 0, 0, width, height, pixels.data(), IMAGE_FORMAT_BGR888);
+//                    console->Print("Read Screen Pixels\n");
+//                    /*
+//                    for(auto idx = 0; idx < width*height*3; idx++) {
+//                        sendAll({pixels[idx]});
+//                    }
+//                    */
+//                }
+//            });           
             
             {
                 auto player = server->GetPlayer(GET_SLOT() + 1);
@@ -296,6 +296,7 @@ static bool processCommands(ClientData &cl) {
 
             end.tick = 350; // elevator opening is a long time
             end.commands.push_back("sar_tas_pause");
+            end.commands.push_back("sar_rla_capture");
 
             fbQueue.push_back(rcvd_bulk);
             fbQueue.push_back(end);
@@ -333,6 +334,7 @@ static bool processCommands(ClientData &cl) {
     
         end.tick = 4;
         end.commands.push_back("sar_tas_pause");
+        end.commands.push_back("sar_rla_capture");
         
         fbQueue.push_back(rcvd_bulk);
         fbQueue.push_back(end);
@@ -650,6 +652,12 @@ ON_EVENT_P(SAR_UNLOAD, -100) {
 	sar_tas_server.SetValue(false);
 	g_should_stop.store(true);
 	if (g_net_thread.joinable()) g_net_thread.join();
+}
+
+CON_COMMAND(sar_rla_capture, "sar_rla_capture - captures frame into `pixels` array\n") {
+    console->Print("inside sar_rla_capture\n");
+    Memory::VMT<void(__rescall *)(void *, int, int, int, int, void *, ImageFormat)>(*Renderer::cached_g_videomode, Offsets::ReadScreenPixels)(*Renderer::cached_g_videomode, 0, 0, width, height, pixels.data(), IMAGE_FORMAT_BGR888);
+    console->Print("done with sar_rla_capture\n");
 }
 
 void TasServer::SetStatus(TasStatus s) {
