@@ -35,6 +35,7 @@ def observe(s, fname=None):
     print(len(third))
     all_pixels = first + second + third
     """
+    """
     all_pixels = bytearray(97200)
     for i in range(97200):
         all_pixels[i] = s.recv(1)[0]
@@ -47,10 +48,11 @@ def observe(s, fname=None):
     img = Image.fromarray(img)
     if fname:
         img.save(fname)
+    """
     x = s.recv(37)
     print(len(x), x[0], struct.unpack('fffffffff', x[-36:]))
     print(32*'-')
-    return img, x[0], struct.unpack('fffffffff', x[-36:])
+    return x[0], struct.unpack('fffffffff', x[-36:])
 
 
 start_time = time.time()
@@ -59,7 +61,10 @@ for i in range(10):
     num_steps = random.randint(10, 20)
     restart = bytes([128])
     s.sendall(bytearray(restart))
+    obs_start = time.time()
     observe(s) #, f'./restart_tests/restart_{i:03d}_start.png')
+    obs_end = time.time()
+    print(obs_end - obs_start)
     for j in range(num_steps):
         print(f'i = {i}, j = {j}')
         buttons = random.randint(0, 127).to_bytes(1, 'little')
@@ -69,7 +74,11 @@ for i in range(10):
         print(data)
         assert len(data) == 5
         s.sendall(bytearray(data))
+        print('Sent data')
+        obs_start = time.time()
         observe(s) #, f'./restart_tests/restart_{i:03d}_observation_{j:03d}.png')
+        obs_end = time.time()
+        print(obs_end - obs_start)
     print(64*'-')
 end_time = time.time()
 
