@@ -63,6 +63,9 @@ static std::mutex modify_player_dead;
 static bool restart_trigger = true;
 static std::mutex modify_restart_trigger;
 
+std::vector<uint8_t> pixels(97200);
+int width = 180, height = 180;
+
 static uint32_t popRaw32(std::deque<uint8_t> &buf) {
 	uint32_t val = 0;
 	for (int i = 0; i < 4; ++i) {
@@ -82,9 +85,9 @@ static void encodeRaw32(std::vector<uint8_t> &buf, uint32_t val) {
 
 static void sendAll(const std::vector<uint8_t> &buf) {
 	for (auto &cl : g_clients) {
-        console->Print("Size of buf = %d\n", buf.size());
+        //console->Print("Size of buf = %d\n", buf.size());
 		int sent = send(cl.sock, (const char *)buf.data(), buf.size(), 0);
-        console->Print("Sent %d bytes\n", sent);
+        //console->Print("Sent %d bytes\n", sent);
 	}
 }
 
@@ -148,6 +151,7 @@ static void update() {
 	TasStatus status = g_current_status;
 	g_status_mutex.unlock();
     
+    //console->Print("status.active = %d, status.playback_state = %d, g_last_status.playback_state = %d, PAUSED = %d\n", status.active, status.playback_state, g_last_status.playback_state, PlaybackState::PAUSED);
     /*
 	if (status.active != g_last_status.active || status.tas_path[0] != g_last_status.tas_path[0] || status.tas_path[1] != g_last_status.tas_path[1]) {
 		// big change; we might as well just do a full update
@@ -180,27 +184,21 @@ static void update() {
         */ 
 		case PlaybackState::PAUSED:
 			sendAll({4});
-            if(Renderer::cached_g_videomode) {
-                int width = Memory::VMT<int(__rescall *)(void *)>(*Renderer::cached_g_videomode, Offsets::GetModeWidth)(*Renderer::cached_g_videomode);
-                int height = Memory::VMT<int(__rescall *)(void *)>(*Renderer::cached_g_videomode, Offsets::GetModeHeight)(*Renderer::cached_g_videomode);
-                console->Print("Width = %d, Height = %d\n", width, height);
-                console->Print("Pixels malloced. ReadScreenPixels = %ld\n", Offsets::ReadScreenPixels);
-                std::vector<uint8_t> pixels(width*height*3);
-                Memory::VMT<void(__rescall *)(void *, int, int, int, int, void *, ImageFormat)>(*Renderer::cached_g_videomode, Offsets::ReadScreenPixels)(*Renderer::cached_g_videomode, 0, 0, width, height, pixels.data(), IMAGE_FORMAT_BGR888);
-                console->Print("Read Screen Pixels\n");
-                std::vector<uint8_t> to_send(width*height);
-                copy_n(pixels.begin(), width*height, to_send.begin());
-                to_send.resize(width*height);
-                sendAll(to_send);
-                copy_n(pixels.begin() + width*height, width*height, to_send.begin());
-                to_send.resize(width*height);
-                sendAll(to_send);
-                copy_n(pixels.begin() + 2*width*height, width*height, to_send.begin());
-                to_send.resize(width*height);
-                sendAll(to_send);
-                to_send.clear();
-                pixels.clear();
-            }
+ 
+            Scheduler::OnMainThread([=](){
+                if(Renderer::cached_g_videomode) {
+                    console->Print("Width = %d, Height = %d\n", width, height);
+                    console->Print("Pixels malloced. ReadScreenPixels = %ld\n", Offsets::ReadScreenPixels);
+                    Memory::VMT<void(__rescall *)(void *, int, int, int, int, void *, ImageFormat)>(*Renderer::cached_g_videomode, Offsets::ReadScreenPixels)(*Renderer::cached_g_videomode, 0, 0, width, height, pixels.data(), IMAGE_FORMAT_BGR888);
+                    console->Print("Read Screen Pixels\n");
+                    /*
+                    for(auto idx = 0; idx < width*height*3; idx++) {
+                        sendAll({pixels[idx]});
+                    }
+                    */
+                }
+            });           
+            
             {
                 auto player = server->GetPlayer(GET_SLOT() + 1);
                 console->Print("player = %p\n", player);
@@ -309,6 +307,7 @@ static bool processCommands(ClientData &cl) {
                 tasPlayer->SetStartInfo(TasStartType::WaitForNewSession, "");
                 tasPlayer->SetFrameBulkQueue(0, fbQueue);
                 tasPlayer->Activate();
+                g_last_status.playback_state = PlaybackState::PLAYING;
             });
             return true;
         }
@@ -348,6 +347,7 @@ static bool processCommands(ClientData &cl) {
     		tasPlayer->SetStartInfo(TasStartType::StartImmediately, "");
             tasPlayer->SetFrameBulkQueue(0, fbQueue);
             tasPlayer->Activate();
+            g_last_status.playback_state = PlaybackState::PLAYING;
         });
         return true;
         // This should be executed only after "m" TAS Framebulks
