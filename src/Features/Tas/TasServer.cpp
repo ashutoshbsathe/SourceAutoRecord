@@ -82,7 +82,9 @@ static void encodeRaw32(std::vector<uint8_t> &buf, uint32_t val) {
 
 static void sendAll(const std::vector<uint8_t> &buf) {
 	for (auto &cl : g_clients) {
-		send(cl.sock, (const char *)buf.data(), buf.size(), 0);
+        console->Print("Size of buf = %d\n", buf.size());
+		int sent = send(cl.sock, (const char *)buf.data(), buf.size(), 0);
+        console->Print("Sent %d bytes\n", sent);
 	}
 }
 
@@ -524,6 +526,7 @@ static void processConnections() {
 			--i;
 			continue;
 		}
+        cl.cmdbuf.clear();
 	}
 }
 
