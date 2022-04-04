@@ -35,7 +35,6 @@ def observe(s, fname=None):
     print(len(third))
     all_pixels = first + second + third
     """
-    """
     all_pixels = bytearray(97200)
     for i in range(97200):
         all_pixels[i] = s.recv(1)[0]
@@ -48,7 +47,6 @@ def observe(s, fname=None):
     img = Image.fromarray(img)
     if fname:
         img.save(fname)
-    """
     x = s.recv(37)
     print(len(x), x[0], struct.unpack('fffffffff', x[-36:]))
     print(32*'-')
