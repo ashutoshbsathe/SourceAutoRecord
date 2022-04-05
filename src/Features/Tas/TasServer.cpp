@@ -309,8 +309,9 @@ static bool processCommands(ClientData &cl) {
             fbQueue.push_back(end);
 
             Scheduler::OnMainThread([=](){
-                engine->ExecuteCommand("unpause", true);
+                engine->ExecuteCommand("unpause");
                 tasPlayer->Stop(); // stop the pause from previous TAS player
+                tasPlayer->UpdateServer();
                 engine->ExecuteCommand("restart_level");
                 tasPlayer->SetStartInfo(TasStartType::WaitForNewSession, "");
                 tasPlayer->SetFrameBulkQueue(0, fbQueue);
@@ -349,8 +350,9 @@ static bool processCommands(ClientData &cl) {
         cl.cmdbuf.pop_front();cl.cmdbuf.pop_front();cl.cmdbuf.pop_front();cl.cmdbuf.pop_front();
 
         Scheduler::OnMainThread([=](){
-            engine->ExecuteCommand("unpause", true);
+            engine->ExecuteCommand("unpause");
             tasPlayer->Stop(); // stop the pause from previous TAS player
+            tasPlayer->UpdateServer();
             // This shouldn't be technically required but I put it
             // and now I'm too scared to remove it
     		tasPlayer->SetStartInfo(TasStartType::StartImmediately, "");
