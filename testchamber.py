@@ -102,17 +102,22 @@ class TestChamber(gym.Env):
 
 env = TestChamber()
 import time 
+from PIL import Image
 avg_time = 0
-for _ in range(10):
+for episode in range(10):
     start_time = time.time()
-    env.reset()
+    obs = env.reset()
+    Image.fromarray(obs['img']).save(f'./episodes/episode={episode:04d},step=00.png')
     done = False 
     total_reward = 0
+    step = 1
     while not done:
         ac = env.action_space.sample()
         obs, reward, done, _ = env.step(ac)
         print(reward)
         total_reward += reward 
+        Image.fromarray(obs['img']).save(f'./episodes/episode={episode:04d},step={step:02d}.png')
+        step += 1
     end_time = time.time()
     episode_time = end_time - start_time
     print('Episode time (including reset) =', episode_time)
