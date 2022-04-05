@@ -301,7 +301,7 @@ static bool processCommands(ClientData &cl) {
             rcvd_bulk.viewAnalog.x = 0;
             rcvd_bulk.viewAnalog.y = 0;
 
-            end.tick = 350; // elevator opening is a long time
+            end.tick = 600; // elevator opening is a long time
             end.commands.push_back("sar_rla_capture");
             end.commands.push_back("sar_tas_pause");
 
