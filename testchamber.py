@@ -78,7 +78,7 @@ class TestChamber(gym.Env):
 
         new_dist = np.linalg.norm(self.dest - pos)
         new_vel = np.linalg.norm(vel)
-        reward = (1 if new_dist < self.best_dist else (0 if new_dist < self.prev_dist else -1)) + (1 if new_vel > self.prev_vel else -1)
+        reward = (1 if new_dist < self.best_dist else (0 if new_dist < self.prev_dist else -1)) #+ (1 if new_vel > self.prev_vel else -1)
         done = self.num_steps == self.max_steps or new_dist < 100 
         
         if new_dist < self.best_dist:

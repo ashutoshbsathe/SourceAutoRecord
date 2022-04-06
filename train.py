@@ -27,15 +27,25 @@ config = {
         ],
         'conv_activation': 'elu',
         'post_fcnet_hiddens': [128, 64, 64],
-        'post_fcnet_activation': 'elu'
+        'post_fcnet_activation': 'elu',
+        'vf_share_layers': True,
     },
     'train_batch_size': 64,
+    'rollout_fragment_length': 64,
     'sgd_minibatch_size': 64,
+    'lr': 1e-5,
+    'vf_clip_param': 100,
+    'vf_loss_coeff': 0.1,
+    'clip_param': 0.2,
+    'grad_clip': 4,
 }
 
 results = tune.run(
     'PPO',
     config=config,
-    stop={'training_iteration': 3},
-    verbose=3
+    stop={'training_iteration': 1000, 'episode_reward_mean': 64},
+    verbose=3,
+    checkpoint_at_end=True,
+    checkpoint_freq=10,
+    #restore='~/ray_results/A3C/A3C_TestChamber_07a54_00000_0_2022-04-06_11-46-01/checkpoint_000030/checkpoint-30'
 )
