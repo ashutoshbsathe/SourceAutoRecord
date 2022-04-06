@@ -1,6 +1,9 @@
-from ray.rllib.agents.ppo import PPOTrainer
+import ray 
+from ray import tune
 from ray.tune.registry import register_env
 from testchamber import TestChamber 
+
+ray.init(num_gpus=1)
 
 def env_creator(config):
     return TestChamber(**config)
@@ -10,6 +13,7 @@ register_env('TestChamber', env_creator)
 config = {
     'env': 'TestChamber',
     'num_workers': 1,
+    'num_gpus': 1,
     'framework': 'torch',
     #'_disable_preprocessor_api': True,
     'model': {
@@ -19,17 +23,19 @@ config = {
             [32, [7, 7], 4],
             [32, [7, 7], 4],
             [32, [7, 7], 4],
-            [32, [4, 4], 1],
+            [32, [3, 3], 1],
         ],
         'conv_activation': 'elu',
         'post_fcnet_hiddens': [128, 64, 64],
         'post_fcnet_activation': 'elu'
     },
+    'train_batch_size': 64,
+    'sgd_minibatch_size': 64,
 }
 
-trainer = PPOTrainer(config=config)
-
-for _ in range(3):
-    print(trainer.train())
-
-trainer.evaluate()
+results = tune.run(
+    'PPO',
+    config=config,
+    stop={'training_iteration': 3},
+    verbose=3
+)

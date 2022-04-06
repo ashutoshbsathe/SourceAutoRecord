@@ -33,6 +33,7 @@ class TestChamber(gym.Env):
         # Chamber specific things 
         self.dest = np.asarray([970, 1200, 450])
         self.prev_dist = np.inf
+        self.best_dist = np.inf
         self.prev_vel = 0 
     
     def _observe(self):
@@ -77,9 +78,11 @@ class TestChamber(gym.Env):
 
         new_dist = np.linalg.norm(self.dest - pos)
         new_vel = np.linalg.norm(vel)
-        reward = (1 if new_dist < self.prev_dist else -1) + (1 if new_vel > self.prev_vel else -1)
+        reward = (1 if new_dist < self.best_dist else (0 if new_dist < self.prev_dist else -1)) + (1 if new_vel > self.prev_vel else -1)
         done = self.num_steps == self.max_steps or new_dist < 100 
         
+        if new_dist < self.best_dist:
+            self.best_dist = new_dist
         self.prev_dist = new_dist
         self.prev_vel = new_vel
 
@@ -100,6 +103,7 @@ class TestChamber(gym.Env):
         # Chamber specific things
         self.dest = np.asarray([970, 1200, 450])
         self.prev_dist = np.inf
+        self.best_dist = np.inf
         self.prev_vel = 0
         return dict(img=img, vel=vel, pos=pos, ang=ang)
 
@@ -121,14 +125,13 @@ if __name__ == '__main__':
             print(state[k] >= np.asarray([-np.inf, -np.inf, -np.inf]))
             print(state[k] <= np.asarray([np.inf, np.inf, np.inf]))
     print(env.observation_space.contains(state))
-    exit(0)
     import time 
     from PIL import Image
     avg_time = 0
     for episode in range(10):
         start_time = time.time()
         obs = env.reset()
-        Image.fromarray(obs['img']).save(f'./episodes/episode={episode:04d},step=00.png')
+        #Image.fromarray(obs['img']).save(f'./episodes/episode={episode:04d},step=00.png')
         done = False 
         total_reward = 0
         step = 1
@@ -137,7 +140,7 @@ if __name__ == '__main__':
             obs, reward, done, _ = env.step(ac)
             print(reward)
             total_reward += reward 
-            Image.fromarray(obs['img']).save(f'./episodes/episode={episode:04d},step={step:02d}.png')
+            #Image.fromarray(obs['img']).save(f'./episodes/episode={episode:04d},step={step:02d}.png')
             step += 1
         end_time = time.time()
         episode_time = end_time - start_time
