@@ -31,7 +31,7 @@ class TestChamber(gym.Env):
         ))
 
         # Chamber specific things 
-        self.dest = np.asarray([970, 1200, 450])
+        self.dest = np.asarray([200, 775, 450])
         self.prev_dist = np.inf
         self.best_dist = np.inf
         self.prev_vel = 0 

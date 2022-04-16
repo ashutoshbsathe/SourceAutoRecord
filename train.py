@@ -47,5 +47,5 @@ results = tune.run(
     verbose=3,
     checkpoint_at_end=True,
     checkpoint_freq=10,
-    #restore='~/ray_results/A3C/A3C_TestChamber_07a54_00000_0_2022-04-06_11-46-01/checkpoint_000030/checkpoint-30'
+    restore='~/ray_results/PPO/PPO_TestChamber_ee94b_00000_0_2022-04-06_12-35-25/checkpoint_000080/checkpoint-80'
 )
