@@ -82,3 +82,9 @@ In order to update the plugin, you can simply use the in-game SAR command `sar_u
 # Documentation
 - [Contributing](doc/contributing.md)
 - [Console Commands & Variables](doc/cvars.md)
+
+# Communication with Gym interface 
+
+![protocol](https://user-images.githubusercontent.com/22210756/167261125-6b982592-c5aa-4bbf-a472-742d0c08790c.png)
+
+Note: This currently just _overrides_ the `TASServer` functionality. Visit https://github.com/ashutoshbsathe/TestChamber for using this Gym interface.
