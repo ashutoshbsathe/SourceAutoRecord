@@ -11,6 +11,7 @@
 #include "Features/OffsetFinder.hpp"
 #include "Features/PlayerTrace.hpp"
 #include "Features/ReloadedFix.hpp"
+#include "Features/RLA/RLAServer.hpp"
 #include "Features/Routing/EntityInspector.hpp"
 #include "Features/Routing/SeamshotFind.hpp"
 #include "Features/SegmentedTools.hpp"

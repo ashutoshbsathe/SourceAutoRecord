@@ -1,7 +1,7 @@
 .PHONY: all clean cvars
 .FORCE:
 
-CXX=g++-10
+CXX=g++
 SDIR=src
 ODIR=obj
 
@@ -10,6 +10,7 @@ SRCS+=$(wildcard $(SDIR)/Features/*.cpp)
 SRCS+=$(wildcard $(SDIR)/Features/Demo/*.cpp)
 SRCS+=$(wildcard $(SDIR)/Features/Hud/*.cpp)
 SRCS+=$(wildcard $(SDIR)/Features/Routing/*.cpp)
+SRCS+=$(wildcard $(SDIR)/Features/RLA/*.cpp)
 SRCS+=$(wildcard $(SDIR)/Features/Speedrun/*.cpp)
 SRCS+=$(wildcard $(SDIR)/Features/Speedrun/Rules/*.cpp)
 SRCS+=$(wildcard $(SDIR)/Features/Stats/*.cpp)
