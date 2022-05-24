@@ -12,6 +12,7 @@ register_env('TestChamber', env_creator)
 
 config = {
     'env': 'TestChamber',
+    'env_config': {'port': 6969},
     'num_workers': 1,
     'num_gpus': 1,
     'framework': 'torch',
@@ -47,5 +48,4 @@ results = tune.run(
     verbose=3,
     checkpoint_at_end=True,
     checkpoint_freq=10,
-    restore='~/ray_results/PPO/PPO_TestChamber_ee94b_00000_0_2022-04-06_12-35-25/checkpoint_000080/checkpoint-80'
 )
