@@ -524,6 +524,8 @@ void TasPlayer::FetchInputs(int slot, TasController *controller) {
 
 	TasFramebulk fb = GetRawFramebulkAt(slot, tick);
 
+    console->Print("Fetched framebulk for tick %d: %s\n", tick, fb.ToString().c_str());
+
 	int fbTick = fb.tick;
 
 	if (sar_tas_debug.GetInt() > 0 && fbTick == tick) {
@@ -560,6 +562,10 @@ static bool IsTaunting(void *player, bool client = false) {
 	if (cond & (1 << PORTAL_COND_DEATH_CRUSH)) return true;
 	if (cond & (1 << PORTAL_COND_DEATH_GIB)) return true;
 	return false;
+}
+
+bool TasPlayer::IsPaused() {
+    return tasPlayer->paused;
 }
 
 // special tools have to be parsed in input processing part.
