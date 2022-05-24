@@ -249,8 +249,8 @@ static bool RLAProcessAction(RLAClientData &cl) {
         rcvd_bulk.viewAnalog.y = 0;
 
         end.tick = 600;
-        end.commands.push_back("sar_rla_observe");
         end.commands.push_back("sar_tas_pause");
+        end.commands.push_back("sar_rla_observe");
 
         fbQueue.push_back(rcvd_bulk);
         fbQueue.push_back(end);
@@ -292,8 +292,8 @@ static bool RLAProcessAction(RLAClientData &cl) {
         first /= 2;
 
         end.tick = 4;
-        end.commands.push_back("sar_rla_observe");
         end.commands.push_back("sar_tas_pause");
+        end.commands.push_back("sar_rla_observe");
 
         fbQueue.push_back(rcvd_bulk);
         fbQueue.push_back(end);
