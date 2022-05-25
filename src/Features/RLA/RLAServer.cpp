@@ -236,11 +236,11 @@ static bool RLAProcessAction(RLAClientData &cl) {
     TasFramebulk rcvd_bulk, end;
     std::vector<TasFramebulk> fbQueue;
     rcvd_bulk.tick = 0;
-    console->Print("First = %d\n", first);
+    //THREAD_PRINT("First = %d\n", first);
     cl.cmdbuf.pop_front();
     observation_ready = false;
     if(first > 127) {
-        console->Print("Reset command received\n");
+        //THREAD_PRINT("Reset command received\n");
         // now we prepare a dummy first framebulk and execute it after `restart_level`
         // TODO: let this be user configurable 
         rcvd_bulk.moveAnalog.x = 0;
@@ -267,11 +267,11 @@ static bool RLAProcessAction(RLAClientData &cl) {
             tasPlayer->coopControlSlot = -1;
             tasPlayer->SetFrameBulkQueue(0, fbQueue);
             tasPlayer->Activate();
-            console->Print("RLAServer: Restarting level\n");
+            //THREAD_PRINT("RLAServer: Restarting level\n");
         });
     }
     else {
-        console->Print("Other values = [%d %d %d %d]\n", cl.cmdbuf[1], cl.cmdbuf[2], cl.cmdbuf[3], cl.cmdbuf[4]);
+        //THREAD_PRINT("Other values = [%d %d %d %d]\n", cl.cmdbuf[1], cl.cmdbuf[2], cl.cmdbuf[3], cl.cmdbuf[4]);
 
         rcvd_bulk.moveAnalog.x = -1 + cl.cmdbuf[1] * 1.0/128;
         rcvd_bulk.moveAnalog.y = -1 + cl.cmdbuf[2] * 1.0/128;
@@ -308,7 +308,7 @@ static bool RLAProcessAction(RLAClientData &cl) {
             // tasPlayer->UpdateServer(); // this could be potentially not required and slow down the performance ? TODO: ask mlugg 
             tasPlayer->SetFrameBulkQueue(0, fbQueue);
             tasPlayer->Activate();
-            console->Print("RLAServer: Executing framebulk\n");
+            //THREAD_PRINT("RLAServer: Executing framebulk\n");
         });
     }
     std::unique_lock<std::mutex> observation_lock(access_observation);
@@ -325,10 +325,10 @@ static bool RLAProcessAction(RLAClientData &cl) {
     for(int i = 0; i < 36; i++) {
         to_send.push_back(arr_player_data[i]);
     }
-    console->Print("paused = ", tasPlayer->IsPaused() ? "true" : "false", "\n");
-    console->Print("vel = [%f, %f, %f]\n", vel.x, vel.y, vel.z);
-    console->Print("pos = [%f, %f, %f]\n", pos.x, pos.y, pos.z);
-    console->Print("ang = [%f, %f, %f]\n", ang.x, ang.y, ang.z);
+    //THREAD_PRINT("paused = ", tasPlayer->IsPaused() ? "true" : "false", "\n");
+    //THREAD_PRINT("vel = [%f, %f, %f]\n", vel.x, vel.y, vel.z);
+    //THREAD_PRINT("pos = [%f, %f, %f]\n", pos.x, pos.y, pos.z);
+    //THREAD_PRINT("ang = [%f, %f, %f]\n", ang.x, ang.y, ang.z);
 
     sendAll(pixels, 32400); // somehow windows doesn't like to send 32768 bytes 
     sendAll(pixels + 32400, 32400);
@@ -497,13 +497,13 @@ static void processConnections() {
 		//cl.cmdbuf.insert(cl.cmdbuf.end(), std::begin(buf), std::begin(buf) + len);
 		cl.cmdbuf.insert(cl.cmdbuf.begin(), std::begin(buf), std::begin(buf) + len);
         for(int i = 0; i < len; i++) {
-            console->Print("buf[%d] = %d\n", i, buf[i]);
+            //THREAD_PRINT("buf[%d] = %d\n", i, buf[i]);
         }
-        console->Print("cl.cmdbuf = [ ");
+        //THREAD_PRINT("cl.cmdbuf = [ ");
         for(auto i = cl.cmdbuf.begin(); i != cl.cmdbuf.end(); i++) {
-            console->Print("%d ", *i);
+            //THREAD_PRINT("%d ", *i);
         }
-        console->Print("]\n");
+        //THREAD_PRINT("]\n");
 		if (!RLAProcessAction(cl)) {
 			// Client sent a bad command; terminate connection
 			closesocket(cl.sock);
