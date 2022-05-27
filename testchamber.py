@@ -137,8 +137,9 @@ if __name__ == '__main__':
     print(env.observation_space.contains(state))
     import time 
     from PIL import Image
+    from tqdm import tqdm
     avg_time = 0
-    for episode in range(10):
+    for episode in tqdm(range(1000)):
         start_time = time.time()
         obs = env.reset()
         Image.fromarray(obs['img'].astype(np.uint8)).save(f'./episodes/episode={episode:04d},step=00.png')
@@ -148,7 +149,6 @@ if __name__ == '__main__':
         while not done:
             ac = env.action_space.sample()
             obs, reward, done, _ = env.step(ac)
-            print(obs, reward)
             total_reward += reward 
             Image.fromarray(obs['img'].astype(np.uint8)).save(f'./episodes/episode={episode:04d},step={step:02d}.png')
             step += 1

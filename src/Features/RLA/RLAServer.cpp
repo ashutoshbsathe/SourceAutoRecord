@@ -249,7 +249,6 @@ static bool RLAProcessAction(RLAClientData &cl) {
         rcvd_bulk.viewAnalog.y = 0;
 
         end.tick = 600;
-        end.commands.push_back("sar_tas_pause");
         end.commands.push_back("sar_rla_observe");
 
         fbQueue.push_back(rcvd_bulk);
@@ -292,7 +291,6 @@ static bool RLAProcessAction(RLAClientData &cl) {
         first /= 2;
 
         end.tick = 4;
-        end.commands.push_back("sar_tas_pause");
         end.commands.push_back("sar_rla_observe");
 
         fbQueue.push_back(rcvd_bulk);
@@ -604,6 +602,7 @@ void RLAServer::SetStatus(RLAStatus s) {
 }
 
 CON_COMMAND(sar_rla_observe, "sar_rla_observe -- prepares observation for the RL agent\n") {
+    tasPlayer->Pause();
     console->Print("sar_rla_observe: Start\n");
     Memory::VMT<void(__rescall *)(void *, int, int, int, int, void *, ImageFormat)>(*Renderer::cached_g_videomode, Offsets::ReadScreenPixels)(*Renderer::cached_g_videomode, 0, 0, width, height, pixels, IMAGE_FORMAT_BGR888);
     console->Print("sar_rla_observe: Captured frame\n");

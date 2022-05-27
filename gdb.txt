@@ -1,0 +1,118 @@
+#0  0xf7f61549 in __kernel_vsyscall ()
+#1  0xf7d05247 in __pthread_kill_implementation () from /usr/lib32/libc.so.6
+#2  0xf7cb4027 in raise () from /usr/lib32/libc.so.6
+#3  0xf7c9d11d in abort () from /usr/lib32/libc.so.6
+#4  0xf7cf7bc4 in __libc_message () from /usr/lib32/libc.so.6
+#5  0xf7d1094f in malloc_printerr () from /usr/lib32/libc.so.6
+#6  0xf7d129db in _int_free () from /usr/lib32/libc.so.6
+#7  0xf7d15046 in free () from /usr/lib32/libc.so.6
+#8  0xc3dfcbbc in BufferedPart::~BufferedPart() ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#9  0xc3dff5c1 in void std::_Destroy<BufferedPart>(BufferedPart*) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#10 0xc3dff392 in void std::_Destroy_aux<false>::__destroy<BufferedPart*>(BufferedPart*, BufferedPart*) () from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#11 0xc3dfed54 in void std::_Destroy<BufferedPart*>(BufferedPart*, BufferedPart*) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#12 0xc3dfe74b in void std::_Destroy<BufferedPart*, BufferedPart>(BufferedPart*, BufferedPart*, std::allocator<BufferedPart>&) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#13 0xc3dfe593 in std::vector<BufferedPart, std::allocator<BufferedPart> >::_M_erase_at_end(BufferedPart*) () from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#14 0xc3dfde14 in std::vector<BufferedPart, std::allocator<BufferedPart> >::clear() ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#15 0xc3dfd0fd in ConsoleDisplayHook::Flush() ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#16 0xc3dfcc7c in ConsoleDisplayHook::AddToBuffer(char const*, BufferedPart::Type, Color) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#17 0xc3dfca8d in ConsoleDisplayHook::ColorPrint(Color const&, char const*) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#18 0xf60c5ea3 in ?? ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/bin/linux32/libvstdlib.so
+#19 0xf05926b2 in ?? ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/bin/linux32/engine.so
+#20 0xf0592c4e in ?? ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/bin/linux32/engine.so
+#21 0xf072e561 in ?? ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/bin/linux32/engine.so
+#22 0xf6133654 in ?? ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/bin/linux32/libtier0.so
+#23 0xf613175a in ConColorMsg(Color const&, char const*, ...) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/bin/linux32/libtier0.so
+#24 0xc3c20845 in void Console::Print<float, float, float>(char const*, float, float, float)
+    () from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#25 0xc3d589eb in RLAProcessAction(RLAClientData&) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#26 0xc3d59391 in processConnections() ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#27 0xc3d597d1 in mainThread() ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#28 0xc3c64935 in void std::__invoke_impl<void, void (*)()>(std::__invoke_other, void (*&&)()) () from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#29 0xc3c64586 in std::__invoke_result<void (*)()>::type std::__invoke<void (*)()>(void (*&&)()) () from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#30 0xc3c642f6 in void std::thread::_Invoker<std::tuple<void (*)()> >::_M_invoke<0u>(std::_Index_tuple<0u>) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#31 0xc3c641b3 in std::thread::_Invoker<std::tuple<void (*)()> >::operator()() ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#32 0xc3c64162 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (*)()> > >::_M_run() () from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#33 0xf7b0da81 in std::execute_native_thread_routine (__p=0x58fa3300)
+    at /usr/src/debug/gcc/libstdc++-v3/src/c++11/thread.cc:82
+#34 0xf7d033de in start_thread () from /usr/lib32/libc.so.6
+#35 0xf7d9bd1a in clone () from /usr/lib32/libc.so.6
+Detaching from program: /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2_linux, process 51354
+[Inferior 1 (process 51354) detached]
+#0  0xf7faa549 in __kernel_vsyscall ()
+#1  0xf7d4e247 in __pthread_kill_implementation () from /usr/lib32/libc.so.6
+#2  0xf7cfd027 in raise () from /usr/lib32/libc.so.6
+#3  0xf7ce611d in abort () from /usr/lib32/libc.so.6
+#4  0xf7d40bc4 in __libc_message () from /usr/lib32/libc.so.6
+#5  0xf7d5994f in malloc_printerr () from /usr/lib32/libc.so.6
+#6  0xf7d5b9db in _int_free () from /usr/lib32/libc.so.6
+#7  0xf7d5e046 in free () from /usr/lib32/libc.so.6
+#8  0xc3ec4bbc in BufferedPart::~BufferedPart() ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#9  0xc3ec75c1 in void std::_Destroy<BufferedPart>(BufferedPart*) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#10 0xc3ec7392 in void std::_Destroy_aux<false>::__destroy<BufferedPart*>(BufferedPart*, BufferedPart*) () from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#11 0xc3ec6d54 in void std::_Destroy<BufferedPart*>(BufferedPart*, BufferedPart*) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#12 0xc3ec674b in void std::_Destroy<BufferedPart*, BufferedPart>(BufferedPart*, BufferedPart*, std::allocator<BufferedPart>&) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#13 0xc3ec6593 in std::vector<BufferedPart, std::allocator<BufferedPart> >::_M_erase_at_end(BufferedPart*) () from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#14 0xc3ec5e14 in std::vector<BufferedPart, std::allocator<BufferedPart> >::clear() ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#15 0xc3ec50fd in ConsoleDisplayHook::Flush() ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#16 0xc3ec4c7c in ConsoleDisplayHook::AddToBuffer(char const*, BufferedPart::Type, Color) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#17 0xc3ec4a8d in ConsoleDisplayHook::ColorPrint(Color const&, char const*) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#18 0xf610eea3 in ?? ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/bin/linux32/libvstdlib.so
+#19 0xf06926b2 in ?? ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/bin/linux32/engine.so
+#20 0xf0692c4e in ?? ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/bin/linux32/engine.so
+#21 0xf082e561 in ?? ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/bin/linux32/engine.so
+#22 0xf617c654 in ?? ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/bin/linux32/libtier0.so
+#23 0xf617a75a in ConColorMsg(Color const&, char const*, ...) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/bin/linux32/libtier0.so
+#24 0xc3ce8845 in void Console::Print<float, float, float>(char const*, float, float, float)
+    () from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#25 0xc3e209eb in RLAProcessAction(RLAClientData&) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#26 0xc3e21391 in processConnections() ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#27 0xc3e217d1 in mainThread() ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#28 0xc3d2c935 in void std::__invoke_impl<void, void (*)()>(std::__invoke_other, void (*&&)()) () from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#29 0xc3d2c586 in std::__invoke_result<void (*)()>::type std::__invoke<void (*)()>(void (*&&)()) () from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#30 0xc3d2c2f6 in void std::thread::_Invoker<std::tuple<void (*)()> >::_M_invoke<0u>(std::_Index_tuple<0u>) ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#31 0xc3d2c1b3 in std::thread::_Invoker<std::tuple<void (*)()> >::operator()() ()
+   from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#32 0xc3d2c162 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (*)()> > >::_M_run() () from /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2/sar.so
+#33 0xf7b56a81 in std::execute_native_thread_routine (__p=0x58076b40)
+    at /usr/src/debug/gcc/libstdc++-v3/src/c++11/thread.cc:82
+#34 0xf7d4c3de in start_thread () from /usr/lib32/libc.so.6
+#35 0xf7de4d1a in clone () from /usr/lib32/libc.so.6
+Detaching from program: /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2_linux, process 57159
+[Inferior 1 (process 57159) detached]
