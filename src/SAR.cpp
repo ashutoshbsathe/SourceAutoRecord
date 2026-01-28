@@ -16,8 +16,9 @@
 #include "CrashHandler.hpp"
 #include "Event.hpp"
 #include "Features.hpp"
-#include "Features/Stats/StatsCounter.hpp"
+#include "Features/Harness/Harness.hpp"
 #include "Features/SeasonalASCII.hpp"
+#include "Features/Stats/StatsCounter.hpp"
 #include "Game.hpp"
 #include "Hook.hpp"
 #include "Interface.hpp"
@@ -32,7 +33,7 @@ bool SAR::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerF
 	console = new Console();
 	if (!console->Init())
 		return false;
-	
+
 	modules = new Modules();
 	features = new Features();
 	cheats = new Cheats();
@@ -87,6 +88,7 @@ bool SAR::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerF
 			this->features->AddFeature<TimescaleDetect>(&timescaleDetect);
 			this->features->AddFeature<PlayerTrace>(&playerTrace);
 			this->features->AddFeature<Timeline>(&timeline);
+			this->features->AddFeature<Harness>(&harness);
 
 			this->modules->AddModule<InputSystem>(&inputSystem);
 			this->modules->AddModule<Scheme>(&scheme);
@@ -123,7 +125,7 @@ bool SAR::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerF
 					cm->LoadNodes(this->game->GetVersion());
 					chapterMenu->LoadMaps(this->game->GetVersion());
 				}
-				
+
 				AutoSubmit::LoadApiKey(false);
 
 				if (listener) {
@@ -283,10 +285,14 @@ CON_COMMAND(sar_about, "sar_about - prints info about SAR plugin\n") {
 CON_COMMAND(sar_cvars_dump, "sar_cvars_dump [all|game|sar] - dumps all cvars to a file\n") {
 	auto filter = 1;
 	if (args.ArgC() == 2) {
-		if (!strcmp(args[1], "all")) filter = 0;
-		else if (!strcmp(args[1], "game")) filter = 1;
-		else if (!strcmp(args[1], "sar")) filter = 2;
-		else console->Print("Invalid argument!\n");
+		if (!strcmp(args[1], "all"))
+			filter = 0;
+		else if (!strcmp(args[1], "game"))
+			filter = 1;
+		else if (!strcmp(args[1], "sar"))
+			filter = 2;
+		else
+			console->Print("Invalid argument!\n");
 	}
 	std::string path = "cvars_";
 	if (filter == 0) path += "all";

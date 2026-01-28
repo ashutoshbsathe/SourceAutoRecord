@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package portal2_harness;
+
+// The core service for external game control
+service Portal2Harness {
+  
+  // Handshake to verify connection and sync game constants
+  rpc InitialHandshake(HandshakeRequest) returns (HandshakeResponse);
+
+  // Get the current state of the player and world
+  rpc Observe(Empty) returns (GameState);
+
+  // Send an action to be executed in the next game tick
+  rpc Act(ActionRequest) returns (ActionResponse);
+}
+
+// --- Shared Types ---
+
+message Vector3 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+// --- Observation Messages ---
+
+message GameState {
+  Vector3 position = 1;
+  Vector3 velocity = 2;
+  Vector3 camera = 3; // Pitch, Yaw, Roll
+  int32 health = 4; // 0 if dead
+  bool is_crouching = 5;
+  int32 server_tick = 6; 
+}
+
+// --- Action Messages ---
+
+message ActionRequest {
+  // Movement keys
+  bool key_forward = 1;  // w
+  bool key_left = 2;     // a
+  bool key_backward = 3; // s
+  bool key_right = 4;    // d
+  
+  // Interaction/Ability keys
+  bool key_use = 5;      // e
+  bool key_zoomin = 6;   // z / mouse scroll up
+  bool key_zoomout = 7;  // x / mouse scroll down
+  bool key_crouch = 8;   // c
+  bool portal_primary = 9;        // mouse left
+  bool portal_secondary = 10;     // mouse right
+  bool key_jump = 11;    // space
+
+  // Mouse movement (analog value between [-1,+1]) 
+  float mouse_dx = 12;
+  float mouse_dy = 13;
+}
+
+message ActionResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// --- Handshake Messages ---
+
+message HandshakeRequest {
+  string client_version = 1;
+  string client_id = 2;
+}
+
+message HandshakeResponse {
+  string game_version = 1;
+  string map_name = 2; // null if no map is loaded
+}
+
+message Empty {}

@@ -5,7 +5,7 @@ CXX=g++
 SDIR=src
 ODIR=obj
 
-SRCS=$(shell find $(SDIR) -name '*.cpp')
+SRCS=$(shell find $(SDIR) -name '*.cpp') src/Features/Harness/harness.pb.cpp src/Features/Harness/harness.grpc.pb.cpp
 OBJS=$(patsubst $(SDIR)/%.cpp, $(ODIR)/%.o, $(SRCS))
 
 VERSION=$(shell git describe --tags)
@@ -14,8 +14,8 @@ VERSION=$(shell git describe --tags)
 DEPS=$(OBJS:%.o=%.d)
 
 WARNINGS=-Wall -Wno-parentheses -Wno-unknown-pragmas -Wno-delete-non-virtual-dtor -Wno-overloaded-virtual
-CXXFLAGS=-std=c++17 -m32 $(WARNINGS) -I$(SDIR) -fPIC -D_GNU_SOURCE -Ilib/ffmpeg/include -Ilib/SFML/include -Ilib/curl/include -Ilib/discord-rpc/include -DSFML_STATIC -DCURL_STATICLIB
-LDFLAGS=-m32 -shared -lstdc++fs -Llib/ffmpeg/lib/linux -lavformat -lavcodec -lavutil -lswscale -lswresample -lx264 -lx265 -lvorbis -lvorbisenc -lvorbisfile -logg -lopus -lvpx -Llib/SFML/lib/linux -lsfml -Llib/curl/lib/linux -lcurl -lssl -lcrypto -lnghttp2 -Llib/discord-rpc/lib/linux -ldiscord-rpc
+CXXFLAGS=-std=c++17 -m32 $(WARNINGS) -I$(SDIR) -fPIC -D_GNU_SOURCE -Ilib/ffmpeg/include -Ilib/SFML/include -Ilib/curl/include -Ilib/discord-rpc/include -Ilib/grpc/include -DSFML_STATIC -DCURL_STATICLIB
+LDFLAGS=-m32 -shared -lstdc++fs -Wl,--version-script=harness.map -Llib/ffmpeg/lib/linux -lavformat -lavcodec -lavutil -lswscale -lswresample -lx264 -lx265 -lvorbis -lvorbisenc -lvorbisfile -logg -lopus -lvpx -Llib/SFML/lib/linux -lsfml -Llib/curl/lib/linux -lcurl -lssl -lcrypto -lnghttp2 -Llib/discord-rpc/lib/linux -ldiscord-rpc -Llib/grpc/lib/linux -lgrpc++ -lgrpc -lgpr -lprotobuf -lre2 -labsl_status -labsl_statusor -labsl_raw_logging_internal -labsl_int128 -labsl_logging_internal -labsl_check_internal -labsl_raw_hash_set -labsl_hash -labsl_city -labsl_low_level_hash -labsl_hashtablez_sampler -labsl_base -labsl_throw_delegate -labsl_time -labsl_time_zone -labsl_civil_time -labsl_spinlock_wait -labsl_stacktrace -labsl_symbolize -labsl_malloc_internal -labsl_demangle_internal -labsl_cord -labsl_cord_internal -labsl_cordz_info -labsl_cordz_handle -labsl_cordz_functions -labsl_str_format_internal -labsl_strings -labsl_strings_internal -labsl_bad_variant_access -labsl_bad_optional_access -labsl_synchronization -labsl_graphcycles_internal -labsl_exponential_biased -labsl_random_internal_pool_urbg -labsl_random_internal_randen -labsl_random_internal_randen_hwaes -labsl_random_internal_randen_slow -labsl_random_internal_randen_base -labsl_random_seed_sequences -labsl_random_seed_gen_exception -lupb_textformat_lib -lupb_json_lib -lupb_reflection_lib -lupb_mini_table_lib -lupb_mini_descriptor_lib -lupb_decode_lib -lupb_encode_lib -lupb_base_lib -lupb_mem_lib -lupb_port_lib -lutf8_range -lutf8_validity -lz -lcares -laddress_sorting
 
 # Import config.mk, which can be used for optional config
 -include config.mk
@@ -32,6 +32,14 @@ sar.so: src/Version.hpp $(OBJS)
 $(ODIR)/%.o: $(SDIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
+
+src/Features/Harness/%.pb.cpp src/Features/Harness/%.pb.h: src/Features/Harness/%.proto
+	protoc -I=src/Features/Harness --cpp_out=src/Features/Harness $<
+	mv src/Features/Harness/$*.pb.cc src/Features/Harness/$*.pb.cpp
+
+src/Features/Harness/%.grpc.pb.cpp src/Features/Harness/%.grpc.pb.h: src/Features/Harness/%.proto
+	protoc -I=src/Features/Harness --grpc_out=src/Features/Harness --plugin=protoc-gen-grpc=/usr/bin/grpc_cpp_plugin $<
+	mv src/Features/Harness/$*.grpc.pb.cc src/Features/Harness/$*.grpc.pb.cpp
 
 src/Version.hpp: .FORCE
 	if [ "$$RELEASE_BUILD" ]; then echo "#define SAR_VERSION \"$(VERSION)\"" >"$@"; fi
