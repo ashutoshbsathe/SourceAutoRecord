@@ -55,6 +55,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 #ifdef _MSC_VER
 #	if _MSC_VER <= 1800  // VS 2013
