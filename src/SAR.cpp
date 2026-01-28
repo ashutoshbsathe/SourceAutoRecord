@@ -30,6 +30,7 @@ EXPOSE_SINGLE_INTERFACE_GLOBALVAR(SAR, IServerPluginCallbacks, INTERFACEVERSION_
 
 
 bool SAR::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory) {
+	printf("SAR: Load started\n");
 	console = new Console();
 	if (!console->Init())
 		return false;
@@ -63,6 +64,7 @@ bool SAR::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerF
 
 		tier1 = new Tier1();
 		if (tier1->Init()) {
+			printf("SAR: Adding features...\n");
 			this->features->AddFeature<Cvars>(&cvars);
 			this->features->AddFeature<Session>(&session);
 			this->features->AddFeature<StepCounter>(&stepCounter);
@@ -88,7 +90,9 @@ bool SAR::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerF
 			this->features->AddFeature<TimescaleDetect>(&timescaleDetect);
 			this->features->AddFeature<PlayerTrace>(&playerTrace);
 			this->features->AddFeature<Timeline>(&timeline);
+			printf("SAR: Adding Harness feature...\n");
 			this->features->AddFeature<Harness>(&harness);
+			printf("SAR: Harness feature added\n");
 
 			this->modules->AddModule<InputSystem>(&inputSystem);
 			this->modules->AddModule<Scheme>(&scheme);

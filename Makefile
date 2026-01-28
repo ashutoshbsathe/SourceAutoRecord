@@ -5,7 +5,7 @@ CXX=g++
 SDIR=src
 ODIR=obj
 
-SRCS=$(shell find $(SDIR) -name '*.cpp') src/Features/Harness/harness.pb.cpp src/Features/Harness/harness.grpc.pb.cpp
+SRCS=$(shell find $(SDIR) -name '*.cpp' | grep -v 'src/Features/Renderer.cpp') src/Features/Harness/harness.pb.cpp src/Features/Harness/harness.grpc.pb.cpp
 OBJS=$(patsubst $(SDIR)/%.cpp, $(ODIR)/%.o, $(SRCS))
 
 VERSION=$(shell git describe --tags)
@@ -14,8 +14,8 @@ VERSION=$(shell git describe --tags)
 DEPS=$(OBJS:%.o=%.d)
 
 WARNINGS=-Wall -Wno-parentheses -Wno-unknown-pragmas -Wno-delete-non-virtual-dtor -Wno-overloaded-virtual
-CXXFLAGS=-std=c++17 -m32 $(WARNINGS) -I$(SDIR) -fPIC -D_GNU_SOURCE -Ilib/ffmpeg/include -Ilib/SFML/include -Ilib/curl/include -Ilib/discord-rpc/include -Ilib/grpc/include -DSFML_STATIC -DCURL_STATICLIB
-LDFLAGS=-m32 -shared -lstdc++fs -Wl,--version-script=harness.map -Llib/ffmpeg/lib/linux -lavformat -lavcodec -lavutil -lswscale -lswresample -lx264 -lx265 -lvorbis -lvorbisenc -lvorbisfile -logg -lopus -lvpx -Llib/SFML/lib/linux -lsfml -Llib/curl/lib/linux -lcurl -lssl -lcrypto -lnghttp2 -Llib/discord-rpc/lib/linux -ldiscord-rpc -Llib/grpc/lib/linux -lgrpc++ -lgrpc -lgpr -lprotobuf -lre2 -labsl_status -labsl_statusor -labsl_raw_logging_internal -labsl_int128 -labsl_logging_internal -labsl_check_internal -labsl_raw_hash_set -labsl_hash -labsl_city -labsl_low_level_hash -labsl_hashtablez_sampler -labsl_base -labsl_throw_delegate -labsl_time -labsl_time_zone -labsl_civil_time -labsl_spinlock_wait -labsl_stacktrace -labsl_symbolize -labsl_malloc_internal -labsl_demangle_internal -labsl_cord -labsl_cord_internal -labsl_cordz_info -labsl_cordz_handle -labsl_cordz_functions -labsl_str_format_internal -labsl_strings -labsl_strings_internal -labsl_bad_variant_access -labsl_bad_optional_access -labsl_synchronization -labsl_graphcycles_internal -labsl_exponential_biased -labsl_random_internal_pool_urbg -labsl_random_internal_randen -labsl_random_internal_randen_hwaes -labsl_random_internal_randen_slow -labsl_random_internal_randen_base -labsl_random_seed_sequences -labsl_random_seed_gen_exception -lupb_textformat_lib -lupb_json_lib -lupb_reflection_lib -lupb_mini_table_lib -lupb_mini_descriptor_lib -lupb_decode_lib -lupb_encode_lib -lupb_base_lib -lupb_mem_lib -lupb_port_lib -lutf8_range -lutf8_validity -lz -lcares -laddress_sorting
+CXXFLAGS=-std=c++17 -m32 $(WARNINGS) -I$(SDIR) -fPIC -D_GNU_SOURCE -Ilib/ffmpeg/include -Ilib/SFML/include -Ilib/curl/include -Ilib/discord-rpc/include -I/opt/p2-grpc32/include -DSFML_STATIC -DCURL_STATICLIB -DSAR_NO_RENDER
+LDFLAGS=-m32 -shared -lstdc++fs -Wl,--version-script=harness.map -L/opt/p2-grpc32/lib -Llib/SFML/lib/linux -lsfml -Llib/curl/lib/linux -Llib/discord-rpc/lib/linux -ldiscord-rpc -Wl,--start-group -lcurl -lssl -lcrypto /opt/p2-grpc32/lib/libz.a -lnghttp2 -lgrpc++ -lgrpc -lgpr -lprotobuf -lre2 -labsl_log_flags -labsl_log_globals -labsl_log_initialize -labsl_log_internal_check_op -labsl_log_internal_conditions -labsl_log_internal_fnmatch -labsl_log_internal_format -labsl_log_internal_globals -labsl_log_internal_log_sink_set -labsl_log_internal_message -labsl_log_internal_nullguard -labsl_log_internal_proto -labsl_log_internal_structured_proto -labsl_log_severity -labsl_log_sink -labsl_flags_commandlineflag -labsl_flags_commandlineflag_internal -labsl_flags_config -labsl_flags_internal -labsl_flags_marshalling -labsl_flags_parse -labsl_flags_private_handle_accessor -labsl_flags_program_name -labsl_flags_reflection -labsl_flags_usage -labsl_flags_usage_internal -labsl_status -labsl_statusor -labsl_strerror -labsl_str_format_internal -labsl_strings -labsl_strings_internal -labsl_string_view -labsl_symbolize -labsl_synchronization -labsl_throw_delegate -labsl_time -labsl_time_zone -labsl_tracing_internal -labsl_utf8_for_code_point -labsl_vlog_config_internal -labsl_base -labsl_city -labsl_civil_time -labsl_cord -labsl_cord_internal -labsl_cordz_functions -labsl_cordz_handle -labsl_cordz_info -labsl_cordz_sample_token -labsl_crc32c -labsl_crc_cord_state -labsl_crc_cpu_detect -labsl_crc_internal -labsl_debugging_internal -labsl_decode_rust_punycode -labsl_demangle_internal -labsl_demangle_rust -labsl_die_if_null -labsl_examine_stack -labsl_exponential_biased -labsl_failure_signal_handler -labsl_graphcycles_internal -labsl_hash -labsl_hashtablez_sampler -labsl_int128 -labsl_kernel_timeout_internal -labsl_leak_check -labsl_low_level_hash -labsl_malloc_internal -labsl_periodic_sampler -labsl_poison -labsl_random_distributions -labsl_random_internal_distribution_test_util -labsl_random_internal_entropy_pool -labsl_random_internal_platform -labsl_random_internal_randen -labsl_random_internal_randen_hwaes -labsl_random_internal_randen_hwaes_impl -labsl_random_internal_randen_slow -labsl_random_internal_seed_material -labsl_random_seed_gen_exception -labsl_random_seed_sequences -labsl_raw_hash_set -labsl_raw_logging_internal -labsl_scoped_set_env -labsl_spinlock_wait -labsl_stacktrace -lupb -lupb_base_lib -lupb_hash_lib -lupb_json_lib -lupb_lex_lib -lupb_mem_lib -lupb_message_lib -lupb_mini_descriptor_lib -lupb_mini_table_lib -lupb_reflection_lib -lupb_textformat_lib -lupb_wire_lib -lutf8_range -lutf8_validity -lcares -laddress_sorting -Wl,--end-group -lpthread -lrt
 
 # Import config.mk, which can be used for optional config
 -include config.mk
@@ -34,11 +34,11 @@ $(ODIR)/%.o: $(SDIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
 
 src/Features/Harness/%.pb.cpp src/Features/Harness/%.pb.h: src/Features/Harness/%.proto
-	protoc -I=src/Features/Harness --cpp_out=src/Features/Harness $<
+	/opt/p2-grpc32/bin/protoc -I=src/Features/Harness --cpp_out=src/Features/Harness $<
 	mv src/Features/Harness/$*.pb.cc src/Features/Harness/$*.pb.cpp
 
 src/Features/Harness/%.grpc.pb.cpp src/Features/Harness/%.grpc.pb.h: src/Features/Harness/%.proto
-	protoc -I=src/Features/Harness --grpc_out=src/Features/Harness --plugin=protoc-gen-grpc=/usr/bin/grpc_cpp_plugin $<
+	/opt/p2-grpc32/bin/protoc -I=src/Features/Harness --grpc_out=src/Features/Harness --plugin=protoc-gen-grpc=/opt/p2-grpc32/bin/grpc_cpp_plugin $<
 	mv src/Features/Harness/$*.grpc.pb.cc src/Features/Harness/$*.grpc.pb.cpp
 
 src/Version.hpp: .FORCE
