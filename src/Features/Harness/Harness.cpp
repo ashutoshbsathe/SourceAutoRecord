@@ -84,7 +84,7 @@ static void sar_harness_callback(void *var, const char *pOldValue, float flOldVa
 	} else {
 		console->Print("Harness disabled. Shutting down gRPC server...\n");
 		harness->StopServer();
-		engine->SetAdvancing(false);
+		// engine->SetAdvancing(false);
 	}
 }
 
@@ -162,10 +162,10 @@ grpc::Status Portal2HarnessImpl::Act(grpc::ServerContext *context, const portal2
 	response->set_success(true);
 	return grpc::Status::OK;
 }
-
-ON_EVENT(SESSION_START) {
-	if (harness && harness->IsEnabled()) {
-		console->Print("Harness enabled, freezing game...\n");
-		engine->SetAdvancing(true);
-	}
-}
+//
+// ON_EVENT(SESSION_START) {
+// 	if (harness && harness->IsEnabled()) {
+// 		console->Print("Harness enabled, freezing game...\n");
+// 		engine->SetAdvancing(true);
+// 	}
+// }
