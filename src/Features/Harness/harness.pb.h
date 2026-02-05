@@ -1233,21 +1233,32 @@ class ActionRequest final : public ::google::protobuf::Message
 
   // accessors -------------------------------------------------------
   enum : int {
-    kKeyForwardFieldNumber = 1,
-    kKeyLeftFieldNumber = 2,
-    kKeyBackwardFieldNumber = 3,
-    kKeyRightFieldNumber = 4,
-    kKeyUseFieldNumber = 5,
-    kKeyZoominFieldNumber = 6,
-    kKeyZoomoutFieldNumber = 7,
-    kKeyCrouchFieldNumber = 8,
-    kPortalPrimaryFieldNumber = 9,
-    kPortalSecondaryFieldNumber = 10,
-    kKeyJumpFieldNumber = 11,
-    kMouseDxFieldNumber = 12,
-    kMouseDyFieldNumber = 13,
+    kNumTicksFieldNumber = 1,
+    kKeyForwardFieldNumber = 2,
+    kKeyLeftFieldNumber = 3,
+    kKeyBackwardFieldNumber = 4,
+    kKeyRightFieldNumber = 5,
+    kKeyUseFieldNumber = 6,
+    kKeyZoominFieldNumber = 7,
+    kKeyZoomoutFieldNumber = 8,
+    kKeyCrouchFieldNumber = 9,
+    kPortalPrimaryFieldNumber = 10,
+    kPortalSecondaryFieldNumber = 11,
+    kKeyJumpFieldNumber = 12,
+    kMouseDxFieldNumber = 13,
+    kMouseDyFieldNumber = 14,
   };
-  // bool key_forward = 1;
+  // int32 num_ticks = 1;
+  void clear_num_ticks() ;
+  ::int32_t num_ticks() const;
+  void set_num_ticks(::int32_t value);
+
+  private:
+  ::int32_t _internal_num_ticks() const;
+  void _internal_set_num_ticks(::int32_t value);
+
+  public:
+  // bool key_forward = 2;
   void clear_key_forward() ;
   bool key_forward() const;
   void set_key_forward(bool value);
@@ -1257,7 +1268,7 @@ class ActionRequest final : public ::google::protobuf::Message
   void _internal_set_key_forward(bool value);
 
   public:
-  // bool key_left = 2;
+  // bool key_left = 3;
   void clear_key_left() ;
   bool key_left() const;
   void set_key_left(bool value);
@@ -1267,7 +1278,7 @@ class ActionRequest final : public ::google::protobuf::Message
   void _internal_set_key_left(bool value);
 
   public:
-  // bool key_backward = 3;
+  // bool key_backward = 4;
   void clear_key_backward() ;
   bool key_backward() const;
   void set_key_backward(bool value);
@@ -1277,7 +1288,7 @@ class ActionRequest final : public ::google::protobuf::Message
   void _internal_set_key_backward(bool value);
 
   public:
-  // bool key_right = 4;
+  // bool key_right = 5;
   void clear_key_right() ;
   bool key_right() const;
   void set_key_right(bool value);
@@ -1287,7 +1298,7 @@ class ActionRequest final : public ::google::protobuf::Message
   void _internal_set_key_right(bool value);
 
   public:
-  // bool key_use = 5;
+  // bool key_use = 6;
   void clear_key_use() ;
   bool key_use() const;
   void set_key_use(bool value);
@@ -1297,7 +1308,7 @@ class ActionRequest final : public ::google::protobuf::Message
   void _internal_set_key_use(bool value);
 
   public:
-  // bool key_zoomin = 6;
+  // bool key_zoomin = 7;
   void clear_key_zoomin() ;
   bool key_zoomin() const;
   void set_key_zoomin(bool value);
@@ -1307,7 +1318,7 @@ class ActionRequest final : public ::google::protobuf::Message
   void _internal_set_key_zoomin(bool value);
 
   public:
-  // bool key_zoomout = 7;
+  // bool key_zoomout = 8;
   void clear_key_zoomout() ;
   bool key_zoomout() const;
   void set_key_zoomout(bool value);
@@ -1317,7 +1328,7 @@ class ActionRequest final : public ::google::protobuf::Message
   void _internal_set_key_zoomout(bool value);
 
   public:
-  // bool key_crouch = 8;
+  // bool key_crouch = 9;
   void clear_key_crouch() ;
   bool key_crouch() const;
   void set_key_crouch(bool value);
@@ -1327,7 +1338,7 @@ class ActionRequest final : public ::google::protobuf::Message
   void _internal_set_key_crouch(bool value);
 
   public:
-  // bool portal_primary = 9;
+  // bool portal_primary = 10;
   void clear_portal_primary() ;
   bool portal_primary() const;
   void set_portal_primary(bool value);
@@ -1337,7 +1348,7 @@ class ActionRequest final : public ::google::protobuf::Message
   void _internal_set_portal_primary(bool value);
 
   public:
-  // bool portal_secondary = 10;
+  // bool portal_secondary = 11;
   void clear_portal_secondary() ;
   bool portal_secondary() const;
   void set_portal_secondary(bool value);
@@ -1347,7 +1358,7 @@ class ActionRequest final : public ::google::protobuf::Message
   void _internal_set_portal_secondary(bool value);
 
   public:
-  // bool key_jump = 11;
+  // bool key_jump = 12;
   void clear_key_jump() ;
   bool key_jump() const;
   void set_key_jump(bool value);
@@ -1357,7 +1368,7 @@ class ActionRequest final : public ::google::protobuf::Message
   void _internal_set_key_jump(bool value);
 
   public:
-  // float mouse_dx = 12;
+  // float mouse_dx = 13;
   void clear_mouse_dx() ;
   float mouse_dx() const;
   void set_mouse_dx(float value);
@@ -1367,7 +1378,7 @@ class ActionRequest final : public ::google::protobuf::Message
   void _internal_set_mouse_dx(float value);
 
   public:
-  // float mouse_dy = 13;
+  // float mouse_dy = 14;
   void clear_mouse_dy() ;
   float mouse_dy() const;
   void set_mouse_dy(float value);
@@ -1381,7 +1392,7 @@ class ActionRequest final : public ::google::protobuf::Message
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<4, 13,
+  static const ::google::protobuf::internal::TcParseTable<4, 14,
                                    0, 0,
                                    2>
       _table_;
@@ -1403,6 +1414,7 @@ class ActionRequest final : public ::google::protobuf::Message
         const ActionRequest& from_msg);
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
+    ::int32_t num_ticks_;
     bool key_forward_;
     bool key_left_;
     bool key_backward_;
@@ -2152,11 +2164,35 @@ inline void GameState::_internal_set_server_tick(::int32_t value) {
 
 // ActionRequest
 
-// bool key_forward = 1;
+// int32 num_ticks = 1;
+inline void ActionRequest::clear_num_ticks() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.num_ticks_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline ::int32_t ActionRequest::num_ticks() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.num_ticks)
+  return _internal_num_ticks();
+}
+inline void ActionRequest::set_num_ticks(::int32_t value) {
+  _internal_set_num_ticks(value);
+  _impl_._has_bits_[0] |= 0x00000001u;
+  // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.num_ticks)
+}
+inline ::int32_t ActionRequest::_internal_num_ticks() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.num_ticks_;
+}
+inline void ActionRequest::_internal_set_num_ticks(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.num_ticks_ = value;
+}
+
+// bool key_forward = 2;
 inline void ActionRequest::clear_key_forward() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.key_forward_ = false;
-  _impl_._has_bits_[0] &= ~0x00000001u;
+  _impl_._has_bits_[0] &= ~0x00000002u;
 }
 inline bool ActionRequest::key_forward() const {
   // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.key_forward)
@@ -2164,7 +2200,7 @@ inline bool ActionRequest::key_forward() const {
 }
 inline void ActionRequest::set_key_forward(bool value) {
   _internal_set_key_forward(value);
-  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_._has_bits_[0] |= 0x00000002u;
   // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.key_forward)
 }
 inline bool ActionRequest::_internal_key_forward() const {
@@ -2176,11 +2212,11 @@ inline void ActionRequest::_internal_set_key_forward(bool value) {
   _impl_.key_forward_ = value;
 }
 
-// bool key_left = 2;
+// bool key_left = 3;
 inline void ActionRequest::clear_key_left() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.key_left_ = false;
-  _impl_._has_bits_[0] &= ~0x00000002u;
+  _impl_._has_bits_[0] &= ~0x00000004u;
 }
 inline bool ActionRequest::key_left() const {
   // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.key_left)
@@ -2188,7 +2224,7 @@ inline bool ActionRequest::key_left() const {
 }
 inline void ActionRequest::set_key_left(bool value) {
   _internal_set_key_left(value);
-  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_._has_bits_[0] |= 0x00000004u;
   // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.key_left)
 }
 inline bool ActionRequest::_internal_key_left() const {
@@ -2200,11 +2236,11 @@ inline void ActionRequest::_internal_set_key_left(bool value) {
   _impl_.key_left_ = value;
 }
 
-// bool key_backward = 3;
+// bool key_backward = 4;
 inline void ActionRequest::clear_key_backward() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.key_backward_ = false;
-  _impl_._has_bits_[0] &= ~0x00000004u;
+  _impl_._has_bits_[0] &= ~0x00000008u;
 }
 inline bool ActionRequest::key_backward() const {
   // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.key_backward)
@@ -2212,7 +2248,7 @@ inline bool ActionRequest::key_backward() const {
 }
 inline void ActionRequest::set_key_backward(bool value) {
   _internal_set_key_backward(value);
-  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_._has_bits_[0] |= 0x00000008u;
   // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.key_backward)
 }
 inline bool ActionRequest::_internal_key_backward() const {
@@ -2224,11 +2260,11 @@ inline void ActionRequest::_internal_set_key_backward(bool value) {
   _impl_.key_backward_ = value;
 }
 
-// bool key_right = 4;
+// bool key_right = 5;
 inline void ActionRequest::clear_key_right() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.key_right_ = false;
-  _impl_._has_bits_[0] &= ~0x00000008u;
+  _impl_._has_bits_[0] &= ~0x00000010u;
 }
 inline bool ActionRequest::key_right() const {
   // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.key_right)
@@ -2236,7 +2272,7 @@ inline bool ActionRequest::key_right() const {
 }
 inline void ActionRequest::set_key_right(bool value) {
   _internal_set_key_right(value);
-  _impl_._has_bits_[0] |= 0x00000008u;
+  _impl_._has_bits_[0] |= 0x00000010u;
   // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.key_right)
 }
 inline bool ActionRequest::_internal_key_right() const {
@@ -2248,11 +2284,11 @@ inline void ActionRequest::_internal_set_key_right(bool value) {
   _impl_.key_right_ = value;
 }
 
-// bool key_use = 5;
+// bool key_use = 6;
 inline void ActionRequest::clear_key_use() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.key_use_ = false;
-  _impl_._has_bits_[0] &= ~0x00000010u;
+  _impl_._has_bits_[0] &= ~0x00000020u;
 }
 inline bool ActionRequest::key_use() const {
   // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.key_use)
@@ -2260,7 +2296,7 @@ inline bool ActionRequest::key_use() const {
 }
 inline void ActionRequest::set_key_use(bool value) {
   _internal_set_key_use(value);
-  _impl_._has_bits_[0] |= 0x00000010u;
+  _impl_._has_bits_[0] |= 0x00000020u;
   // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.key_use)
 }
 inline bool ActionRequest::_internal_key_use() const {
@@ -2272,11 +2308,11 @@ inline void ActionRequest::_internal_set_key_use(bool value) {
   _impl_.key_use_ = value;
 }
 
-// bool key_zoomin = 6;
+// bool key_zoomin = 7;
 inline void ActionRequest::clear_key_zoomin() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.key_zoomin_ = false;
-  _impl_._has_bits_[0] &= ~0x00000020u;
+  _impl_._has_bits_[0] &= ~0x00000040u;
 }
 inline bool ActionRequest::key_zoomin() const {
   // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.key_zoomin)
@@ -2284,7 +2320,7 @@ inline bool ActionRequest::key_zoomin() const {
 }
 inline void ActionRequest::set_key_zoomin(bool value) {
   _internal_set_key_zoomin(value);
-  _impl_._has_bits_[0] |= 0x00000020u;
+  _impl_._has_bits_[0] |= 0x00000040u;
   // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.key_zoomin)
 }
 inline bool ActionRequest::_internal_key_zoomin() const {
@@ -2296,11 +2332,11 @@ inline void ActionRequest::_internal_set_key_zoomin(bool value) {
   _impl_.key_zoomin_ = value;
 }
 
-// bool key_zoomout = 7;
+// bool key_zoomout = 8;
 inline void ActionRequest::clear_key_zoomout() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.key_zoomout_ = false;
-  _impl_._has_bits_[0] &= ~0x00000040u;
+  _impl_._has_bits_[0] &= ~0x00000080u;
 }
 inline bool ActionRequest::key_zoomout() const {
   // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.key_zoomout)
@@ -2308,7 +2344,7 @@ inline bool ActionRequest::key_zoomout() const {
 }
 inline void ActionRequest::set_key_zoomout(bool value) {
   _internal_set_key_zoomout(value);
-  _impl_._has_bits_[0] |= 0x00000040u;
+  _impl_._has_bits_[0] |= 0x00000080u;
   // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.key_zoomout)
 }
 inline bool ActionRequest::_internal_key_zoomout() const {
@@ -2320,11 +2356,11 @@ inline void ActionRequest::_internal_set_key_zoomout(bool value) {
   _impl_.key_zoomout_ = value;
 }
 
-// bool key_crouch = 8;
+// bool key_crouch = 9;
 inline void ActionRequest::clear_key_crouch() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.key_crouch_ = false;
-  _impl_._has_bits_[0] &= ~0x00000080u;
+  _impl_._has_bits_[0] &= ~0x00000100u;
 }
 inline bool ActionRequest::key_crouch() const {
   // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.key_crouch)
@@ -2332,7 +2368,7 @@ inline bool ActionRequest::key_crouch() const {
 }
 inline void ActionRequest::set_key_crouch(bool value) {
   _internal_set_key_crouch(value);
-  _impl_._has_bits_[0] |= 0x00000080u;
+  _impl_._has_bits_[0] |= 0x00000100u;
   // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.key_crouch)
 }
 inline bool ActionRequest::_internal_key_crouch() const {
@@ -2344,11 +2380,11 @@ inline void ActionRequest::_internal_set_key_crouch(bool value) {
   _impl_.key_crouch_ = value;
 }
 
-// bool portal_primary = 9;
+// bool portal_primary = 10;
 inline void ActionRequest::clear_portal_primary() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.portal_primary_ = false;
-  _impl_._has_bits_[0] &= ~0x00000100u;
+  _impl_._has_bits_[0] &= ~0x00000200u;
 }
 inline bool ActionRequest::portal_primary() const {
   // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.portal_primary)
@@ -2356,7 +2392,7 @@ inline bool ActionRequest::portal_primary() const {
 }
 inline void ActionRequest::set_portal_primary(bool value) {
   _internal_set_portal_primary(value);
-  _impl_._has_bits_[0] |= 0x00000100u;
+  _impl_._has_bits_[0] |= 0x00000200u;
   // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.portal_primary)
 }
 inline bool ActionRequest::_internal_portal_primary() const {
@@ -2368,11 +2404,11 @@ inline void ActionRequest::_internal_set_portal_primary(bool value) {
   _impl_.portal_primary_ = value;
 }
 
-// bool portal_secondary = 10;
+// bool portal_secondary = 11;
 inline void ActionRequest::clear_portal_secondary() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.portal_secondary_ = false;
-  _impl_._has_bits_[0] &= ~0x00000200u;
+  _impl_._has_bits_[0] &= ~0x00000400u;
 }
 inline bool ActionRequest::portal_secondary() const {
   // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.portal_secondary)
@@ -2380,7 +2416,7 @@ inline bool ActionRequest::portal_secondary() const {
 }
 inline void ActionRequest::set_portal_secondary(bool value) {
   _internal_set_portal_secondary(value);
-  _impl_._has_bits_[0] |= 0x00000200u;
+  _impl_._has_bits_[0] |= 0x00000400u;
   // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.portal_secondary)
 }
 inline bool ActionRequest::_internal_portal_secondary() const {
@@ -2392,11 +2428,11 @@ inline void ActionRequest::_internal_set_portal_secondary(bool value) {
   _impl_.portal_secondary_ = value;
 }
 
-// bool key_jump = 11;
+// bool key_jump = 12;
 inline void ActionRequest::clear_key_jump() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.key_jump_ = false;
-  _impl_._has_bits_[0] &= ~0x00000400u;
+  _impl_._has_bits_[0] &= ~0x00000800u;
 }
 inline bool ActionRequest::key_jump() const {
   // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.key_jump)
@@ -2404,7 +2440,7 @@ inline bool ActionRequest::key_jump() const {
 }
 inline void ActionRequest::set_key_jump(bool value) {
   _internal_set_key_jump(value);
-  _impl_._has_bits_[0] |= 0x00000400u;
+  _impl_._has_bits_[0] |= 0x00000800u;
   // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.key_jump)
 }
 inline bool ActionRequest::_internal_key_jump() const {
@@ -2416,11 +2452,11 @@ inline void ActionRequest::_internal_set_key_jump(bool value) {
   _impl_.key_jump_ = value;
 }
 
-// float mouse_dx = 12;
+// float mouse_dx = 13;
 inline void ActionRequest::clear_mouse_dx() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.mouse_dx_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000800u;
+  _impl_._has_bits_[0] &= ~0x00001000u;
 }
 inline float ActionRequest::mouse_dx() const {
   // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.mouse_dx)
@@ -2428,7 +2464,7 @@ inline float ActionRequest::mouse_dx() const {
 }
 inline void ActionRequest::set_mouse_dx(float value) {
   _internal_set_mouse_dx(value);
-  _impl_._has_bits_[0] |= 0x00000800u;
+  _impl_._has_bits_[0] |= 0x00001000u;
   // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.mouse_dx)
 }
 inline float ActionRequest::_internal_mouse_dx() const {
@@ -2440,11 +2476,11 @@ inline void ActionRequest::_internal_set_mouse_dx(float value) {
   _impl_.mouse_dx_ = value;
 }
 
-// float mouse_dy = 13;
+// float mouse_dy = 14;
 inline void ActionRequest::clear_mouse_dy() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.mouse_dy_ = 0;
-  _impl_._has_bits_[0] &= ~0x00001000u;
+  _impl_._has_bits_[0] &= ~0x00002000u;
 }
 inline float ActionRequest::mouse_dy() const {
   // @@protoc_insertion_point(field_get:portal2_harness.ActionRequest.mouse_dy)
@@ -2452,7 +2488,7 @@ inline float ActionRequest::mouse_dy() const {
 }
 inline void ActionRequest::set_mouse_dy(float value) {
   _internal_set_mouse_dy(value);
-  _impl_._has_bits_[0] |= 0x00001000u;
+  _impl_._has_bits_[0] |= 0x00002000u;
   // @@protoc_insertion_point(field_set:portal2_harness.ActionRequest.mouse_dy)
 }
 inline float ActionRequest::_internal_mouse_dy() const {

@@ -41,6 +41,13 @@ src/Features/Harness/%.grpc.pb.cpp src/Features/Harness/%.grpc.pb.h: src/Feature
 	/opt/p2-grpc32/bin/protoc -I=src/Features/Harness --grpc_out=src/Features/Harness --plugin=protoc-gen-grpc=/opt/p2-grpc32/bin/grpc_cpp_plugin $<
 	mv src/Features/Harness/$*.grpc.pb.cc src/Features/Harness/$*.grpc.pb.cpp
 
+# Python proto generation - regenerates automatically when .proto changes
+src/Features/Harness/%_pb2.py: src/Features/Harness/%.proto
+	/opt/p2-grpc32/bin/protoc -I=src/Features/Harness --python_out=src/Features/Harness $<
+
+src/Features/Harness/%_pb2_grpc.py: src/Features/Harness/%.proto
+	python -m grpc_tools.protoc -I=src/Features/Harness --grpc_python_out=src/Features/Harness $<
+
 src/Version.hpp: .FORCE
 	if [ "$$RELEASE_BUILD" ]; then echo "#define SAR_VERSION \"$(VERSION)\"" >"$@"; fi
 	if [ -z "$$RELEASE_BUILD" ]; then echo "#define SAR_VERSION \"$(VERSION)-canary\"" >"$@"; fi

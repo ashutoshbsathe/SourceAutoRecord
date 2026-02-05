@@ -30,7 +30,13 @@ private:
 extern Harness *harness;
 
 class Portal2HarnessImpl final : public portal2_harness::Portal2Harness::Service {
+public:
+	Portal2HarnessImpl();
+
 	grpc::Status InitialHandshake(grpc::ServerContext *context, const portal2_harness::HandshakeRequest *request, portal2_harness::HandshakeResponse *response) override;
 	grpc::Status Observe(grpc::ServerContext *context, const portal2_harness::Empty *request, portal2_harness::GameState *response) override;
 	grpc::Status Act(grpc::ServerContext *context, const portal2_harness::ActionRequest *request, portal2_harness::ActionResponse *response) override;
+
+private:
+	bool playerDied = false;
 };

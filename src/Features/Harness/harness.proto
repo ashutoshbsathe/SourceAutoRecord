@@ -37,24 +37,27 @@ message GameState {
 // --- Action Messages ---
 
 message ActionRequest {
+  // Number of ticks to execute this action
+  int32 num_ticks = 1;
+  
   // Movement keys
-  bool key_forward = 1;  // w
-  bool key_left = 2;     // a
-  bool key_backward = 3; // s
-  bool key_right = 4;    // d
+  bool key_forward = 2;  // w
+  bool key_left = 3;     // a
+  bool key_backward = 4; // s
+  bool key_right = 5;    // d
   
   // Interaction/Ability keys
-  bool key_use = 5;      // e
-  bool key_zoomin = 6;   // z / mouse scroll up
-  bool key_zoomout = 7;  // x / mouse scroll down
-  bool key_crouch = 8;   // c
-  bool portal_primary = 9;        // mouse left
-  bool portal_secondary = 10;     // mouse right
-  bool key_jump = 11;    // space
+  bool key_use = 6;      // e
+  bool key_zoomin = 7;   // z / mouse scroll up
+  bool key_zoomout = 8;  // x / mouse scroll down
+  bool key_crouch = 9;   // c
+  bool portal_primary = 10;        // mouse left
+  bool portal_secondary = 11;     // mouse right
+  bool key_jump = 12;    // space
 
   // Mouse movement (analog value between [-1,+1]) 
-  float mouse_dx = 12;
-  float mouse_dy = 13;
+  float mouse_dx = 13;
+  float mouse_dy = 14;
 }
 
 message ActionResponse {

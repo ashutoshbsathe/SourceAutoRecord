@@ -162,6 +162,7 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
 inline constexpr ActionRequest::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
+        num_ticks_{0},
         key_forward_{false},
         key_left_{false},
         key_backward_{false},
@@ -259,7 +260,8 @@ const ::uint32_t
         5,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::ActionRequest, _impl_._has_bits_),
-        16, // hasbit index offset
+        17, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::ActionRequest, _impl_.num_ticks_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::ActionRequest, _impl_.key_forward_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::ActionRequest, _impl_.key_left_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::ActionRequest, _impl_.key_backward_),
@@ -286,6 +288,7 @@ const ::uint32_t
         10,
         11,
         12,
+        13,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::ActionResponse, _impl_._has_bits_),
         5, // hasbit index offset
@@ -315,10 +318,10 @@ static const ::_pbi::MigrationSchema
         {0, sizeof(::portal2_harness::Vector3)},
         {9, sizeof(::portal2_harness::GameState)},
         {24, sizeof(::portal2_harness::ActionRequest)},
-        {53, sizeof(::portal2_harness::ActionResponse)},
-        {60, sizeof(::portal2_harness::HandshakeRequest)},
-        {67, sizeof(::portal2_harness::HandshakeResponse)},
-        {74, sizeof(::portal2_harness::Empty)},
+        {55, sizeof(::portal2_harness::ActionResponse)},
+        {62, sizeof(::portal2_harness::HandshakeRequest)},
+        {69, sizeof(::portal2_harness::HandshakeResponse)},
+        {76, sizeof(::portal2_harness::Empty)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::portal2_harness::_Vector3_default_instance_._instance,
@@ -338,31 +341,31 @@ const char descriptor_table_protodef_harness_2eproto[] ABSL_ATTRIBUTE_SECTION_VA
     "l2_harness.Vector3\022(\n\006camera\030\003 \001(\0132\030.por"
     "tal2_harness.Vector3\022\016\n\006health\030\004 \001(\005\022\024\n\014"
     "is_crouching\030\005 \001(\010\022\023\n\013server_tick\030\006 \001(\005\""
-    "\225\002\n\rActionRequest\022\023\n\013key_forward\030\001 \001(\010\022\020"
-    "\n\010key_left\030\002 \001(\010\022\024\n\014key_backward\030\003 \001(\010\022\021"
-    "\n\tkey_right\030\004 \001(\010\022\017\n\007key_use\030\005 \001(\010\022\022\n\nke"
-    "y_zoomin\030\006 \001(\010\022\023\n\013key_zoomout\030\007 \001(\010\022\022\n\nk"
-    "ey_crouch\030\010 \001(\010\022\026\n\016portal_primary\030\t \001(\010\022"
-    "\030\n\020portal_secondary\030\n \001(\010\022\020\n\010key_jump\030\013 "
-    "\001(\010\022\020\n\010mouse_dx\030\014 \001(\002\022\020\n\010mouse_dy\030\r \001(\002\""
-    "8\n\016ActionResponse\022\017\n\007success\030\001 \001(\010\022\025\n\rer"
-    "ror_message\030\002 \001(\t\"=\n\020HandshakeRequest\022\026\n"
-    "\016client_version\030\001 \001(\t\022\021\n\tclient_id\030\002 \001(\t"
-    "\";\n\021HandshakeResponse\022\024\n\014game_version\030\001 "
-    "\001(\t\022\020\n\010map_name\030\002 \001(\t\"\007\n\005Empty2\362\001\n\016Porta"
-    "l2Harness\022Y\n\020InitialHandshake\022!.portal2_"
-    "harness.HandshakeRequest\032\".portal2_harne"
-    "ss.HandshakeResponse\022=\n\007Observe\022\026.portal"
-    "2_harness.Empty\032\032.portal2_harness.GameSt"
-    "ate\022F\n\003Act\022\036.portal2_harness.ActionReque"
-    "st\032\037.portal2_harness.ActionResponseb\006pro"
-    "to3"
+    "\250\002\n\rActionRequest\022\021\n\tnum_ticks\030\001 \001(\005\022\023\n\013"
+    "key_forward\030\002 \001(\010\022\020\n\010key_left\030\003 \001(\010\022\024\n\014k"
+    "ey_backward\030\004 \001(\010\022\021\n\tkey_right\030\005 \001(\010\022\017\n\007"
+    "key_use\030\006 \001(\010\022\022\n\nkey_zoomin\030\007 \001(\010\022\023\n\013key"
+    "_zoomout\030\010 \001(\010\022\022\n\nkey_crouch\030\t \001(\010\022\026\n\016po"
+    "rtal_primary\030\n \001(\010\022\030\n\020portal_secondary\030\013"
+    " \001(\010\022\020\n\010key_jump\030\014 \001(\010\022\020\n\010mouse_dx\030\r \001(\002"
+    "\022\020\n\010mouse_dy\030\016 \001(\002\"8\n\016ActionResponse\022\017\n\007"
+    "success\030\001 \001(\010\022\025\n\rerror_message\030\002 \001(\t\"=\n\020"
+    "HandshakeRequest\022\026\n\016client_version\030\001 \001(\t"
+    "\022\021\n\tclient_id\030\002 \001(\t\";\n\021HandshakeResponse"
+    "\022\024\n\014game_version\030\001 \001(\t\022\020\n\010map_name\030\002 \001(\t"
+    "\"\007\n\005Empty2\362\001\n\016Portal2Harness\022Y\n\020InitialH"
+    "andshake\022!.portal2_harness.HandshakeRequ"
+    "est\032\".portal2_harness.HandshakeResponse\022"
+    "=\n\007Observe\022\026.portal2_harness.Empty\032\032.por"
+    "tal2_harness.GameState\022F\n\003Act\022\036.portal2_"
+    "harness.ActionRequest\032\037.portal2_harness."
+    "ActionResponseb\006proto3"
 };
 static ::absl::once_flag descriptor_table_harness_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_harness_2eproto = {
     false,
     false,
-    1003,
+    1022,
     descriptor_table_protodef_harness_2eproto,
     "harness.proto",
     &descriptor_table_harness_2eproto_once,
@@ -1157,10 +1160,10 @@ PROTOBUF_NDEBUG_INLINE ActionRequest::Impl_::Impl_(
 inline void ActionRequest::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   new (&_impl_) Impl_(internal_visibility(), arena);
   ::memset(reinterpret_cast<char *>(&_impl_) +
-               offsetof(Impl_, key_forward_),
+               offsetof(Impl_, num_ticks_),
            0,
            offsetof(Impl_, mouse_dy_) -
-               offsetof(Impl_, key_forward_) +
+               offsetof(Impl_, num_ticks_) +
                sizeof(Impl_::mouse_dy_));
 }
 ActionRequest::~ActionRequest() {
@@ -1217,16 +1220,16 @@ ActionRequest::GetClassData() const {
   return ActionRequest_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<4, 13, 0, 0, 2>
+const ::_pbi::TcParseTable<4, 14, 0, 0, 2>
 ActionRequest::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_._has_bits_),
     0, // no _extensions_
-    13, 120,  // max_field_number, fast_idx_mask
+    14, 120,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294959104,  // skipmap
+    4294950912,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    13,  // num_field_entries
+    14,  // num_field_entries
     0,  // num_aux_entries
     offsetof(decltype(_table_), field_names),  // no aux_entries
     ActionRequest_class_data_.base(),
@@ -1237,88 +1240,93 @@ ActionRequest::_table_ = {
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
     {::_pbi::TcParser::MiniParse, {}},
-    // bool key_forward = 1;
-    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_forward_), 0>(),
-     {8, 0, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_forward_)}},
-    // bool key_left = 2;
-    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_left_), 1>(),
-     {16, 1, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_left_)}},
-    // bool key_backward = 3;
-    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_backward_), 2>(),
-     {24, 2, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_backward_)}},
-    // bool key_right = 4;
-    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_right_), 3>(),
-     {32, 3, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_right_)}},
-    // bool key_use = 5;
-    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_use_), 4>(),
-     {40, 4, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_use_)}},
-    // bool key_zoomin = 6;
-    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_zoomin_), 5>(),
-     {48, 5, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_zoomin_)}},
-    // bool key_zoomout = 7;
-    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_zoomout_), 6>(),
-     {56, 6, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_zoomout_)}},
-    // bool key_crouch = 8;
-    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_crouch_), 7>(),
-     {64, 7, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_crouch_)}},
-    // bool portal_primary = 9;
-    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.portal_primary_), 8>(),
-     {72, 8, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.portal_primary_)}},
-    // bool portal_secondary = 10;
-    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.portal_secondary_), 9>(),
-     {80, 9, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.portal_secondary_)}},
-    // bool key_jump = 11;
-    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_jump_), 10>(),
-     {88, 10, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_jump_)}},
-    // float mouse_dx = 12;
+    // int32 num_ticks = 1;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(ActionRequest, _impl_.num_ticks_), 0>(),
+     {8, 0, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.num_ticks_)}},
+    // bool key_forward = 2;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_forward_), 1>(),
+     {16, 1, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_forward_)}},
+    // bool key_left = 3;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_left_), 2>(),
+     {24, 2, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_left_)}},
+    // bool key_backward = 4;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_backward_), 3>(),
+     {32, 3, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_backward_)}},
+    // bool key_right = 5;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_right_), 4>(),
+     {40, 4, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_right_)}},
+    // bool key_use = 6;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_use_), 5>(),
+     {48, 5, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_use_)}},
+    // bool key_zoomin = 7;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_zoomin_), 6>(),
+     {56, 6, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_zoomin_)}},
+    // bool key_zoomout = 8;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_zoomout_), 7>(),
+     {64, 7, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_zoomout_)}},
+    // bool key_crouch = 9;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_crouch_), 8>(),
+     {72, 8, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_crouch_)}},
+    // bool portal_primary = 10;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.portal_primary_), 9>(),
+     {80, 9, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.portal_primary_)}},
+    // bool portal_secondary = 11;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.portal_secondary_), 10>(),
+     {88, 10, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.portal_secondary_)}},
+    // bool key_jump = 12;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ActionRequest, _impl_.key_jump_), 11>(),
+     {96, 11, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_jump_)}},
+    // float mouse_dx = 13;
     {::_pbi::TcParser::FastF32S1,
-     {101, 11, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.mouse_dx_)}},
-    // float mouse_dy = 13;
+     {109, 12, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.mouse_dx_)}},
+    // float mouse_dy = 14;
     {::_pbi::TcParser::FastF32S1,
-     {109, 12, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.mouse_dy_)}},
-    {::_pbi::TcParser::MiniParse, {}},
+     {117, 13, 0, PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.mouse_dy_)}},
     {::_pbi::TcParser::MiniParse, {}},
   }}, {{
     65535, 65535
   }}, {{
-    // bool key_forward = 1;
-    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_forward_), _Internal::kHasBitsOffset + 0, 0,
+    // int32 num_ticks = 1;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.num_ticks_), _Internal::kHasBitsOffset + 0, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    // bool key_forward = 2;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_forward_), _Internal::kHasBitsOffset + 1, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kBool)},
-    // bool key_left = 2;
-    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_left_), _Internal::kHasBitsOffset + 1, 0,
+    // bool key_left = 3;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_left_), _Internal::kHasBitsOffset + 2, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kBool)},
-    // bool key_backward = 3;
-    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_backward_), _Internal::kHasBitsOffset + 2, 0,
+    // bool key_backward = 4;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_backward_), _Internal::kHasBitsOffset + 3, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kBool)},
-    // bool key_right = 4;
-    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_right_), _Internal::kHasBitsOffset + 3, 0,
+    // bool key_right = 5;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_right_), _Internal::kHasBitsOffset + 4, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kBool)},
-    // bool key_use = 5;
-    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_use_), _Internal::kHasBitsOffset + 4, 0,
+    // bool key_use = 6;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_use_), _Internal::kHasBitsOffset + 5, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kBool)},
-    // bool key_zoomin = 6;
-    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_zoomin_), _Internal::kHasBitsOffset + 5, 0,
+    // bool key_zoomin = 7;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_zoomin_), _Internal::kHasBitsOffset + 6, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kBool)},
-    // bool key_zoomout = 7;
-    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_zoomout_), _Internal::kHasBitsOffset + 6, 0,
+    // bool key_zoomout = 8;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_zoomout_), _Internal::kHasBitsOffset + 7, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kBool)},
-    // bool key_crouch = 8;
-    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_crouch_), _Internal::kHasBitsOffset + 7, 0,
+    // bool key_crouch = 9;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_crouch_), _Internal::kHasBitsOffset + 8, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kBool)},
-    // bool portal_primary = 9;
-    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.portal_primary_), _Internal::kHasBitsOffset + 8, 0,
+    // bool portal_primary = 10;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.portal_primary_), _Internal::kHasBitsOffset + 9, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kBool)},
-    // bool portal_secondary = 10;
-    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.portal_secondary_), _Internal::kHasBitsOffset + 9, 0,
+    // bool portal_secondary = 11;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.portal_secondary_), _Internal::kHasBitsOffset + 10, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kBool)},
-    // bool key_jump = 11;
-    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_jump_), _Internal::kHasBitsOffset + 10, 0,
+    // bool key_jump = 12;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_jump_), _Internal::kHasBitsOffset + 11, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kBool)},
-    // float mouse_dx = 12;
-    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.mouse_dx_), _Internal::kHasBitsOffset + 11, 0,
+    // float mouse_dx = 13;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.mouse_dx_), _Internal::kHasBitsOffset + 12, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kFloat)},
-    // float mouse_dy = 13;
-    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.mouse_dy_), _Internal::kHasBitsOffset + 12, 0,
+    // float mouse_dy = 14;
+    {PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.mouse_dy_), _Internal::kHasBitsOffset + 13, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kFloat)},
   }},
   // no aux_entries
@@ -1334,14 +1342,14 @@ PROTOBUF_NOINLINE void ActionRequest::Clear() {
 
   cached_has_bits = _impl_._has_bits_[0];
   if ((cached_has_bits & 0x000000ffu) != 0) {
-    ::memset(&_impl_.key_forward_, 0, static_cast<::size_t>(
-        reinterpret_cast<char*>(&_impl_.key_crouch_) -
-        reinterpret_cast<char*>(&_impl_.key_forward_)) + sizeof(_impl_.key_crouch_));
+    ::memset(&_impl_.num_ticks_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.key_zoomout_) -
+        reinterpret_cast<char*>(&_impl_.num_ticks_)) + sizeof(_impl_.key_zoomout_));
   }
-  if ((cached_has_bits & 0x00001f00u) != 0) {
-    ::memset(&_impl_.portal_primary_, 0, static_cast<::size_t>(
+  if ((cached_has_bits & 0x00003f00u) != 0) {
+    ::memset(&_impl_.key_crouch_, 0, static_cast<::size_t>(
         reinterpret_cast<char*>(&_impl_.mouse_dy_) -
-        reinterpret_cast<char*>(&_impl_.portal_primary_)) + sizeof(_impl_.mouse_dy_));
+        reinterpret_cast<char*>(&_impl_.key_crouch_)) + sizeof(_impl_.mouse_dy_));
   }
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
@@ -1362,120 +1370,129 @@ PROTOBUF_NOINLINE void ActionRequest::Clear() {
   ::uint32_t cached_has_bits = 0;
   (void)cached_has_bits;
 
-  // bool key_forward = 1;
+  // int32 num_ticks = 1;
   if ((this_._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    if (this_._internal_num_ticks() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<1>(
+              stream, this_._internal_num_ticks(), target);
+    }
+  }
+
+  // bool key_forward = 2;
+  if ((this_._impl_._has_bits_[0] & 0x00000002u) != 0) {
     if (this_._internal_key_forward() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
-          1, this_._internal_key_forward(), target);
+          2, this_._internal_key_forward(), target);
     }
   }
 
-  // bool key_left = 2;
-  if ((this_._impl_._has_bits_[0] & 0x00000002u) != 0) {
+  // bool key_left = 3;
+  if ((this_._impl_._has_bits_[0] & 0x00000004u) != 0) {
     if (this_._internal_key_left() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
-          2, this_._internal_key_left(), target);
+          3, this_._internal_key_left(), target);
     }
   }
 
-  // bool key_backward = 3;
-  if ((this_._impl_._has_bits_[0] & 0x00000004u) != 0) {
+  // bool key_backward = 4;
+  if ((this_._impl_._has_bits_[0] & 0x00000008u) != 0) {
     if (this_._internal_key_backward() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
-          3, this_._internal_key_backward(), target);
+          4, this_._internal_key_backward(), target);
     }
   }
 
-  // bool key_right = 4;
-  if ((this_._impl_._has_bits_[0] & 0x00000008u) != 0) {
+  // bool key_right = 5;
+  if ((this_._impl_._has_bits_[0] & 0x00000010u) != 0) {
     if (this_._internal_key_right() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
-          4, this_._internal_key_right(), target);
+          5, this_._internal_key_right(), target);
     }
   }
 
-  // bool key_use = 5;
-  if ((this_._impl_._has_bits_[0] & 0x00000010u) != 0) {
+  // bool key_use = 6;
+  if ((this_._impl_._has_bits_[0] & 0x00000020u) != 0) {
     if (this_._internal_key_use() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
-          5, this_._internal_key_use(), target);
+          6, this_._internal_key_use(), target);
     }
   }
 
-  // bool key_zoomin = 6;
-  if ((this_._impl_._has_bits_[0] & 0x00000020u) != 0) {
+  // bool key_zoomin = 7;
+  if ((this_._impl_._has_bits_[0] & 0x00000040u) != 0) {
     if (this_._internal_key_zoomin() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
-          6, this_._internal_key_zoomin(), target);
+          7, this_._internal_key_zoomin(), target);
     }
   }
 
-  // bool key_zoomout = 7;
-  if ((this_._impl_._has_bits_[0] & 0x00000040u) != 0) {
+  // bool key_zoomout = 8;
+  if ((this_._impl_._has_bits_[0] & 0x00000080u) != 0) {
     if (this_._internal_key_zoomout() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
-          7, this_._internal_key_zoomout(), target);
+          8, this_._internal_key_zoomout(), target);
     }
   }
 
-  // bool key_crouch = 8;
-  if ((this_._impl_._has_bits_[0] & 0x00000080u) != 0) {
+  // bool key_crouch = 9;
+  if ((this_._impl_._has_bits_[0] & 0x00000100u) != 0) {
     if (this_._internal_key_crouch() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
-          8, this_._internal_key_crouch(), target);
+          9, this_._internal_key_crouch(), target);
     }
   }
 
-  // bool portal_primary = 9;
-  if ((this_._impl_._has_bits_[0] & 0x00000100u) != 0) {
+  // bool portal_primary = 10;
+  if ((this_._impl_._has_bits_[0] & 0x00000200u) != 0) {
     if (this_._internal_portal_primary() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
-          9, this_._internal_portal_primary(), target);
+          10, this_._internal_portal_primary(), target);
     }
   }
 
-  // bool portal_secondary = 10;
-  if ((this_._impl_._has_bits_[0] & 0x00000200u) != 0) {
+  // bool portal_secondary = 11;
+  if ((this_._impl_._has_bits_[0] & 0x00000400u) != 0) {
     if (this_._internal_portal_secondary() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
-          10, this_._internal_portal_secondary(), target);
+          11, this_._internal_portal_secondary(), target);
     }
   }
 
-  // bool key_jump = 11;
-  if ((this_._impl_._has_bits_[0] & 0x00000400u) != 0) {
+  // bool key_jump = 12;
+  if ((this_._impl_._has_bits_[0] & 0x00000800u) != 0) {
     if (this_._internal_key_jump() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
-          11, this_._internal_key_jump(), target);
+          12, this_._internal_key_jump(), target);
     }
   }
 
-  // float mouse_dx = 12;
-  if ((this_._impl_._has_bits_[0] & 0x00000800u) != 0) {
+  // float mouse_dx = 13;
+  if ((this_._impl_._has_bits_[0] & 0x00001000u) != 0) {
     if (::absl::bit_cast<::uint32_t>(this_._internal_mouse_dx()) != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteFloatToArray(
-          12, this_._internal_mouse_dx(), target);
+          13, this_._internal_mouse_dx(), target);
     }
   }
 
-  // float mouse_dy = 13;
-  if ((this_._impl_._has_bits_[0] & 0x00001000u) != 0) {
+  // float mouse_dy = 14;
+  if ((this_._impl_._has_bits_[0] & 0x00002000u) != 0) {
     if (::absl::bit_cast<::uint32_t>(this_._internal_mouse_dy()) != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteFloatToArray(
-          13, this_._internal_mouse_dy(), target);
+          14, this_._internal_mouse_dy(), target);
     }
   }
 
@@ -1505,82 +1522,89 @@ PROTOBUF_NOINLINE void ActionRequest::Clear() {
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
   if ((cached_has_bits & 0x000000ffu) != 0) {
-    // bool key_forward = 1;
+    // int32 num_ticks = 1;
     if ((cached_has_bits & 0x00000001u) != 0) {
+      if (this_._internal_num_ticks() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
+            this_._internal_num_ticks());
+      }
+    }
+    // bool key_forward = 2;
+    if ((cached_has_bits & 0x00000002u) != 0) {
       if (this_._internal_key_forward() != 0) {
         total_size += 2;
       }
     }
-    // bool key_left = 2;
-    if ((cached_has_bits & 0x00000002u) != 0) {
+    // bool key_left = 3;
+    if ((cached_has_bits & 0x00000004u) != 0) {
       if (this_._internal_key_left() != 0) {
         total_size += 2;
       }
     }
-    // bool key_backward = 3;
-    if ((cached_has_bits & 0x00000004u) != 0) {
+    // bool key_backward = 4;
+    if ((cached_has_bits & 0x00000008u) != 0) {
       if (this_._internal_key_backward() != 0) {
         total_size += 2;
       }
     }
-    // bool key_right = 4;
-    if ((cached_has_bits & 0x00000008u) != 0) {
+    // bool key_right = 5;
+    if ((cached_has_bits & 0x00000010u) != 0) {
       if (this_._internal_key_right() != 0) {
         total_size += 2;
       }
     }
-    // bool key_use = 5;
-    if ((cached_has_bits & 0x00000010u) != 0) {
+    // bool key_use = 6;
+    if ((cached_has_bits & 0x00000020u) != 0) {
       if (this_._internal_key_use() != 0) {
         total_size += 2;
       }
     }
-    // bool key_zoomin = 6;
-    if ((cached_has_bits & 0x00000020u) != 0) {
+    // bool key_zoomin = 7;
+    if ((cached_has_bits & 0x00000040u) != 0) {
       if (this_._internal_key_zoomin() != 0) {
         total_size += 2;
       }
     }
-    // bool key_zoomout = 7;
-    if ((cached_has_bits & 0x00000040u) != 0) {
+    // bool key_zoomout = 8;
+    if ((cached_has_bits & 0x00000080u) != 0) {
       if (this_._internal_key_zoomout() != 0) {
         total_size += 2;
       }
     }
-    // bool key_crouch = 8;
-    if ((cached_has_bits & 0x00000080u) != 0) {
+  }
+  if ((cached_has_bits & 0x00003f00u) != 0) {
+    // bool key_crouch = 9;
+    if ((cached_has_bits & 0x00000100u) != 0) {
       if (this_._internal_key_crouch() != 0) {
         total_size += 2;
       }
     }
-  }
-  if ((cached_has_bits & 0x00001f00u) != 0) {
-    // bool portal_primary = 9;
-    if ((cached_has_bits & 0x00000100u) != 0) {
+    // bool portal_primary = 10;
+    if ((cached_has_bits & 0x00000200u) != 0) {
       if (this_._internal_portal_primary() != 0) {
         total_size += 2;
       }
     }
-    // bool portal_secondary = 10;
-    if ((cached_has_bits & 0x00000200u) != 0) {
+    // bool portal_secondary = 11;
+    if ((cached_has_bits & 0x00000400u) != 0) {
       if (this_._internal_portal_secondary() != 0) {
         total_size += 2;
       }
     }
-    // bool key_jump = 11;
-    if ((cached_has_bits & 0x00000400u) != 0) {
+    // bool key_jump = 12;
+    if ((cached_has_bits & 0x00000800u) != 0) {
       if (this_._internal_key_jump() != 0) {
         total_size += 2;
       }
     }
-    // float mouse_dx = 12;
-    if ((cached_has_bits & 0x00000800u) != 0) {
+    // float mouse_dx = 13;
+    if ((cached_has_bits & 0x00001000u) != 0) {
       if (::absl::bit_cast<::uint32_t>(this_._internal_mouse_dx()) != 0) {
         total_size += 5;
       }
     }
-    // float mouse_dy = 13;
-    if ((cached_has_bits & 0x00001000u) != 0) {
+    // float mouse_dy = 14;
+    if ((cached_has_bits & 0x00002000u) != 0) {
       if (::absl::bit_cast<::uint32_t>(this_._internal_mouse_dy()) != 0) {
         total_size += 5;
       }
@@ -1601,68 +1625,73 @@ void ActionRequest::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::g
   cached_has_bits = from._impl_._has_bits_[0];
   if ((cached_has_bits & 0x000000ffu) != 0) {
     if ((cached_has_bits & 0x00000001u) != 0) {
+      if (from._internal_num_ticks() != 0) {
+        _this->_impl_.num_ticks_ = from._impl_.num_ticks_;
+      }
+    }
+    if ((cached_has_bits & 0x00000002u) != 0) {
       if (from._internal_key_forward() != 0) {
         _this->_impl_.key_forward_ = from._impl_.key_forward_;
       }
     }
-    if ((cached_has_bits & 0x00000002u) != 0) {
+    if ((cached_has_bits & 0x00000004u) != 0) {
       if (from._internal_key_left() != 0) {
         _this->_impl_.key_left_ = from._impl_.key_left_;
       }
     }
-    if ((cached_has_bits & 0x00000004u) != 0) {
+    if ((cached_has_bits & 0x00000008u) != 0) {
       if (from._internal_key_backward() != 0) {
         _this->_impl_.key_backward_ = from._impl_.key_backward_;
       }
     }
-    if ((cached_has_bits & 0x00000008u) != 0) {
+    if ((cached_has_bits & 0x00000010u) != 0) {
       if (from._internal_key_right() != 0) {
         _this->_impl_.key_right_ = from._impl_.key_right_;
       }
     }
-    if ((cached_has_bits & 0x00000010u) != 0) {
+    if ((cached_has_bits & 0x00000020u) != 0) {
       if (from._internal_key_use() != 0) {
         _this->_impl_.key_use_ = from._impl_.key_use_;
       }
     }
-    if ((cached_has_bits & 0x00000020u) != 0) {
+    if ((cached_has_bits & 0x00000040u) != 0) {
       if (from._internal_key_zoomin() != 0) {
         _this->_impl_.key_zoomin_ = from._impl_.key_zoomin_;
       }
     }
-    if ((cached_has_bits & 0x00000040u) != 0) {
+    if ((cached_has_bits & 0x00000080u) != 0) {
       if (from._internal_key_zoomout() != 0) {
         _this->_impl_.key_zoomout_ = from._impl_.key_zoomout_;
       }
     }
-    if ((cached_has_bits & 0x00000080u) != 0) {
+  }
+  if ((cached_has_bits & 0x00003f00u) != 0) {
+    if ((cached_has_bits & 0x00000100u) != 0) {
       if (from._internal_key_crouch() != 0) {
         _this->_impl_.key_crouch_ = from._impl_.key_crouch_;
       }
     }
-  }
-  if ((cached_has_bits & 0x00001f00u) != 0) {
-    if ((cached_has_bits & 0x00000100u) != 0) {
+    if ((cached_has_bits & 0x00000200u) != 0) {
       if (from._internal_portal_primary() != 0) {
         _this->_impl_.portal_primary_ = from._impl_.portal_primary_;
       }
     }
-    if ((cached_has_bits & 0x00000200u) != 0) {
+    if ((cached_has_bits & 0x00000400u) != 0) {
       if (from._internal_portal_secondary() != 0) {
         _this->_impl_.portal_secondary_ = from._impl_.portal_secondary_;
       }
     }
-    if ((cached_has_bits & 0x00000400u) != 0) {
+    if ((cached_has_bits & 0x00000800u) != 0) {
       if (from._internal_key_jump() != 0) {
         _this->_impl_.key_jump_ = from._impl_.key_jump_;
       }
     }
-    if ((cached_has_bits & 0x00000800u) != 0) {
+    if ((cached_has_bits & 0x00001000u) != 0) {
       if (::absl::bit_cast<::uint32_t>(from._internal_mouse_dx()) != 0) {
         _this->_impl_.mouse_dx_ = from._impl_.mouse_dx_;
       }
     }
-    if ((cached_has_bits & 0x00001000u) != 0) {
+    if ((cached_has_bits & 0x00002000u) != 0) {
       if (::absl::bit_cast<::uint32_t>(from._internal_mouse_dy()) != 0) {
         _this->_impl_.mouse_dy_ = from._impl_.mouse_dy_;
       }
@@ -1687,9 +1716,9 @@ void ActionRequest::InternalSwap(ActionRequest* PROTOBUF_RESTRICT PROTOBUF_NONNU
   ::google::protobuf::internal::memswap<
       PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.mouse_dy_)
       + sizeof(ActionRequest::_impl_.mouse_dy_)
-      - PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.key_forward_)>(
-          reinterpret_cast<char*>(&_impl_.key_forward_),
-          reinterpret_cast<char*>(&other->_impl_.key_forward_));
+      - PROTOBUF_FIELD_OFFSET(ActionRequest, _impl_.num_ticks_)>(
+          reinterpret_cast<char*>(&_impl_.num_ticks_),
+          reinterpret_cast<char*>(&other->_impl_.num_ticks_));
 }
 
 ::google::protobuf::Metadata ActionRequest::GetMetadata() const {
