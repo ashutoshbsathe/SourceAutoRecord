@@ -20,3 +20,7 @@ cmake -B build-32 \
     -DCMAKE_C_FLAGS="$CFLAGS" \
     -DCMAKE_CXX_FLAGS="$CXXFLAGS"
 ```
+
+game launch options: `gamescope -w 640 -h 480 -W 640 -H 480 -b -- %command% -dev -insecure -console -novid -vulkan -sw +engine_no_focus_sleep 0 -nomousegrab`
+
+needs `gamescope` (available on arch cuz steamos, not sure about other operating systems)
