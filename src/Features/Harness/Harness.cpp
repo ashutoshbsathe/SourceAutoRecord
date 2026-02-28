@@ -8,17 +8,19 @@
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
 #include "Modules/Server.hpp"
+#include "Features/Tas/TasPlayer.hpp"
 #include "SAR.hpp"
 #include "Utils/SDK.hpp"
 
 #include <string>
 
-Harness *harness;
+Harness *harness;  // TODO: should probably be moved to the header? SAR confuses me
 
 static int g_harness_warmup_ticks_remaining = 0;
 static int g_harness_current_tick = 0;
 const int HARNESS_WARMUP_TICKS = 256;
 
+// Everything below (the stubs) are added by Gemini 3 Flash to fix some compilation warnings
 // Renderer stubs to avoid FFMPEG dependency
 namespace Renderer {
 	int segmentEndTick = -1;
@@ -87,6 +89,8 @@ int sd_is_socket_sockaddr(int fd, int type, const void *addr, unsigned int addrl
 }
 }
 
+// real implementation starts here
+
 static void sar_harness_callback(void *var, const char *pOldValue, float flOldValue) {
 	if (harness->IsEnabled()) {
 		console->Print("Harness enabled. Initializing gRPC server thread...\n");
@@ -136,6 +140,9 @@ void Harness::StartServer() {
 			this->shouldRun = false;
 		}
 	});
+    // Manage TAS playback, the structure resembles tasPlayer->PlayFile()
+    // Stop(true);
+    TasPlaybackInfo newInfo; // dummy, Act(), should just create a framebulk and keep reusing this ideally
 }
 
 void Harness::StopServer() {
@@ -144,6 +151,9 @@ void Harness::StopServer() {
 	if (this->serverThread.joinable()) {
 		this->serverThread.join();
 	}
+    if (tasPlayer) {
+        tasPlayer->Stop();
+    }
 }
 
 Portal2HarnessImpl::Portal2HarnessImpl()
