@@ -13,6 +13,9 @@ service Portal2Harness {
 
   // Send an action to be executed in the next game tick
   rpc Act(ActionRequest) returns (ActionResponse);
+
+  // Execute an arbitrary console command (DANGEROUS - testing only)
+  rpc ExecuteCommand(CommandRequest) returns (CommandResponse);
 }
 
 // --- Shared Types ---
@@ -61,6 +64,17 @@ message ActionRequest {
 }
 
 message ActionResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// --- Command Messages ---
+
+message CommandRequest {
+  string command = 1;
+}
+
+message CommandResponse {
   bool success = 1;
   string error_message = 2;
 }

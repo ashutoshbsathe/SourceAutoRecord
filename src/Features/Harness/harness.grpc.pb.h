@@ -61,6 +61,14 @@ class Portal2Harness final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ActionResponse>> PrepareAsyncAct(::grpc::ClientContext* context, const ::portal2_harness::ActionRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ActionResponse>>(PrepareAsyncActRaw(context, request, cq));
     }
+    // Execute an arbitrary console command (DANGEROUS - testing only)
+    virtual ::grpc::Status ExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::portal2_harness::CommandResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::CommandResponse>> AsyncExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::CommandResponse>>(AsyncExecuteCommandRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::CommandResponse>> PrepareAsyncExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::CommandResponse>>(PrepareAsyncExecuteCommandRaw(context, request, cq));
+    }
     class async_interface {
      public:
       virtual ~async_interface() {}
@@ -73,6 +81,9 @@ class Portal2Harness final {
       // Send an action to be executed in the next game tick
       virtual void Act(::grpc::ClientContext* context, const ::portal2_harness::ActionRequest* request, ::portal2_harness::ActionResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void Act(::grpc::ClientContext* context, const ::portal2_harness::ActionRequest* request, ::portal2_harness::ActionResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Execute an arbitrary console command (DANGEROUS - testing only)
+      virtual void ExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void ExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
@@ -84,6 +95,8 @@ class Portal2Harness final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::GameState>* PrepareAsyncObserveRaw(::grpc::ClientContext* context, const ::portal2_harness::Empty& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ActionResponse>* AsyncActRaw(::grpc::ClientContext* context, const ::portal2_harness::ActionRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ActionResponse>* PrepareAsyncActRaw(::grpc::ClientContext* context, const ::portal2_harness::ActionRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::CommandResponse>* AsyncExecuteCommandRaw(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::CommandResponse>* PrepareAsyncExecuteCommandRaw(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -109,6 +122,13 @@ class Portal2Harness final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::ActionResponse>> PrepareAsyncAct(::grpc::ClientContext* context, const ::portal2_harness::ActionRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::ActionResponse>>(PrepareAsyncActRaw(context, request, cq));
     }
+    ::grpc::Status ExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::portal2_harness::CommandResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::CommandResponse>> AsyncExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::CommandResponse>>(AsyncExecuteCommandRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::CommandResponse>> PrepareAsyncExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::CommandResponse>>(PrepareAsyncExecuteCommandRaw(context, request, cq));
+    }
     class async final :
       public StubInterface::async_interface {
      public:
@@ -118,6 +138,8 @@ class Portal2Harness final {
       void Observe(::grpc::ClientContext* context, const ::portal2_harness::Empty* request, ::portal2_harness::GameState* response, ::grpc::ClientUnaryReactor* reactor) override;
       void Act(::grpc::ClientContext* context, const ::portal2_harness::ActionRequest* request, ::portal2_harness::ActionResponse* response, std::function<void(::grpc::Status)>) override;
       void Act(::grpc::ClientContext* context, const ::portal2_harness::ActionRequest* request, ::portal2_harness::ActionResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void ExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response, std::function<void(::grpc::Status)>) override;
+      void ExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -135,9 +157,12 @@ class Portal2Harness final {
     ::grpc::ClientAsyncResponseReader< ::portal2_harness::GameState>* PrepareAsyncObserveRaw(::grpc::ClientContext* context, const ::portal2_harness::Empty& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::portal2_harness::ActionResponse>* AsyncActRaw(::grpc::ClientContext* context, const ::portal2_harness::ActionRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::portal2_harness::ActionResponse>* PrepareAsyncActRaw(::grpc::ClientContext* context, const ::portal2_harness::ActionRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::portal2_harness::CommandResponse>* AsyncExecuteCommandRaw(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::portal2_harness::CommandResponse>* PrepareAsyncExecuteCommandRaw(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_InitialHandshake_;
     const ::grpc::internal::RpcMethod rpcmethod_Observe_;
     const ::grpc::internal::RpcMethod rpcmethod_Act_;
+    const ::grpc::internal::RpcMethod rpcmethod_ExecuteCommand_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -151,6 +176,8 @@ class Portal2Harness final {
     virtual ::grpc::Status Observe(::grpc::ServerContext* context, const ::portal2_harness::Empty* request, ::portal2_harness::GameState* response);
     // Send an action to be executed in the next game tick
     virtual ::grpc::Status Act(::grpc::ServerContext* context, const ::portal2_harness::ActionRequest* request, ::portal2_harness::ActionResponse* response);
+    // Execute an arbitrary console command (DANGEROUS - testing only)
+    virtual ::grpc::Status ExecuteCommand(::grpc::ServerContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_InitialHandshake : public BaseClass {
@@ -212,7 +239,27 @@ class Portal2Harness final {
       ::grpc::Service::RequestAsyncUnary(2, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_InitialHandshake<WithAsyncMethod_Observe<WithAsyncMethod_Act<Service > > > AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_ExecuteCommand : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_ExecuteCommand() {
+      ::grpc::Service::MarkMethodAsync(3);
+    }
+    ~WithAsyncMethod_ExecuteCommand() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ExecuteCommand(::grpc::ServerContext* /*context*/, const ::portal2_harness::CommandRequest* /*request*/, ::portal2_harness::CommandResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestExecuteCommand(::grpc::ServerContext* context, ::portal2_harness::CommandRequest* request, ::grpc::ServerAsyncResponseWriter< ::portal2_harness::CommandResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(3, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_InitialHandshake<WithAsyncMethod_Observe<WithAsyncMethod_Act<WithAsyncMethod_ExecuteCommand<Service > > > > AsyncService;
   template <class BaseClass>
   class WithCallbackMethod_InitialHandshake : public BaseClass {
    private:
@@ -294,7 +341,34 @@ class Portal2Harness final {
     virtual ::grpc::ServerUnaryReactor* Act(
       ::grpc::CallbackServerContext* /*context*/, const ::portal2_harness::ActionRequest* /*request*/, ::portal2_harness::ActionResponse* /*response*/)  { return nullptr; }
   };
-  typedef WithCallbackMethod_InitialHandshake<WithCallbackMethod_Observe<WithCallbackMethod_Act<Service > > > CallbackService;
+  template <class BaseClass>
+  class WithCallbackMethod_ExecuteCommand : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_ExecuteCommand() {
+      ::grpc::Service::MarkMethodCallback(3,
+          new ::grpc::internal::CallbackUnaryHandler< ::portal2_harness::CommandRequest, ::portal2_harness::CommandResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response) { return this->ExecuteCommand(context, request, response); }));}
+    void SetMessageAllocatorFor_ExecuteCommand(
+        ::grpc::MessageAllocator< ::portal2_harness::CommandRequest, ::portal2_harness::CommandResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(3);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::portal2_harness::CommandRequest, ::portal2_harness::CommandResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_ExecuteCommand() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ExecuteCommand(::grpc::ServerContext* /*context*/, const ::portal2_harness::CommandRequest* /*request*/, ::portal2_harness::CommandResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ExecuteCommand(
+      ::grpc::CallbackServerContext* /*context*/, const ::portal2_harness::CommandRequest* /*request*/, ::portal2_harness::CommandResponse* /*response*/)  { return nullptr; }
+  };
+  typedef WithCallbackMethod_InitialHandshake<WithCallbackMethod_Observe<WithCallbackMethod_Act<WithCallbackMethod_ExecuteCommand<Service > > > > CallbackService;
   typedef CallbackService ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_InitialHandshake : public BaseClass {
@@ -343,6 +417,23 @@ class Portal2Harness final {
     }
     // disable synchronous version of this method
     ::grpc::Status Act(::grpc::ServerContext* /*context*/, const ::portal2_harness::ActionRequest* /*request*/, ::portal2_harness::ActionResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_ExecuteCommand : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_ExecuteCommand() {
+      ::grpc::Service::MarkMethodGeneric(3);
+    }
+    ~WithGenericMethod_ExecuteCommand() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ExecuteCommand(::grpc::ServerContext* /*context*/, const ::portal2_harness::CommandRequest* /*request*/, ::portal2_harness::CommandResponse* /*response*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -405,6 +496,26 @@ class Portal2Harness final {
     }
     void RequestAct(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncUnary(2, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_ExecuteCommand : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_ExecuteCommand() {
+      ::grpc::Service::MarkMethodRaw(3);
+    }
+    ~WithRawMethod_ExecuteCommand() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ExecuteCommand(::grpc::ServerContext* /*context*/, const ::portal2_harness::CommandRequest* /*request*/, ::portal2_harness::CommandResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestExecuteCommand(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(3, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -471,6 +582,28 @@ class Portal2Harness final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     virtual ::grpc::ServerUnaryReactor* Act(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_ExecuteCommand : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_ExecuteCommand() {
+      ::grpc::Service::MarkMethodRawCallback(3,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->ExecuteCommand(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_ExecuteCommand() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ExecuteCommand(::grpc::ServerContext* /*context*/, const ::portal2_harness::CommandRequest* /*request*/, ::portal2_harness::CommandResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ExecuteCommand(
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
   };
   template <class BaseClass>
@@ -554,9 +687,36 @@ class Portal2Harness final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedAct(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::portal2_harness::ActionRequest,::portal2_harness::ActionResponse>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_InitialHandshake<WithStreamedUnaryMethod_Observe<WithStreamedUnaryMethod_Act<Service > > > StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_ExecuteCommand : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_ExecuteCommand() {
+      ::grpc::Service::MarkMethodStreamed(3,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::portal2_harness::CommandRequest, ::portal2_harness::CommandResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::portal2_harness::CommandRequest, ::portal2_harness::CommandResponse>* streamer) {
+                       return this->StreamedExecuteCommand(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_ExecuteCommand() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status ExecuteCommand(::grpc::ServerContext* /*context*/, const ::portal2_harness::CommandRequest* /*request*/, ::portal2_harness::CommandResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedExecuteCommand(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::portal2_harness::CommandRequest,::portal2_harness::CommandResponse>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_InitialHandshake<WithStreamedUnaryMethod_Observe<WithStreamedUnaryMethod_Act<WithStreamedUnaryMethod_ExecuteCommand<Service > > > > StreamedUnaryService;
   typedef Service SplitStreamedService;
-  typedef WithStreamedUnaryMethod_InitialHandshake<WithStreamedUnaryMethod_Observe<WithStreamedUnaryMethod_Act<Service > > > StreamedService;
+  typedef WithStreamedUnaryMethod_InitialHandshake<WithStreamedUnaryMethod_Observe<WithStreamedUnaryMethod_Act<WithStreamedUnaryMethod_ExecuteCommand<Service > > > > StreamedService;
 };
 
 }  // namespace portal2_harness

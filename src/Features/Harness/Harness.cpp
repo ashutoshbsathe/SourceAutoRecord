@@ -360,8 +360,37 @@ grpc::Status Portal2HarnessImpl::Act(grpc::ServerContext *context, const portal2
 	return grpc::Status::OK;
 }
 
+grpc::Status Portal2HarnessImpl::ExecuteCommand(grpc::ServerContext *context, const portal2_harness::CommandRequest *request, portal2_harness::CommandResponse *response) {
+	std::string cmd = request->command();
+	if (cmd.empty()) {
+		response->set_success(false);
+		response->set_error_message("Empty command");
+		return grpc::Status::OK;
+	}
 
-// ================================================================
+	console->Print("Harness: ExecuteCommand: %s\n", cmd.c_str());
+
+	// Dispatch command to main thread
+	Scheduler::OnMainThread([cmd]() {
+		engine->ExecuteCommand(cmd.c_str(), true);
+	});
+
+	// Advance a tick so the command takes effect
+	if (harness->harnessControlActive) {
+		harness->ticksRemaining = 1;
+		Scheduler::OnMainThread([]() {
+			engine->AdvanceTick();
+		});
+
+		std::unique_lock<std::mutex> lock(harness->tickMutex);
+		harness->tickCV.wait(lock, []() {
+			return harness->ticksRemaining <= 0;
+		});
+	}
+
+	response->set_success(true);
+	return grpc::Status::OK;
+}  // ================================================================
 // Event handlers
 // ================================================================
 
