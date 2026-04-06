@@ -12,11 +12,9 @@ Variable cl_pitchdown;
 Variable cl_pitchup;
 
 const char *g_TasControllerDigitalActions[] = {
-	"+jump", "+duck", "+use", "+zoom", "+attack", "+attack2", "+speed", "+reload", "+flashlight"
-};
+	"+jump", "+duck", "+use", "+zoom", "+attack", "+attack2", "+speed", "+reload", "+flashlight"};
 const int g_TasControllerInGameButtons[] = {
-	IN_JUMP, IN_DUCK, IN_USE, IN_ZOOM, IN_ATTACK, IN_ATTACK2, IN_SPEED, IN_RELOAD, IN_FLASHLIGHT
-};
+	IN_JUMP, IN_DUCK, IN_USE, IN_ZOOM, IN_ATTACK, IN_ATTACK2, IN_SPEED, IN_RELOAD, IN_FLASHLIGHT};
 
 Variable sar_tas_real_controller_debug("sar_tas_real_controller_debug", "0", 0, 4, "Debugs controller.\n");
 
@@ -139,17 +137,17 @@ void TasController::ControllerMove(int nSlot, float flFrametime, CUserCmd *cmd) 
 	if (!enabled) return;
 	if (tasPlayer->playbackInfo.coopControlSlot == nSlot) return;
 
-	//console->Print("TasController::ControllerMove (%d, ", cmd->tick_count);
+	//	console->Print("TasController::ControllerMove (%d, ", cmd->tick_count);
 
 	tasPlayer->FetchInputs(nSlot, this);
 
-	//TAS is now controlling inputs. Reset everything we can.
+	//	TAS is now controlling inputs. Reset everything we can.
 	cmd->forwardmove = 0;
 	cmd->sidemove = 0;
 	cmd->upmove = 0;
 	cmd->buttons = 0;
 
-	// Handle digital inputs. 
+	// Handle digital inputs.
 	// It's a mess because it was copied from original SteamControllerMove.
 	for (int i = 0; i < TAS_CONTROLLER_INPUT_COUNT; i++) {
 		TasControllerButton *button = &buttons[i];
@@ -161,13 +159,13 @@ void TasController::ControllerMove(int nSlot, float flFrametime, CUserCmd *cmd) 
 			}
 			engine->ExecuteCommand(cmdbuf, true);
 
-			//TODO: find if stuff below is needed
+			//	TODO: find if stuff below is needed
 			/*
-            IClientMode* clientMode = GetClientMode();
-            if (clientMode != NULL) {
-                clientMode->KeyInput(bState ? true : false, STEAMCONTROLLER_SELECT, cmdbuf);
-            }
-            */
+			         IClientMode* clientMode = GetClientMode();
+			         if (clientMode != NULL) {
+			             clientMode->KeyInput(bState ? true : false, STEAMCONTROLLER_SELECT, cmdbuf);
+			         }
+			         */
 		}
 		button->active = false;
 
@@ -186,14 +184,14 @@ void TasController::ControllerMove(int nSlot, float flFrametime, CUserCmd *cmd) 
 		tasPlayer->inControllerCommands = false;
 	}
 
-	//block analog inputs if paused (probably to block changing the view angle while paused)
+	//	block analog inputs if paused (probably to block changing the view angle while paused)
 	if (engine->IsGamePaused())
 		return;
 
-	//movement analog
+	//	movement analog
 	tasPlayer->ApplyMoveAnalog(moveAnalog, cmd);
 
-	//viewangle analog
+	//	viewangle analog
 
 	// don't do this part if tools are enabled.
 	// tools processing will do it instead
@@ -217,6 +215,6 @@ void TasController::ControllerMove(int nSlot, float flFrametime, CUserCmd *cmd) 
 		// want to set it for dumping the usercmd, hence this temporary
 		CUserCmd tmp = *cmd;
 		tmp.viewangles = engine->GetAngles(nSlot);
-		tasPlayer->DumpUsercmd(nSlot, &tmp, tasPlayer->GetTick() + 1, "client"); // off-by-one bullshit on tick count
+		tasPlayer->DumpUsercmd(nSlot, &tmp, tasPlayer->GetTick() + 1, "client");  // off-by-one bullshit on tick count
 	}
 }

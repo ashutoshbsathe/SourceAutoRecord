@@ -5,19 +5,20 @@
 #include "Features/Tas/TasController.hpp"
 #include "Features/Tas/TasPlayer.hpp"
 #include "Features/Tas/TasScript.hpp"
+#include "Modules/Client.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
 #include "Modules/Server.hpp"
-#include "Features/Tas/TasPlayer.hpp"
 #include "SAR.hpp"
+#include "Scheduler.hpp"
 #include "Utils/SDK.hpp"
 
+#include <array>
+#include <climits>
 #include <string>
 
-Harness *harness;  // TODO: should probably be moved to the header? SAR confuses me
+Harness *harness;
 
-static int g_harness_warmup_ticks_remaining = 0;
-static int g_harness_current_tick = 0;
 const int HARNESS_WARMUP_TICKS = 256;
 
 // Everything below (the stubs) are added by Gemini 3 Flash to fix some compilation warnings
@@ -89,21 +90,95 @@ int sd_is_socket_sockaddr(int fd, int type, const void *addr, unsigned int addrl
 }
 }
 
-// real implementation starts here
+// ================================================================
+// Helpers
+// ================================================================
+
+// Build a TasPlaybackInfo suitable for harness control.
+// Contains two framebulks: a default at tick 0 (the one we update),
+// and a sentinel at a very high tick (to keep lastTick huge so
+// TasPlayer::Update never auto-stops).
+static TasPlaybackInfo BuildHarnessPlaybackInfo() {
+	TasPlaybackInfo info;
+
+	// Configure header: start immediately, no map change
+	info.slots[0].header.version = 5;  // latest script version
+	info.slots[0].header.startInfo.isNext = false;
+	info.slots[0].header.startInfo.type = StartImmediately;
+	info.slots[0].header.startInfo.param = "";
+	info.slots[0].header.rngManipFile = "";
+
+	// Mark as raw playback (skip TAS tool processing)
+	info.slots[0].forceRawPlayback = true;
+	info.slots[0].loadedFromFile = false;
+	info.slots[0].name = "harness";
+
+	// Default framebulk at tick 0 (do nothing)
+	TasFramebulk fb0;
+	fb0.tick = 0;
+	fb0.moveAnalog = {0, 0, 0};
+	fb0.viewAnalog = {0, 0, 0};
+	for (int i = 0; i < TAS_CONTROLLER_INPUT_COUNT; i++) {
+		fb0.buttonStates[i] = false;
+	}
+	info.slots[0].framebulks.push_back(fb0);
+
+	// Sentinel framebulk at a very high tick to prevent auto-stop
+	TasFramebulk fbSentinel;
+	fbSentinel.tick = INT_MAX / 2;
+	fbSentinel.moveAnalog = {0, 0, 0};
+	fbSentinel.viewAnalog = {0, 0, 0};
+	for (int i = 0; i < TAS_CONTROLLER_INPUT_COUNT; i++) {
+		fbSentinel.buttonStates[i] = false;
+	}
+	info.slots[0].framebulks.push_back(fbSentinel);
+
+	// Slot 1 unused (single player)
+	info.coopControlSlot = -1;
+
+	return info;
+}
+
+// ================================================================
+// Harness implementation
+// ================================================================
+
+static void ActivateHarnessTasPlayer() {
+	if (!tasPlayer || !tasControllers[0]) {
+		console->Warning("Harness: TasPlayer or TasController not initialized!\n");
+		return;
+	}
+
+	console->Print("Harness: Activating TasPlayer with harness framebulks...\n");
+	TasPlaybackInfo info = BuildHarnessPlaybackInfo();
+	tasPlayer->Activate(info);
+	// TasPlayer::Update() will call Start() and PostStart() on subsequent frames,
+	// which handles in_forceuser, controller enabling, etc.
+}
 
 static void sar_harness_callback(void *var, const char *pOldValue, float flOldValue) {
 	if (harness->IsEnabled()) {
 		console->Print("Harness enabled. Initializing gRPC server thread...\n");
 		harness->StartServer();
+
+		// If a session is already running (user enabled harness mid-game),
+		// activate TasPlayer and start warmup
+		if (session->isRunning) {
+			ActivateHarnessTasPlayer();
+			harness->warmupTicksRemaining = HARNESS_WARMUP_TICKS;
+			harness->harnessControlActive = false;
+		}
 	} else {
 		console->Print("Harness disabled. Shutting down gRPC server...\n");
-
-		// Stop TasPlayer and return control to human
+		harness->harnessControlActive = false;
+		harness->warmupTicksRemaining = 0;
+		harness->ticksRemaining = 0;
+		// Stop TasPlayer if it's running
 		if (tasPlayer && tasPlayer->IsActive()) {
-			tasPlayer->Stop();
+			Scheduler::OnMainThread([]() {
+				tasPlayer->Stop(true);
+			});
 		}
-		g_harness_warmup_ticks_remaining = 0;
-
 		harness->StopServer();
 	}
 }
@@ -140,9 +215,6 @@ void Harness::StartServer() {
 			this->shouldRun = false;
 		}
 	});
-    // Manage TAS playback, the structure resembles tasPlayer->PlayFile()
-    // Stop(true);
-    TasPlaybackInfo newInfo; // dummy, Act(), should just create a framebulk and keep reusing this ideally
 }
 
 void Harness::StopServer() {
@@ -151,14 +223,16 @@ void Harness::StopServer() {
 	if (this->serverThread.joinable()) {
 		this->serverThread.join();
 	}
-    if (tasPlayer) {
-        tasPlayer->Stop();
-    }
+	if (this->harnessControlActive) {
+		this->harnessControlActive = false;
+		Scheduler::OnMainThread([]() {
+			engine->SetAdvancing(false);
+		});
+	}
 }
 
 Portal2HarnessImpl::Portal2HarnessImpl()
 	: playerDied(false) {
-	g_harness_current_tick = 0;
 }
 
 grpc::Status Portal2HarnessImpl::InitialHandshake(grpc::ServerContext *context, const portal2_harness::HandshakeRequest *request, portal2_harness::HandshakeResponse *response) {
@@ -208,144 +282,123 @@ grpc::Status Portal2HarnessImpl::Observe(grpc::ServerContext *context, const por
 	response->set_is_crouching(crouching);
 	response->set_server_tick(serverTick);
 
-	// Handle player death - restart map
-	if (health <= 0) {
-		console->Print("Harness: Player is dead, restarting level...\n");
-		engine->ExecuteCommand("restart_level");
-		g_harness_current_tick = 0;
-		playerDied = false;
-		engine->SetAdvancing(false);  // Unpause the game
-	}
-
 	return grpc::Status::OK;
 }
 
 grpc::Status Portal2HarnessImpl::Act(grpc::ServerContext *context, const portal2_harness::ActionRequest *request, portal2_harness::ActionResponse *response) {
-	// if (!session->isRunning) {
-	// 	response->set_success(false);
-	// 	response->set_error_message("No session running");
-	// 	return grpc::Status::OK;
-	// }
-	//
-	// if (!tasPlayer || !tasPlayer->IsActive()) {
-	// 	response->set_success(false);
-	// 	response->set_error_message("TasPlayer not active");
-	// 	return grpc::Status::OK;
-	// }
-	//
-	// int numTicks = request->num_ticks();
-	// if (numTicks <= 0) numTicks = 1;
-	//
-	// // Convert ActionRequest to TasFramebulk
-	// TasFramebulk fb;
-	// fb.tick = g_harness_current_tick;
-	//
-	// // Map movement keys to moveAnalog
-	// Vector moveAnalog = {0, 0};
-	// if (request->key_forward()) moveAnalog.y += 1.0f;
-	// if (request->key_backward()) moveAnalog.y -= 1.0f;
-	// if (request->key_right()) moveAnalog.x += 1.0f;
-	// if (request->key_left()) moveAnalog.x -= 1.0f;
-	// // Normalize if diagonal
-	// if (moveAnalog.Length2D() > 1.0f) {
-	// 	moveAnalog = moveAnalog.Normalize();
-	// }
-	// fb.moveAnalog = moveAnalog;
-	//
-	// // Map mouse movement to viewAnalog
-	// fb.viewAnalog.x = request->mouse_dx();
-	// fb.viewAnalog.y = request->mouse_dy();
-	//
-	// // Map button states
-	// for (int i = 0; i < TAS_CONTROLLER_INPUT_COUNT; i++) {
-	// 	fb.buttonStates[i] = false;
-	// }
-	//
-	// // Map proto fields to TAS button indices based on TasControllerInput enum
-	// // Jump=0, Crouch=1, Use=2, Zoom=3, FireBlue=4, FireOrange=5, Sprint=6, Reload=7, Flashlight=8
-	// if (request->key_jump()) fb.buttonStates[Jump] = true;
-	// if (request->key_crouch()) fb.buttonStates[Crouch] = true;
-	// if (request->key_use()) fb.buttonStates[Use] = true;
-	// if (request->key_zoomin()) fb.buttonStates[Zoom] = true;
-	// if (request->key_zoomout()) fb.buttonStates[Zoom] = true;  // Both zoom in/out map to same Zoom button
-	// if (request->portal_primary()) fb.buttonStates[FireBlue] = true;
-	// if (request->portal_secondary()) fb.buttonStates[FireOrange] = true;
-	//
-	// // Hijack input control for the duration of Act execution
-	// int old_forceuser = in_forceuser.GetInt();
-	// in_forceuser.SetValue(engine->GetMaxClients() + 1);
-	// tasControllers[0]->Enable();
-	//
-	// // Add framebulks to TasPlayer's playback queue and advance frame-by-frame
-	// for (int i = 0; i < numTicks; i++) {
-	// 	TasFramebulk tickFb = fb;
-	// 	tickFb.tick = g_harness_current_tick + 1;  // FetchInputs looks for g_harness_current_tick + 1
-	// 	tasPlayer->playbackInfo.slots[0].framebulks.push_back(tickFb);
-	//
-	// 	// Manually unpause, advance, re-pause
-	// 	engine->SetAdvancing(false);
-	// 	engine->AdvanceTick();
-	// 	engine->SetAdvancing(true);
-	// 	g_harness_current_tick++;
-	//
-	// 	// Check if player died
-	// 	void *player = server->GetPlayer(1);
-	// 	if (player) {
-	// 		ServerEnt *pl = (ServerEnt *)player;
-	// 		int health = pl->field<int>("m_iHealth");
-	// 		if (health <= 0) {
-	// 			playerDied = true;
-	// 			break;  // Stop executing remaining ticks
-	// 		}
-	// 	}
-	// }
-	//
-	// // Restore input control back to human
-	// tasControllers[0]->Disable();
-	// in_forceuser.SetValue(old_forceuser);
-	//
-	// response->set_success(true);
+	if (!session->isRunning) {
+		response->set_success(false);
+		response->set_error_message("No session running");
+		return grpc::Status::OK;
+	}
+
+	if (!harness->harnessControlActive) {
+		response->set_success(false);
+		response->set_error_message("Harness control not active (warmup may not be complete)");
+		return grpc::Status::OK;
+	}
+
+	if (!tasPlayer || !tasPlayer->IsActive()) {
+		response->set_success(false);
+		response->set_error_message("TasPlayer not active");
+		return grpc::Status::OK;
+	}
+
+	int numTicks = request->num_ticks();
+	if (numTicks <= 0) numTicks = 1;
+
+	// Build the framebulk from the ActionRequest
+	float moveX = 0.0f;
+	float moveY = 0.0f;
+	if (request->key_forward()) moveY += 1.0f;
+	if (request->key_backward()) moveY -= 1.0f;
+	if (request->key_right()) moveX += 1.0f;
+	if (request->key_left()) moveX -= 1.0f;
+
+	float viewX = request->mouse_dx();
+	float viewY = request->mouse_dy();
+
+	std::array<bool, TAS_CONTROLLER_INPUT_COUNT> buttons = {false};
+	if (request->key_jump()) buttons[Jump] = true;
+	if (request->key_crouch()) buttons[Crouch] = true;
+	if (request->key_use()) buttons[Use] = true;
+	if (request->key_zoomin()) buttons[Zoom] = true;
+	if (request->key_zoomout()) buttons[Zoom] = true;
+	if (request->portal_primary()) buttons[FireBlue] = true;
+	if (request->portal_secondary()) buttons[FireOrange] = true;
+
+	// Set the number of ticks we want to advance
+	harness->ticksRemaining = numTicks;
+
+	// Dispatch framebulk update and tick advancing to the main thread
+	Scheduler::OnMainThread([=]() {
+		// Update the first framebulk (index 0) with our harness inputs.
+		// FetchInputs binary-searches framebulks and always returns this one
+		// (it's the "before" entry for any tick > 0).
+		TasFramebulk &fb = tasPlayer->playbackInfo.slots[0].framebulks[0];
+		fb.moveAnalog = {moveX, moveY, 0};
+		fb.viewAnalog = {viewX, viewY, 0};
+		for (int i = 0; i < TAS_CONTROLLER_INPUT_COUNT; i++) {
+			fb.buttonStates[i] = buttons[i];
+		}
+
+		// Advance the requested number of ticks
+		for (int i = 0; i < numTicks; i++) {
+			engine->AdvanceTick();
+		}
+	});
+
+	// Wait for all ticks to execute (signaled from PRE_TICK handler)
+	{
+		std::unique_lock<std::mutex> lock(harness->tickMutex);
+		harness->tickCV.wait(lock, []() {
+			return harness->ticksRemaining <= 0;
+		});
+	}
+
+	response->set_success(true);
 	return grpc::Status::OK;
 }
-//
-// // SESSION_START event handler for Harness - initialize TasPlayer when session starts
-// ON_EVENT(SESSION_START) {
-// 	if (harness && harness->IsEnabled()) {
-// 		// Initialize TasPlayer with empty playback when session starts
-// 		TasPlaybackInfo info;
-// 		// Need at least one framebulk for Activate() to set active=true
-// 		TasFramebulk dummy;
-// 		dummy.tick = -1;
-// 		info.slots[0].framebulks.push_back(dummy);
-// 		info.slots[0].header.version = 8;
-// 		info.slots[0].header.startInfo.type = StartImmediately;
-// 		info.slots[0].header.startInfo.isNext = false;
-//
-// 		tasPlayer->Activate(info);
-// 		tasPlayer->Start();
-//
-// 		// Revert the input capture that Start() just did
-// 		in_forceuser.SetValue(0);
-// 		tasControllers[0]->Disable();
-//
-// 		g_harness_current_tick = 1;  // Match TasPlayer off-by-one logic
-// 		// Set warmup counter
-// 		g_harness_warmup_ticks_remaining = HARNESS_WARMUP_TICKS;
-// 		console->Print("Harness: Session started, running %d warmup ticks...\n", HARNESS_WARMUP_TICKS);
-// 	}
-// }
-//
-// // PRE_TICK event handler for warmup tick countdown
-// ON_EVENT(PRE_TICK) {
-// 	if (harness && harness->IsEnabled() && g_harness_warmup_ticks_remaining > 0) {
-// 		g_harness_warmup_ticks_remaining--;
-// 		if (g_harness_warmup_ticks_remaining == 0) {
-// 			console->Print("Harness: Warmup complete, pausing game and waiting for Act calls...\n");
-// 			engine->SetAdvancing(true);  // Manually pause since we didn't call Start()
-// 		}
-// 	}
-// }
-// 		console->Print("Harness enabled, freezing game...\n");
-// 		engine->SetAdvancing(true);
-// 	}
-// }
+
+
+// ================================================================
+// Event handlers
+// ================================================================
+
+// SESSION_START: When a session begins with harness enabled, activate TasPlayer
+ON_EVENT(SESSION_START) {
+	if (!harness || !harness->IsEnabled()) return;
+
+	console->Print("Harness: Session started, activating TasPlayer and starting %d warmup ticks...\n", HARNESS_WARMUP_TICKS);
+
+	ActivateHarnessTasPlayer();
+	harness->warmupTicksRemaining = HARNESS_WARMUP_TICKS;
+	harness->harnessControlActive = false;
+}
+
+// PRE_TICK: Manage warmup countdown and tick synchronization
+ON_EVENT(PRE_TICK) {
+	if (!harness || !harness->IsEnabled()) return;
+	if (!harness->harnessControlActive && harness->warmupTicksRemaining <= 0) return;
+
+	// Warmup phase: let the game run freely while TasPlayer initializes
+	if (harness->warmupTicksRemaining > 0) {
+		harness->warmupTicksRemaining--;
+		if (harness->warmupTicksRemaining == 0) {
+			console->Print("Harness: Warmup complete, pausing game and waiting for Act calls...\n");
+			engine->SetAdvancing(true);  // Pause the game
+			harness->harnessControlActive = true;
+		}
+		return;
+	}
+
+	// Act tick counting: decrement remaining ticks and notify when done
+	if (harness->ticksRemaining > 0) {
+		harness->ticksRemaining--;
+		if (harness->ticksRemaining <= 0) {
+			// All requested ticks have executed, notify the waiting Act() call
+			std::lock_guard<std::mutex> lock(harness->tickMutex);
+			harness->tickCV.notify_one();
+		}
+	}
+}

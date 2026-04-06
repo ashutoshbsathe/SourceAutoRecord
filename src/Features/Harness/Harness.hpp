@@ -6,8 +6,10 @@
 #include "harness.pb.h"
 
 #include <atomic>
+#include <condition_variable>
 #include <grpcpp/grpcpp.h>
 #include <memory>
+#include <mutex>
 #include <thread>
 
 class Harness : public Feature {
@@ -19,6 +21,15 @@ public:
 	void StopServer();
 
 	bool IsEnabled() { return enabled.GetBool(); }
+
+	// Synchronization for Act() <-> PRE_TICK
+	std::mutex tickMutex;
+	std::condition_variable tickCV;
+	std::atomic<int> ticksRemaining{0};
+	std::atomic<bool> harnessControlActive{false};  // true when harness owns input
+
+	// Warmup state
+	std::atomic<int> warmupTicksRemaining{0};
 
 private:
 	Variable enabled;
