@@ -69,6 +69,14 @@ class Portal2Harness final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::CommandResponse>> PrepareAsyncExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::CommandResponse>>(PrepareAsyncExecuteCommandRaw(context, request, cq));
     }
+    // Reset the episode: restart level, wait for warmup, return initial state
+    virtual ::grpc::Status Reset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::portal2_harness::ResetResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ResetResponse>> AsyncReset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ResetResponse>>(AsyncResetRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ResetResponse>> PrepareAsyncReset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ResetResponse>>(PrepareAsyncResetRaw(context, request, cq));
+    }
     class async_interface {
      public:
       virtual ~async_interface() {}
@@ -84,6 +92,9 @@ class Portal2Harness final {
       // Execute an arbitrary console command (DANGEROUS - testing only)
       virtual void ExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void ExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Reset the episode: restart level, wait for warmup, return initial state
+      virtual void Reset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void Reset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
@@ -97,6 +108,8 @@ class Portal2Harness final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ActionResponse>* PrepareAsyncActRaw(::grpc::ClientContext* context, const ::portal2_harness::ActionRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::CommandResponse>* AsyncExecuteCommandRaw(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::CommandResponse>* PrepareAsyncExecuteCommandRaw(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ResetResponse>* AsyncResetRaw(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ResetResponse>* PrepareAsyncResetRaw(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -129,6 +142,13 @@ class Portal2Harness final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::CommandResponse>> PrepareAsyncExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::CommandResponse>>(PrepareAsyncExecuteCommandRaw(context, request, cq));
     }
+    ::grpc::Status Reset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::portal2_harness::ResetResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::ResetResponse>> AsyncReset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::ResetResponse>>(AsyncResetRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::ResetResponse>> PrepareAsyncReset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::ResetResponse>>(PrepareAsyncResetRaw(context, request, cq));
+    }
     class async final :
       public StubInterface::async_interface {
      public:
@@ -140,6 +160,8 @@ class Portal2Harness final {
       void Act(::grpc::ClientContext* context, const ::portal2_harness::ActionRequest* request, ::portal2_harness::ActionResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
       void ExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response, std::function<void(::grpc::Status)>) override;
       void ExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void Reset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response, std::function<void(::grpc::Status)>) override;
+      void Reset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -159,10 +181,13 @@ class Portal2Harness final {
     ::grpc::ClientAsyncResponseReader< ::portal2_harness::ActionResponse>* PrepareAsyncActRaw(::grpc::ClientContext* context, const ::portal2_harness::ActionRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::portal2_harness::CommandResponse>* AsyncExecuteCommandRaw(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::portal2_harness::CommandResponse>* PrepareAsyncExecuteCommandRaw(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::portal2_harness::ResetResponse>* AsyncResetRaw(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::portal2_harness::ResetResponse>* PrepareAsyncResetRaw(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_InitialHandshake_;
     const ::grpc::internal::RpcMethod rpcmethod_Observe_;
     const ::grpc::internal::RpcMethod rpcmethod_Act_;
     const ::grpc::internal::RpcMethod rpcmethod_ExecuteCommand_;
+    const ::grpc::internal::RpcMethod rpcmethod_Reset_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -178,6 +203,8 @@ class Portal2Harness final {
     virtual ::grpc::Status Act(::grpc::ServerContext* context, const ::portal2_harness::ActionRequest* request, ::portal2_harness::ActionResponse* response);
     // Execute an arbitrary console command (DANGEROUS - testing only)
     virtual ::grpc::Status ExecuteCommand(::grpc::ServerContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response);
+    // Reset the episode: restart level, wait for warmup, return initial state
+    virtual ::grpc::Status Reset(::grpc::ServerContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_InitialHandshake : public BaseClass {
@@ -259,7 +286,27 @@ class Portal2Harness final {
       ::grpc::Service::RequestAsyncUnary(3, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_InitialHandshake<WithAsyncMethod_Observe<WithAsyncMethod_Act<WithAsyncMethod_ExecuteCommand<Service > > > > AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_Reset : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_Reset() {
+      ::grpc::Service::MarkMethodAsync(4);
+    }
+    ~WithAsyncMethod_Reset() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Reset(::grpc::ServerContext* /*context*/, const ::portal2_harness::ResetRequest* /*request*/, ::portal2_harness::ResetResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestReset(::grpc::ServerContext* context, ::portal2_harness::ResetRequest* request, ::grpc::ServerAsyncResponseWriter< ::portal2_harness::ResetResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(4, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_InitialHandshake<WithAsyncMethod_Observe<WithAsyncMethod_Act<WithAsyncMethod_ExecuteCommand<WithAsyncMethod_Reset<Service > > > > > AsyncService;
   template <class BaseClass>
   class WithCallbackMethod_InitialHandshake : public BaseClass {
    private:
@@ -368,7 +415,34 @@ class Portal2Harness final {
     virtual ::grpc::ServerUnaryReactor* ExecuteCommand(
       ::grpc::CallbackServerContext* /*context*/, const ::portal2_harness::CommandRequest* /*request*/, ::portal2_harness::CommandResponse* /*response*/)  { return nullptr; }
   };
-  typedef WithCallbackMethod_InitialHandshake<WithCallbackMethod_Observe<WithCallbackMethod_Act<WithCallbackMethod_ExecuteCommand<Service > > > > CallbackService;
+  template <class BaseClass>
+  class WithCallbackMethod_Reset : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_Reset() {
+      ::grpc::Service::MarkMethodCallback(4,
+          new ::grpc::internal::CallbackUnaryHandler< ::portal2_harness::ResetRequest, ::portal2_harness::ResetResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response) { return this->Reset(context, request, response); }));}
+    void SetMessageAllocatorFor_Reset(
+        ::grpc::MessageAllocator< ::portal2_harness::ResetRequest, ::portal2_harness::ResetResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(4);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::portal2_harness::ResetRequest, ::portal2_harness::ResetResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_Reset() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Reset(::grpc::ServerContext* /*context*/, const ::portal2_harness::ResetRequest* /*request*/, ::portal2_harness::ResetResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* Reset(
+      ::grpc::CallbackServerContext* /*context*/, const ::portal2_harness::ResetRequest* /*request*/, ::portal2_harness::ResetResponse* /*response*/)  { return nullptr; }
+  };
+  typedef WithCallbackMethod_InitialHandshake<WithCallbackMethod_Observe<WithCallbackMethod_Act<WithCallbackMethod_ExecuteCommand<WithCallbackMethod_Reset<Service > > > > > CallbackService;
   typedef CallbackService ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_InitialHandshake : public BaseClass {
@@ -434,6 +508,23 @@ class Portal2Harness final {
     }
     // disable synchronous version of this method
     ::grpc::Status ExecuteCommand(::grpc::ServerContext* /*context*/, const ::portal2_harness::CommandRequest* /*request*/, ::portal2_harness::CommandResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_Reset : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_Reset() {
+      ::grpc::Service::MarkMethodGeneric(4);
+    }
+    ~WithGenericMethod_Reset() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Reset(::grpc::ServerContext* /*context*/, const ::portal2_harness::ResetRequest* /*request*/, ::portal2_harness::ResetResponse* /*response*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -516,6 +607,26 @@ class Portal2Harness final {
     }
     void RequestExecuteCommand(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncUnary(3, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_Reset : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_Reset() {
+      ::grpc::Service::MarkMethodRaw(4);
+    }
+    ~WithRawMethod_Reset() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Reset(::grpc::ServerContext* /*context*/, const ::portal2_harness::ResetRequest* /*request*/, ::portal2_harness::ResetResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestReset(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(4, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -604,6 +715,28 @@ class Portal2Harness final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     virtual ::grpc::ServerUnaryReactor* ExecuteCommand(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_Reset : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_Reset() {
+      ::grpc::Service::MarkMethodRawCallback(4,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->Reset(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_Reset() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Reset(::grpc::ServerContext* /*context*/, const ::portal2_harness::ResetRequest* /*request*/, ::portal2_harness::ResetResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* Reset(
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
   };
   template <class BaseClass>
@@ -714,9 +847,36 @@ class Portal2Harness final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedExecuteCommand(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::portal2_harness::CommandRequest,::portal2_harness::CommandResponse>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_InitialHandshake<WithStreamedUnaryMethod_Observe<WithStreamedUnaryMethod_Act<WithStreamedUnaryMethod_ExecuteCommand<Service > > > > StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_Reset : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_Reset() {
+      ::grpc::Service::MarkMethodStreamed(4,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::portal2_harness::ResetRequest, ::portal2_harness::ResetResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::portal2_harness::ResetRequest, ::portal2_harness::ResetResponse>* streamer) {
+                       return this->StreamedReset(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_Reset() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status Reset(::grpc::ServerContext* /*context*/, const ::portal2_harness::ResetRequest* /*request*/, ::portal2_harness::ResetResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedReset(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::portal2_harness::ResetRequest,::portal2_harness::ResetResponse>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_InitialHandshake<WithStreamedUnaryMethod_Observe<WithStreamedUnaryMethod_Act<WithStreamedUnaryMethod_ExecuteCommand<WithStreamedUnaryMethod_Reset<Service > > > > > StreamedUnaryService;
   typedef Service SplitStreamedService;
-  typedef WithStreamedUnaryMethod_InitialHandshake<WithStreamedUnaryMethod_Observe<WithStreamedUnaryMethod_Act<WithStreamedUnaryMethod_ExecuteCommand<Service > > > > StreamedService;
+  typedef WithStreamedUnaryMethod_InitialHandshake<WithStreamedUnaryMethod_Observe<WithStreamedUnaryMethod_Act<WithStreamedUnaryMethod_ExecuteCommand<WithStreamedUnaryMethod_Reset<Service > > > > > StreamedService;
 };
 
 }  // namespace portal2_harness

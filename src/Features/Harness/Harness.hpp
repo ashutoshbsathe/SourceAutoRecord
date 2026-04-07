@@ -28,6 +28,10 @@ public:
 	std::atomic<int> ticksRemaining{0};
 	std::atomic<bool> harnessControlActive{false};  // true when harness owns input
 
+	// Synchronization for Reset() <-> warmup completion
+	std::mutex resetMutex;
+	std::condition_variable resetCV;
+
 	// Warmup state
 	std::atomic<int> warmupTicksRemaining{0};
 
@@ -48,6 +52,7 @@ public:
 	grpc::Status Observe(grpc::ServerContext *context, const portal2_harness::Empty *request, portal2_harness::GameState *response) override;
 	grpc::Status Act(grpc::ServerContext *context, const portal2_harness::ActionRequest *request, portal2_harness::ActionResponse *response) override;
 	grpc::Status ExecuteCommand(grpc::ServerContext *context, const portal2_harness::CommandRequest *request, portal2_harness::CommandResponse *response) override;
+	grpc::Status Reset(grpc::ServerContext *context, const portal2_harness::ResetRequest *request, portal2_harness::ResetResponse *response) override;
 
 private:
 	bool playerDied = false;

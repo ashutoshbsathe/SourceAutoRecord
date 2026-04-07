@@ -27,6 +27,7 @@ static const char* Portal2Harness_method_names[] = {
   "/portal2_harness.Portal2Harness/Observe",
   "/portal2_harness.Portal2Harness/Act",
   "/portal2_harness.Portal2Harness/ExecuteCommand",
+  "/portal2_harness.Portal2Harness/Reset",
 };
 
 std::unique_ptr< Portal2Harness::Stub> Portal2Harness::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -40,6 +41,7 @@ Portal2Harness::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& cha
   , rpcmethod_Observe_(Portal2Harness_method_names[1], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_Act_(Portal2Harness_method_names[2], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_ExecuteCommand_(Portal2Harness_method_names[3], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_Reset_(Portal2Harness_method_names[4], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
 ::grpc::Status Portal2Harness::Stub::InitialHandshake(::grpc::ClientContext* context, const ::portal2_harness::HandshakeRequest& request, ::portal2_harness::HandshakeResponse* response) {
@@ -134,6 +136,29 @@ void Portal2Harness::Stub::async::ExecuteCommand(::grpc::ClientContext* context,
   return result;
 }
 
+::grpc::Status Portal2Harness::Stub::Reset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::portal2_harness::ResetResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::portal2_harness::ResetRequest, ::portal2_harness::ResetResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_Reset_, context, request, response);
+}
+
+void Portal2Harness::Stub::async::Reset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::portal2_harness::ResetRequest, ::portal2_harness::ResetResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_Reset_, context, request, response, std::move(f));
+}
+
+void Portal2Harness::Stub::async::Reset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_Reset_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::portal2_harness::ResetResponse>* Portal2Harness::Stub::PrepareAsyncResetRaw(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::portal2_harness::ResetResponse, ::portal2_harness::ResetRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_Reset_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::portal2_harness::ResetResponse>* Portal2Harness::Stub::AsyncResetRaw(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncResetRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
 Portal2Harness::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       Portal2Harness_method_names[0],
@@ -175,6 +200,16 @@ Portal2Harness::Service::Service() {
              ::portal2_harness::CommandResponse* resp) {
                return service->ExecuteCommand(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      Portal2Harness_method_names[4],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< Portal2Harness::Service, ::portal2_harness::ResetRequest, ::portal2_harness::ResetResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](Portal2Harness::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::portal2_harness::ResetRequest* req,
+             ::portal2_harness::ResetResponse* resp) {
+               return service->Reset(ctx, req, resp);
+             }, this)));
 }
 
 Portal2Harness::Service::~Service() {
@@ -202,6 +237,13 @@ Portal2Harness::Service::~Service() {
 }
 
 ::grpc::Status Portal2Harness::Service::ExecuteCommand(::grpc::ServerContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status Portal2Harness::Service::Reset(::grpc::ServerContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response) {
   (void) context;
   (void) request;
   (void) response;

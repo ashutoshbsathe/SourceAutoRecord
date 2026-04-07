@@ -55,6 +55,11 @@ class Portal2HarnessStub(object):
                 request_serializer=harness__pb2.CommandRequest.SerializeToString,
                 response_deserializer=harness__pb2.CommandResponse.FromString,
                 _registered_method=True)
+        self.Reset = channel.unary_unary(
+                '/portal2_harness.Portal2Harness/Reset',
+                request_serializer=harness__pb2.ResetRequest.SerializeToString,
+                response_deserializer=harness__pb2.ResetResponse.FromString,
+                _registered_method=True)
 
 
 class Portal2HarnessServicer(object):
@@ -89,6 +94,13 @@ class Portal2HarnessServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def Reset(self, request, context):
+        """Reset the episode: restart level, wait for warmup, return initial state
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_Portal2HarnessServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -111,6 +123,11 @@ def add_Portal2HarnessServicer_to_server(servicer, server):
                     servicer.ExecuteCommand,
                     request_deserializer=harness__pb2.CommandRequest.FromString,
                     response_serializer=harness__pb2.CommandResponse.SerializeToString,
+            ),
+            'Reset': grpc.unary_unary_rpc_method_handler(
+                    servicer.Reset,
+                    request_deserializer=harness__pb2.ResetRequest.FromString,
+                    response_serializer=harness__pb2.ResetResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -222,6 +239,33 @@ class Portal2Harness(object):
             '/portal2_harness.Portal2Harness/ExecuteCommand',
             harness__pb2.CommandRequest.SerializeToString,
             harness__pb2.CommandResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Reset(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/portal2_harness.Portal2Harness/Reset',
+            harness__pb2.ResetRequest.SerializeToString,
+            harness__pb2.ResetResponse.FromString,
             options,
             channel_credentials,
             insecure,

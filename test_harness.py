@@ -172,6 +172,46 @@ def test_player_death(stub):
         return True
 
 
+def reset(stub, map_name=""):
+    req = harness_pb2.ResetRequest(map_name=map_name)
+    return stub.Reset(req)
+
+
+def test_reset(stub):
+    print_separator("TEST 7: Reset (restart level)")
+    print("  Calling Reset()... (this will take ~5s for warmup)")
+    result = reset(stub)
+    print(f"  success={result.success}")
+
+    if not result.success:
+        print(f"  ✗ FAIL: {result.error_message}")
+        return False
+
+    state = result.initial_state
+    print_state(state, "Initial state after reset")
+
+    if state.health <= 0:
+        print("  ✗ FAIL: Player not alive after reset")
+        return False
+    print(f"  ✓ Player alive with health={state.health}")
+
+    # Verify Act() still works after reset
+    print("  Moving forward 5 ticks after reset...")
+    before = observe(stub)
+    act_result = act(stub, num_ticks=5, key_forward=True)
+    after = observe(stub)
+
+    dx = after.position.x - before.position.x
+    dy = after.position.y - before.position.y
+    dz = after.position.z - before.position.z
+    dist = (dx**2 + dy**2 + dz**2)**0.5
+    print(f"  Post-reset move delta: ({dx:.2f}, {dy:.2f}, {dz:.2f}), distance={dist:.2f}")
+
+    passed = act_result.success and dist > 0.1
+    print(f"  {'✓ PASS' if passed else '✗ FAIL'}: Movement {'works' if passed else 'BROKEN'} after reset")
+    return passed
+
+
 # ================================================================
 # Main
 # ================================================================
@@ -196,6 +236,7 @@ def main():
     results["jump"] = test_jump(stub)
     results["execute_command"] = test_execute_command(stub)
     results["player_death"] = test_player_death(stub)
+    results["reset"] = test_reset(stub)
 
     # Summary
     print_separator("TEST RESULTS")

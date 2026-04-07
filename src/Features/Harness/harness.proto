@@ -16,6 +16,9 @@ service Portal2Harness {
 
   // Execute an arbitrary console command (DANGEROUS - testing only)
   rpc ExecuteCommand(CommandRequest) returns (CommandResponse);
+
+  // Reset the episode: restart level, wait for warmup, return initial state
+  rpc Reset(ResetRequest) returns (ResetResponse);
 }
 
 // --- Shared Types ---
@@ -77,6 +80,18 @@ message CommandRequest {
 message CommandResponse {
   bool success = 1;
   string error_message = 2;
+}
+
+// --- Reset Messages ---
+
+message ResetRequest {
+  string map_name = 1;  // optional: if empty, restart current map
+}
+
+message ResetResponse {
+  bool success = 1;
+  string error_message = 2;
+  GameState initial_state = 3;  // first observation after reset
 }
 
 // --- Handshake Messages ---
