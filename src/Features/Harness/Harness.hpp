@@ -4,6 +4,7 @@
 #include "Variable.hpp"
 #include "harness.grpc.pb.h"
 #include "harness.pb.h"
+#include "HarnessShm.hpp"
 
 #include <atomic>
 #include <condition_variable>
@@ -42,6 +43,8 @@ private:
 	std::atomic<bool> shouldRun{false};
 };
 
+void Portal2Harness_InitVideoMode(void **videomode);
+
 extern Harness *harness;
 
 class Portal2HarnessImpl final : public portal2_harness::Portal2Harness::Service {
@@ -54,6 +57,9 @@ public:
 	grpc::Status ExecuteCommand(grpc::ServerContext *context, const portal2_harness::CommandRequest *request, portal2_harness::CommandResponse *response) override;
 	grpc::Status Reset(grpc::ServerContext *context, const portal2_harness::ResetRequest *request, portal2_harness::ResetResponse *response) override;
 
+	grpc::Status AgentLoop(grpc::ServerContext *context, grpc::ServerReaderWriter<portal2_harness::EnvironmentMessage, portal2_harness::AgentMessage> *stream) override;
+
 private:
 	bool playerDied = false;
+	HarnessShm shm;
 };

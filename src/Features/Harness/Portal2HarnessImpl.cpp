@@ -9,18 +9,35 @@
 #include "SAR.hpp"
 #include "Scheduler.hpp"
 #include "Utils/SDK.hpp"
+#include "Utils/Memory.hpp"
 
 #include <array>
 #include <string>
+
+static void **g_harness_videomode = nullptr;
+
+void Portal2Harness_InitVideoMode(void **videomode) {
+	g_harness_videomode = videomode;
+}
 
 Portal2HarnessImpl::Portal2HarnessImpl() {}
 
 grpc::Status Portal2HarnessImpl::InitialHandshake(grpc::ServerContext *context, const portal2_harness::HandshakeRequest *request, portal2_harness::HandshakeResponse *response) {
 	std::string version = sar.game->Version();
 	std::string map = engine->GetCurrentMapName();
+
+	// Initialize SHM for the POC
+	size_t shmWidth = 854;
+	size_t shmHeight = 480;
+	size_t shmSize = shmWidth * shmHeight * 3;
+	shm.Init("/portal2_harness_framebuffer", shmSize);
+
 	console->Print("Harness: InitialHandshake called. Responding with: version=%s, map=%s\n", version.c_str(), map.c_str());
 	response->set_game_version(version);
 	response->set_map_name(map);
+	response->set_shm_width(shmWidth);
+	response->set_shm_height(shmHeight);
+	response->set_shm_size(shmSize);
 	return grpc::Status::OK;
 }
 
@@ -240,5 +257,62 @@ grpc::Status Portal2HarnessImpl::Reset(grpc::ServerContext *context, const porta
 	}
 
 	response->set_success(true);
+	return grpc::Status::OK;
+}
+
+grpc::Status Portal2HarnessImpl::AgentLoop(grpc::ServerContext *context, grpc::ServerReaderWriter<portal2_harness::EnvironmentMessage, portal2_harness::AgentMessage> *stream) {
+	if (!session->isRunning) {
+		return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "No session running");
+	}
+
+	portal2_harness::AgentMessage req;
+	while (stream->Read(&req)) {
+		portal2_harness::EnvironmentMessage env_msg;
+		env_msg.set_success(true);
+
+		portal2_harness::ActionResponse action_resp;
+		grpc::Status act_status = this->Act(context, &req.action(), &action_resp);
+
+		if (!act_status.ok()) {
+			env_msg.set_success(false);
+			env_msg.set_error_message("Act failed: " + act_status.error_message());
+			stream->Write(env_msg);
+			continue;
+		} else if (!action_resp.success()) {
+			env_msg.set_success(false);
+			env_msg.set_error_message(action_resp.error_message());
+			stream->Write(env_msg);
+			continue;
+		}
+
+		portal2_harness::Empty empty_req;
+		grpc::Status obs_status = this->Observe(context, &empty_req, env_msg.mutable_state());
+
+		if (!obs_status.ok()) {
+			env_msg.set_success(false);
+			env_msg.set_error_message("Observe failed: " + obs_status.error_message());
+			stream->Write(env_msg);
+			continue;
+		}
+
+		if (req.request_render()) {
+			if (shm.GetBuffer() != MAP_FAILED && shm.GetSize() > 0 && g_harness_videomode && *g_harness_videomode) {
+				std::atomic<bool> pixelsRead{false};
+				Scheduler::OnMainThread([&]() {
+					Memory::VMT<void(__rescall *)(void *, int, int, int, int, void *, int)>(*g_harness_videomode, Offsets::ReadScreenPixels)(*g_harness_videomode, 0, 0, 854, 480, shm.GetBuffer(), 2 /* IMAGE_FORMAT_RGB888 */);
+					pixelsRead.store(true);
+				});
+
+				while (!pixelsRead.load()) {
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
+				}
+
+				env_msg.set_shm_name(shm.GetName());
+			}
+		}
+
+		stream->Write(env_msg);
+	}
+
 	return grpc::Status::OK;
 }

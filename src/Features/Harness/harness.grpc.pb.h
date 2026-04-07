@@ -77,6 +77,16 @@ class Portal2Harness final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ResetResponse>> PrepareAsyncReset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ResetResponse>>(PrepareAsyncResetRaw(context, request, cq));
     }
+    // Bidirectional stream for high-performance agent loop
+    std::unique_ptr< ::grpc::ClientReaderWriterInterface< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>> AgentLoop(::grpc::ClientContext* context) {
+      return std::unique_ptr< ::grpc::ClientReaderWriterInterface< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>>(AgentLoopRaw(context));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncReaderWriterInterface< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>> AsyncAgentLoop(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq, void* tag) {
+      return std::unique_ptr< ::grpc::ClientAsyncReaderWriterInterface< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>>(AsyncAgentLoopRaw(context, cq, tag));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncReaderWriterInterface< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>> PrepareAsyncAgentLoop(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncReaderWriterInterface< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>>(PrepareAsyncAgentLoopRaw(context, cq));
+    }
     class async_interface {
      public:
       virtual ~async_interface() {}
@@ -95,6 +105,8 @@ class Portal2Harness final {
       // Reset the episode: restart level, wait for warmup, return initial state
       virtual void Reset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void Reset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Bidirectional stream for high-performance agent loop
+      virtual void AgentLoop(::grpc::ClientContext* context, ::grpc::ClientBidiReactor< ::portal2_harness::AgentMessage,::portal2_harness::EnvironmentMessage>* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
@@ -110,6 +122,9 @@ class Portal2Harness final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::CommandResponse>* PrepareAsyncExecuteCommandRaw(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ResetResponse>* AsyncResetRaw(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::ResetResponse>* PrepareAsyncResetRaw(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientReaderWriterInterface< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>* AgentLoopRaw(::grpc::ClientContext* context) = 0;
+    virtual ::grpc::ClientAsyncReaderWriterInterface< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>* AsyncAgentLoopRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq, void* tag) = 0;
+    virtual ::grpc::ClientAsyncReaderWriterInterface< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>* PrepareAsyncAgentLoopRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -149,6 +164,15 @@ class Portal2Harness final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::ResetResponse>> PrepareAsyncReset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::portal2_harness::ResetResponse>>(PrepareAsyncResetRaw(context, request, cq));
     }
+    std::unique_ptr< ::grpc::ClientReaderWriter< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>> AgentLoop(::grpc::ClientContext* context) {
+      return std::unique_ptr< ::grpc::ClientReaderWriter< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>>(AgentLoopRaw(context));
+    }
+    std::unique_ptr<  ::grpc::ClientAsyncReaderWriter< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>> AsyncAgentLoop(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq, void* tag) {
+      return std::unique_ptr< ::grpc::ClientAsyncReaderWriter< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>>(AsyncAgentLoopRaw(context, cq, tag));
+    }
+    std::unique_ptr<  ::grpc::ClientAsyncReaderWriter< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>> PrepareAsyncAgentLoop(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncReaderWriter< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>>(PrepareAsyncAgentLoopRaw(context, cq));
+    }
     class async final :
       public StubInterface::async_interface {
      public:
@@ -162,6 +186,7 @@ class Portal2Harness final {
       void ExecuteCommand(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
       void Reset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response, std::function<void(::grpc::Status)>) override;
       void Reset(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void AgentLoop(::grpc::ClientContext* context, ::grpc::ClientBidiReactor< ::portal2_harness::AgentMessage,::portal2_harness::EnvironmentMessage>* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -183,11 +208,15 @@ class Portal2Harness final {
     ::grpc::ClientAsyncResponseReader< ::portal2_harness::CommandResponse>* PrepareAsyncExecuteCommandRaw(::grpc::ClientContext* context, const ::portal2_harness::CommandRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::portal2_harness::ResetResponse>* AsyncResetRaw(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::portal2_harness::ResetResponse>* PrepareAsyncResetRaw(::grpc::ClientContext* context, const ::portal2_harness::ResetRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientReaderWriter< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>* AgentLoopRaw(::grpc::ClientContext* context) override;
+    ::grpc::ClientAsyncReaderWriter< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>* AsyncAgentLoopRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq, void* tag) override;
+    ::grpc::ClientAsyncReaderWriter< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>* PrepareAsyncAgentLoopRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_InitialHandshake_;
     const ::grpc::internal::RpcMethod rpcmethod_Observe_;
     const ::grpc::internal::RpcMethod rpcmethod_Act_;
     const ::grpc::internal::RpcMethod rpcmethod_ExecuteCommand_;
     const ::grpc::internal::RpcMethod rpcmethod_Reset_;
+    const ::grpc::internal::RpcMethod rpcmethod_AgentLoop_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -205,6 +234,8 @@ class Portal2Harness final {
     virtual ::grpc::Status ExecuteCommand(::grpc::ServerContext* context, const ::portal2_harness::CommandRequest* request, ::portal2_harness::CommandResponse* response);
     // Reset the episode: restart level, wait for warmup, return initial state
     virtual ::grpc::Status Reset(::grpc::ServerContext* context, const ::portal2_harness::ResetRequest* request, ::portal2_harness::ResetResponse* response);
+    // Bidirectional stream for high-performance agent loop
+    virtual ::grpc::Status AgentLoop(::grpc::ServerContext* context, ::grpc::ServerReaderWriter< ::portal2_harness::EnvironmentMessage, ::portal2_harness::AgentMessage>* stream);
   };
   template <class BaseClass>
   class WithAsyncMethod_InitialHandshake : public BaseClass {
@@ -306,7 +337,27 @@ class Portal2Harness final {
       ::grpc::Service::RequestAsyncUnary(4, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_InitialHandshake<WithAsyncMethod_Observe<WithAsyncMethod_Act<WithAsyncMethod_ExecuteCommand<WithAsyncMethod_Reset<Service > > > > > AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_AgentLoop : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_AgentLoop() {
+      ::grpc::Service::MarkMethodAsync(5);
+    }
+    ~WithAsyncMethod_AgentLoop() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status AgentLoop(::grpc::ServerContext* /*context*/, ::grpc::ServerReaderWriter< ::portal2_harness::EnvironmentMessage, ::portal2_harness::AgentMessage>* /*stream*/)  override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestAgentLoop(::grpc::ServerContext* context, ::grpc::ServerAsyncReaderWriter< ::portal2_harness::EnvironmentMessage, ::portal2_harness::AgentMessage>* stream, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncBidiStreaming(5, context, stream, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_InitialHandshake<WithAsyncMethod_Observe<WithAsyncMethod_Act<WithAsyncMethod_ExecuteCommand<WithAsyncMethod_Reset<WithAsyncMethod_AgentLoop<Service > > > > > > AsyncService;
   template <class BaseClass>
   class WithCallbackMethod_InitialHandshake : public BaseClass {
    private:
@@ -442,7 +493,30 @@ class Portal2Harness final {
     virtual ::grpc::ServerUnaryReactor* Reset(
       ::grpc::CallbackServerContext* /*context*/, const ::portal2_harness::ResetRequest* /*request*/, ::portal2_harness::ResetResponse* /*response*/)  { return nullptr; }
   };
-  typedef WithCallbackMethod_InitialHandshake<WithCallbackMethod_Observe<WithCallbackMethod_Act<WithCallbackMethod_ExecuteCommand<WithCallbackMethod_Reset<Service > > > > > CallbackService;
+  template <class BaseClass>
+  class WithCallbackMethod_AgentLoop : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_AgentLoop() {
+      ::grpc::Service::MarkMethodCallback(5,
+          new ::grpc::internal::CallbackBidiHandler< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>(
+            [this](
+                   ::grpc::CallbackServerContext* context) { return this->AgentLoop(context); }));
+    }
+    ~WithCallbackMethod_AgentLoop() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status AgentLoop(::grpc::ServerContext* /*context*/, ::grpc::ServerReaderWriter< ::portal2_harness::EnvironmentMessage, ::portal2_harness::AgentMessage>* /*stream*/)  override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerBidiReactor< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>* AgentLoop(
+      ::grpc::CallbackServerContext* /*context*/)
+      { return nullptr; }
+  };
+  typedef WithCallbackMethod_InitialHandshake<WithCallbackMethod_Observe<WithCallbackMethod_Act<WithCallbackMethod_ExecuteCommand<WithCallbackMethod_Reset<WithCallbackMethod_AgentLoop<Service > > > > > > CallbackService;
   typedef CallbackService ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_InitialHandshake : public BaseClass {
@@ -525,6 +599,23 @@ class Portal2Harness final {
     }
     // disable synchronous version of this method
     ::grpc::Status Reset(::grpc::ServerContext* /*context*/, const ::portal2_harness::ResetRequest* /*request*/, ::portal2_harness::ResetResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_AgentLoop : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_AgentLoop() {
+      ::grpc::Service::MarkMethodGeneric(5);
+    }
+    ~WithGenericMethod_AgentLoop() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status AgentLoop(::grpc::ServerContext* /*context*/, ::grpc::ServerReaderWriter< ::portal2_harness::EnvironmentMessage, ::portal2_harness::AgentMessage>* /*stream*/)  override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -627,6 +718,26 @@ class Portal2Harness final {
     }
     void RequestReset(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncUnary(4, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_AgentLoop : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_AgentLoop() {
+      ::grpc::Service::MarkMethodRaw(5);
+    }
+    ~WithRawMethod_AgentLoop() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status AgentLoop(::grpc::ServerContext* /*context*/, ::grpc::ServerReaderWriter< ::portal2_harness::EnvironmentMessage, ::portal2_harness::AgentMessage>* /*stream*/)  override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestAgentLoop(::grpc::ServerContext* context, ::grpc::ServerAsyncReaderWriter< ::grpc::ByteBuffer, ::grpc::ByteBuffer>* stream, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncBidiStreaming(5, context, stream, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -738,6 +849,29 @@ class Portal2Harness final {
     }
     virtual ::grpc::ServerUnaryReactor* Reset(
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_AgentLoop : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_AgentLoop() {
+      ::grpc::Service::MarkMethodRawCallback(5,
+          new ::grpc::internal::CallbackBidiHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context) { return this->AgentLoop(context); }));
+    }
+    ~WithRawCallbackMethod_AgentLoop() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status AgentLoop(::grpc::ServerContext* /*context*/, ::grpc::ServerReaderWriter< ::portal2_harness::EnvironmentMessage, ::portal2_harness::AgentMessage>* /*stream*/)  override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerBidiReactor< ::grpc::ByteBuffer, ::grpc::ByteBuffer>* AgentLoop(
+      ::grpc::CallbackServerContext* /*context*/)
+      { return nullptr; }
   };
   template <class BaseClass>
   class WithStreamedUnaryMethod_InitialHandshake : public BaseClass {

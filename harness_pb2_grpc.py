@@ -60,6 +60,11 @@ class Portal2HarnessStub(object):
                 request_serializer=harness__pb2.ResetRequest.SerializeToString,
                 response_deserializer=harness__pb2.ResetResponse.FromString,
                 _registered_method=True)
+        self.AgentLoop = channel.stream_stream(
+                '/portal2_harness.Portal2Harness/AgentLoop',
+                request_serializer=harness__pb2.AgentMessage.SerializeToString,
+                response_deserializer=harness__pb2.EnvironmentMessage.FromString,
+                _registered_method=True)
 
 
 class Portal2HarnessServicer(object):
@@ -101,6 +106,13 @@ class Portal2HarnessServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def AgentLoop(self, request_iterator, context):
+        """Bidirectional stream for high-performance agent loop
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_Portal2HarnessServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -128,6 +140,11 @@ def add_Portal2HarnessServicer_to_server(servicer, server):
                     servicer.Reset,
                     request_deserializer=harness__pb2.ResetRequest.FromString,
                     response_serializer=harness__pb2.ResetResponse.SerializeToString,
+            ),
+            'AgentLoop': grpc.stream_stream_rpc_method_handler(
+                    servicer.AgentLoop,
+                    request_deserializer=harness__pb2.AgentMessage.FromString,
+                    response_serializer=harness__pb2.EnvironmentMessage.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -266,6 +283,33 @@ class Portal2Harness(object):
             '/portal2_harness.Portal2Harness/Reset',
             harness__pb2.ResetRequest.SerializeToString,
             harness__pb2.ResetResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AgentLoop(request_iterator,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.stream_stream(
+            request_iterator,
+            target,
+            '/portal2_harness.Portal2Harness/AgentLoop',
+            harness__pb2.AgentMessage.SerializeToString,
+            harness__pb2.EnvironmentMessage.FromString,
             options,
             channel_credentials,
             insecure,

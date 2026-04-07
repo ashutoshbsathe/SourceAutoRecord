@@ -19,6 +19,9 @@ service Portal2Harness {
 
   // Reset the episode: restart level, wait for warmup, return initial state
   rpc Reset(ResetRequest) returns (ResetResponse);
+
+  // Bidirectional stream for high-performance agent loop
+  rpc AgentLoop(stream AgentMessage) returns (stream EnvironmentMessage);
 }
 
 // --- Shared Types ---
@@ -27,6 +30,20 @@ message Vector3 {
   float x = 1;
   float y = 2;
   float z = 3;
+}
+
+// --- Streaming Messages ---
+
+message AgentMessage {
+  ActionRequest action = 1;
+  bool request_render = 2; // if false, skip the ReadScreenPixels step to save time
+}
+
+message EnvironmentMessage {
+  GameState state = 1;
+  string shm_name = 2; // POSIX shared memory name to read pixels from (only valid if request_render was true)
+  bool success = 3; 
+  string error_message = 4;
 }
 
 // --- Observation Messages ---
@@ -104,6 +121,9 @@ message HandshakeRequest {
 message HandshakeResponse {
   string game_version = 1;
   string map_name = 2; // null if no map is loaded
+  int32 shm_width = 3;  // Resolution for the shared memory buffer
+  int32 shm_height = 4;
+  int32 shm_size = 5;   // Total bytes allocated
 }
 
 message Empty {}

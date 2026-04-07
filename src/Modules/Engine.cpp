@@ -20,6 +20,7 @@
 #include "Features/Session.hpp"
 #include "Features/Speedrun/SpeedrunTimer.hpp"
 #include "Features/Stitcher.hpp"
+#include "Features/Harness/Harness.hpp"
 #include "Features/Tas/TasPlayer.hpp"
 #include "Game.hpp"
 #include "Hook.hpp"
@@ -1085,6 +1086,7 @@ bool Engine::Init() {
 		auto videomode = Memory::Deref<void **>(VideoMode_Create + Offsets::videomode);
 		Renderer::Init(videomode);
 		Stitcher::Init(videomode);
+		Portal2Harness_InitVideoMode(videomode);
 
 		Interface::Delete(s_EngineAPI);
 	}

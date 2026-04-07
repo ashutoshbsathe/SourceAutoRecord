@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rharness.proto\x12\x0fportal2_harness\"*\n\x07Vector3\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02\"\xc8\x01\n\tGameState\x12*\n\x08position\x18\x01 \x01(\x0b\x32\x18.portal2_harness.Vector3\x12*\n\x08velocity\x18\x02 \x01(\x0b\x32\x18.portal2_harness.Vector3\x12(\n\x06\x63\x61mera\x18\x03 \x01(\x0b\x32\x18.portal2_harness.Vector3\x12\x0e\n\x06health\x18\x04 \x01(\x05\x12\x14\n\x0cis_crouching\x18\x05 \x01(\x08\x12\x13\n\x0bserver_tick\x18\x06 \x01(\x05\"\xa8\x02\n\rActionRequest\x12\x11\n\tnum_ticks\x18\x01 \x01(\x05\x12\x13\n\x0bkey_forward\x18\x02 \x01(\x08\x12\x10\n\x08key_left\x18\x03 \x01(\x08\x12\x14\n\x0ckey_backward\x18\x04 \x01(\x08\x12\x11\n\tkey_right\x18\x05 \x01(\x08\x12\x0f\n\x07key_use\x18\x06 \x01(\x08\x12\x12\n\nkey_zoomin\x18\x07 \x01(\x08\x12\x13\n\x0bkey_zoomout\x18\x08 \x01(\x08\x12\x12\n\nkey_crouch\x18\t \x01(\x08\x12\x16\n\x0eportal_primary\x18\n \x01(\x08\x12\x18\n\x10portal_secondary\x18\x0b \x01(\x08\x12\x10\n\x08key_jump\x18\x0c \x01(\x08\x12\x10\n\x08mouse_dx\x18\r \x01(\x02\x12\x10\n\x08mouse_dy\x18\x0e \x01(\x02\"8\n\x0e\x41\x63tionResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rerror_message\x18\x02 \x01(\t\"!\n\x0e\x43ommandRequest\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\"9\n\x0f\x43ommandResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rerror_message\x18\x02 \x01(\t\" \n\x0cResetRequest\x12\x10\n\x08map_name\x18\x01 \x01(\t\"j\n\rResetResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rerror_message\x18\x02 \x01(\t\x12\x31\n\rinitial_state\x18\x03 \x01(\x0b\x32\x1a.portal2_harness.GameState\"=\n\x10HandshakeRequest\x12\x16\n\x0e\x63lient_version\x18\x01 \x01(\t\x12\x11\n\tclient_id\x18\x02 \x01(\t\";\n\x11HandshakeResponse\x12\x14\n\x0cgame_version\x18\x01 \x01(\t\x12\x10\n\x08map_name\x18\x02 \x01(\t\"\x07\n\x05\x45mpty2\x8f\x03\n\x0ePortal2Harness\x12Y\n\x10InitialHandshake\x12!.portal2_harness.HandshakeRequest\x1a\".portal2_harness.HandshakeResponse\x12=\n\x07Observe\x12\x16.portal2_harness.Empty\x1a\x1a.portal2_harness.GameState\x12\x46\n\x03\x41\x63t\x12\x1e.portal2_harness.ActionRequest\x1a\x1f.portal2_harness.ActionResponse\x12S\n\x0e\x45xecuteCommand\x12\x1f.portal2_harness.CommandRequest\x1a .portal2_harness.CommandResponse\x12\x46\n\x05Reset\x12\x1d.portal2_harness.ResetRequest\x1a\x1e.portal2_harness.ResetResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rharness.proto\x12\x0fportal2_harness\"*\n\x07Vector3\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02\"V\n\x0c\x41gentMessage\x12.\n\x06\x61\x63tion\x18\x01 \x01(\x0b\x32\x1e.portal2_harness.ActionRequest\x12\x16\n\x0erequest_render\x18\x02 \x01(\x08\"y\n\x12\x45nvironmentMessage\x12)\n\x05state\x18\x01 \x01(\x0b\x32\x1a.portal2_harness.GameState\x12\x10\n\x08shm_name\x18\x02 \x01(\t\x12\x0f\n\x07success\x18\x03 \x01(\x08\x12\x15\n\rerror_message\x18\x04 \x01(\t\"\xc8\x01\n\tGameState\x12*\n\x08position\x18\x01 \x01(\x0b\x32\x18.portal2_harness.Vector3\x12*\n\x08velocity\x18\x02 \x01(\x0b\x32\x18.portal2_harness.Vector3\x12(\n\x06\x63\x61mera\x18\x03 \x01(\x0b\x32\x18.portal2_harness.Vector3\x12\x0e\n\x06health\x18\x04 \x01(\x05\x12\x14\n\x0cis_crouching\x18\x05 \x01(\x08\x12\x13\n\x0bserver_tick\x18\x06 \x01(\x05\"\xa8\x02\n\rActionRequest\x12\x11\n\tnum_ticks\x18\x01 \x01(\x05\x12\x13\n\x0bkey_forward\x18\x02 \x01(\x08\x12\x10\n\x08key_left\x18\x03 \x01(\x08\x12\x14\n\x0ckey_backward\x18\x04 \x01(\x08\x12\x11\n\tkey_right\x18\x05 \x01(\x08\x12\x0f\n\x07key_use\x18\x06 \x01(\x08\x12\x12\n\nkey_zoomin\x18\x07 \x01(\x08\x12\x13\n\x0bkey_zoomout\x18\x08 \x01(\x08\x12\x12\n\nkey_crouch\x18\t \x01(\x08\x12\x16\n\x0eportal_primary\x18\n \x01(\x08\x12\x18\n\x10portal_secondary\x18\x0b \x01(\x08\x12\x10\n\x08key_jump\x18\x0c \x01(\x08\x12\x10\n\x08mouse_dx\x18\r \x01(\x02\x12\x10\n\x08mouse_dy\x18\x0e \x01(\x02\"8\n\x0e\x41\x63tionResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rerror_message\x18\x02 \x01(\t\"!\n\x0e\x43ommandRequest\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\"9\n\x0f\x43ommandResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rerror_message\x18\x02 \x01(\t\" \n\x0cResetRequest\x12\x10\n\x08map_name\x18\x01 \x01(\t\"j\n\rResetResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rerror_message\x18\x02 \x01(\t\x12\x31\n\rinitial_state\x18\x03 \x01(\x0b\x32\x1a.portal2_harness.GameState\"=\n\x10HandshakeRequest\x12\x16\n\x0e\x63lient_version\x18\x01 \x01(\t\x12\x11\n\tclient_id\x18\x02 \x01(\t\"t\n\x11HandshakeResponse\x12\x14\n\x0cgame_version\x18\x01 \x01(\t\x12\x10\n\x08map_name\x18\x02 \x01(\t\x12\x11\n\tshm_width\x18\x03 \x01(\x05\x12\x12\n\nshm_height\x18\x04 \x01(\x05\x12\x10\n\x08shm_size\x18\x05 \x01(\x05\"\x07\n\x05\x45mpty2\xe4\x03\n\x0ePortal2Harness\x12Y\n\x10InitialHandshake\x12!.portal2_harness.HandshakeRequest\x1a\".portal2_harness.HandshakeResponse\x12=\n\x07Observe\x12\x16.portal2_harness.Empty\x1a\x1a.portal2_harness.GameState\x12\x46\n\x03\x41\x63t\x12\x1e.portal2_harness.ActionRequest\x1a\x1f.portal2_harness.ActionResponse\x12S\n\x0e\x45xecuteCommand\x12\x1f.portal2_harness.CommandRequest\x1a .portal2_harness.CommandResponse\x12\x46\n\x05Reset\x12\x1d.portal2_harness.ResetRequest\x1a\x1e.portal2_harness.ResetResponse\x12S\n\tAgentLoop\x12\x1d.portal2_harness.AgentMessage\x1a#.portal2_harness.EnvironmentMessage(\x01\x30\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,26 +33,30 @@ if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_VECTOR3']._serialized_start=34
   _globals['_VECTOR3']._serialized_end=76
-  _globals['_GAMESTATE']._serialized_start=79
-  _globals['_GAMESTATE']._serialized_end=279
-  _globals['_ACTIONREQUEST']._serialized_start=282
-  _globals['_ACTIONREQUEST']._serialized_end=578
-  _globals['_ACTIONRESPONSE']._serialized_start=580
-  _globals['_ACTIONRESPONSE']._serialized_end=636
-  _globals['_COMMANDREQUEST']._serialized_start=638
-  _globals['_COMMANDREQUEST']._serialized_end=671
-  _globals['_COMMANDRESPONSE']._serialized_start=673
-  _globals['_COMMANDRESPONSE']._serialized_end=730
-  _globals['_RESETREQUEST']._serialized_start=732
-  _globals['_RESETREQUEST']._serialized_end=764
-  _globals['_RESETRESPONSE']._serialized_start=766
-  _globals['_RESETRESPONSE']._serialized_end=872
-  _globals['_HANDSHAKEREQUEST']._serialized_start=874
-  _globals['_HANDSHAKEREQUEST']._serialized_end=935
-  _globals['_HANDSHAKERESPONSE']._serialized_start=937
-  _globals['_HANDSHAKERESPONSE']._serialized_end=996
-  _globals['_EMPTY']._serialized_start=998
-  _globals['_EMPTY']._serialized_end=1005
-  _globals['_PORTAL2HARNESS']._serialized_start=1008
-  _globals['_PORTAL2HARNESS']._serialized_end=1407
+  _globals['_AGENTMESSAGE']._serialized_start=78
+  _globals['_AGENTMESSAGE']._serialized_end=164
+  _globals['_ENVIRONMENTMESSAGE']._serialized_start=166
+  _globals['_ENVIRONMENTMESSAGE']._serialized_end=287
+  _globals['_GAMESTATE']._serialized_start=290
+  _globals['_GAMESTATE']._serialized_end=490
+  _globals['_ACTIONREQUEST']._serialized_start=493
+  _globals['_ACTIONREQUEST']._serialized_end=789
+  _globals['_ACTIONRESPONSE']._serialized_start=791
+  _globals['_ACTIONRESPONSE']._serialized_end=847
+  _globals['_COMMANDREQUEST']._serialized_start=849
+  _globals['_COMMANDREQUEST']._serialized_end=882
+  _globals['_COMMANDRESPONSE']._serialized_start=884
+  _globals['_COMMANDRESPONSE']._serialized_end=941
+  _globals['_RESETREQUEST']._serialized_start=943
+  _globals['_RESETREQUEST']._serialized_end=975
+  _globals['_RESETRESPONSE']._serialized_start=977
+  _globals['_RESETRESPONSE']._serialized_end=1083
+  _globals['_HANDSHAKEREQUEST']._serialized_start=1085
+  _globals['_HANDSHAKEREQUEST']._serialized_end=1146
+  _globals['_HANDSHAKERESPONSE']._serialized_start=1148
+  _globals['_HANDSHAKERESPONSE']._serialized_end=1264
+  _globals['_EMPTY']._serialized_start=1266
+  _globals['_EMPTY']._serialized_end=1273
+  _globals['_PORTAL2HARNESS']._serialized_start=1276
+  _globals['_PORTAL2HARNESS']._serialized_end=1760
 # @@protoc_insertion_point(module_scope)

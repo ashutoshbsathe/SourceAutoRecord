@@ -28,6 +28,7 @@ static const char* Portal2Harness_method_names[] = {
   "/portal2_harness.Portal2Harness/Act",
   "/portal2_harness.Portal2Harness/ExecuteCommand",
   "/portal2_harness.Portal2Harness/Reset",
+  "/portal2_harness.Portal2Harness/AgentLoop",
 };
 
 std::unique_ptr< Portal2Harness::Stub> Portal2Harness::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -42,6 +43,7 @@ Portal2Harness::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& cha
   , rpcmethod_Act_(Portal2Harness_method_names[2], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_ExecuteCommand_(Portal2Harness_method_names[3], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_Reset_(Portal2Harness_method_names[4], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_AgentLoop_(Portal2Harness_method_names[5], options.suffix_for_stats(),::grpc::internal::RpcMethod::BIDI_STREAMING, channel)
   {}
 
 ::grpc::Status Portal2Harness::Stub::InitialHandshake(::grpc::ClientContext* context, const ::portal2_harness::HandshakeRequest& request, ::portal2_harness::HandshakeResponse* response) {
@@ -159,6 +161,22 @@ void Portal2Harness::Stub::async::Reset(::grpc::ClientContext* context, const ::
   return result;
 }
 
+::grpc::ClientReaderWriter< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>* Portal2Harness::Stub::AgentLoopRaw(::grpc::ClientContext* context) {
+  return ::grpc::internal::ClientReaderWriterFactory< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>::Create(channel_.get(), rpcmethod_AgentLoop_, context);
+}
+
+void Portal2Harness::Stub::async::AgentLoop(::grpc::ClientContext* context, ::grpc::ClientBidiReactor< ::portal2_harness::AgentMessage,::portal2_harness::EnvironmentMessage>* reactor) {
+  ::grpc::internal::ClientCallbackReaderWriterFactory< ::portal2_harness::AgentMessage,::portal2_harness::EnvironmentMessage>::Create(stub_->channel_.get(), stub_->rpcmethod_AgentLoop_, context, reactor);
+}
+
+::grpc::ClientAsyncReaderWriter< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>* Portal2Harness::Stub::AsyncAgentLoopRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq, void* tag) {
+  return ::grpc::internal::ClientAsyncReaderWriterFactory< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>::Create(channel_.get(), cq, rpcmethod_AgentLoop_, context, true, tag);
+}
+
+::grpc::ClientAsyncReaderWriter< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>* Portal2Harness::Stub::PrepareAsyncAgentLoopRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncReaderWriterFactory< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>::Create(channel_.get(), cq, rpcmethod_AgentLoop_, context, false, nullptr);
+}
+
 Portal2Harness::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       Portal2Harness_method_names[0],
@@ -210,6 +228,16 @@ Portal2Harness::Service::Service() {
              ::portal2_harness::ResetResponse* resp) {
                return service->Reset(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      Portal2Harness_method_names[5],
+      ::grpc::internal::RpcMethod::BIDI_STREAMING,
+      new ::grpc::internal::BidiStreamingHandler< Portal2Harness::Service, ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>(
+          [](Portal2Harness::Service* service,
+             ::grpc::ServerContext* ctx,
+             ::grpc::ServerReaderWriter<::portal2_harness::EnvironmentMessage,
+             ::portal2_harness::AgentMessage>* stream) {
+               return service->AgentLoop(ctx, stream);
+             }, this)));
 }
 
 Portal2Harness::Service::~Service() {
@@ -247,6 +275,12 @@ Portal2Harness::Service::~Service() {
   (void) context;
   (void) request;
   (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status Portal2Harness::Service::AgentLoop(::grpc::ServerContext* context, ::grpc::ServerReaderWriter< ::portal2_harness::EnvironmentMessage, ::portal2_harness::AgentMessage>* stream) {
+  (void) context;
+  (void) stream;
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 
