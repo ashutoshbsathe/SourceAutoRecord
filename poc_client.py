@@ -34,21 +34,45 @@ MAPS = ["sp_a2_triple_laser", "sp_a2_laser_chaining"]
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Portal 2 AgentLoop benchmark & RL demo")
-    parser.add_argument("--render", action="store_true",
-                        help="Enable OpenCV rendering of SHM framebuffer")
-    parser.add_argument("--duration", type=float, default=10.0,
-                        help="Total benchmark duration in seconds (default: 10)")
-    parser.add_argument("--num-ticks", type=int, default=1,
-                        help="num_ticks per AgentMessage (default: 1)")
-    parser.add_argument("--reset-prob", type=float, default=0.0,
-                        help="Per-step probability of triggering a random episode reset (default: 0, disabled)")
-    parser.add_argument("--address", type=str, default="localhost:50051",
-                        help="gRPC server address (default: localhost:50051)")
+    parser = argparse.ArgumentParser(
+        description="Portal 2 AgentLoop benchmark & RL demo"
+    )
+    parser.add_argument(
+        "--render",
+        action="store_true",
+        help="Enable OpenCV rendering of SHM framebuffer",
+    )
+    parser.add_argument(
+        "--duration",
+        type=float,
+        default=10.0,
+        help="Total benchmark duration in seconds (default: 10)",
+    )
+    parser.add_argument(
+        "--num-ticks",
+        type=int,
+        default=1,
+        help="num_ticks per AgentMessage (default: 1)",
+    )
+    parser.add_argument(
+        "--reset-prob",
+        type=float,
+        default=0.0,
+        help="Per-step probability of triggering a random episode reset (default: 0, disabled)",
+    )
+    parser.add_argument(
+        "--address",
+        type=str,
+        default="localhost:50051",
+        help="gRPC server address (default: localhost:50051)",
+    )
     return parser.parse_args()
 
 
-def run_episode(stub, args, episode_num, stats, stop_event, shm=None, shm_width=0, shm_height=0):
+# docs/poc_client.py:run_episode>
+def run_episode(
+    stub, args, episode_num, stats, stop_event, shm=None, shm_width=0, shm_height=0
+):
     """Run a single AgentLoop episode. Returns the reason it ended."""
     if args.render:
         import cv2
@@ -92,7 +116,9 @@ def run_episode(stub, args, episode_num, stats, stop_event, shm=None, shm_width=
                 break
 
             if not env_msg.success:
-                print(f"  [Ep {episode_num}] Error at step {i}: {env_msg.error_message}")
+                print(
+                    f"  [Ep {episode_num}] Error at step {i}: {env_msg.error_message}"
+                )
                 end_reason = "error"
                 break
 
@@ -119,7 +145,7 @@ def run_episode(stub, args, episode_num, stats, stop_event, shm=None, shm_width=
                 )
                 bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                 cv2.imshow("Portal 2 RL Demo", bgr_frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
+                if cv2.waitKey(1) & 0xFF == ord("q"):
                     stop_event.set()
                     responses.cancel()
                     end_reason = "user_quit"
@@ -129,9 +155,11 @@ def run_episode(stub, args, episode_num, stats, stop_event, shm=None, shm_width=
 
             if i % 100 == 0:
                 pos = env_msg.state.position
-                print(f"  [Ep {episode_num}] Step {i:>5d}  "
-                      f"pos=({pos.x:.1f}, {pos.y:.1f}, {pos.z:.1f})  "
-                      f"hp={env_msg.state.health}")
+                print(
+                    f"  [Ep {episode_num}] Step {i:>5d}  "
+                    f"pos=({pos.x:.1f}, {pos.y:.1f}, {pos.z:.1f})  "
+                    f"hp={env_msg.state.health}"
+                )
 
     except grpc.RpcError as e:
         if e.code() != grpc.StatusCode.CANCELLED:
@@ -166,10 +194,11 @@ def main():
 
     # Handshake
     print("Performing Handshake...")
-    resp = stub.InitialHandshake(harness_pb2.HandshakeRequest(
-        client_version="poc_client rl_demo",
-        client_id="rl_demo"
-    ))
+    resp = stub.InitialHandshake(
+        harness_pb2.HandshakeRequest(
+            client_version="poc_client rl_demo", client_id="rl_demo"
+        )
+    )
     print(f"Connected to {resp.game_version}, map: {resp.map_name}")
     shm_width = resp.shm_width
     shm_height = resp.shm_height
@@ -177,6 +206,7 @@ def main():
 
     if args.render:
         from multiprocessing import shared_memory
+
         if resp.shm_size == 0:
             print("Error: Handshake returned 0 size for SHM. Cannot render.")
             return
@@ -220,8 +250,14 @@ def main():
 
         print(f"\n--- Episode {episode} ---")
         end_reason = run_episode(
-            stub, args, episode, stats, stop_event,
-            shm=shm, shm_width=shm_width, shm_height=shm_height
+            stub,
+            args,
+            episode,
+            stats,
+            stop_event,
+            shm=shm,
+            shm_width=shm_width,
+            shm_height=shm_height,
         )
 
         if end_reason in ("duration", "user_quit", "rpc_error"):
@@ -237,8 +273,10 @@ def main():
                 reset_resp = stub.Reset(harness_pb2.ResetRequest(map_name=next_map))
                 if reset_resp.success:
                     pos = reset_resp.initial_state.position
-                    print(f"  Reset OK — pos=({pos.x:.1f}, {pos.y:.1f}, {pos.z:.1f}), "
-                          f"hp={reset_resp.initial_state.health}")
+                    print(
+                        f"  Reset OK — pos=({pos.x:.1f}, {pos.y:.1f}, {pos.z:.1f}), "
+                        f"hp={reset_resp.initial_state.health}"
+                    )
                 else:
                     print(f"  Reset failed: {reset_resp.error_message}")
                     break
@@ -261,7 +299,9 @@ def main():
 
     if wall_duration > 0:
         print(f"  Actions/sec:         {total_steps / wall_duration:.2f}")
-        print(f"  Game ticks/sec:      {(total_steps * args.num_ticks) / wall_duration:.2f}")
+        print(
+            f"  Game ticks/sec:      {(total_steps * args.num_ticks) / wall_duration:.2f}"
+        )
 
     if all_latencies:
         sorted_lat = sorted(all_latencies)
@@ -283,15 +323,18 @@ def main():
     if num_episodes > 1:
         print(f"\n  Per-episode breakdown:")
         for i, (steps, dur, reason) in enumerate(
-            zip(stats["episode_steps"], stats["episode_durations"], stats["end_reasons"])
+            zip(
+                stats["episode_steps"], stats["episode_durations"], stats["end_reasons"]
+            )
         ):
-            print(f"    Ep {i+1}: {steps:>5d} steps, {dur:.2f}s, ended: {reason}")
+            print(f"    Ep {i + 1}: {steps:>5d} steps, {dur:.2f}s, ended: {reason}")
 
     print(f"{'=' * 50}")
 
     # Cleanup
     if args.render:
         import cv2
+
         if shm:
             shm.close()
         cv2.destroyAllWindows()

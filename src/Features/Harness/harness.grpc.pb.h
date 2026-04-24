@@ -29,6 +29,7 @@
 namespace portal2_harness {
 
 // The core service for external game control
+// docs/harness.proto:Portal2Harness>
 class Portal2Harness final {
  public:
   static constexpr char const* service_full_name() {

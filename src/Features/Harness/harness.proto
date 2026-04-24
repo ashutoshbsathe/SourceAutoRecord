@@ -3,8 +3,8 @@ syntax = "proto3";
 package portal2_harness;
 
 // The core service for external game control
+//docs/harness.proto:Portal2Harness>
 service Portal2Harness {
-  
   // Handshake to verify connection and sync game constants
   rpc InitialHandshake(HandshakeRequest) returns (HandshakeResponse);
 
@@ -47,7 +47,7 @@ message AgentMessage {
 
 message EnvironmentMessage {
   GameState state = 1;
-  bool success = 2; 
+  bool success = 2;
   string error_message = 3;
 }
 
@@ -56,10 +56,10 @@ message EnvironmentMessage {
 message GameState {
   Vector3 position = 1;
   Vector3 velocity = 2;
-  Vector3 camera = 3; // Pitch, Yaw, Roll
-  int32 health = 4; // 0 if dead
+  Vector3 camera = 3;  // Pitch, Yaw, Roll
+  int32 health = 4;    // 0 if dead
   bool is_crouching = 5;
-  int32 server_tick = 6; 
+  int32 server_tick = 6;
 }
 
 // --- Action Messages ---
@@ -67,23 +67,23 @@ message GameState {
 message ActionRequest {
   // Number of ticks to execute this action
   int32 num_ticks = 1;
-  
-  // Movement keys
-  bool key_forward = 2;  // w
-  bool key_left = 3;     // a
-  bool key_backward = 4; // s
-  bool key_right = 5;    // d
-  
-  // Interaction/Ability keys
-  bool key_use = 6;      // e
-  bool key_zoomin = 7;   // z / mouse scroll up
-  bool key_zoomout = 8;  // x / mouse scroll down
-  bool key_crouch = 9;   // c
-  bool portal_primary = 10;        // mouse left
-  bool portal_secondary = 11;     // mouse right
-  bool key_jump = 12;    // space
 
-  // Mouse movement (analog value between [-1,+1]) 
+  // Movement keys
+  bool key_forward = 2;   // w
+  bool key_left = 3;      // a
+  bool key_backward = 4;  // s
+  bool key_right = 5;     // d
+
+  // Interaction/Ability keys
+  bool key_use = 6;            // e
+  bool key_zoomin = 7;         // z / mouse scroll up
+  bool key_zoomout = 8;        // x / mouse scroll down
+  bool key_crouch = 9;         // c
+  bool portal_primary = 10;    // mouse left
+  bool portal_secondary = 11;  // mouse right
+  bool key_jump = 12;          // space
+
+  // Mouse movement (analog value between [-1,+1])
   float mouse_dx = 13;
   float mouse_dy = 14;
 }
@@ -125,10 +125,10 @@ message HandshakeRequest {
 
 message HandshakeResponse {
   string game_version = 1;
-  string map_name = 2; // null if no map is loaded
+  string map_name = 2;  // null if no map is loaded
   int32 shm_width = 3;  // Resolution for the shared memory buffer
   int32 shm_height = 4;
-  int32 shm_size = 5;   // Total bytes allocated
+  int32 shm_size = 5;  // Total bytes allocated
 }
 
 message Empty {}
