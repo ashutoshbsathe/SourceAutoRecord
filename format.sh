@@ -14,4 +14,4 @@ clang-format -style=google -i \
 
 # 2. Format Python files
 # Using uv to ensure ruff is available without global installation
-uv tool run ruff format poc_client.py
+uv tool run ruff format poc_client.py py/

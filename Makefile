@@ -43,17 +43,20 @@ src/Features/Harness/%.grpc.pb.cpp src/Features/Harness/%.grpc.pb.h: src/Feature
 
 PROTO_SRC=src/Features/Harness/harness.proto
 
-# Python proto generation - outputs to project root (where poc_client.py imports from)
-harness_pb2.py: $(PROTO_SRC)
-	protoc -I=src/Features/Harness --python_out=. $<
+# Python proto generation - outputs to py/p2harness
+py/p2harness/harness_pb2.py: $(PROTO_SRC)
+	@mkdir -p py/p2harness
+	protoc -I=src/Features/Harness --python_out=py/p2harness $<
 
-harness_pb2_grpc.py: $(PROTO_SRC)
-	protoc -I=src/Features/Harness --grpc_python_out=. --plugin=protoc-gen-grpc_python=/opt/p2-grpc32/bin/grpc_python_plugin $<
+py/p2harness/harness_pb2_grpc.py: $(PROTO_SRC)
+	@mkdir -p py/p2harness
+	protoc -I=src/Features/Harness --grpc_python_out=py/p2harness --plugin=protoc-gen-grpc_python=/opt/p2-grpc32/bin/grpc_python_plugin $<
+	sed -i 's/^import harness_pb2 as harness__pb2/from . import harness_pb2 as harness__pb2/' $@
 
 # Convenience targets
 proto_cpp: src/Features/Harness/harness.pb.cpp src/Features/Harness/harness.pb.h src/Features/Harness/harness.grpc.pb.cpp src/Features/Harness/harness.grpc.pb.h
 
-proto_py: harness_pb2.py harness_pb2_grpc.py
+proto_py: py/p2harness/harness_pb2.py py/p2harness/harness_pb2_grpc.py
 
 proto: proto_cpp proto_py
 
