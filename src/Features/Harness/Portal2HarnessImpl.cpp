@@ -1,4 +1,5 @@
 #include <array>
+#include <cstdlib>
 #include <string>
 
 #include "Features/Session.hpp"
@@ -276,7 +277,7 @@ grpc::Status Portal2HarnessImpl::Reset(
   return grpc::Status::OK;
 }
 
-//docs/Portal2HarnessImpl.cpp:AgentLoop>
+// docs/Portal2HarnessImpl.cpp:AgentLoop>
 grpc::Status Portal2HarnessImpl::AgentLoop(
     grpc::ServerContext* context,
     grpc::ServerReaderWriter<portal2_harness::EnvironmentMessage,
@@ -331,6 +332,7 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
         });
 
         while (!pixelsRead.load()) {
+          if (context->IsCancelled()) return grpc::Status::CANCELLED;
           std::this_thread::sleep_for(std::chrono::microseconds(100));
         }
       }

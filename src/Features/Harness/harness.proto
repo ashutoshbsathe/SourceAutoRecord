@@ -3,7 +3,7 @@ syntax = "proto3";
 package portal2_harness;
 
 // The core service for external game control
-//docs/harness.proto:Portal2Harness>
+// docs/harness.proto:Portal2Harness>
 service Portal2Harness {
   // Handshake to verify connection and sync game constants
   rpc InitialHandshake(HandshakeRequest) returns (HandshakeResponse);

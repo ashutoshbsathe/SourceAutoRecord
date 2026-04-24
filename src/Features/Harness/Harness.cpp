@@ -131,7 +131,7 @@ Harness::~Harness() {
   this->StopServer();
 }
 
-//docs/Harness.cpp:StartServer>
+// docs/Harness.cpp:StartServer>
 void Harness::StartServer() {
   if (this->shouldRun) return;
   this->shouldRun = true;

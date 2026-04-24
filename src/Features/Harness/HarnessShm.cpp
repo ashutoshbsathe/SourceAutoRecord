@@ -15,7 +15,7 @@ HarnessShm::HarnessShm()
 
 HarnessShm::~HarnessShm() { Cleanup(); }
 
-//docs/HarnessShm.cpp:Init>
+// docs/HarnessShm.cpp:Init>
 bool HarnessShm::Init(const std::string& name, size_t size) {
   if (initialized_) {
     Cleanup();

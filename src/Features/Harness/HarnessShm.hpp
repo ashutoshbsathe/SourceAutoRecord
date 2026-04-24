@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string>
 
-//docs/HarnessShm.hpp:HarnessShm>
+// docs/HarnessShm.hpp:HarnessShm>
 class HarnessShm {
  public:
   HarnessShm();
