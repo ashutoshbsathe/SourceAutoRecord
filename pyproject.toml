@@ -1,3 +1,12 @@
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu130" }
+torchvision = { index = "pytorch-cu130" }
+
 [project]
 name = "sourceautorecord"
 version = "0.1.0"
@@ -10,4 +19,7 @@ dependencies = [
     "protobuf>=7.34.1",
     "gymnasium>=0.29.1",
     "absl-py>=2.0.0",
+    "torch>=2.11.0",
+    "torchvision>=0.26.0",
+    "ray[rllib]>=2.55.1",
 ]

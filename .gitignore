@@ -1,3 +1,5 @@
+ray_results/
+
 .vscode/
 *.so
 *.o
