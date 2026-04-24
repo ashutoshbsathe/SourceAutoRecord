@@ -51,7 +51,10 @@ def main(argv):
                 "max_steps": FLAGS.max_steps,
             },
         )
-        .resources(num_gpus=1)
+        .learners(
+            num_learners=1, 
+            num_gpus_per_learner=1,
+        )
         .framework("torch")
         # Ensure we only use 1 environment worker total so we don't try to open multiple game clients
         # 0 means training runs in the local worker alongside the env
@@ -64,6 +67,11 @@ def main(argv):
         # It's better to evaluate separately offline using saved checkpoints.
         .evaluation(
             evaluation_interval=None,
+        )
+        .training(
+            train_batch_size=1024,
+            minibatch_size=128,
+            lr=1e-4,
         )
     )
 

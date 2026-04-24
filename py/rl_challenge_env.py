@@ -150,11 +150,12 @@ class Portal2Env(gym.Env):
         terminated = self._check_terminated(dist)
         truncated = bool(self.episode_steps >= self.max_steps)
 
-        # 4. Calculate Sparse Reward (-1 * Euclidean distance) at the end
-        if terminated or truncated:
-            reward = -1.0 * dist
-        else:
-            reward = 0.0
+        # # 4. Calculate Sparse Reward (-1 * Euclidean distance) at the end
+        # if terminated or truncated:
+        #     reward = -1.0 * dist
+        # else:
+        #     reward = 0.0
+        reward = -1.0 * dist
 
         return obs, reward, terminated, truncated, {}
 
