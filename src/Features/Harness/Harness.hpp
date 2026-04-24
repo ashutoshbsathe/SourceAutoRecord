@@ -1,10 +1,10 @@
 #pragma once
 #include "Command.hpp"
 #include "Features/Feature.hpp"
+#include "HarnessShm.hpp"
 #include "Variable.hpp"
 #include "harness.grpc.pb.h"
 #include "harness.pb.h"
-#include "HarnessShm.hpp"
 
 #include <atomic>
 #include <condition_variable>
