@@ -1,15 +1,14 @@
-#include "Harness.hpp"
-
 #include "Features/Session.hpp"
 #include "Features/Tas/TasPlayer.hpp"
 #include "Features/Tas/TasScript.hpp"
+#include "Harness.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
 #include "Modules/Server.hpp"
 #include "SAR.hpp"
 #include "Scheduler.hpp"
-#include "Utils/SDK.hpp"
 #include "Utils/Memory.hpp"
+#include "Utils/SDK.hpp"
 
 #include <array>
 #include <string>
@@ -204,6 +203,13 @@ grpc::Status Portal2HarnessImpl::Reset(grpc::ServerContext *context, const porta
 	harness->warmupTicksRemaining = 0;
 	harness->ticksRemaining = 0;
 
+	// Wake up any in-flight Act() call (e.g. from a cancelled AgentLoop stream)
+	// so it can return and free tickMutex for the next episode.
+	{
+		std::lock_guard<std::mutex> lock(harness->tickMutex);
+		harness->tickCV.notify_all();
+	}
+
 	// Dispatch the restart to the main thread
 	Scheduler::OnMainThread([mapName]() {
 		// Unpause the game so it can actually load
@@ -295,7 +301,7 @@ grpc::Status Portal2HarnessImpl::AgentLoop(grpc::ServerContext *context, grpc::S
 			continue;
 		}
 
-		if (req.request_render()) {
+		if (req.copy_pixels_to_shm()) {
 			if (shm.GetBuffer() != MAP_FAILED && shm.GetSize() > 0 && g_harness_videomode && *g_harness_videomode) {
 				std::atomic<bool> pixelsRead{false};
 				Scheduler::OnMainThread([&]() {
@@ -306,8 +312,6 @@ grpc::Status Portal2HarnessImpl::AgentLoop(grpc::ServerContext *context, grpc::S
 				while (!pixelsRead.load()) {
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
 				}
-
-				env_msg.set_shm_name(shm.GetName());
 			}
 		}
 

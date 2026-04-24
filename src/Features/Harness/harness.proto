@@ -36,14 +36,19 @@ message Vector3 {
 
 message AgentMessage {
   ActionRequest action = 1;
-  bool request_render = 2; // if false, skip the ReadScreenPixels step to save time
+  // When true, copies the current framebuffer into POSIX shared memory
+  // (set up during InitialHandshake). This is expensive (~1ms+) as it
+  // dispatches ReadScreenPixels to the engine's main thread.
+  // Agents that only need game state (position, velocity, etc.) should
+  // leave this false. For visual RL, consider requesting pixels every
+  // N ticks (e.g. every 4-10 ticks) rather than every tick.
+  bool copy_pixels_to_shm = 2;
 }
 
 message EnvironmentMessage {
   GameState state = 1;
-  string shm_name = 2; // POSIX shared memory name to read pixels from (only valid if request_render was true)
-  bool success = 3; 
-  string error_message = 4;
+  bool success = 2; 
+  string error_message = 3;
 }
 
 // --- Observation Messages ---

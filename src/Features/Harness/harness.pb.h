@@ -2507,7 +2507,7 @@ class AgentMessage final : public ::google::protobuf::Message
   // accessors -------------------------------------------------------
   enum : int {
     kActionFieldNumber = 1,
-    kRequestRenderFieldNumber = 2,
+    kCopyPixelsToShmFieldNumber = 2,
   };
   // .portal2_harness.ActionRequest action = 1;
   bool has_action() const;
@@ -2524,14 +2524,14 @@ class AgentMessage final : public ::google::protobuf::Message
   ::portal2_harness::ActionRequest* PROTOBUF_NONNULL _internal_mutable_action();
 
   public:
-  // bool request_render = 2;
-  void clear_request_render() ;
-  bool request_render() const;
-  void set_request_render(bool value);
+  // bool copy_pixels_to_shm = 2;
+  void clear_copy_pixels_to_shm() ;
+  bool copy_pixels_to_shm() const;
+  void set_copy_pixels_to_shm(bool value);
 
   private:
-  bool _internal_request_render() const;
-  void _internal_set_request_render(bool value);
+  bool _internal_copy_pixels_to_shm() const;
+  void _internal_set_copy_pixels_to_shm(bool value);
 
   public:
   // @@protoc_insertion_point(class_scope:portal2_harness.AgentMessage)
@@ -2561,7 +2561,7 @@ class AgentMessage final : public ::google::protobuf::Message
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
     ::portal2_harness::ActionRequest* PROTOBUF_NULLABLE action_;
-    bool request_render_;
+    bool copy_pixels_to_shm_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -2939,27 +2939,11 @@ class EnvironmentMessage final : public ::google::protobuf::Message
 
   // accessors -------------------------------------------------------
   enum : int {
-    kShmNameFieldNumber = 2,
-    kErrorMessageFieldNumber = 4,
+    kErrorMessageFieldNumber = 3,
     kStateFieldNumber = 1,
-    kSuccessFieldNumber = 3,
+    kSuccessFieldNumber = 2,
   };
-  // string shm_name = 2;
-  void clear_shm_name() ;
-  const ::std::string& shm_name() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_shm_name(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_shm_name();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_shm_name();
-  void set_allocated_shm_name(::std::string* PROTOBUF_NULLABLE value);
-
-  private:
-  const ::std::string& _internal_shm_name() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_shm_name(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_shm_name();
-
-  public:
-  // string error_message = 4;
+  // string error_message = 3;
   void clear_error_message() ;
   const ::std::string& error_message() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
@@ -2989,7 +2973,7 @@ class EnvironmentMessage final : public ::google::protobuf::Message
   ::portal2_harness::GameState* PROTOBUF_NONNULL _internal_mutable_state();
 
   public:
-  // bool success = 3;
+  // bool success = 2;
   void clear_success() ;
   bool success() const;
   void set_success(bool value);
@@ -3003,8 +2987,8 @@ class EnvironmentMessage final : public ::google::protobuf::Message
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<2, 4,
-                                   1, 64,
+  static const ::google::protobuf::internal::TcParseTable<2, 3,
+                                   1, 56,
                                    2>
       _table_;
 
@@ -3025,7 +3009,6 @@ class EnvironmentMessage final : public ::google::protobuf::Message
         const EnvironmentMessage& from_msg);
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
-    ::google::protobuf::internal::ArenaStringPtr shm_name_;
     ::google::protobuf::internal::ArenaStringPtr error_message_;
     ::portal2_harness::GameState* PROTOBUF_NULLABLE state_;
     bool success_;
@@ -3227,28 +3210,28 @@ inline void AgentMessage::set_allocated_action(::portal2_harness::ActionRequest*
   // @@protoc_insertion_point(field_set_allocated:portal2_harness.AgentMessage.action)
 }
 
-// bool request_render = 2;
-inline void AgentMessage::clear_request_render() {
+// bool copy_pixels_to_shm = 2;
+inline void AgentMessage::clear_copy_pixels_to_shm() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.request_render_ = false;
+  _impl_.copy_pixels_to_shm_ = false;
   _impl_._has_bits_[0] &= ~0x00000002u;
 }
-inline bool AgentMessage::request_render() const {
-  // @@protoc_insertion_point(field_get:portal2_harness.AgentMessage.request_render)
-  return _internal_request_render();
+inline bool AgentMessage::copy_pixels_to_shm() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.AgentMessage.copy_pixels_to_shm)
+  return _internal_copy_pixels_to_shm();
 }
-inline void AgentMessage::set_request_render(bool value) {
-  _internal_set_request_render(value);
+inline void AgentMessage::set_copy_pixels_to_shm(bool value) {
+  _internal_set_copy_pixels_to_shm(value);
   _impl_._has_bits_[0] |= 0x00000002u;
-  // @@protoc_insertion_point(field_set:portal2_harness.AgentMessage.request_render)
+  // @@protoc_insertion_point(field_set:portal2_harness.AgentMessage.copy_pixels_to_shm)
 }
-inline bool AgentMessage::_internal_request_render() const {
+inline bool AgentMessage::_internal_copy_pixels_to_shm() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.request_render_;
+  return _impl_.copy_pixels_to_shm_;
 }
-inline void AgentMessage::_internal_set_request_render(bool value) {
+inline void AgentMessage::_internal_set_copy_pixels_to_shm(bool value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.request_render_ = value;
+  _impl_.copy_pixels_to_shm_ = value;
 }
 
 // -------------------------------------------------------------------
@@ -3257,14 +3240,14 @@ inline void AgentMessage::_internal_set_request_render(bool value) {
 
 // .portal2_harness.GameState state = 1;
 inline bool EnvironmentMessage::has_state() const {
-  bool value = (_impl_._has_bits_[0] & 0x00000004u) != 0;
+  bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
   PROTOBUF_ASSUME(!value || _impl_.state_ != nullptr);
   return value;
 }
 inline void EnvironmentMessage::clear_state() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (_impl_.state_ != nullptr) _impl_.state_->Clear();
-  _impl_._has_bits_[0] &= ~0x00000004u;
+  _impl_._has_bits_[0] &= ~0x00000002u;
 }
 inline const ::portal2_harness::GameState& EnvironmentMessage::_internal_state() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
@@ -3283,16 +3266,16 @@ inline void EnvironmentMessage::unsafe_arena_set_allocated_state(
   }
   _impl_.state_ = reinterpret_cast<::portal2_harness::GameState*>(value);
   if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000004u;
+    _impl_._has_bits_[0] |= 0x00000002u;
   } else {
-    _impl_._has_bits_[0] &= ~0x00000004u;
+    _impl_._has_bits_[0] &= ~0x00000002u;
   }
   // @@protoc_insertion_point(field_unsafe_arena_set_allocated:portal2_harness.EnvironmentMessage.state)
 }
 inline ::portal2_harness::GameState* PROTOBUF_NULLABLE EnvironmentMessage::release_state() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
 
-  _impl_._has_bits_[0] &= ~0x00000004u;
+  _impl_._has_bits_[0] &= ~0x00000002u;
   ::portal2_harness::GameState* released = _impl_.state_;
   _impl_.state_ = nullptr;
   if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
@@ -3312,7 +3295,7 @@ inline ::portal2_harness::GameState* PROTOBUF_NULLABLE EnvironmentMessage::unsaf
   ::google::protobuf::internal::TSanWrite(&_impl_);
   // @@protoc_insertion_point(field_release:portal2_harness.EnvironmentMessage.state)
 
-  _impl_._has_bits_[0] &= ~0x00000004u;
+  _impl_._has_bits_[0] &= ~0x00000002u;
   ::portal2_harness::GameState* temp = _impl_.state_;
   _impl_.state_ = nullptr;
   return temp;
@@ -3327,7 +3310,7 @@ inline ::portal2_harness::GameState* PROTOBUF_NONNULL EnvironmentMessage::_inter
 }
 inline ::portal2_harness::GameState* PROTOBUF_NONNULL EnvironmentMessage::mutable_state()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_._has_bits_[0] |= 0x00000002u;
   ::portal2_harness::GameState* _msg = _internal_mutable_state();
   // @@protoc_insertion_point(field_mutable:portal2_harness.EnvironmentMessage.state)
   return _msg;
@@ -3344,85 +3327,20 @@ inline void EnvironmentMessage::set_allocated_state(::portal2_harness::GameState
     if (message_arena != submessage_arena) {
       value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
     }
-    _impl_._has_bits_[0] |= 0x00000004u;
+    _impl_._has_bits_[0] |= 0x00000002u;
   } else {
-    _impl_._has_bits_[0] &= ~0x00000004u;
+    _impl_._has_bits_[0] &= ~0x00000002u;
   }
 
   _impl_.state_ = reinterpret_cast<::portal2_harness::GameState*>(value);
   // @@protoc_insertion_point(field_set_allocated:portal2_harness.EnvironmentMessage.state)
 }
 
-// string shm_name = 2;
-inline void EnvironmentMessage::clear_shm_name() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.shm_name_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000001u;
-}
-inline const ::std::string& EnvironmentMessage::shm_name() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:portal2_harness.EnvironmentMessage.shm_name)
-  return _internal_shm_name();
-}
-template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void EnvironmentMessage::set_shm_name(Arg_&& arg, Args_... args) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001u;
-  _impl_.shm_name_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:portal2_harness.EnvironmentMessage.shm_name)
-}
-inline ::std::string* PROTOBUF_NONNULL EnvironmentMessage::mutable_shm_name()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_shm_name();
-  // @@protoc_insertion_point(field_mutable:portal2_harness.EnvironmentMessage.shm_name)
-  return _s;
-}
-inline const ::std::string& EnvironmentMessage::_internal_shm_name() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.shm_name_.Get();
-}
-inline void EnvironmentMessage::_internal_set_shm_name(const ::std::string& value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001u;
-  _impl_.shm_name_.Set(value, GetArena());
-}
-inline ::std::string* PROTOBUF_NONNULL EnvironmentMessage::_internal_mutable_shm_name() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001u;
-  return _impl_.shm_name_.Mutable( GetArena());
-}
-inline ::std::string* PROTOBUF_NULLABLE EnvironmentMessage::release_shm_name() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:portal2_harness.EnvironmentMessage.shm_name)
-  if ((_impl_._has_bits_[0] & 0x00000001u) == 0) {
-    return nullptr;
-  }
-  _impl_._has_bits_[0] &= ~0x00000001u;
-  auto* released = _impl_.shm_name_.Release();
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.shm_name_.Set("", GetArena());
-  }
-  return released;
-}
-inline void EnvironmentMessage::set_allocated_shm_name(::std::string* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000001u;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000001u;
-  }
-  _impl_.shm_name_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.shm_name_.IsDefault()) {
-    _impl_.shm_name_.Set("", GetArena());
-  }
-  // @@protoc_insertion_point(field_set_allocated:portal2_harness.EnvironmentMessage.shm_name)
-}
-
-// bool success = 3;
+// bool success = 2;
 inline void EnvironmentMessage::clear_success() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.success_ = false;
-  _impl_._has_bits_[0] &= ~0x00000008u;
+  _impl_._has_bits_[0] &= ~0x00000004u;
 }
 inline bool EnvironmentMessage::success() const {
   // @@protoc_insertion_point(field_get:portal2_harness.EnvironmentMessage.success)
@@ -3430,7 +3348,7 @@ inline bool EnvironmentMessage::success() const {
 }
 inline void EnvironmentMessage::set_success(bool value) {
   _internal_set_success(value);
-  _impl_._has_bits_[0] |= 0x00000008u;
+  _impl_._has_bits_[0] |= 0x00000004u;
   // @@protoc_insertion_point(field_set:portal2_harness.EnvironmentMessage.success)
 }
 inline bool EnvironmentMessage::_internal_success() const {
@@ -3442,11 +3360,11 @@ inline void EnvironmentMessage::_internal_set_success(bool value) {
   _impl_.success_ = value;
 }
 
-// string error_message = 4;
+// string error_message = 3;
 inline void EnvironmentMessage::clear_error_message() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.error_message_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000002u;
+  _impl_._has_bits_[0] &= ~0x00000001u;
 }
 inline const ::std::string& EnvironmentMessage::error_message() const
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -3456,7 +3374,7 @@ inline const ::std::string& EnvironmentMessage::error_message() const
 template <typename Arg_, typename... Args_>
 PROTOBUF_ALWAYS_INLINE void EnvironmentMessage::set_error_message(Arg_&& arg, Args_... args) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_._has_bits_[0] |= 0x00000001u;
   _impl_.error_message_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
   // @@protoc_insertion_point(field_set:portal2_harness.EnvironmentMessage.error_message)
 }
@@ -3472,21 +3390,21 @@ inline const ::std::string& EnvironmentMessage::_internal_error_message() const 
 }
 inline void EnvironmentMessage::_internal_set_error_message(const ::std::string& value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_._has_bits_[0] |= 0x00000001u;
   _impl_.error_message_.Set(value, GetArena());
 }
 inline ::std::string* PROTOBUF_NONNULL EnvironmentMessage::_internal_mutable_error_message() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_._has_bits_[0] |= 0x00000001u;
   return _impl_.error_message_.Mutable( GetArena());
 }
 inline ::std::string* PROTOBUF_NULLABLE EnvironmentMessage::release_error_message() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   // @@protoc_insertion_point(field_release:portal2_harness.EnvironmentMessage.error_message)
-  if ((_impl_._has_bits_[0] & 0x00000002u) == 0) {
+  if ((_impl_._has_bits_[0] & 0x00000001u) == 0) {
     return nullptr;
   }
-  _impl_._has_bits_[0] &= ~0x00000002u;
+  _impl_._has_bits_[0] &= ~0x00000001u;
   auto* released = _impl_.error_message_.Release();
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
     _impl_.error_message_.Set("", GetArena());
@@ -3496,9 +3414,9 @@ inline ::std::string* PROTOBUF_NULLABLE EnvironmentMessage::release_error_messag
 inline void EnvironmentMessage::set_allocated_error_message(::std::string* PROTOBUF_NULLABLE value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000002u;
+    _impl_._has_bits_[0] |= 0x00000001u;
   } else {
-    _impl_._has_bits_[0] &= ~0x00000002u;
+    _impl_._has_bits_[0] &= ~0x00000001u;
   }
   _impl_.error_message_.SetAllocated(value, GetArena());
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.error_message_.IsDefault()) {

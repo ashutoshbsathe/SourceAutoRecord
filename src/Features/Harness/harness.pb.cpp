@@ -316,7 +316,7 @@ inline constexpr AgentMessage::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
         action_{nullptr},
-        request_render_{false} {}
+        copy_pixels_to_shm_{false} {}
 
 template <typename>
 PROTOBUF_CONSTEXPR AgentMessage::AgentMessage(::_pbi::ConstantInitialized)
@@ -370,9 +370,6 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
 inline constexpr EnvironmentMessage::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
-        shm_name_(
-            &::google::protobuf::internal::fixed_address_empty_string,
-            ::_pbi::ConstantInitialized()),
         error_message_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
@@ -419,20 +416,18 @@ const ::uint32_t
         PROTOBUF_FIELD_OFFSET(::portal2_harness::AgentMessage, _impl_._has_bits_),
         5, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::portal2_harness::AgentMessage, _impl_.action_),
-        PROTOBUF_FIELD_OFFSET(::portal2_harness::AgentMessage, _impl_.request_render_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::AgentMessage, _impl_.copy_pixels_to_shm_),
         0,
         1,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::EnvironmentMessage, _impl_._has_bits_),
-        7, // hasbit index offset
+        6, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::portal2_harness::EnvironmentMessage, _impl_.state_),
-        PROTOBUF_FIELD_OFFSET(::portal2_harness::EnvironmentMessage, _impl_.shm_name_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::EnvironmentMessage, _impl_.success_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::EnvironmentMessage, _impl_.error_message_),
+        1,
         2,
         0,
-        3,
-        1,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState, _impl_._has_bits_),
         9, // hasbit index offset
@@ -540,16 +535,16 @@ static const ::_pbi::MigrationSchema
         {0, sizeof(::portal2_harness::Vector3)},
         {9, sizeof(::portal2_harness::AgentMessage)},
         {16, sizeof(::portal2_harness::EnvironmentMessage)},
-        {27, sizeof(::portal2_harness::GameState)},
-        {42, sizeof(::portal2_harness::ActionRequest)},
-        {73, sizeof(::portal2_harness::ActionResponse)},
-        {80, sizeof(::portal2_harness::CommandRequest)},
-        {85, sizeof(::portal2_harness::CommandResponse)},
-        {92, sizeof(::portal2_harness::ResetRequest)},
-        {97, sizeof(::portal2_harness::ResetResponse)},
-        {106, sizeof(::portal2_harness::HandshakeRequest)},
-        {113, sizeof(::portal2_harness::HandshakeResponse)},
-        {126, sizeof(::portal2_harness::Empty)},
+        {25, sizeof(::portal2_harness::GameState)},
+        {40, sizeof(::portal2_harness::ActionRequest)},
+        {71, sizeof(::portal2_harness::ActionResponse)},
+        {78, sizeof(::portal2_harness::CommandRequest)},
+        {83, sizeof(::portal2_harness::CommandResponse)},
+        {90, sizeof(::portal2_harness::ResetRequest)},
+        {95, sizeof(::portal2_harness::ResetResponse)},
+        {104, sizeof(::portal2_harness::HandshakeRequest)},
+        {111, sizeof(::portal2_harness::HandshakeResponse)},
+        {124, sizeof(::portal2_harness::Empty)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::portal2_harness::_Vector3_default_instance_._instance,
@@ -569,56 +564,55 @@ static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
 const char descriptor_table_protodef_harness_2eproto[] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     protodesc_cold) = {
     "\n\rharness.proto\022\017portal2_harness\"*\n\007Vect"
-    "or3\022\t\n\001x\030\001 \001(\002\022\t\n\001y\030\002 \001(\002\022\t\n\001z\030\003 \001(\002\"V\n\014"
+    "or3\022\t\n\001x\030\001 \001(\002\022\t\n\001y\030\002 \001(\002\022\t\n\001z\030\003 \001(\002\"Z\n\014"
     "AgentMessage\022.\n\006action\030\001 \001(\0132\036.portal2_h"
-    "arness.ActionRequest\022\026\n\016request_render\030\002"
-    " \001(\010\"y\n\022EnvironmentMessage\022)\n\005state\030\001 \001("
-    "\0132\032.portal2_harness.GameState\022\020\n\010shm_nam"
-    "e\030\002 \001(\t\022\017\n\007success\030\003 \001(\010\022\025\n\rerror_messag"
-    "e\030\004 \001(\t\"\310\001\n\tGameState\022*\n\010position\030\001 \001(\0132"
-    "\030.portal2_harness.Vector3\022*\n\010velocity\030\002 "
-    "\001(\0132\030.portal2_harness.Vector3\022(\n\006camera\030"
-    "\003 \001(\0132\030.portal2_harness.Vector3\022\016\n\006healt"
-    "h\030\004 \001(\005\022\024\n\014is_crouching\030\005 \001(\010\022\023\n\013server_"
-    "tick\030\006 \001(\005\"\250\002\n\rActionRequest\022\021\n\tnum_tick"
-    "s\030\001 \001(\005\022\023\n\013key_forward\030\002 \001(\010\022\020\n\010key_left"
-    "\030\003 \001(\010\022\024\n\014key_backward\030\004 \001(\010\022\021\n\tkey_righ"
-    "t\030\005 \001(\010\022\017\n\007key_use\030\006 \001(\010\022\022\n\nkey_zoomin\030\007"
-    " \001(\010\022\023\n\013key_zoomout\030\010 \001(\010\022\022\n\nkey_crouch\030"
-    "\t \001(\010\022\026\n\016portal_primary\030\n \001(\010\022\030\n\020portal_"
-    "secondary\030\013 \001(\010\022\020\n\010key_jump\030\014 \001(\010\022\020\n\010mou"
-    "se_dx\030\r \001(\002\022\020\n\010mouse_dy\030\016 \001(\002\"8\n\016ActionR"
+    "arness.ActionRequest\022\032\n\022copy_pixels_to_s"
+    "hm\030\002 \001(\010\"g\n\022EnvironmentMessage\022)\n\005state\030"
+    "\001 \001(\0132\032.portal2_harness.GameState\022\017\n\007suc"
+    "cess\030\002 \001(\010\022\025\n\rerror_message\030\003 \001(\t\"\310\001\n\tGa"
+    "meState\022*\n\010position\030\001 \001(\0132\030.portal2_harn"
+    "ess.Vector3\022*\n\010velocity\030\002 \001(\0132\030.portal2_"
+    "harness.Vector3\022(\n\006camera\030\003 \001(\0132\030.portal"
+    "2_harness.Vector3\022\016\n\006health\030\004 \001(\005\022\024\n\014is_"
+    "crouching\030\005 \001(\010\022\023\n\013server_tick\030\006 \001(\005\"\250\002\n"
+    "\rActionRequest\022\021\n\tnum_ticks\030\001 \001(\005\022\023\n\013key"
+    "_forward\030\002 \001(\010\022\020\n\010key_left\030\003 \001(\010\022\024\n\014key_"
+    "backward\030\004 \001(\010\022\021\n\tkey_right\030\005 \001(\010\022\017\n\007key"
+    "_use\030\006 \001(\010\022\022\n\nkey_zoomin\030\007 \001(\010\022\023\n\013key_zo"
+    "omout\030\010 \001(\010\022\022\n\nkey_crouch\030\t \001(\010\022\026\n\016porta"
+    "l_primary\030\n \001(\010\022\030\n\020portal_secondary\030\013 \001("
+    "\010\022\020\n\010key_jump\030\014 \001(\010\022\020\n\010mouse_dx\030\r \001(\002\022\020\n"
+    "\010mouse_dy\030\016 \001(\002\"8\n\016ActionResponse\022\017\n\007suc"
+    "cess\030\001 \001(\010\022\025\n\rerror_message\030\002 \001(\t\"!\n\016Com"
+    "mandRequest\022\017\n\007command\030\001 \001(\t\"9\n\017CommandR"
     "esponse\022\017\n\007success\030\001 \001(\010\022\025\n\rerror_messag"
-    "e\030\002 \001(\t\"!\n\016CommandRequest\022\017\n\007command\030\001 \001"
-    "(\t\"9\n\017CommandResponse\022\017\n\007success\030\001 \001(\010\022\025"
-    "\n\rerror_message\030\002 \001(\t\" \n\014ResetRequest\022\020\n"
-    "\010map_name\030\001 \001(\t\"j\n\rResetResponse\022\017\n\007succ"
-    "ess\030\001 \001(\010\022\025\n\rerror_message\030\002 \001(\t\0221\n\rinit"
-    "ial_state\030\003 \001(\0132\032.portal2_harness.GameSt"
-    "ate\"=\n\020HandshakeRequest\022\026\n\016client_versio"
-    "n\030\001 \001(\t\022\021\n\tclient_id\030\002 \001(\t\"t\n\021HandshakeR"
-    "esponse\022\024\n\014game_version\030\001 \001(\t\022\020\n\010map_nam"
-    "e\030\002 \001(\t\022\021\n\tshm_width\030\003 \001(\005\022\022\n\nshm_height"
-    "\030\004 \001(\005\022\020\n\010shm_size\030\005 \001(\005\"\007\n\005Empty2\344\003\n\016Po"
-    "rtal2Harness\022Y\n\020InitialHandshake\022!.porta"
-    "l2_harness.HandshakeRequest\032\".portal2_ha"
-    "rness.HandshakeResponse\022=\n\007Observe\022\026.por"
-    "tal2_harness.Empty\032\032.portal2_harness.Gam"
-    "eState\022F\n\003Act\022\036.portal2_harness.ActionRe"
-    "quest\032\037.portal2_harness.ActionResponse\022S"
-    "\n\016ExecuteCommand\022\037.portal2_harness.Comma"
-    "ndRequest\032 .portal2_harness.CommandRespo"
-    "nse\022F\n\005Reset\022\035.portal2_harness.ResetRequ"
-    "est\032\036.portal2_harness.ResetResponse\022S\n\tA"
-    "gentLoop\022\035.portal2_harness.AgentMessage\032"
-    "#.portal2_harness.EnvironmentMessage(\0010\001"
-    "b\006proto3"
+    "e\030\002 \001(\t\" \n\014ResetRequest\022\020\n\010map_name\030\001 \001("
+    "\t\"j\n\rResetResponse\022\017\n\007success\030\001 \001(\010\022\025\n\re"
+    "rror_message\030\002 \001(\t\0221\n\rinitial_state\030\003 \001("
+    "\0132\032.portal2_harness.GameState\"=\n\020Handsha"
+    "keRequest\022\026\n\016client_version\030\001 \001(\t\022\021\n\tcli"
+    "ent_id\030\002 \001(\t\"t\n\021HandshakeResponse\022\024\n\014gam"
+    "e_version\030\001 \001(\t\022\020\n\010map_name\030\002 \001(\t\022\021\n\tshm"
+    "_width\030\003 \001(\005\022\022\n\nshm_height\030\004 \001(\005\022\020\n\010shm_"
+    "size\030\005 \001(\005\"\007\n\005Empty2\344\003\n\016Portal2Harness\022Y"
+    "\n\020InitialHandshake\022!.portal2_harness.Han"
+    "dshakeRequest\032\".portal2_harness.Handshak"
+    "eResponse\022=\n\007Observe\022\026.portal2_harness.E"
+    "mpty\032\032.portal2_harness.GameState\022F\n\003Act\022"
+    "\036.portal2_harness.ActionRequest\032\037.portal"
+    "2_harness.ActionResponse\022S\n\016ExecuteComma"
+    "nd\022\037.portal2_harness.CommandRequest\032 .po"
+    "rtal2_harness.CommandResponse\022F\n\005Reset\022\035"
+    ".portal2_harness.ResetRequest\032\036.portal2_"
+    "harness.ResetResponse\022S\n\tAgentLoop\022\035.por"
+    "tal2_harness.AgentMessage\032#.portal2_harn"
+    "ess.EnvironmentMessage(\0010\001b\006proto3"
 };
 static ::absl::once_flag descriptor_table_harness_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_harness_2eproto = {
     false,
     false,
-    1768,
+    1754,
     descriptor_table_protodef_harness_2eproto,
     "harness.proto",
     &descriptor_table_harness_2eproto_once,
@@ -980,7 +974,7 @@ AgentMessage::AgentMessage(
   _impl_.action_ = ((cached_has_bits & 0x00000001u) != 0)
                 ? ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.action_)
                 : nullptr;
-  _impl_.request_render_ = from._impl_.request_render_;
+  _impl_.copy_pixels_to_shm_ = from._impl_.copy_pixels_to_shm_;
 
   // @@protoc_insertion_point(copy_constructor:portal2_harness.AgentMessage)
 }
@@ -994,9 +988,9 @@ inline void AgentMessage::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   ::memset(reinterpret_cast<char *>(&_impl_) +
                offsetof(Impl_, action_),
            0,
-           offsetof(Impl_, request_render_) -
+           offsetof(Impl_, copy_pixels_to_shm_) -
                offsetof(Impl_, action_) +
-               sizeof(Impl_::request_render_));
+               sizeof(Impl_::copy_pixels_to_shm_));
 }
 AgentMessage::~AgentMessage() {
   // @@protoc_insertion_point(destructor:portal2_harness.AgentMessage)
@@ -1072,9 +1066,9 @@ AgentMessage::_table_ = {
     ::_pbi::TcParser::GetTable<::portal2_harness::AgentMessage>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
-    // bool request_render = 2;
-    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(AgentMessage, _impl_.request_render_), 1>(),
-     {16, 1, 0, PROTOBUF_FIELD_OFFSET(AgentMessage, _impl_.request_render_)}},
+    // bool copy_pixels_to_shm = 2;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(AgentMessage, _impl_.copy_pixels_to_shm_), 1>(),
+     {16, 1, 0, PROTOBUF_FIELD_OFFSET(AgentMessage, _impl_.copy_pixels_to_shm_)}},
     // .portal2_harness.ActionRequest action = 1;
     {::_pbi::TcParser::FastMtS1,
      {10, 0, 0, PROTOBUF_FIELD_OFFSET(AgentMessage, _impl_.action_)}},
@@ -1084,8 +1078,8 @@ AgentMessage::_table_ = {
     // .portal2_harness.ActionRequest action = 1;
     {PROTOBUF_FIELD_OFFSET(AgentMessage, _impl_.action_), _Internal::kHasBitsOffset + 0, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kMessage | ::_fl::kTvTable)},
-    // bool request_render = 2;
-    {PROTOBUF_FIELD_OFFSET(AgentMessage, _impl_.request_render_), _Internal::kHasBitsOffset + 1, 0,
+    // bool copy_pixels_to_shm = 2;
+    {PROTOBUF_FIELD_OFFSET(AgentMessage, _impl_.copy_pixels_to_shm_), _Internal::kHasBitsOffset + 1, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kBool)},
   }},
   {{
@@ -1106,7 +1100,7 @@ PROTOBUF_NOINLINE void AgentMessage::Clear() {
     ABSL_DCHECK(_impl_.action_ != nullptr);
     _impl_.action_->Clear();
   }
-  _impl_.request_render_ = false;
+  _impl_.copy_pixels_to_shm_ = false;
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
 }
@@ -1134,12 +1128,12 @@ PROTOBUF_NOINLINE void AgentMessage::Clear() {
         stream);
   }
 
-  // bool request_render = 2;
+  // bool copy_pixels_to_shm = 2;
   if ((cached_has_bits & 0x00000002u) != 0) {
-    if (this_._internal_request_render() != 0) {
+    if (this_._internal_copy_pixels_to_shm() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
-          2, this_._internal_request_render(), target);
+          2, this_._internal_copy_pixels_to_shm(), target);
     }
   }
 
@@ -1174,9 +1168,9 @@ PROTOBUF_NOINLINE void AgentMessage::Clear() {
       total_size += 1 +
                     ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.action_);
     }
-    // bool request_render = 2;
+    // bool copy_pixels_to_shm = 2;
     if ((cached_has_bits & 0x00000002u) != 0) {
-      if (this_._internal_request_render() != 0) {
+      if (this_._internal_copy_pixels_to_shm() != 0) {
         total_size += 2;
       }
     }
@@ -1205,8 +1199,8 @@ void AgentMessage::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::go
       }
     }
     if ((cached_has_bits & 0x00000002u) != 0) {
-      if (from._internal_request_render() != 0) {
-        _this->_impl_.request_render_ = from._impl_.request_render_;
+      if (from._internal_copy_pixels_to_shm() != 0) {
+        _this->_impl_.copy_pixels_to_shm_ = from._impl_.copy_pixels_to_shm_;
       }
     }
   }
@@ -1227,8 +1221,8 @@ void AgentMessage::InternalSwap(AgentMessage* PROTOBUF_RESTRICT PROTOBUF_NONNULL
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::google::protobuf::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(AgentMessage, _impl_.request_render_)
-      + sizeof(AgentMessage::_impl_.request_render_)
+      PROTOBUF_FIELD_OFFSET(AgentMessage, _impl_.copy_pixels_to_shm_)
+      + sizeof(AgentMessage::_impl_.copy_pixels_to_shm_)
       - PROTOBUF_FIELD_OFFSET(AgentMessage, _impl_.action_)>(
           reinterpret_cast<char*>(&_impl_.action_),
           reinterpret_cast<char*>(&other->_impl_.action_));
@@ -1262,7 +1256,6 @@ PROTOBUF_NDEBUG_INLINE EnvironmentMessage::Impl_::Impl_(
     const ::portal2_harness::EnvironmentMessage& from_msg)
       : _has_bits_{from._has_bits_},
         _cached_size_{0},
-        shm_name_(arena, from.shm_name_),
         error_message_(arena, from.error_message_) {}
 
 EnvironmentMessage::EnvironmentMessage(
@@ -1279,7 +1272,7 @@ EnvironmentMessage::EnvironmentMessage(
       from._internal_metadata_);
   new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
   ::uint32_t cached_has_bits = _impl_._has_bits_[0];
-  _impl_.state_ = ((cached_has_bits & 0x00000004u) != 0)
+  _impl_.state_ = ((cached_has_bits & 0x00000002u) != 0)
                 ? ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.state_)
                 : nullptr;
   _impl_.success_ = from._impl_.success_;
@@ -1290,7 +1283,6 @@ PROTOBUF_NDEBUG_INLINE EnvironmentMessage::Impl_::Impl_(
     ::google::protobuf::internal::InternalVisibility visibility,
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
       : _cached_size_{0},
-        shm_name_(arena),
         error_message_(arena) {}
 
 inline void EnvironmentMessage::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
@@ -1310,7 +1302,6 @@ inline void EnvironmentMessage::SharedDtor(MessageLite& self) {
   EnvironmentMessage& this_ = static_cast<EnvironmentMessage&>(self);
   this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
   ABSL_DCHECK(this_.GetArena() == nullptr);
-  this_._impl_.shm_name_.Destroy();
   this_._impl_.error_message_.Destroy();
   delete this_._impl_.state_;
   this_._impl_.~Impl_();
@@ -1359,16 +1350,16 @@ EnvironmentMessage::GetClassData() const {
   return EnvironmentMessage_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<2, 4, 1, 64, 2>
+const ::_pbi::TcParseTable<2, 3, 1, 56, 2>
 EnvironmentMessage::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_._has_bits_),
     0, // no _extensions_
-    4, 24,  // max_field_number, fast_idx_mask
+    3, 24,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967280,  // skipmap
+    4294967288,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    4,  // num_field_entries
+    3,  // num_field_entries
     1,  // num_aux_entries
     offsetof(decltype(_table_), aux_entries),
     EnvironmentMessage_class_data_.base(),
@@ -1378,41 +1369,35 @@ EnvironmentMessage::_table_ = {
     ::_pbi::TcParser::GetTable<::portal2_harness::EnvironmentMessage>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
-    // string error_message = 4;
-    {::_pbi::TcParser::FastUS1,
-     {34, 1, 0, PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.error_message_)}},
+    {::_pbi::TcParser::MiniParse, {}},
     // .portal2_harness.GameState state = 1;
     {::_pbi::TcParser::FastMtS1,
-     {10, 2, 0, PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.state_)}},
-    // string shm_name = 2;
+     {10, 1, 0, PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.state_)}},
+    // bool success = 2;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(EnvironmentMessage, _impl_.success_), 2>(),
+     {16, 2, 0, PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.success_)}},
+    // string error_message = 3;
     {::_pbi::TcParser::FastUS1,
-     {18, 0, 0, PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.shm_name_)}},
-    // bool success = 3;
-    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(EnvironmentMessage, _impl_.success_), 3>(),
-     {24, 3, 0, PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.success_)}},
+     {26, 0, 0, PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.error_message_)}},
   }}, {{
     65535, 65535
   }}, {{
     // .portal2_harness.GameState state = 1;
-    {PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.state_), _Internal::kHasBitsOffset + 2, 0,
+    {PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.state_), _Internal::kHasBitsOffset + 1, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kMessage | ::_fl::kTvTable)},
-    // string shm_name = 2;
-    {PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.shm_name_), _Internal::kHasBitsOffset + 0, 0,
-    (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-    // bool success = 3;
-    {PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.success_), _Internal::kHasBitsOffset + 3, 0,
+    // bool success = 2;
+    {PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.success_), _Internal::kHasBitsOffset + 2, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kBool)},
-    // string error_message = 4;
-    {PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.error_message_), _Internal::kHasBitsOffset + 1, 0,
+    // string error_message = 3;
+    {PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.error_message_), _Internal::kHasBitsOffset + 0, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
   }},
   {{
       {::_pbi::TcParser::GetTable<::portal2_harness::GameState>()},
   }},
   {{
-    "\42\0\10\0\15\0\0\0"
+    "\42\0\0\15\0\0\0\0"
     "portal2_harness.EnvironmentMessage"
-    "shm_name"
     "error_message"
   }},
 };
@@ -1424,14 +1409,11 @@ PROTOBUF_NOINLINE void EnvironmentMessage::Clear() {
   (void) cached_has_bits;
 
   cached_has_bits = _impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000007u) != 0) {
+  if ((cached_has_bits & 0x00000003u) != 0) {
     if ((cached_has_bits & 0x00000001u) != 0) {
-      _impl_.shm_name_.ClearNonDefaultToEmpty();
-    }
-    if ((cached_has_bits & 0x00000002u) != 0) {
       _impl_.error_message_.ClearNonDefaultToEmpty();
     }
-    if ((cached_has_bits & 0x00000004u) != 0) {
+    if ((cached_has_bits & 0x00000002u) != 0) {
       ABSL_DCHECK(_impl_.state_ != nullptr);
       _impl_.state_->Clear();
     }
@@ -1458,38 +1440,28 @@ PROTOBUF_NOINLINE void EnvironmentMessage::Clear() {
 
   cached_has_bits = this_._impl_._has_bits_[0];
   // .portal2_harness.GameState state = 1;
-  if ((cached_has_bits & 0x00000004u) != 0) {
+  if ((cached_has_bits & 0x00000002u) != 0) {
     target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
         1, *this_._impl_.state_, this_._impl_.state_->GetCachedSize(), target,
         stream);
   }
 
-  // string shm_name = 2;
-  if ((cached_has_bits & 0x00000001u) != 0) {
-    if (!this_._internal_shm_name().empty()) {
-      const ::std::string& _s = this_._internal_shm_name();
-      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
-          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "portal2_harness.EnvironmentMessage.shm_name");
-      target = stream->WriteStringMaybeAliased(2, _s, target);
-    }
-  }
-
-  // bool success = 3;
-  if ((cached_has_bits & 0x00000008u) != 0) {
+  // bool success = 2;
+  if ((cached_has_bits & 0x00000004u) != 0) {
     if (this_._internal_success() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
-          3, this_._internal_success(), target);
+          2, this_._internal_success(), target);
     }
   }
 
-  // string error_message = 4;
-  if ((cached_has_bits & 0x00000002u) != 0) {
+  // string error_message = 3;
+  if ((cached_has_bits & 0x00000001u) != 0) {
     if (!this_._internal_error_message().empty()) {
       const ::std::string& _s = this_._internal_error_message();
       ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
           _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "portal2_harness.EnvironmentMessage.error_message");
-      target = stream->WriteStringMaybeAliased(4, _s, target);
+      target = stream->WriteStringMaybeAliased(3, _s, target);
     }
   }
 
@@ -1518,28 +1490,21 @@ PROTOBUF_NOINLINE void EnvironmentMessage::Clear() {
 
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x0000000fu) != 0) {
-    // string shm_name = 2;
+  if ((cached_has_bits & 0x00000007u) != 0) {
+    // string error_message = 3;
     if ((cached_has_bits & 0x00000001u) != 0) {
-      if (!this_._internal_shm_name().empty()) {
-        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
-                                        this_._internal_shm_name());
-      }
-    }
-    // string error_message = 4;
-    if ((cached_has_bits & 0x00000002u) != 0) {
       if (!this_._internal_error_message().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
                                         this_._internal_error_message());
       }
     }
     // .portal2_harness.GameState state = 1;
-    if ((cached_has_bits & 0x00000004u) != 0) {
+    if ((cached_has_bits & 0x00000002u) != 0) {
       total_size += 1 +
                     ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.state_);
     }
-    // bool success = 3;
-    if ((cached_has_bits & 0x00000008u) != 0) {
+    // bool success = 2;
+    if ((cached_has_bits & 0x00000004u) != 0) {
       if (this_._internal_success() != 0) {
         total_size += 2;
       }
@@ -1559,17 +1524,8 @@ void EnvironmentMessage::MergeImpl(::google::protobuf::MessageLite& to_msg, cons
   (void) cached_has_bits;
 
   cached_has_bits = from._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x0000000fu) != 0) {
+  if ((cached_has_bits & 0x00000007u) != 0) {
     if ((cached_has_bits & 0x00000001u) != 0) {
-      if (!from._internal_shm_name().empty()) {
-        _this->_internal_set_shm_name(from._internal_shm_name());
-      } else {
-        if (_this->_impl_.shm_name_.IsDefault()) {
-          _this->_internal_set_shm_name("");
-        }
-      }
-    }
-    if ((cached_has_bits & 0x00000002u) != 0) {
       if (!from._internal_error_message().empty()) {
         _this->_internal_set_error_message(from._internal_error_message());
       } else {
@@ -1578,7 +1534,7 @@ void EnvironmentMessage::MergeImpl(::google::protobuf::MessageLite& to_msg, cons
         }
       }
     }
-    if ((cached_has_bits & 0x00000004u) != 0) {
+    if ((cached_has_bits & 0x00000002u) != 0) {
       ABSL_DCHECK(from._impl_.state_ != nullptr);
       if (_this->_impl_.state_ == nullptr) {
         _this->_impl_.state_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.state_);
@@ -1586,7 +1542,7 @@ void EnvironmentMessage::MergeImpl(::google::protobuf::MessageLite& to_msg, cons
         _this->_impl_.state_->MergeFrom(*from._impl_.state_);
       }
     }
-    if ((cached_has_bits & 0x00000008u) != 0) {
+    if ((cached_has_bits & 0x00000004u) != 0) {
       if (from._internal_success() != 0) {
         _this->_impl_.success_ = from._impl_.success_;
       }
@@ -1610,7 +1566,6 @@ void EnvironmentMessage::InternalSwap(EnvironmentMessage* PROTOBUF_RESTRICT PROT
   ABSL_DCHECK_EQ(arena, other->GetArena());
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
-  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.shm_name_, &other->_impl_.shm_name_, arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.error_message_, &other->_impl_.error_message_, arena);
   ::google::protobuf::internal::memswap<
       PROTOBUF_FIELD_OFFSET(EnvironmentMessage, _impl_.success_)

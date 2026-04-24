@@ -1,4 +1,4 @@
-.PHONY: all clean cvars
+.PHONY: all clean cvars proto proto_cpp proto_py
 .FORCE:
 
 CXX=g++
@@ -41,12 +41,21 @@ src/Features/Harness/%.grpc.pb.cpp src/Features/Harness/%.grpc.pb.h: src/Feature
 	/opt/p2-grpc32/bin/protoc -I=src/Features/Harness --grpc_out=src/Features/Harness --plugin=protoc-gen-grpc=/opt/p2-grpc32/bin/grpc_cpp_plugin $<
 	mv src/Features/Harness/$*.grpc.pb.cc src/Features/Harness/$*.grpc.pb.cpp
 
-# Python proto generation - regenerates automatically when .proto changes
-src/Features/Harness/%_pb2.py: src/Features/Harness/%.proto
-	/opt/p2-grpc32/bin/protoc -I=src/Features/Harness --python_out=src/Features/Harness $<
+PROTO_SRC=src/Features/Harness/harness.proto
 
-src/Features/Harness/%_pb2_grpc.py: src/Features/Harness/%.proto
-	python -m grpc_tools.protoc -I=src/Features/Harness --grpc_python_out=src/Features/Harness $<
+# Python proto generation - outputs to project root (where poc_client.py imports from)
+harness_pb2.py: $(PROTO_SRC)
+	protoc -I=src/Features/Harness --python_out=. $<
+
+harness_pb2_grpc.py: $(PROTO_SRC)
+	protoc -I=src/Features/Harness --grpc_python_out=. --plugin=protoc-gen-grpc_python=/opt/p2-grpc32/bin/grpc_python_plugin $<
+
+# Convenience targets
+proto_cpp: src/Features/Harness/harness.pb.cpp src/Features/Harness/harness.pb.h src/Features/Harness/harness.grpc.pb.cpp src/Features/Harness/harness.grpc.pb.h
+
+proto_py: harness_pb2.py harness_pb2_grpc.py
+
+proto: proto_cpp proto_py
 
 src/Version.hpp: .FORCE
 	if [ "$$RELEASE_BUILD" ]; then echo "#define SAR_VERSION \"$(VERSION)\"" >"$@"; fi
