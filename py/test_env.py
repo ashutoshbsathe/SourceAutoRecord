@@ -11,6 +11,9 @@ flags.DEFINE_float("duration", 120.0, "Total duration to run the test in seconds
 flags.DEFINE_string(
     "map_name", "sp_a2_triple_laser", "Map to load for the environment."
 )
+flags.DEFINE_list(
+    "target_pos", ["0.0", "0.0", "0.0"], "Target position as a comma-separated list of x,y,z"
+)
 flags.DEFINE_float(
     "reset_prob", 0.001, "Probability of triggering a random reset per step."
 )
@@ -27,7 +30,7 @@ def main(argv):
     print(f"Initializing Portal2Env with map: {FLAGS.map_name}...")
     env = Portal2Env(
         map_name=FLAGS.map_name,
-        target_pos=(0.0, 0.0, 0.0),
+        target_pos=tuple(float(x) for x in FLAGS.target_pos),
         render_mode="human" if FLAGS.render else None,
         state_only=FLAGS.state_only,
     )
