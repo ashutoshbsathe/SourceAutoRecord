@@ -3,6 +3,9 @@ import ray
 from ray import train, tune
 from ray.rllib.algorithms.ppo import PPOConfig
 from absl import app, flags
+import torch.nn as nn
+from ray.rllib.algorithms.ppo.torch.default_ppo_torch_rl_module import DefaultPPOTorchRLModule
+from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
 from rl_challenge_env import Portal2Env
 
@@ -17,6 +20,82 @@ flags.DEFINE_list(
 flags.DEFINE_integer("num_iterations", 100, "Number of training iterations.")
 flags.DEFINE_integer("checkpoint_freq", 10, "Checkpoint frequency in iterations.")
 flags.DEFINE_integer("max_steps", 300, "Max steps per episode.")
+
+class ResidualBlock(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(channels, channels, kernel_size=3, padding=1),
+        )
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        return self.relu(x + self.conv(x))
+
+class PortalResNetEncoder(nn.Module):
+    def __init__(self, input_shape, latent_dim=512):
+        super().__init__()
+        # input_shape is (240, 240, 3) -> Convert to (3, 240, 240) in forward
+        self.net = nn.Sequential(
+            # Stage 1: Fast spatial reduction (240 -> 60)
+            nn.Conv2d(3, 32, kernel_size=7, stride=4, padding=3), 
+            nn.ReLU(),
+            # Stage 2: ResBlocks (60 -> 30)
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
+            ResidualBlock(64),
+            # Stage 3: ResBlocks (30 -> 15)
+            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
+            ResidualBlock(128),
+            # Stage 4: Global Pooling
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(),
+            nn.Linear(128, latent_dim),
+            nn.ReLU()
+        )
+
+    def forward(self, x):
+        # Ray sends (B, H, W, C), Torch expects (B, C, H, W)
+        x = x.permute(0, 3, 1, 2)
+        return self.net(x)
+
+class PortalRLModule(DefaultPPOTorchRLModule):
+    def setup(self):
+        # 1. Initialize the custom encoder
+        self.encoder = PortalResNetEncoder(
+            input_shape=self.observation_space.shape,
+            latent_dim=256
+        )
+        
+        # 2. Re-wire the PPO heads
+        # For a Box action space, PPO needs mean and log_std for each dimension
+        action_dim = self.action_space.shape[0]
+        self.actor_head = nn.Linear(256, action_dim * 2)
+        self.critic_head = nn.Linear(256, 1)
+
+    def _forward(self, batch, **kwargs):
+        obs = batch["obs"]
+        latents = self.encoder(obs)
+        return {
+            "action_dist_inputs": self.actor_head(latents),
+        }
+
+    def _forward_train(self, batch, **kwargs):
+        obs = batch["obs"]
+        latents = self.encoder(obs)
+        return {
+            "action_dist_inputs": self.actor_head(latents),
+            "embeddings": latents,
+        }
+
+    def compute_values(self, batch, embeddings=None, **kwargs):
+        if embeddings is not None:
+            latents = embeddings
+        else:
+            obs = batch["obs"]
+            latents = self.encoder(obs)
+        return self.critic_head(latents).squeeze(-1)
 
 def env_creator(env_config):
     # Parse target_pos from string list to float tuple
@@ -51,10 +130,8 @@ def main(argv):
                 "max_steps": FLAGS.max_steps,
             },
         )
-        .learners(
-            num_learners=1, 
-            num_gpus_per_learner=1,
-        )
+        .rl_module(rl_module_spec=RLModuleSpec(module_class=PortalRLModule))
+        .learners(num_learners=1, num_gpus_per_learner=1)
         .framework("torch")
         # Ensure we only use 1 environment worker total so we don't try to open multiple game clients
         # 0 means training runs in the local worker alongside the env

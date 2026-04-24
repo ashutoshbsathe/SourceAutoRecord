@@ -6,7 +6,7 @@ import cv2
 
 from p2harness import P2Harness, harness_pb2
 
-IMAGE_SIZE = 84
+IMAGE_SIZE = 240
 
 class Portal2Env(gym.Env):
     """
@@ -70,8 +70,8 @@ class Portal2Env(gym.Env):
         # We output only an unnormalized IMAGE_SIZE x IMAGE_SIZE RGB image
         # RLlib's default VisionNetwork will automatically handle this setup efficiently
         self.observation_space = spaces.Box(
-            low=0,
-            high=255,
+            low=0.0,
+            high=1.0,
             shape=(IMAGE_SIZE, IMAGE_SIZE, 3),
             dtype=np.float32,
         )
@@ -80,7 +80,7 @@ class Portal2Env(gym.Env):
         """Parse EnvironmentMessage into Gym observation."""
         pixels = self.harness.get_shm_pixels()
         resized = self.cv2.resize(pixels, (IMAGE_SIZE, IMAGE_SIZE))
-        return resized.astype(np.float32)
+        return resized.astype(np.float32) / 255.0
 
     def _check_terminated(self, dist: float) -> bool:
         """Utility to determine if the episode should end due to death."""
@@ -155,7 +155,8 @@ class Portal2Env(gym.Env):
         #     reward = -1.0 * dist
         # else:
         #     reward = 0.0
-        reward = -1.0 * dist
+        dist += 1
+        reward = -1.0 * min(np.log(dist/100), 10)
 
         return obs, reward, terminated, truncated, {}
 
