@@ -1,4 +1,5 @@
 ray_results/
+ray_tmp/
 
 .vscode/
 *.so

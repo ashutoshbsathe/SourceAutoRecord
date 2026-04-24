@@ -6,6 +6,7 @@ import cv2
 
 from p2harness import P2Harness, harness_pb2
 
+IMAGE_SIZE = 84
 
 class Portal2Env(gym.Env):
     """
@@ -22,6 +23,7 @@ class Portal2Env(gym.Env):
         address: str = "localhost:50051",
         render_mode: str = None,
         num_ticks_per_step: int = 1,
+        max_steps: int = 300,
     ):
 
         super().__init__()
@@ -30,6 +32,8 @@ class Portal2Env(gym.Env):
         self.address = address
         self.render_mode = render_mode
         self.num_ticks = num_ticks_per_step
+        self.max_steps = max_steps
+        self.episode_steps = 0
 
         self.harness = P2Harness(self.address)
 
@@ -63,28 +67,29 @@ class Portal2Env(gym.Env):
         # ----------------------------------------------------
         # Observation Space Definition
         # ----------------------------------------------------
-        # We output only an unnormalized 240x240 RGB image
+        # We output only an unnormalized IMAGE_SIZE x IMAGE_SIZE RGB image
         # RLlib's default VisionNetwork will automatically handle this setup efficiently
         self.observation_space = spaces.Box(
             low=0,
             high=255,
-            shape=(240, 240, 3),
-            dtype=np.uint8,
+            shape=(IMAGE_SIZE, IMAGE_SIZE, 3),
+            dtype=np.float32,
         )
 
     def _get_obs(self, env_msg: harness_pb2.EnvironmentMessage):
         """Parse EnvironmentMessage into Gym observation."""
         pixels = self.harness.get_shm_pixels()
-        resized = self.cv2.resize(pixels, (240, 240))
-        return resized
+        resized = self.cv2.resize(pixels, (IMAGE_SIZE, IMAGE_SIZE))
+        return resized.astype(np.float32)
 
-    def _check_terminated(self, env_msg: harness_pb2.EnvironmentMessage) -> bool:
+    def _check_terminated(self, dist: float) -> bool:
         """Utility to determine if the episode should end due to death."""
-        return bool(env_msg.state.health <= 0)
+        return bool(abs(dist)<= 10)
 
     def reset(self, seed=None, options=None):
         """Restarts the level/map, re-establishes the streaming loop, and returns initial obs."""
         super().reset(seed=seed)
+        self.episode_steps = 0
 
         print(f"[Portal2Env] Resetting to map: {self.map_name}")
         reset_resp = self.harness.reset(self.map_name)
@@ -136,16 +141,17 @@ class Portal2Env(gym.Env):
             raise RuntimeError(f"AgentLoop step failed: {env_msg.error_message}")
 
         obs = self._get_obs(env_msg)
+        state = env_msg.state
+        pos = np.array([state.position.x, state.position.y, state.position.z], dtype=np.float32)
+        dist = np.linalg.norm(pos - self.target_pos)
 
         # 3. Handle Termination explicitly
-        terminated = self._check_terminated(env_msg)
-        truncated = False
+        self.episode_steps += 1
+        terminated = self._check_terminated(dist)
+        truncated = bool(self.episode_steps >= self.max_steps)
 
         # 4. Calculate Sparse Reward (-1 * Euclidean distance) at the end
         if terminated or truncated:
-            state = env_msg.state
-            pos = np.array([state.position.x, state.position.y, state.position.z], dtype=np.float32)
-            dist = np.linalg.norm(pos - self.target_pos)
             reward = -1.0 * dist
         else:
             reward = 0.0

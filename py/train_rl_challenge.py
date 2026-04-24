@@ -16,7 +16,7 @@ flags.DEFINE_list(
 )
 flags.DEFINE_integer("num_iterations", 100, "Number of training iterations.")
 flags.DEFINE_integer("checkpoint_freq", 10, "Checkpoint frequency in iterations.")
-
+flags.DEFINE_integer("max_steps", 300, "Max steps per episode.")
 
 def env_creator(env_config):
     # Parse target_pos from string list to float tuple
@@ -24,6 +24,7 @@ def env_creator(env_config):
     return Portal2Env(
         map_name=env_config["map_name"],
         target_pos=env_config["target_pos"],
+        max_steps=env_config.get("max_steps", 300),
         render_mode=None,
     )
 
@@ -31,6 +32,7 @@ def env_creator(env_config):
 def main(argv):
     del argv  # Unused
 
+    # Initialize Ray (using default /tmp to avoid AF_UNIX socket length limits)
     ray.init()
 
     # Register the environment
@@ -46,8 +48,10 @@ def main(argv):
             env_config={
                 "map_name": FLAGS.map_name,
                 "target_pos": target_pos,
+                "max_steps": FLAGS.max_steps,
             },
         )
+        .resources(num_gpus=1)
         .framework("torch")
         # Ensure we only use 1 environment worker total so we don't try to open multiple game clients
         # 0 means training runs in the local worker alongside the env

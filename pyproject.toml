@@ -22,4 +22,5 @@ dependencies = [
     "torch>=2.11.0",
     "torchvision>=0.26.0",
     "ray[rllib]>=2.55.1",
+    "gputil>=1.4.0",
 ]
