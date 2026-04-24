@@ -143,7 +143,8 @@ class Portal2Env(gym.Env):
         obs = self._get_obs(env_msg)
         state = env_msg.state
         pos = np.array([state.position.x, state.position.y, state.position.z], dtype=np.float32)
-        dist = np.linalg.norm(pos - self.target_pos)
+        scale = np.array([1.0, 1.0, 0.1])
+        dist = np.linalg.norm(pos * scale - self.target_pos * scale)
 
         # 3. Handle Termination explicitly
         self.episode_steps += 1
