@@ -7,6 +7,9 @@ import torch.nn as nn
 from ray.rllib.algorithms.ppo.torch.default_ppo_torch_rl_module import DefaultPPOTorchRLModule
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
+import numpy as np
+from gymnasium import spaces
+
 from rl_challenge_env import Portal2Env
 
 FLAGS = flags.FLAGS
@@ -19,7 +22,19 @@ flags.DEFINE_list(
 )
 flags.DEFINE_integer("num_iterations", 100, "Number of training iterations.")
 flags.DEFINE_integer("checkpoint_freq", 10, "Checkpoint frequency in iterations.")
-flags.DEFINE_integer("max_steps", 300, "Max steps per episode.")
+flags.DEFINE_integer("max_steps", 384, "Max steps per episode.")
+
+def get_action_dim(space):
+    if isinstance(space, spaces.Discrete):
+        return space.n
+    elif isinstance(space, spaces.Box):
+        return np.prod(space.shape) * 2
+    elif isinstance(space, spaces.Dict):
+        return sum(get_action_dim(s) for s in space.values())
+    elif isinstance(space, spaces.Tuple):
+        return sum(get_action_dim(s) for s in space)
+    else:
+        raise ValueError(f"Unsupported space: {space}")
 
 class ResidualBlock(nn.Module):
     def __init__(self, channels):
@@ -69,10 +84,16 @@ class PortalRLModule(DefaultPPOTorchRLModule):
         )
         
         # 2. Re-wire the PPO heads
-        # For a Box action space, PPO needs mean and log_std for each dimension
-        action_dim = self.action_space.shape[0]
-        self.actor_head = nn.Linear(256, action_dim * 2)
+        # Dynamically compute action_dim needed for RLlib's Action Distribution
+        action_dim = get_action_dim(self.action_space)
+        self.actor_head = nn.Linear(256, action_dim)
         self.critic_head = nn.Linear(256, 1)
+
+        # 3. Explicitly set the action distribution class (since we don't call super().setup())
+        from ray.rllib.core.models.catalog import Catalog
+        self.action_dist_cls = Catalog._get_dist_cls_from_action_space(
+            self.action_space, framework="torch"
+        )
 
     def _forward(self, batch, **kwargs):
         obs = batch["obs"]
@@ -105,6 +126,7 @@ def env_creator(env_config):
         target_pos=env_config["target_pos"],
         max_steps=env_config.get("max_steps", 300),
         render_mode=None,
+        num_ticks_per_step=8,
     )
 
 
@@ -146,8 +168,8 @@ def main(argv):
             evaluation_interval=None,
         )
         .training(
-            train_batch_size=1024,
-            minibatch_size=128,
+            train_batch_size=512,
+            minibatch_size=64,
             lr=1e-4,
         )
     )

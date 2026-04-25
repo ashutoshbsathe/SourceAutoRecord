@@ -41,28 +41,19 @@ class Portal2Env(gym.Env):
         resp = self.harness.handshake()
         print(f"[Portal2Env] Connected to {resp.game_version}, map: {resp.map_name}")
 
-        self.cv2 = cv2
-
         # ----------------------------------------------------
         # Action Space Definition
         # ----------------------------------------------------
-        # Shape: (13,)
-        # 0: key_forward
-        # 1: key_left
-        # 2: key_backward
-        # 3: key_right
-        # 4: key_use
-        # 5: key_zoomin
-        # 6: key_zoomout
-        # 7: key_crouch
-        # 8: portal_primary
-        # 9: portal_secondary
-        # 10: key_jump
-        # 11: mouse_dx (float)
-        # 12: mouse_dy (float)
-        self.action_space = spaces.Box(
-            low=-1.0, high=1.0, shape=(13,), dtype=np.float32
-        )
+        self.action_space = spaces.Dict({
+            'move_fb': spaces.Discrete(3),   # 0: None, 1: Forward, 2: Backward
+            'move_lr': spaces.Discrete(3),   # 0: None, 1: Left, 2: Right
+            'zoom': spaces.Discrete(3),      # 0: None, 1: In, 2: Out
+            'portal': spaces.Discrete(3),    # 0: None, 1: Primary, 2: Secondary
+            'use': spaces.Discrete(2),       # 0: None, 1: Use
+            'crouch': spaces.Discrete(2),    # 0: None, 1: Crouch
+            'jump': spaces.Discrete(2),      # 0: None, 1: Jump
+            'mouse': spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
+        })
 
         # ----------------------------------------------------
         # Observation Space Definition
@@ -79,7 +70,7 @@ class Portal2Env(gym.Env):
     def _get_obs(self, env_msg: harness_pb2.EnvironmentMessage):
         """Parse EnvironmentMessage into Gym observation."""
         pixels = self.harness.get_shm_pixels()
-        resized = self.cv2.resize(pixels, (IMAGE_SIZE, IMAGE_SIZE))
+        resized = cv2.resize(pixels, (IMAGE_SIZE, IMAGE_SIZE))
         return resized.astype(np.float32) / 255.0
 
     def _check_terminated(self, dist: float) -> bool:
@@ -113,22 +104,22 @@ class Portal2Env(gym.Env):
     def step(self, action):
         """Execute action, retrieve observation, and compute reward/termination."""
 
-        # 1. Translate Box to ActionRequest
+        # 1. Translate Dict to ActionRequest
         action_req = harness_pb2.ActionRequest(
             num_ticks=self.num_ticks,
-            key_forward=bool(action[0] > 0.0),
-            key_left=bool(action[1] > 0.0),
-            key_backward=bool(action[2] > 0.0),
-            key_right=bool(action[3] > 0.0),
-            key_use=bool(action[4] > 0.0),
-            key_zoomin=bool(action[5] > 0.0),
-            key_zoomout=bool(action[6] > 0.0),
-            key_crouch=bool(action[7] > 0.0),
-            portal_primary=bool(action[8] > 0.0),
-            portal_secondary=bool(action[9] > 0.0),
-            key_jump=bool(action[10] > 0.0),
-            mouse_dx=float(action[11]),
-            mouse_dy=float(action[12]),
+            key_forward=bool(action['move_fb'] == 1),
+            key_backward=bool(action['move_fb'] == 2),
+            key_left=bool(action['move_lr'] == 1),
+            key_right=bool(action['move_lr'] == 2),
+            key_use=bool(action['use'] == 1),
+            key_zoomin=bool(action['zoom'] == 1),
+            key_zoomout=bool(action['zoom'] == 2),
+            key_crouch=bool(action['crouch'] == 1),
+            portal_primary=bool(action['portal'] == 1),
+            portal_secondary=bool(action['portal'] == 2),
+            key_jump=bool(action['jump'] == 1),
+            mouse_dx=float(action['mouse'][0]),
+            mouse_dy=float(action['mouse'][1]),
         )
 
         agent_msg = harness_pb2.AgentMessage(
@@ -151,13 +142,10 @@ class Portal2Env(gym.Env):
         terminated = self._check_terminated(dist)
         truncated = bool(self.episode_steps >= self.max_steps)
 
-        # # 4. Calculate Sparse Reward (-1 * Euclidean distance) at the end
-        # if terminated or truncated:
-        #     reward = -1.0 * dist
-        # else:
-        #     reward = 0.0
         dist += 1
-        reward = -1.0 * min(np.log(dist/100), 10)
+        reward = 1000 / dist
+        if truncated or terminated:
+            print(f"Final Reward: {reward:.4f}, Dist: {dist:.4f}, Ep steps: {self.episode_steps}")
 
         return obs, reward, terminated, truncated, {}
 
@@ -167,16 +155,16 @@ class Portal2Env(gym.Env):
             return self.harness.get_shm_pixels()
         elif self.render_mode == "human":
             pixels = self.harness.get_shm_pixels()
-            bgr_frame = self.cv2.cvtColor(pixels, self.cv2.COLOR_RGB2BGR)
-            self.cv2.namedWindow("Portal 2 RL Demo", self.cv2.WINDOW_NORMAL)
-            self.cv2.resizeWindow(
+            bgr_frame = cv2.cvtColor(pixels, cv2.COLOR_RGB2BGR)
+            cv2.namedWindow("Portal 2 RL Demo", cv2.WINDOW_NORMAL)
+            cv2.resizeWindow(
                 "Portal 2 RL Demo", self.harness.shm_width, self.harness.shm_height
             )
-            self.cv2.imshow("Portal 2 RL Demo", bgr_frame)
-            self.cv2.waitKey(1)
+            cv2.imshow("Portal 2 RL Demo", bgr_frame)
+            cv2.waitKey(1)
 
     def close(self):
         """Cleanup environment resources."""
         if self.render_mode == "human":
-            self.cv2.destroyAllWindows()
+            cv2.destroyAllWindows()
         self.harness.close()
