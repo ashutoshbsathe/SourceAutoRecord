@@ -1,11 +1,15 @@
+from torchvision.models import Swin_T_Weights
 import os
 import ray
-from ray import train, tune
+from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
 from absl import app, flags
+import torch
 import torch.nn as nn
+import torchvision
 from ray.rllib.algorithms.ppo.torch.default_ppo_torch_rl_module import DefaultPPOTorchRLModule
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
+from ray.rllib.core.models.catalog import Catalog
 
 import numpy as np
 from gymnasium import spaces
@@ -22,7 +26,7 @@ flags.DEFINE_list(
 )
 flags.DEFINE_integer("num_iterations", 100, "Number of training iterations.")
 flags.DEFINE_integer("checkpoint_freq", 10, "Checkpoint frequency in iterations.")
-flags.DEFINE_integer("max_steps", 384, "Max steps per episode.")
+flags.DEFINE_integer("max_steps", 96, "Max steps per episode.")
 
 def get_action_dim(space):
     if isinstance(space, spaces.Discrete):
@@ -36,75 +40,47 @@ def get_action_dim(space):
     else:
         raise ValueError(f"Unsupported space: {space}")
 
-class ResidualBlock(nn.Module):
-    def __init__(self, channels):
-        super().__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(channels, channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(channels, channels, kernel_size=3, padding=1),
-        )
-        self.relu = nn.ReLU()
-
-    def forward(self, x):
-        return self.relu(x + self.conv(x))
-
-class PortalResNetEncoder(nn.Module):
-    def __init__(self, input_shape, latent_dim=512):
-        super().__init__()
-        # input_shape is (240, 240, 3) -> Convert to (3, 240, 240) in forward
-        self.net = nn.Sequential(
-            # Stage 1: Fast spatial reduction (240 -> 60)
-            nn.Conv2d(3, 32, kernel_size=7, stride=4, padding=3), 
-            nn.ReLU(),
-            # Stage 2: ResBlocks (60 -> 30)
-            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
-            ResidualBlock(64),
-            # Stage 3: ResBlocks (30 -> 15)
-            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
-            ResidualBlock(128),
-            # Stage 4: Global Pooling
-            nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten(),
-            nn.Linear(128, latent_dim),
-            nn.ReLU()
-        )
-
-    def forward(self, x):
-        # Ray sends (B, H, W, C), Torch expects (B, C, H, W)
-        x = x.permute(0, 3, 1, 2)
-        return self.net(x)
-
 class PortalRLModule(DefaultPPOTorchRLModule):
     def setup(self):
         # 1. Initialize the custom encoder
-        self.encoder = PortalResNetEncoder(
-            input_shape=self.observation_space.shape,
-            latent_dim=256
-        )
-        
+        # self.encoder = torchvision.models.vit_b_16(weights=torchvision.models.ViT_B_16_Weights.DEFAULT)
+        # self.encoder.heads = nn.Identity()
+        # for p in self.encoder.parameters():
+        #     p.requires_grad = False
+        self.encoder = torchvision.models.swin_t(weights=Swin_T_Weights.DEFAULT)
+        for p in self.encoder.parameters():
+            p.requires_grad = False
+        self.encoder.head = nn.Sequential(nn.Linear(768, 384), nn.LayerNorm([384]))
+        self.position_features = nn.Sequential(nn.Linear(3, 384), nn.LayerNorm([384]))
         # 2. Re-wire the PPO heads
         # Dynamically compute action_dim needed for RLlib's Action Distribution
         action_dim = get_action_dim(self.action_space)
-        self.actor_head = nn.Linear(256, action_dim)
-        self.critic_head = nn.Linear(256, 1)
+        self.actor_head = nn.Linear(768, action_dim)
+        self.critic_head = nn.Linear(768, 1)
 
         # 3. Explicitly set the action distribution class (since we don't call super().setup())
-        from ray.rllib.core.models.catalog import Catalog
         self.action_dist_cls = Catalog._get_dist_cls_from_action_space(
             self.action_space, framework="torch"
         )
 
     def _forward(self, batch, **kwargs):
-        obs = batch["obs"]
-        latents = self.encoder(obs)
+        image_obs = batch["obs"]["image"]
+        image_obs = image_obs.permute(0, 3, 1, 2)
+        image_latents = self.encoder(image_obs)
+        pos_obs = batch["obs"]["position"]
+        pos_latents = self.position_features(pos_obs)
+        latents = torch.cat([image_latents, pos_latents], dim=1)
         return {
             "action_dist_inputs": self.actor_head(latents),
         }
 
     def _forward_train(self, batch, **kwargs):
-        obs = batch["obs"]
-        latents = self.encoder(obs)
+        image_obs = batch["obs"]["image"]
+        image_obs = image_obs.permute(0, 3, 1, 2)
+        image_latents = self.encoder(image_obs)
+        pos_obs = batch["obs"]["position"]
+        pos_latents = self.position_features(pos_obs)
+        latents = torch.cat([image_latents, pos_latents], dim=1)
         return {
             "action_dist_inputs": self.actor_head(latents),
             "embeddings": latents,
@@ -114,8 +90,12 @@ class PortalRLModule(DefaultPPOTorchRLModule):
         if embeddings is not None:
             latents = embeddings
         else:
-            obs = batch["obs"]
-            latents = self.encoder(obs)
+            image_obs = batch["obs"]["image"]
+            image_obs = image_obs.permute(0, 3, 1, 2)
+            image_latents = self.encoder(image_obs)
+            pos_obs = batch["obs"]["position"]
+            pos_latents = self.position_features(pos_obs)
+            latents = torch.cat([image_latents, pos_latents], dim=1)
         return self.critic_head(latents).squeeze(-1)
 
 def env_creator(env_config):
@@ -168,9 +148,11 @@ def main(argv):
             evaluation_interval=None,
         )
         .training(
-            train_batch_size=512,
-            minibatch_size=64,
-            lr=1e-4,
+            train_batch_size=64,
+            minibatch_size=8,
+            lr=1e-2,
+            grad_clip=2,
+            grad_clip_by='global_norm'
         )
     )
 

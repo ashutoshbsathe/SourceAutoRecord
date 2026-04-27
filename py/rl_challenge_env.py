@@ -6,7 +6,7 @@ import cv2
 
 from p2harness import P2Harness, harness_pb2
 
-IMAGE_SIZE = 240
+IMAGE_SIZE = 224
 
 class Portal2Env(gym.Env):
     """
@@ -34,6 +34,8 @@ class Portal2Env(gym.Env):
         self.num_ticks = num_ticks_per_step
         self.max_steps = max_steps
         self.episode_steps = 0
+        self.global_steps = 0
+        self.prev_dist = 0
 
         self.harness = P2Harness(self.address)
 
@@ -60,27 +62,39 @@ class Portal2Env(gym.Env):
         # ----------------------------------------------------
         # We output only an unnormalized IMAGE_SIZE x IMAGE_SIZE RGB image
         # RLlib's default VisionNetwork will automatically handle this setup efficiently
-        self.observation_space = spaces.Box(
-            low=0.0,
-            high=1.0,
-            shape=(IMAGE_SIZE, IMAGE_SIZE, 3),
-            dtype=np.float32,
-        )
+        self.observation_space = spaces.Dict({
+            "image": spaces.Box(
+                low=0.0,
+                high=1.0,
+                shape=(IMAGE_SIZE, IMAGE_SIZE, 3),
+                dtype=np.float32,
+            ),
+            "position": spaces.Box(
+                low=-10000.0,
+                high=10000.0,
+                shape=(3,),
+                dtype=np.float32,
+            )
+        })
 
     def _get_obs(self, env_msg: harness_pb2.EnvironmentMessage):
         """Parse EnvironmentMessage into Gym observation."""
         pixels = self.harness.get_shm_pixels()
         resized = cv2.resize(pixels, (IMAGE_SIZE, IMAGE_SIZE))
-        return resized.astype(np.float32) / 255.0
+        return {
+            "image": resized.astype(np.float32) / 255.0,
+            "position": np.array([env_msg.state.position.x, env_msg.state.position.y, env_msg.state.position.z], dtype=np.float32) * np.array([1.0, 1.0, 0.1])
+        }
 
     def _check_terminated(self, dist: float) -> bool:
         """Utility to determine if the episode should end due to death."""
-        return bool(abs(dist)<= 10)
+        return bool(abs(dist)<= 100)
 
     def reset(self, seed=None, options=None):
         """Restarts the level/map, re-establishes the streaming loop, and returns initial obs."""
         super().reset(seed=seed)
         self.episode_steps = 0
+        self.prev_dist = 0
 
         print(f"[Portal2Env] Resetting to map: {self.map_name}")
         reset_resp = self.harness.reset(self.map_name)
@@ -91,7 +105,7 @@ class Portal2Env(gym.Env):
         self.harness.start_agent_loop()
 
         # We need an initial observation.
-        action_req = harness_pb2.ActionRequest(num_ticks=1)
+        action_req = harness_pb2.ActionRequest(num_ticks=192, key_forward=True)
         agent_msg = harness_pb2.AgentMessage(
             action=action_req, copy_pixels_to_shm=True
         )
@@ -103,6 +117,7 @@ class Portal2Env(gym.Env):
 
     def step(self, action):
         """Execute action, retrieve observation, and compute reward/termination."""
+        self.global_steps += 1
 
         # 1. Translate Dict to ActionRequest
         action_req = harness_pb2.ActionRequest(
@@ -129,7 +144,7 @@ class Portal2Env(gym.Env):
         # 2. Push to stream and get response
         env_msg = self.harness.step_agent_loop(agent_msg)
         if not env_msg.success:
-            raise RuntimeError(f"AgentLoop step failed: {env_msg.error_message}")
+            raise RuntimeError(f"AgentLoop step failed: {env_msg.error_message}, Ep steps: {self.episode_steps}, Global steps: {self.global_steps}")
 
         obs = self._get_obs(env_msg)
         state = env_msg.state
@@ -142,10 +157,12 @@ class Portal2Env(gym.Env):
         terminated = self._check_terminated(dist)
         truncated = bool(self.episode_steps >= self.max_steps)
 
-        dist += 1
-        reward = 1000 / dist
-        if truncated or terminated:
-            print(f"Final Reward: {reward:.4f}, Dist: {dist:.4f}, Ep steps: {self.episode_steps}")
+        dist_diff = self.prev_dist - dist
+        reward = dist_diff if dist_diff != 0 else -100
+        reward += 10000 if terminated else 0
+        reward += -1 # step penalty
+        self.prev_dist = dist
+        print(f"Final Reward: {reward:.4f}, Dist: {dist:.4f}, Ep steps: {self.episode_steps}, Global steps: {self.global_steps}")
 
         return obs, reward, terminated, truncated, {}
 
