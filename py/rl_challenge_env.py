@@ -24,6 +24,7 @@ class Portal2Env(gym.Env):
         render_mode: str = None,
         num_ticks_per_step: int = 1,
         max_steps: int = 300,
+        game_instance = None,
     ):
 
         super().__init__()
@@ -36,6 +37,7 @@ class Portal2Env(gym.Env):
         self.episode_steps = 0
         self.global_steps = 0
         self.prev_dist = 0
+        self.game_instance = game_instance
 
         self.harness = P2Harness(self.address)
 
@@ -185,3 +187,5 @@ class Portal2Env(gym.Env):
         if self.render_mode == "human":
             cv2.destroyAllWindows()
         self.harness.close()
+        if self.game_instance:
+            self.game_instance.stop()

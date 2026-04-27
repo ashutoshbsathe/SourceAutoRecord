@@ -15,6 +15,7 @@ import numpy as np
 from gymnasium import spaces
 
 from rl_challenge_env import Portal2Env
+from game_launcher import Portal2GameInstanceManager
 
 FLAGS = flags.FLAGS
 
@@ -101,12 +102,20 @@ class PortalRLModule(DefaultPPOTorchRLModule):
 def env_creator(env_config):
     # Parse target_pos from string list to float tuple
     # Note: env_creator runs in a remote worker sometimes, so we pass it explicitly via env_config
+    
+    worker_index = env_config.worker_index if hasattr(env_config, 'worker_index') else 0
+    manager = Portal2GameInstanceManager(worker_index)
+    game_instance = manager.start_instance()
+    port = 50051 + worker_index
+    
     return Portal2Env(
         map_name=env_config["map_name"],
         target_pos=env_config["target_pos"],
+        address=f"localhost:{port}",
         max_steps=env_config.get("max_steps", 300),
         render_mode=None,
         num_ticks_per_step=8,
+        game_instance=game_instance,
     )
 
 
