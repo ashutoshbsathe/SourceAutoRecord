@@ -29,20 +29,25 @@ grpc::Status Portal2HarnessImpl::InitialHandshake(
   std::string version = sar.game->Version();
   std::string map = engine->GetCurrentMapName();
 
-  // Initialize SHM for the POC
+  // Derive SHM name from instance ID (sar_harness_instance N)
+  int instanceN = harness ? harness->GetInstanceId() : 0;
+  std::string shmName = "/portal2_harness_framebuffer_" + std::to_string(instanceN);
+
   size_t shmWidth = 854;
   size_t shmHeight = 480;
   size_t shmSize = shmWidth * shmHeight * 3;
-  shm.Init("/portal2_harness_framebuffer", shmSize);
+  shm.Init(shmName, shmSize);
 
   console->Print(
-      "Harness: InitialHandshake called. Responding with: version=%s, map=%s\n",
-      version.c_str(), map.c_str());
+      "Harness: InitialHandshake called. Responding with: version=%s, map=%s, shm=%s\n",
+      version.c_str(), map.c_str(), shmName.c_str());
   response->set_game_version(version);
   response->set_map_name(map);
   response->set_shm_width(shmWidth);
   response->set_shm_height(shmHeight);
   response->set_shm_size(shmSize);
+  // Strip leading '/' — POSIX shm_open needs it, but Python SharedMemory does not
+  response->set_shm_name(shmName.substr(1));
   return grpc::Status::OK;
 }
 

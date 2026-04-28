@@ -89,6 +89,9 @@ inline constexpr HandshakeResponse::Impl_::Impl_(
         map_name_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
+        shm_name_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
         shm_width_{0},
         shm_height_{0},
         shm_size_{0} {}
@@ -516,17 +519,19 @@ const ::uint32_t
         1,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::HandshakeResponse, _impl_._has_bits_),
-        8, // hasbit index offset
+        9, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::portal2_harness::HandshakeResponse, _impl_.game_version_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::HandshakeResponse, _impl_.map_name_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::HandshakeResponse, _impl_.shm_width_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::HandshakeResponse, _impl_.shm_height_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::HandshakeResponse, _impl_.shm_size_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::HandshakeResponse, _impl_.shm_name_),
         0,
         1,
-        2,
         3,
         4,
+        5,
+        2,
         0x000, // bitmap
 };
 
@@ -544,7 +549,7 @@ static const ::_pbi::MigrationSchema
         {95, sizeof(::portal2_harness::ResetResponse)},
         {104, sizeof(::portal2_harness::HandshakeRequest)},
         {111, sizeof(::portal2_harness::HandshakeResponse)},
-        {124, sizeof(::portal2_harness::Empty)},
+        {126, sizeof(::portal2_harness::Empty)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::portal2_harness::_Vector3_default_instance_._instance,
@@ -591,28 +596,29 @@ const char descriptor_table_protodef_harness_2eproto[] ABSL_ATTRIBUTE_SECTION_VA
     "rror_message\030\002 \001(\t\0221\n\rinitial_state\030\003 \001("
     "\0132\032.portal2_harness.GameState\"=\n\020Handsha"
     "keRequest\022\026\n\016client_version\030\001 \001(\t\022\021\n\tcli"
-    "ent_id\030\002 \001(\t\"t\n\021HandshakeResponse\022\024\n\014gam"
-    "e_version\030\001 \001(\t\022\020\n\010map_name\030\002 \001(\t\022\021\n\tshm"
-    "_width\030\003 \001(\005\022\022\n\nshm_height\030\004 \001(\005\022\020\n\010shm_"
-    "size\030\005 \001(\005\"\007\n\005Empty2\344\003\n\016Portal2Harness\022Y"
-    "\n\020InitialHandshake\022!.portal2_harness.Han"
-    "dshakeRequest\032\".portal2_harness.Handshak"
-    "eResponse\022=\n\007Observe\022\026.portal2_harness.E"
-    "mpty\032\032.portal2_harness.GameState\022F\n\003Act\022"
-    "\036.portal2_harness.ActionRequest\032\037.portal"
-    "2_harness.ActionResponse\022S\n\016ExecuteComma"
-    "nd\022\037.portal2_harness.CommandRequest\032 .po"
-    "rtal2_harness.CommandResponse\022F\n\005Reset\022\035"
-    ".portal2_harness.ResetRequest\032\036.portal2_"
-    "harness.ResetResponse\022S\n\tAgentLoop\022\035.por"
-    "tal2_harness.AgentMessage\032#.portal2_harn"
-    "ess.EnvironmentMessage(\0010\001b\006proto3"
+    "ent_id\030\002 \001(\t\"\206\001\n\021HandshakeResponse\022\024\n\014ga"
+    "me_version\030\001 \001(\t\022\020\n\010map_name\030\002 \001(\t\022\021\n\tsh"
+    "m_width\030\003 \001(\005\022\022\n\nshm_height\030\004 \001(\005\022\020\n\010shm"
+    "_size\030\005 \001(\005\022\020\n\010shm_name\030\006 \001(\t\"\007\n\005Empty2\344"
+    "\003\n\016Portal2Harness\022Y\n\020InitialHandshake\022!."
+    "portal2_harness.HandshakeRequest\032\".porta"
+    "l2_harness.HandshakeResponse\022=\n\007Observe\022"
+    "\026.portal2_harness.Empty\032\032.portal2_harnes"
+    "s.GameState\022F\n\003Act\022\036.portal2_harness.Act"
+    "ionRequest\032\037.portal2_harness.ActionRespo"
+    "nse\022S\n\016ExecuteCommand\022\037.portal2_harness."
+    "CommandRequest\032 .portal2_harness.Command"
+    "Response\022F\n\005Reset\022\035.portal2_harness.Rese"
+    "tRequest\032\036.portal2_harness.ResetResponse"
+    "\022S\n\tAgentLoop\022\035.portal2_harness.AgentMes"
+    "sage\032#.portal2_harness.EnvironmentMessag"
+    "e(\0010\001b\006proto3"
 };
 static ::absl::once_flag descriptor_table_harness_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_harness_2eproto = {
     false,
     false,
-    1754,
+    1773,
     descriptor_table_protodef_harness_2eproto,
     "harness.proto",
     &descriptor_table_harness_2eproto_once,
@@ -4412,7 +4418,8 @@ PROTOBUF_NDEBUG_INLINE HandshakeResponse::Impl_::Impl_(
       : _has_bits_{from._has_bits_},
         _cached_size_{0},
         game_version_(arena, from.game_version_),
-        map_name_(arena, from.map_name_) {}
+        map_name_(arena, from.map_name_),
+        shm_name_(arena, from.shm_name_) {}
 
 HandshakeResponse::HandshakeResponse(
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
@@ -4442,7 +4449,8 @@ PROTOBUF_NDEBUG_INLINE HandshakeResponse::Impl_::Impl_(
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
       : _cached_size_{0},
         game_version_(arena),
-        map_name_(arena) {}
+        map_name_(arena),
+        shm_name_(arena) {}
 
 inline void HandshakeResponse::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   new (&_impl_) Impl_(internal_visibility(), arena);
@@ -4463,6 +4471,7 @@ inline void HandshakeResponse::SharedDtor(MessageLite& self) {
   ABSL_DCHECK(this_.GetArena() == nullptr);
   this_._impl_.game_version_.Destroy();
   this_._impl_.map_name_.Destroy();
+  this_._impl_.shm_name_.Destroy();
   this_._impl_.~Impl_();
 }
 
@@ -4509,16 +4518,16 @@ HandshakeResponse::GetClassData() const {
   return HandshakeResponse_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<3, 5, 0, 62, 2>
+const ::_pbi::TcParseTable<3, 6, 0, 70, 2>
 HandshakeResponse::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_._has_bits_),
     0, // no _extensions_
-    5, 56,  // max_field_number, fast_idx_mask
+    6, 56,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967264,  // skipmap
+    4294967232,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    5,  // num_field_entries
+    6,  // num_field_entries
     0,  // num_aux_entries
     offsetof(decltype(_table_), field_names),  // no aux_entries
     HandshakeResponse_class_data_.base(),
@@ -4536,15 +4545,17 @@ HandshakeResponse::_table_ = {
     {::_pbi::TcParser::FastUS1,
      {18, 1, 0, PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.map_name_)}},
     // int32 shm_width = 3;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(HandshakeResponse, _impl_.shm_width_), 2>(),
-     {24, 2, 0, PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_width_)}},
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(HandshakeResponse, _impl_.shm_width_), 3>(),
+     {24, 3, 0, PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_width_)}},
     // int32 shm_height = 4;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(HandshakeResponse, _impl_.shm_height_), 3>(),
-     {32, 3, 0, PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_height_)}},
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(HandshakeResponse, _impl_.shm_height_), 4>(),
+     {32, 4, 0, PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_height_)}},
     // int32 shm_size = 5;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(HandshakeResponse, _impl_.shm_size_), 4>(),
-     {40, 4, 0, PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_size_)}},
-    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(HandshakeResponse, _impl_.shm_size_), 5>(),
+     {40, 5, 0, PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_size_)}},
+    // string shm_name = 6;
+    {::_pbi::TcParser::FastUS1,
+     {50, 2, 0, PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_name_)}},
     {::_pbi::TcParser::MiniParse, {}},
   }}, {{
     65535, 65535
@@ -4556,21 +4567,25 @@ HandshakeResponse::_table_ = {
     {PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.map_name_), _Internal::kHasBitsOffset + 1, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
     // int32 shm_width = 3;
-    {PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_width_), _Internal::kHasBitsOffset + 2, 0,
+    {PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_width_), _Internal::kHasBitsOffset + 3, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // int32 shm_height = 4;
-    {PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_height_), _Internal::kHasBitsOffset + 3, 0,
+    {PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_height_), _Internal::kHasBitsOffset + 4, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // int32 shm_size = 5;
-    {PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_size_), _Internal::kHasBitsOffset + 4, 0,
+    {PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_size_), _Internal::kHasBitsOffset + 5, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    // string shm_name = 6;
+    {PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_name_), _Internal::kHasBitsOffset + 2, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
   }},
   // no aux_entries
   {{
-    "\41\14\10\0\0\0\0\0"
+    "\41\14\10\0\0\0\10\0"
     "portal2_harness.HandshakeResponse"
     "game_version"
     "map_name"
+    "shm_name"
   }},
 };
 PROTOBUF_NOINLINE void HandshakeResponse::Clear() {
@@ -4581,15 +4596,18 @@ PROTOBUF_NOINLINE void HandshakeResponse::Clear() {
   (void) cached_has_bits;
 
   cached_has_bits = _impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000003u) != 0) {
+  if ((cached_has_bits & 0x00000007u) != 0) {
     if ((cached_has_bits & 0x00000001u) != 0) {
       _impl_.game_version_.ClearNonDefaultToEmpty();
     }
     if ((cached_has_bits & 0x00000002u) != 0) {
       _impl_.map_name_.ClearNonDefaultToEmpty();
     }
+    if ((cached_has_bits & 0x00000004u) != 0) {
+      _impl_.shm_name_.ClearNonDefaultToEmpty();
+    }
   }
-  if ((cached_has_bits & 0x0000001cu) != 0) {
+  if ((cached_has_bits & 0x00000038u) != 0) {
     ::memset(&_impl_.shm_width_, 0, static_cast<::size_t>(
         reinterpret_cast<char*>(&_impl_.shm_size_) -
         reinterpret_cast<char*>(&_impl_.shm_width_)) + sizeof(_impl_.shm_size_));
@@ -4634,7 +4652,7 @@ PROTOBUF_NOINLINE void HandshakeResponse::Clear() {
   }
 
   // int32 shm_width = 3;
-  if ((this_._impl_._has_bits_[0] & 0x00000004u) != 0) {
+  if ((this_._impl_._has_bits_[0] & 0x00000008u) != 0) {
     if (this_._internal_shm_width() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<3>(
@@ -4643,7 +4661,7 @@ PROTOBUF_NOINLINE void HandshakeResponse::Clear() {
   }
 
   // int32 shm_height = 4;
-  if ((this_._impl_._has_bits_[0] & 0x00000008u) != 0) {
+  if ((this_._impl_._has_bits_[0] & 0x00000010u) != 0) {
     if (this_._internal_shm_height() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<4>(
@@ -4652,11 +4670,21 @@ PROTOBUF_NOINLINE void HandshakeResponse::Clear() {
   }
 
   // int32 shm_size = 5;
-  if ((this_._impl_._has_bits_[0] & 0x00000010u) != 0) {
+  if ((this_._impl_._has_bits_[0] & 0x00000020u) != 0) {
     if (this_._internal_shm_size() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<5>(
               stream, this_._internal_shm_size(), target);
+    }
+  }
+
+  // string shm_name = 6;
+  if ((this_._impl_._has_bits_[0] & 0x00000004u) != 0) {
+    if (!this_._internal_shm_name().empty()) {
+      const ::std::string& _s = this_._internal_shm_name();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "portal2_harness.HandshakeResponse.shm_name");
+      target = stream->WriteStringMaybeAliased(6, _s, target);
     }
   }
 
@@ -4685,7 +4713,7 @@ PROTOBUF_NOINLINE void HandshakeResponse::Clear() {
 
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x0000001fu) != 0) {
+  if ((cached_has_bits & 0x0000003fu) != 0) {
     // string game_version = 1;
     if ((cached_has_bits & 0x00000001u) != 0) {
       if (!this_._internal_game_version().empty()) {
@@ -4700,22 +4728,29 @@ PROTOBUF_NOINLINE void HandshakeResponse::Clear() {
                                         this_._internal_map_name());
       }
     }
-    // int32 shm_width = 3;
+    // string shm_name = 6;
     if ((cached_has_bits & 0x00000004u) != 0) {
+      if (!this_._internal_shm_name().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_shm_name());
+      }
+    }
+    // int32 shm_width = 3;
+    if ((cached_has_bits & 0x00000008u) != 0) {
       if (this_._internal_shm_width() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_shm_width());
       }
     }
     // int32 shm_height = 4;
-    if ((cached_has_bits & 0x00000008u) != 0) {
+    if ((cached_has_bits & 0x00000010u) != 0) {
       if (this_._internal_shm_height() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_shm_height());
       }
     }
     // int32 shm_size = 5;
-    if ((cached_has_bits & 0x00000010u) != 0) {
+    if ((cached_has_bits & 0x00000020u) != 0) {
       if (this_._internal_shm_size() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_shm_size());
@@ -4735,7 +4770,7 @@ void HandshakeResponse::MergeImpl(::google::protobuf::MessageLite& to_msg, const
   (void) cached_has_bits;
 
   cached_has_bits = from._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x0000001fu) != 0) {
+  if ((cached_has_bits & 0x0000003fu) != 0) {
     if ((cached_has_bits & 0x00000001u) != 0) {
       if (!from._internal_game_version().empty()) {
         _this->_internal_set_game_version(from._internal_game_version());
@@ -4755,16 +4790,25 @@ void HandshakeResponse::MergeImpl(::google::protobuf::MessageLite& to_msg, const
       }
     }
     if ((cached_has_bits & 0x00000004u) != 0) {
+      if (!from._internal_shm_name().empty()) {
+        _this->_internal_set_shm_name(from._internal_shm_name());
+      } else {
+        if (_this->_impl_.shm_name_.IsDefault()) {
+          _this->_internal_set_shm_name("");
+        }
+      }
+    }
+    if ((cached_has_bits & 0x00000008u) != 0) {
       if (from._internal_shm_width() != 0) {
         _this->_impl_.shm_width_ = from._impl_.shm_width_;
       }
     }
-    if ((cached_has_bits & 0x00000008u) != 0) {
+    if ((cached_has_bits & 0x00000010u) != 0) {
       if (from._internal_shm_height() != 0) {
         _this->_impl_.shm_height_ = from._impl_.shm_height_;
       }
     }
-    if ((cached_has_bits & 0x00000010u) != 0) {
+    if ((cached_has_bits & 0x00000020u) != 0) {
       if (from._internal_shm_size() != 0) {
         _this->_impl_.shm_size_ = from._impl_.shm_size_;
       }
@@ -4790,6 +4834,7 @@ void HandshakeResponse::InternalSwap(HandshakeResponse* PROTOBUF_RESTRICT PROTOB
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.game_version_, &other->_impl_.game_version_, arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.map_name_, &other->_impl_.map_name_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.shm_name_, &other->_impl_.shm_name_, arena);
   ::google::protobuf::internal::memswap<
       PROTOBUF_FIELD_OFFSET(HandshakeResponse, _impl_.shm_size_)
       + sizeof(HandshakeResponse::_impl_.shm_size_)

@@ -24,6 +24,7 @@ class Harness : public Feature {
   void StopServer();
 
   bool IsEnabled() { return enabled.GetBool(); }
+  int GetInstanceId() { return instanceId.GetInt(); }
 
   // Synchronization for Act() <-> PRE_TICK
   std::mutex tickMutex;
@@ -41,6 +42,7 @@ class Harness : public Feature {
 
  private:
   Variable enabled;
+  Variable instanceId;  // sar_harness_instance: integer N → port 50000+N, shm suffix _N
   std::unique_ptr<grpc::Server> server;
   std::thread serverThread;
   std::atomic<bool> shouldRun{false};

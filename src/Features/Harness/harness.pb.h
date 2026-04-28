@@ -675,6 +675,7 @@ class HandshakeResponse final : public ::google::protobuf::Message
   enum : int {
     kGameVersionFieldNumber = 1,
     kMapNameFieldNumber = 2,
+    kShmNameFieldNumber = 6,
     kShmWidthFieldNumber = 3,
     kShmHeightFieldNumber = 4,
     kShmSizeFieldNumber = 5,
@@ -707,6 +708,21 @@ class HandshakeResponse final : public ::google::protobuf::Message
   const ::std::string& _internal_map_name() const;
   PROTOBUF_ALWAYS_INLINE void _internal_set_map_name(const ::std::string& value);
   ::std::string* PROTOBUF_NONNULL _internal_mutable_map_name();
+
+  public:
+  // string shm_name = 6;
+  void clear_shm_name() ;
+  const ::std::string& shm_name() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_shm_name(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_shm_name();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_shm_name();
+  void set_allocated_shm_name(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_shm_name() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_shm_name(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_shm_name();
 
   public:
   // int32 shm_width = 3;
@@ -743,8 +759,8 @@ class HandshakeResponse final : public ::google::protobuf::Message
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<3, 5,
-                                   0, 62,
+  static const ::google::protobuf::internal::TcParseTable<3, 6,
+                                   0, 70,
                                    2>
       _table_;
 
@@ -767,6 +783,7 @@ class HandshakeResponse final : public ::google::protobuf::Message
     ::google::protobuf::internal::CachedSize _cached_size_;
     ::google::protobuf::internal::ArenaStringPtr game_version_;
     ::google::protobuf::internal::ArenaStringPtr map_name_;
+    ::google::protobuf::internal::ArenaStringPtr shm_name_;
     ::int32_t shm_width_;
     ::int32_t shm_height_;
     ::int32_t shm_size_;
@@ -4922,7 +4939,7 @@ inline void HandshakeResponse::set_allocated_map_name(::std::string* PROTOBUF_NU
 inline void HandshakeResponse::clear_shm_width() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.shm_width_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000004u;
+  _impl_._has_bits_[0] &= ~0x00000008u;
 }
 inline ::int32_t HandshakeResponse::shm_width() const {
   // @@protoc_insertion_point(field_get:portal2_harness.HandshakeResponse.shm_width)
@@ -4930,7 +4947,7 @@ inline ::int32_t HandshakeResponse::shm_width() const {
 }
 inline void HandshakeResponse::set_shm_width(::int32_t value) {
   _internal_set_shm_width(value);
-  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_._has_bits_[0] |= 0x00000008u;
   // @@protoc_insertion_point(field_set:portal2_harness.HandshakeResponse.shm_width)
 }
 inline ::int32_t HandshakeResponse::_internal_shm_width() const {
@@ -4946,7 +4963,7 @@ inline void HandshakeResponse::_internal_set_shm_width(::int32_t value) {
 inline void HandshakeResponse::clear_shm_height() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.shm_height_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000008u;
+  _impl_._has_bits_[0] &= ~0x00000010u;
 }
 inline ::int32_t HandshakeResponse::shm_height() const {
   // @@protoc_insertion_point(field_get:portal2_harness.HandshakeResponse.shm_height)
@@ -4954,7 +4971,7 @@ inline ::int32_t HandshakeResponse::shm_height() const {
 }
 inline void HandshakeResponse::set_shm_height(::int32_t value) {
   _internal_set_shm_height(value);
-  _impl_._has_bits_[0] |= 0x00000008u;
+  _impl_._has_bits_[0] |= 0x00000010u;
   // @@protoc_insertion_point(field_set:portal2_harness.HandshakeResponse.shm_height)
 }
 inline ::int32_t HandshakeResponse::_internal_shm_height() const {
@@ -4970,7 +4987,7 @@ inline void HandshakeResponse::_internal_set_shm_height(::int32_t value) {
 inline void HandshakeResponse::clear_shm_size() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.shm_size_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000010u;
+  _impl_._has_bits_[0] &= ~0x00000020u;
 }
 inline ::int32_t HandshakeResponse::shm_size() const {
   // @@protoc_insertion_point(field_get:portal2_harness.HandshakeResponse.shm_size)
@@ -4978,7 +4995,7 @@ inline ::int32_t HandshakeResponse::shm_size() const {
 }
 inline void HandshakeResponse::set_shm_size(::int32_t value) {
   _internal_set_shm_size(value);
-  _impl_._has_bits_[0] |= 0x00000010u;
+  _impl_._has_bits_[0] |= 0x00000020u;
   // @@protoc_insertion_point(field_set:portal2_harness.HandshakeResponse.shm_size)
 }
 inline ::int32_t HandshakeResponse::_internal_shm_size() const {
@@ -4988,6 +5005,71 @@ inline ::int32_t HandshakeResponse::_internal_shm_size() const {
 inline void HandshakeResponse::_internal_set_shm_size(::int32_t value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.shm_size_ = value;
+}
+
+// string shm_name = 6;
+inline void HandshakeResponse::clear_shm_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.shm_name_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000004u;
+}
+inline const ::std::string& HandshakeResponse::shm_name() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.HandshakeResponse.shm_name)
+  return _internal_shm_name();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void HandshakeResponse::set_shm_name(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_.shm_name_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:portal2_harness.HandshakeResponse.shm_name)
+}
+inline ::std::string* PROTOBUF_NONNULL HandshakeResponse::mutable_shm_name()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_shm_name();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.HandshakeResponse.shm_name)
+  return _s;
+}
+inline const ::std::string& HandshakeResponse::_internal_shm_name() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.shm_name_.Get();
+}
+inline void HandshakeResponse::_internal_set_shm_name(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_.shm_name_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL HandshakeResponse::_internal_mutable_shm_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  return _impl_.shm_name_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE HandshakeResponse::release_shm_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.HandshakeResponse.shm_name)
+  if ((_impl_._has_bits_[0] & 0x00000004u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000004u;
+  auto* released = _impl_.shm_name_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.shm_name_.Set("", GetArena());
+  }
+  return released;
+}
+inline void HandshakeResponse::set_allocated_shm_name(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000004u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004u;
+  }
+  _impl_.shm_name_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.shm_name_.IsDefault()) {
+    _impl_.shm_name_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.HandshakeResponse.shm_name)
 }
 
 // -------------------------------------------------------------------

@@ -128,7 +128,8 @@ message HandshakeResponse {
   string map_name = 2;  // null if no map is loaded
   int32 shm_width = 3;  // Resolution for the shared memory buffer
   int32 shm_height = 4;
-  int32 shm_size = 5;  // Total bytes allocated
+  int32 shm_size = 5;   // Total bytes allocated
+  string shm_name = 6;  // POSIX SHM name (without leading /), set by server
 }
 
 message Empty {}

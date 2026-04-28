@@ -45,15 +45,15 @@ class P2Harness:
                 # If an old shm object is lying around, close it
                 if self.shm is not None:
                     self.shm.close()
-                self.shm = shared_memory.SharedMemory(
-                    name="portal2_harness_framebuffer"
-                )
+                # Server tells us the SHM name; fall back to legacy name for old builds
+                shm_name = resp.shm_name if resp.shm_name else "portal2_harness_framebuffer"
+                self.shm = shared_memory.SharedMemory(name=shm_name)
                 # Unregister so the python resource tracker doesn't complain about leaks
                 # TODO(absathe): kinda suspect, wonder if this should be done during cleanup
                 resource_tracker.unregister(self.shm._name, "shared_memory")
             except FileNotFoundError:
                 print(
-                    "Warning: Server reported SHM size, but failed to open shared memory file 'portal2_harness_framebuffer'."
+                    f"Warning: Server reported SHM size, but failed to open shared memory file '{shm_name}'."
                 )
                 self.shm = None
 

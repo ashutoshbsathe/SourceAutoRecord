@@ -115,7 +115,11 @@ static void sar_harness_callback(void* var, const char* pOldValue,
 
 Harness::Harness()
     : enabled("sar_harness", "0", "Enables the Harness feature.\n", 0,
-              sar_harness_callback) {
+              sar_harness_callback),
+      instanceId("sar_harness_instance", "0",
+                 "Instance index N for multi-game-process RL training.\n"
+                 "Derives gRPC port as 50000+N and SHM name as\n"
+                 "portal2_harness_framebuffer_N.\n") {
   this->hasLoaded = true;
 }
 
@@ -136,8 +140,11 @@ void Harness::StartServer() {
   if (this->shouldRun) return;
   this->shouldRun = true;
   this->serverThread = std::thread([this] {
-    console->Print("Harness: gRPC server thread started\n");
-    std::string server_address("0.0.0.0:50051");
+    int instanceN = this->instanceId.GetInt();
+    int port = 50000 + instanceN;
+    std::string server_address = "0.0.0.0:" + std::to_string(port);
+    console->Print("Harness: gRPC server thread started (instance=%d, port=%d)\n",
+                   instanceN, port);
     Portal2HarnessImpl service;
 
     grpc::ServerBuilder builder;
