@@ -7,4 +7,5 @@ uv run python py/train_rl_challenge.py \
     --map_name "$MAP_NAME" \
     --target_pos "$TARGET_POS" \
     --num_iterations 100 \
-    --checkpoint_freq 10
+    --checkpoint_freq 10 \
+    --num_instances 4

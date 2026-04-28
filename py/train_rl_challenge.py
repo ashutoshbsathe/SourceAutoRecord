@@ -1,39 +1,44 @@
-from torchvision.models import Swin_T_Weights
 import os
+
+import numpy as np
 import ray
-from ray import tune
-from ray.rllib.algorithms.ppo import PPOConfig
-from absl import app, flags
 import torch
 import torch.nn as nn
 import torchvision
-from ray.rllib.algorithms.ppo.torch.default_ppo_torch_rl_module import DefaultPPOTorchRLModule
-from ray.rllib.core.rl_module.rl_module import RLModuleSpec
-from ray.rllib.core.models.catalog import Catalog
-
-import numpy as np
+from absl import app, flags
 from gymnasium import spaces
+from ray import tune
+from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.algorithms.ppo.torch.default_ppo_torch_rl_module import DefaultPPOTorchRLModule
+from ray.rllib.core.models.catalog import Catalog
+from ray.rllib.core.rl_module.rl_module import RLModuleSpec
+from torchvision.models import Swin_T_Weights
 
-from rl_challenge_env import Portal2Env
 from game_launcher import Portal2GameInstanceManager
+from rl_challenge_env import Portal2Env
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string(
-    "map_name", "sp_a2_triple_laser", "Map to load for the environment."
-)
+flags.DEFINE_string("map_name", "sp_a2_triple_laser", "Map to load for the environment.")
 flags.DEFINE_list(
-    "target_pos", ["0.0", "0.0", "0.0"], "Target position as a comma-separated list of x,y,z"
+    "target_pos", ["0.0", "0.0", "0.0"],
+    "Target position as comma-separated x,y,z floats.",
 )
+flags.DEFINE_integer("num_instances", 1, "Number of parallel Portal 2 game instances (= Ray env runners).")
 flags.DEFINE_integer("num_iterations", 100, "Number of training iterations.")
 flags.DEFINE_integer("checkpoint_freq", 10, "Checkpoint frequency in iterations.")
 flags.DEFINE_integer("max_steps", 96, "Max steps per episode.")
 
-def get_action_dim(space):
+
+# ---------------------------------------------------------------------------
+# Action-dimension helper (used by PortalRLModule to size the actor head)
+# ---------------------------------------------------------------------------
+
+def get_action_dim(space) -> int:
     if isinstance(space, spaces.Discrete):
         return space.n
     elif isinstance(space, spaces.Box):
-        return np.prod(space.shape) * 2
+        return int(np.prod(space.shape)) * 2
     elif isinstance(space, spaces.Dict):
         return sum(get_action_dim(s) for s in space.values())
     elif isinstance(space, spaces.Tuple):
@@ -41,95 +46,109 @@ def get_action_dim(space):
     else:
         raise ValueError(f"Unsupported space: {space}")
 
+
+# ---------------------------------------------------------------------------
+# Custom RLlib module: frozen Swin-T image encoder + position MLP
+# ---------------------------------------------------------------------------
+
 class PortalRLModule(DefaultPPOTorchRLModule):
     def setup(self):
-        # 1. Initialize the custom encoder
-        # self.encoder = torchvision.models.vit_b_16(weights=torchvision.models.ViT_B_16_Weights.DEFAULT)
-        # self.encoder.heads = nn.Identity()
-        # for p in self.encoder.parameters():
-        #     p.requires_grad = False
+        # Frozen Swin-T backbone; only the projection head is trained.
         self.encoder = torchvision.models.swin_t(weights=Swin_T_Weights.DEFAULT)
         for p in self.encoder.parameters():
             p.requires_grad = False
         self.encoder.head = nn.Sequential(nn.Linear(768, 384), nn.LayerNorm([384]))
+
+        # Small MLP to embed the 3-D position into the same latent space.
         self.position_features = nn.Sequential(nn.Linear(3, 384), nn.LayerNorm([384]))
-        # 2. Re-wire the PPO heads
-        # Dynamically compute action_dim needed for RLlib's Action Distribution
+
+        # PPO heads operate on the 768-D concatenated latent.
         action_dim = get_action_dim(self.action_space)
         self.actor_head = nn.Linear(768, action_dim)
         self.critic_head = nn.Linear(768, 1)
 
-        # 3. Explicitly set the action distribution class (since we don't call super().setup())
         self.action_dist_cls = Catalog._get_dist_cls_from_action_space(
             self.action_space, framework="torch"
         )
 
+    def _encode(self, batch) -> torch.Tensor:
+        image_obs = batch["obs"]["image"].permute(0, 3, 1, 2)
+        img_latents = self.encoder(image_obs)
+        pos_latents = self.position_features(batch["obs"]["position"])
+        return torch.cat([img_latents, pos_latents], dim=1)
+
     def _forward(self, batch, **kwargs):
-        image_obs = batch["obs"]["image"]
-        image_obs = image_obs.permute(0, 3, 1, 2)
-        image_latents = self.encoder(image_obs)
-        pos_obs = batch["obs"]["position"]
-        pos_latents = self.position_features(pos_obs)
-        latents = torch.cat([image_latents, pos_latents], dim=1)
-        return {
-            "action_dist_inputs": self.actor_head(latents),
-        }
+        return {"action_dist_inputs": self.actor_head(self._encode(batch))}
 
     def _forward_train(self, batch, **kwargs):
-        image_obs = batch["obs"]["image"]
-        image_obs = image_obs.permute(0, 3, 1, 2)
-        image_latents = self.encoder(image_obs)
-        pos_obs = batch["obs"]["position"]
-        pos_latents = self.position_features(pos_obs)
-        latents = torch.cat([image_latents, pos_latents], dim=1)
+        latents = self._encode(batch)
         return {
             "action_dist_inputs": self.actor_head(latents),
             "embeddings": latents,
         }
 
     def compute_values(self, batch, embeddings=None, **kwargs):
-        if embeddings is not None:
-            latents = embeddings
-        else:
-            image_obs = batch["obs"]["image"]
-            image_obs = image_obs.permute(0, 3, 1, 2)
-            image_latents = self.encoder(image_obs)
-            pos_obs = batch["obs"]["position"]
-            pos_latents = self.position_features(pos_obs)
-            latents = torch.cat([image_latents, pos_latents], dim=1)
+        latents = embeddings if embeddings is not None else self._encode(batch)
         return self.critic_head(latents).squeeze(-1)
 
+
+# ---------------------------------------------------------------------------
+# Environment factory (called once per Ray env-runner worker)
+# ---------------------------------------------------------------------------
+
 def env_creator(env_config):
-    # Parse target_pos from string list to float tuple
-    # Note: env_creator runs in a remote worker sometimes, so we pass it explicitly via env_config
-    
-    worker_index = env_config.worker_index if hasattr(env_config, 'worker_index') else 0
-    manager = Portal2GameInstanceManager(worker_index)
-    game_instance = manager.start_instance()
-    port = 50051 + worker_index
-    
+    """
+    RLlib calls this in each remote worker process.
+
+    worker_index is 1-based for remote workers (0 for the local worker when
+    num_env_runners=0).  We subtract 1 so instance IDs are 0-based and map
+    cleanly to sar_harness_instance / port 50000+N.
+
+    The manager is retrieved by name from the Ray cluster — it was created
+    once in main() before training started and owns all game processes.
+    """
+    instance_id = (env_config.worker_index - 1) if hasattr(env_config, "worker_index") else 0
+    manager = ray.get_actor("portal2_manager")
+
     return Portal2Env(
         map_name=env_config["map_name"],
         target_pos=env_config["target_pos"],
-        address=f"localhost:{port}",
+        instance_id=instance_id,
         max_steps=env_config.get("max_steps", 300),
-        render_mode=None,
         num_ticks_per_step=8,
-        game_instance=game_instance,
+        render_mode=None,
+        manager=manager,
     )
 
 
-def main(argv):
-    del argv  # Unused
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
-    # Initialize Ray (using default /tmp to avoid AF_UNIX socket length limits)
+def main(argv):
+    del argv
+
+    num_instances = FLAGS.num_instances
+    target_pos = tuple(float(x) for x in FLAGS.target_pos)
+
     ray.init()
 
-    # Register the environment
+    # Create the manager once as a named Ray actor so env_creator can retrieve
+    # it by name from any worker process without serialising the handle.
+    manager = Portal2GameInstanceManager.options(
+        name="portal2_manager",
+        lifetime="detached",
+    ).remote(num_instances=num_instances)
+
+    print(f"[main] Starting {num_instances} Portal 2 instance(s)...")
+    ray.get(manager.start_all.remote())
+    print("[main] All instances ready. Starting training...")
+
     tune.register_env("Portal2Challenge-v0", env_creator)
 
-    # Convert flags to appropriate types
-    target_pos = tuple(float(x) for x in FLAGS.target_pos)
+    # train_batch_size scales linearly with workers so each worker contributes
+    # a fixed number of steps per training iteration.
+    train_batch_size = 64 * num_instances
 
     config = (
         PPOConfig()
@@ -144,24 +163,22 @@ def main(argv):
         .rl_module(rl_module_spec=RLModuleSpec(module_class=PortalRLModule))
         .learners(num_learners=1, num_gpus_per_learner=1)
         .framework("torch")
-        # Ensure we only use 1 environment worker total so we don't try to open multiple game clients
-        # 0 means training runs in the local worker alongside the env
         .env_runners(
-            num_env_runners=0,
+            # Each remote worker owns exactly one Portal 2 instance.
+            # worker_index is 1-based, so instance IDs are worker_index-1 = 0..N-1.
+            num_env_runners=num_instances,
             num_envs_per_env_runner=1,
         )
-        # We disable evaluation during training here. If we enable it, RLlib will instantiate a 
-        # *second* Portal2Env object which will try to connect to the same gRPC game server and conflict.
-        # It's better to evaluate separately offline using saved checkpoints.
-        .evaluation(
-            evaluation_interval=None,
-        )
+        # Evaluation is disabled: enabling it spawns an extra Portal2Env that
+        # would try to connect to an already-claimed gRPC port.
+        # Run evaluation separately using saved checkpoints.
+        .evaluation(evaluation_interval=None)
         .training(
-            train_batch_size=64,
+            train_batch_size=train_batch_size,
             minibatch_size=8,
             lr=1e-2,
             grad_clip=2,
-            grad_clip_by='global_norm'
+            grad_clip_by="global_norm",
         )
     )
 
@@ -175,14 +192,18 @@ def main(argv):
         stop={"training_iteration": FLAGS.num_iterations},
     )
 
-    tuner = tune.Tuner(
-        "PPO",
-        param_space=config.to_dict(),
-        run_config=run_config,
-    )
-
-    results = tuner.fit()
-    print("Training finished.")
+    try:
+        tuner = tune.Tuner(
+            "PPO",
+            param_space=config.to_dict(),
+            run_config=run_config,
+        )
+        tuner.fit()
+        print("Training finished.")
+    finally:
+        print("[main] Stopping all Portal 2 instances...")
+        ray.get(manager.stop_all.remote())
+        print("[main] Done.")
 
 
 if __name__ == "__main__":
