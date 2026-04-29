@@ -50,7 +50,7 @@ def get_instance_specific_args(instance_id: int) -> list[str]:
 # Seconds to wait after the *last* instance launches before returning from start_all().
 DEFAULT_BOOT_WAIT_TIME = 10
 # Seconds between consecutive instance launches (avoids VPK file-lock contention).
-DEFAULT_STAGGER_DELAY = DEFAULT_BOOT_WAIT_TIME
+DEFAULT_STAGGER_DELAY = 2 * DEFAULT_BOOT_WAIT_TIME
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
