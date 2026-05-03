@@ -1,10 +1,31 @@
-from game_launcher import Portal2GameInstanceManager
 import time
 
-manager = Portal2GameInstanceManager(0)
-game_instance = manager.start_instance()
-print("Game instance started, is_alive:", game_instance.is_alive())
-time.sleep(5)
-print("Stopping game instance...")
-manager.stop_instance()
-print("Done.")
+from game_launcher import GameInstance, DEFAULT_GAMESCOPE_ARGS, DEFAULT_GAME_ARGS, DEFAULT_STEAM_RUNTIME_SH, DEFAULT_PORTAL2_SH, DEFAULT_STAGGER_DELAY
+from p2harness import P2Harness, harness_pb2
+
+instances = []
+
+for i in range(4):
+    instances.append(GameInstance(
+            instance_id=i,
+            gamescope_args=DEFAULT_GAMESCOPE_ARGS.copy(),
+            game_args=DEFAULT_GAME_ARGS.copy() + [f"+sar_harness_instance {i}", "+sar_harness 1"],
+            steam_runtime_sh=DEFAULT_STEAM_RUNTIME_SH,
+            portal2_sh=DEFAULT_PORTAL2_SH,
+        )
+    )
+
+for instance in instances:
+    instance.start()
+    time.sleep(DEFAULT_STAGGER_DELAY)
+
+harnesses = []
+for i in range(4):
+    harnesses.append(P2Harness(f"localhost:{50000 + i}"))
+
+for harness in harnesses:
+    harness.handshake()
+
+for instance in instances:
+    instance.stop()
+

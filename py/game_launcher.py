@@ -7,7 +7,7 @@ import time
 import ray
 
 DEFAULT_STEAM_RUNTIME_SH = "~/.steam/root/ubuntu12_32/steam-runtime/run.sh"
-DEFAULT_PORTAL2_SH = "~/HDD/SteamLibrary/steamapps/common/Portal 2/portal2.sh"
+DEFAULT_PORTAL2_SH = "~/.steam/root/steamapps/common/Portal 2/portal2.sh"
 
 DEFAULT_GAMESCOPE_ARGS = [
     "-w", "640", "-h", "480",
