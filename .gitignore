@@ -1,3 +1,5 @@
+runs/
+checkpoints/
 ray_results/
 ray_tmp/
 

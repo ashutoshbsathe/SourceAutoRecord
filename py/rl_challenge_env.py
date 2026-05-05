@@ -4,7 +4,14 @@ import numpy as np
 import cv2
 import time
 
-from game_launcher import GameInstance, DEFAULT_GAMESCOPE_ARGS, DEFAULT_GAME_ARGS, DEFAULT_STEAM_RUNTIME_SH, DEFAULT_PORTAL2_SH, DEFAULT_STAGGER_DELAY
+from game_launcher import (
+    GameInstance,
+    DEFAULT_GAMESCOPE_ARGS,
+    DEFAULT_GAME_ARGS,
+    DEFAULT_STEAM_RUNTIME_SH,
+    DEFAULT_PORTAL2_SH,
+    DEFAULT_STAGGER_DELAY,
+)
 from p2harness import P2Harness, harness_pb2
 
 IMAGE_SIZE = 224
@@ -40,43 +47,78 @@ class Portal2Env(gym.Env):
 
         address = f"localhost:{50000 + self.instance.instance_id}"
         self.harness = P2Harness(address)
- 
-        resp = self.harness.handshake()
-        print(
-            f"[Portal2Env/{self.instance.instance_id}] Connected to {resp.game_version}, "
-            f"map: {resp.map_name}, shm: {resp.shm_name}"
-        )
+
+        # Retry handshake — later instances may need more time to boot
+        max_retries = 10
+        for attempt in range(max_retries):
+            try:
+                resp = self.harness.handshake()
+                print(
+                    f"[Portal2Env/{self.instance.instance_id}] Connected to {resp.game_version}, "
+                    f"map: {resp.map_name}, shm: {resp.shm_name}"
+                )
+                break
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise RuntimeError(
+                        f"[Portal2Env/{self.instance.instance_id}] Failed to connect "
+                        f"after {max_retries} attempts: {e}"
+                    ) from e
+                # Check if the process actually died
+                if not self.instance.is_alive():
+                    print(
+                        f"[Portal2Env/{self.instance.instance_id}] Instance died, "
+                        f"restarting (attempt {attempt + 1}/{max_retries})..."
+                    )
+                    self.instance.restart()
+                    time.sleep(DEFAULT_STAGGER_DELAY)
+                    self.harness = P2Harness(address)
+                else:
+                    wait = min(5 * (attempt + 1), 30)
+                    print(
+                        f"[Portal2Env/{self.instance.instance_id}] Handshake failed, "
+                        f"retrying in {wait}s (attempt {attempt + 1}/{max_retries})..."
+                    )
+                    time.sleep(wait)
 
         # Action space: individual discrete axes + continuous mouse
-        self.action_space = spaces.Dict({
-            "move_fb": spaces.Discrete(3),    # 0: none, 1: forward, 2: backward
-            "move_lr": spaces.Discrete(3),    # 0: none, 1: left,    2: right
-            "zoom":    spaces.Discrete(3),    # 0: none, 1: in,      2: out
-            "portal":  spaces.Discrete(3),    # 0: none, 1: primary, 2: secondary
-            "buttons": spaces.MultiBinary(3), # 0: use,  1: jump,    2: crouch
-            "mouse":   spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32),
-        })
+        self.action_space = spaces.Dict(
+            {
+                "move_fb": spaces.Discrete(3),  # 0: none, 1: forward, 2: backward
+                "move_lr": spaces.Discrete(3),  # 0: none, 1: left,    2: right
+                "zoom": spaces.Discrete(3),  # 0: none, 1: in,      2: out
+                "portal": spaces.Discrete(3),  # 0: none, 1: primary, 2: secondary
+                "buttons": spaces.MultiBinary(3),  # 0: use,  1: jump,    2: crouch
+                "mouse": spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32),
+            }
+        )
 
         # Observation: resized RGB frame + world-space position
-        self.observation_space = spaces.Dict({
-            "image": spaces.Box(
-                low=0.0, high=1.0,
-                shape=(IMAGE_SIZE, IMAGE_SIZE, 3),
-                dtype=np.float32,
-            ),
-            "position": spaces.Box(
-                low=-10000.0, high=10000.0,
-                shape=(3,),
-                dtype=np.float32,
-            ),
-        })
+        self.observation_space = spaces.Dict(
+            {
+                "image": spaces.Box(
+                    low=0.0,
+                    high=1.0,
+                    shape=(IMAGE_SIZE, IMAGE_SIZE, 3),
+                    dtype=np.float32,
+                ),
+                "position": spaces.Box(
+                    low=-10000.0,
+                    high=10000.0,
+                    shape=(3,),
+                    dtype=np.float32,
+                ),
+            }
+        )
 
     def _get_obs(self, env_msg: harness_pb2.EnvironmentMessage) -> dict:
         """Build a Gym observation dict from an EnvironmentMessage."""
         pixels = self.harness.get_shm_pixels()
         resized = cv2.resize(pixels, (IMAGE_SIZE, IMAGE_SIZE))
         state = env_msg.state
-        pos = np.array([state.position.x, state.position.y, state.position.z], dtype=np.float32)
+        pos = np.array(
+            [state.position.x, state.position.y, state.position.z], dtype=np.float32
+        )
         return {
             "image": resized.astype(np.float32) / 255.0,
             "position": pos * np.array([1.0, 1.0, 0.1], dtype=np.float32),
@@ -85,31 +127,49 @@ class Portal2Env(gym.Env):
     def _check_terminated(self, dist: float) -> bool:
         """Return True when the agent is within 100 units of the target (goal reached)."""
         return bool(abs(dist) <= 100)
-    
-    def restart_instance(self):
-        self.instance.stop()
-        time.sleep(DEFAULT_STAGGER_DELAY)
-        self.instance.start()
-        self.harness.handshake()
-        self.harness.start_agent_loop()
 
+    def restart_instance(self):
+        """Kill, relaunch, and fully reconnect the gRPC harness."""
+        # Tear down old stream and channel
+        self.harness.close()
+
+        # Restart the OS process
+        self.instance.restart()
+
+        # Create a fresh gRPC connection (old channel is dead)
+        address = f"localhost:{50000 + self.instance.instance_id}"
+        self.harness = P2Harness(address)
+
+        # Wait for the game to boot with retry (handshake probes gRPC server)
+        max_retries = 10
+        for attempt in range(max_retries):
+            try:
+                resp = self.harness.handshake()
+                print(
+                    f"[Portal2Env/{self.instance.instance_id}] Reconnected to "
+                    f"{resp.game_version}, map: {resp.map_name}"
+                )
+                return
+            except Exception:
+                if attempt == max_retries - 1:
+                    raise
+                wait = min(5 * (attempt + 1), 30)
+                time.sleep(wait)
 
     def reset(self, seed=None, options=None):
         """Restart the map, re-establish the streaming loop, and return the initial observation."""
         super().reset(seed=seed)
         if not self.instance.is_alive():
-            print(f"[Portal2Env/{self.instance.instance_id}] Instance not alive, restarting...")
-            self.instance.start()
-            time.sleep(DEFAULT_STAGGER_DELAY)
-            resp = self.harness.handshake()
             print(
-                f"[Portal2Env/{self.instance.instance_id}] Connected to {resp.game_version}, "
-                f"map: {resp.map_name}, shm: {resp.shm_name}"
+                f"[Portal2Env/{self.instance.instance_id}] Instance not alive, restarting..."
             )
+            self.restart_instance()
         self.episode_steps = 0
         self.prev_dist = 0.0
 
-        print(f"[Portal2Env/{self.instance.instance_id}] Resetting to map: {self.map_name}")
+        print(
+            f"[Portal2Env/{self.instance.instance_id}] Resetting to map: {self.map_name}"
+        )
         reset_resp = self.harness.reset(self.map_name)
         if not reset_resp.success:
             raise RuntimeError(f"Reset failed: {reset_resp.error_message}")
@@ -117,9 +177,10 @@ class Portal2Env(gym.Env):
         self.harness.start_agent_loop()
 
         # Short forward-walk burst so the first observation has a meaningful frame.
+        # Use a longer timeout because map loading can take a while.
         action_req = harness_pb2.ActionRequest(num_ticks=192, key_forward=True)
         agent_msg = harness_pb2.AgentMessage(action=action_req, copy_pixels_to_shm=True)
-        env_msg = self.harness.step_agent_loop(agent_msg)
+        env_msg = self.harness.step_agent_loop(agent_msg, timeout=30.0)
         obs = self._get_obs(env_msg)
 
         return obs, {}
@@ -150,7 +211,9 @@ class Portal2Env(gym.Env):
 
         obs = self._get_obs(env_msg)
         state = env_msg.state
-        pos = np.array([state.position.x, state.position.y, state.position.z], dtype=np.float32)
+        pos = np.array(
+            [state.position.x, state.position.y, state.position.z], dtype=np.float32
+        )
         scale = np.array([1.0, 1.0, 0.1], dtype=np.float32)
         dist = np.linalg.norm(pos * scale - self.target_pos * scale)
 
@@ -164,10 +227,10 @@ class Portal2Env(gym.Env):
         reward -= 1.0  # per-step penalty
         self.prev_dist = dist
 
-        print(
-            f"[Portal2Env/{self.instance.instance_id}] reward={reward:.2f} dist={dist:.1f} "
-            f"ep={self.episode_steps}/{self.max_steps} global={self.global_steps}"
-        )
+        # print(
+        #     f"[Portal2Env/{self.instance.instance_id}] reward={reward:.2f} dist={dist:.1f} "
+        #     f"ep={self.episode_steps}/{self.max_steps} global={self.global_steps}"
+        # )
 
         return obs, reward, terminated, truncated, {}
 
@@ -178,7 +241,9 @@ class Portal2Env(gym.Env):
             pixels = self.harness.get_shm_pixels()
             bgr = cv2.cvtColor(pixels, cv2.COLOR_RGB2BGR)
             cv2.namedWindow("Portal 2 RL", cv2.WINDOW_NORMAL)
-            cv2.resizeWindow("Portal 2 RL", self.harness.shm_width, self.harness.shm_height)
+            cv2.resizeWindow(
+                "Portal 2 RL", self.harness.shm_width, self.harness.shm_height
+            )
             cv2.imshow("Portal 2 RL", bgr)
             cv2.waitKey(1)
 
@@ -189,16 +254,20 @@ class Portal2Env(gym.Env):
         self.harness.close()
         self.instance.stop()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     instances = []
     for i in range(4):
-        instances.append(GameInstance(
-            instance_id=i,
-            gamescope_args=DEFAULT_GAMESCOPE_ARGS.copy(),
-            game_args=DEFAULT_GAME_ARGS.copy() + [f"+sar_harness_instance {i}", "+sar_harness 1"],
-            steam_runtime_sh=DEFAULT_STEAM_RUNTIME_SH,
-            portal2_sh=DEFAULT_PORTAL2_SH,
-        ))
+        instances.append(
+            GameInstance(
+                instance_id=i,
+                gamescope_args=DEFAULT_GAMESCOPE_ARGS.copy(),
+                game_args=DEFAULT_GAME_ARGS.copy()
+                + [f"+sar_harness_instance {i}", "+sar_harness 1"],
+                steam_runtime_sh=DEFAULT_STEAM_RUNTIME_SH,
+                portal2_sh=DEFAULT_PORTAL2_SH,
+            )
+        )
     for instance in instances:
         instance.start()
         time.sleep(DEFAULT_STAGGER_DELAY)
@@ -209,5 +278,4 @@ if __name__ == '__main__':
         for env in envs:
             env.step(env.action_space.sample())
     for env in envs:
-        env.close() 
-    
+        env.close()

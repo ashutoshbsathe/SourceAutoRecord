@@ -80,7 +80,10 @@ class P2Harness:
 
     def _private_action_generator(self):
         """Internal generator required by gRPC stream to consume our Action Queue."""
-        while not self._stop_event.is_set():
+        while True:
+            stop = self._stop_event
+            if stop is None or stop.is_set():
+                break
             try:
                 # Use a timeout to periodically check the stop event
                 action_msg = self._action_queue.get(timeout=0.1)

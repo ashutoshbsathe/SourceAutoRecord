@@ -7,6 +7,13 @@ explicit = true
 torch = { index = "pytorch-cu130" }
 torchvision = { index = "pytorch-cu130" }
 
+[tool.uv]
+environments = ["sys_platform == 'linux'"]
+# grpcio-tools is pulled in by flax → orbax-checkpoint, but no version
+# supports protobuf>=7. It's only needed for proto compilation (not runtime),
+# so we effectively exclude it with an impossible marker.
+override-dependencies = ["grpcio-tools; python_version < '3'"]
+
 [project]
 name = "sourceautorecord"
 version = "0.1.0"
@@ -23,4 +30,9 @@ dependencies = [
     "torchvision>=0.26.0",
     "ray[rllib]>=2.55.1",
     "gputil>=1.4.0",
+    "jax[cuda13]>=0.6.0",
+    "flax>=0.10.0",
+    "optax>=0.2.4",
+    "msgpack>=1.0.0",
+    "tensorboardX>=2.6.0",
 ]

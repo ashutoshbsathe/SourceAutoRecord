@@ -8,16 +8,27 @@ DEFAULT_STEAM_RUNTIME_SH = "~/.steam/root/ubuntu12_32/steam-runtime/run.sh"
 DEFAULT_PORTAL2_SH = "~/.steam/root/steamapps/common/Portal 2/portal2.sh"
 
 DEFAULT_GAMESCOPE_ARGS = [
-    "-w", "640", "-h", "480",
-    "-W", "640", "-H", "480",
+    "-w",
+    "640",
+    "-h",
+    "480",
+    "-W",
+    "640",
+    "-H",
+    "480",
     "-b",
 ]
 
 DEFAULT_GAME_ARGS = [
-    "-game", "portal2",
-    "-nosteam", "-novid", "-vulkan", "-sw",
+    "-game",
+    "portal2",
+    "-nosteam",
+    "-novid",
+    "-vulkan",
+    "-sw",
     "-nomousegrab",
-    "+engine_no_focus_sleep", "0",
+    "+engine_no_focus_sleep",
+    "0",
 ]
 
 ENABLE_HARNESS_CMD = ["+sar_harness", "1"]
@@ -76,7 +87,7 @@ class GameInstance:
             command,
             stdout=self.log_file,
             stderr=subprocess.STDOUT,
-            preexec_fn=os.setsid,  # new session so we can kill the whole process group
+            start_new_session=True,  # same as preexec_fn=os.setsid but uses posix_spawn (thread-safe with JAX)
         )
         logger.info(f"[Instance {self.instance_id}] PID: {self.process.pid}")
 
@@ -89,7 +100,9 @@ class GameInstance:
             os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
             self.process.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            logger.warning(f"[Instance {self.instance_id}] SIGTERM timed out, sending SIGKILL.")
+            logger.warning(
+                f"[Instance {self.instance_id}] SIGTERM timed out, sending SIGKILL."
+            )
             os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
             self.process.wait()
         except Exception as e:
@@ -116,4 +129,3 @@ class GameInstance:
             self.process = None
             return False
         return True
-
