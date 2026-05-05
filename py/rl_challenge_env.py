@@ -1,9 +1,10 @@
-import ray
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import cv2
+import time
 
+from game_launcher import GameInstance, DEFAULT_GAMESCOPE_ARGS, DEFAULT_GAME_ARGS, DEFAULT_STEAM_RUNTIME_SH, DEFAULT_PORTAL2_SH, DEFAULT_STAGGER_DELAY
 from p2harness import P2Harness, harness_pb2
 
 IMAGE_SIZE = 224
@@ -13,54 +14,46 @@ class Portal2Env(gym.Env):
     """
     Gymnasium environment for Portal 2 RL, powered by the AgentLoop gRPC harness.
     Customized for RL Challenge with vision + position observations and sparse rewards.
-
-    Game process lifecycle is managed externally by Portal2GameInstanceManager (Ray actor).
-    Workers call self.restart_game() to recover from crashes; the manager handles stop_all()
-    at the end of training.
     """
 
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
     def __init__(
         self,
+        instance: GameInstance,
         map_name: str = "sp_a2_laser_chaining",
         target_pos: tuple = (0.0, 0.0, 0.0),
-        instance_id: int = 0,
         render_mode: str = None,
         num_ticks_per_step: int = 1,
         max_steps: int = 300,
-        manager=None,  # Portal2GameInstanceManager Ray actor handle
     ):
         super().__init__()
+        self.instance = instance
         self.map_name = map_name
         self.target_pos = np.array(target_pos, dtype=np.float32)
-        self.instance_id = instance_id
         self.render_mode = render_mode
         self.num_ticks = num_ticks_per_step
         self.max_steps = max_steps
         self.episode_steps = 0
         self.global_steps = 0
         self.prev_dist = 0.0
-        self.manager = manager  # Ray actor handle; None in single-process usage
 
-        address = f"localhost:{50000 + instance_id}"
+        address = f"localhost:{50000 + self.instance.instance_id}"
         self.harness = P2Harness(address)
-
-        resp = self._try_with_restarts(lambda : self.harness.handshake())
+ 
+        resp = self.harness.handshake()
         print(
-            f"[Portal2Env/{instance_id}] Connected to {resp.game_version}, "
+            f"[Portal2Env/{self.instance.instance_id}] Connected to {resp.game_version}, "
             f"map: {resp.map_name}, shm: {resp.shm_name}"
         )
 
         # Action space: individual discrete axes + continuous mouse
         self.action_space = spaces.Dict({
-            "move_fb": spaces.Discrete(3),   # 0: none, 1: forward, 2: backward
-            "move_lr": spaces.Discrete(3),   # 0: none, 1: left,    2: right
-            "zoom":    spaces.Discrete(3),   # 0: none, 1: in,      2: out
-            "portal":  spaces.Discrete(3),   # 0: none, 1: primary, 2: secondary
-            "use":     spaces.Discrete(2),   # 0: none, 1: use
-            "crouch":  spaces.Discrete(2),   # 0: none, 1: crouch
-            "jump":    spaces.Discrete(2),   # 0: none, 1: jump
+            "move_fb": spaces.Discrete(3),    # 0: none, 1: forward, 2: backward
+            "move_lr": spaces.Discrete(3),    # 0: none, 1: left,    2: right
+            "zoom":    spaces.Discrete(3),    # 0: none, 1: in,      2: out
+            "portal":  spaces.Discrete(3),    # 0: none, 1: primary, 2: secondary
+            "buttons": spaces.MultiBinary(3), # 0: use,  1: jump,    2: crouch
             "mouse":   spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32),
         })
 
@@ -80,7 +73,7 @@ class Portal2Env(gym.Env):
 
     def _get_obs(self, env_msg: harness_pb2.EnvironmentMessage) -> dict:
         """Build a Gym observation dict from an EnvironmentMessage."""
-        pixels = self._try_with_restarts(lambda : self.harness.get_shm_pixels())
+        pixels = self.harness.get_shm_pixels()
         resized = cv2.resize(pixels, (IMAGE_SIZE, IMAGE_SIZE))
         state = env_msg.state
         pos = np.array([state.position.x, state.position.y, state.position.z], dtype=np.float32)
@@ -93,37 +86,31 @@ class Portal2Env(gym.Env):
         """Return True when the agent is within 100 units of the target (goal reached)."""
         return bool(abs(dist) <= 100)
     
-    def _try_with_restarts(self, func, max_retries=3):
-        for attempt in range(max_retries):
-            try:
-                return func()
-            except Exception as e:
-                print(f"[Portal2Env/{self.instance_id}] Attempt {attempt + 1} failed for function {func.__name__}: {e}")
-                if attempt == max_retries - 1:
-                    raise e
-                self.restart_game()
+    def restart_instance(self):
+        self.instance.stop()
+        time.sleep(DEFAULT_STAGGER_DELAY)
+        self.instance.start()
+        self.harness.handshake()
+        self.harness.start_agent_loop()
 
-    def restart_game(self):
-        """
-        Ask the manager to restart this instance's game process.
-        Call this when a crash is detected (e.g. harness RPC fails).
-        Blocks until the restart completes.
-        """
-        if self.manager is None:
-            print(f"[Portal2Env/{self.instance_id}] No manager set; cannot restart game.")
-            return
-        print(f"[Portal2Env/{self.instance_id}] Requesting game restart from manager...")
-        ray.get(self.manager.restart_instance.remote(self.instance_id))
-        print(f"[Portal2Env/{self.instance_id}] Game restarted.")
 
     def reset(self, seed=None, options=None):
         """Restart the map, re-establish the streaming loop, and return the initial observation."""
         super().reset(seed=seed)
+        if not self.instance.is_alive():
+            print(f"[Portal2Env/{self.instance.instance_id}] Instance not alive, restarting...")
+            self.instance.start()
+            time.sleep(DEFAULT_STAGGER_DELAY)
+            resp = self.harness.handshake()
+            print(
+                f"[Portal2Env/{self.instance.instance_id}] Connected to {resp.game_version}, "
+                f"map: {resp.map_name}, shm: {resp.shm_name}"
+            )
         self.episode_steps = 0
         self.prev_dist = 0.0
 
-        print(f"[Portal2Env/{self.instance_id}] Resetting to map: {self.map_name}")
-        reset_resp = self._try_with_restarts(lambda : self.harness.reset(self.map_name))
+        print(f"[Portal2Env/{self.instance.instance_id}] Resetting to map: {self.map_name}")
+        reset_resp = self.harness.reset(self.map_name)
         if not reset_resp.success:
             raise RuntimeError(f"Reset failed: {reset_resp.error_message}")
 
@@ -132,8 +119,8 @@ class Portal2Env(gym.Env):
         # Short forward-walk burst so the first observation has a meaningful frame.
         action_req = harness_pb2.ActionRequest(num_ticks=192, key_forward=True)
         agent_msg = harness_pb2.AgentMessage(action=action_req, copy_pixels_to_shm=True)
-        env_msg = self._try_with_restarts(lambda : self.harness.step_agent_loop(agent_msg))
-        obs = self._try_with_restarts(lambda : self._get_obs(env_msg))
+        env_msg = self.harness.step_agent_loop(agent_msg)
+        obs = self._get_obs(env_msg)
 
         return obs, {}
 
@@ -147,26 +134,21 @@ class Portal2Env(gym.Env):
             key_backward=bool(action["move_fb"] == 2),
             key_left=bool(action["move_lr"] == 1),
             key_right=bool(action["move_lr"] == 2),
-            key_use=bool(action["use"] == 1),
+            key_use=bool(action["buttons"][0] == 1),
             key_zoomin=bool(action["zoom"] == 1),
             key_zoomout=bool(action["zoom"] == 2),
-            key_crouch=bool(action["crouch"] == 1),
+            key_crouch=bool(action["buttons"][2] == 1),
             portal_primary=bool(action["portal"] == 1),
             portal_secondary=bool(action["portal"] == 2),
-            key_jump=bool(action["jump"] == 1),
+            key_jump=bool(action["buttons"][1] == 1),
             mouse_dx=float(action["mouse"][0]),
             mouse_dy=float(action["mouse"][1]),
         )
         agent_msg = harness_pb2.AgentMessage(action=action_req, copy_pixels_to_shm=True)
 
-        env_msg = self._try_with_restarts(lambda : self.harness.step_agent_loop(agent_msg))
-        if not env_msg.success:
-            raise RuntimeError(
-                f"AgentLoop step failed: {env_msg.error_message} "
-                f"(ep_steps={self.episode_steps}, global_steps={self.global_steps})"
-            )
+        env_msg = self.harness.step_agent_loop(agent_msg)
 
-        obs = self._try_with_restarts(lambda : self._get_obs(env_msg))
+        obs = self._get_obs(env_msg)
         state = env_msg.state
         pos = np.array([state.position.x, state.position.y, state.position.z], dtype=np.float32)
         scale = np.array([1.0, 1.0, 0.1], dtype=np.float32)
@@ -183,7 +165,7 @@ class Portal2Env(gym.Env):
         self.prev_dist = dist
 
         print(
-            f"[Portal2Env/{self.instance_id}] reward={reward:.2f} dist={dist:.1f} "
+            f"[Portal2Env/{self.instance.instance_id}] reward={reward:.2f} dist={dist:.1f} "
             f"ep={self.episode_steps}/{self.max_steps} global={self.global_steps}"
         )
 
@@ -205,3 +187,27 @@ class Portal2Env(gym.Env):
         if self.render_mode == "human":
             cv2.destroyAllWindows()
         self.harness.close()
+        self.instance.stop()
+
+if __name__ == '__main__':
+    instances = []
+    for i in range(4):
+        instances.append(GameInstance(
+            instance_id=i,
+            gamescope_args=DEFAULT_GAMESCOPE_ARGS.copy(),
+            game_args=DEFAULT_GAME_ARGS.copy() + [f"+sar_harness_instance {i}", "+sar_harness 1"],
+            steam_runtime_sh=DEFAULT_STEAM_RUNTIME_SH,
+            portal2_sh=DEFAULT_PORTAL2_SH,
+        ))
+    for instance in instances:
+        instance.start()
+        time.sleep(DEFAULT_STAGGER_DELAY)
+    envs = [Portal2Env(instance, render_mode="human") for instance in instances]
+    for env in envs:
+        env.reset()
+    for _ in range(10):
+        for env in envs:
+            env.step(env.action_space.sample())
+    for env in envs:
+        env.close() 
+    
