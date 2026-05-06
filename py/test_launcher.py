@@ -12,7 +12,7 @@ from p2harness import P2Harness, harness_pb2
 
 instances = []
 
-NUM_INSTANCES = 6
+NUM_INSTANCES = 8
 
 for i in range(NUM_INSTANCES):
     instances.append(
@@ -24,8 +24,12 @@ for i in range(NUM_INSTANCES):
                 "-conclear",
                 "-dev",
                 "-condebug",
-                # f"+sar_harness_instance {i}",
-                # "+sar_harness 1",
+                "+tv_port", str(47000 + i),
+                "+hostport", str(48000 + i),
+                "+clientport", str(49000 + i),
+                "+plugin_load", "sar",
+                "+sar_harness_instance", str(i),
+                "+sar_harness", "1",
             ],
             steam_runtime_sh=DEFAULT_STEAM_RUNTIME_SH,
             portal2_sh=DEFAULT_PORTAL2_SH,
@@ -40,6 +44,7 @@ harnesses = []
 for i in range(NUM_INSTANCES):
     harnesses.append(P2Harness(f"localhost:{50000 + i}"))
 
+time.sleep(DEFAULT_STAGGER_DELAY * 2)
 for harness in harnesses:
     print(harness.handshake())
 
