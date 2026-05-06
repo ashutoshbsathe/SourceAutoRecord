@@ -256,16 +256,19 @@ class Portal2Env(gym.Env):
 
 
 if __name__ == "__main__":
+    from game_launcher import get_instance_specific_args
+
+    # yes above import is ugly af but its the only place its being used soooooo, yolo
     instances = []
-    for i in range(4):
+    for i in range(8):
         instances.append(
             GameInstance(
                 instance_id=i,
                 gamescope_args=DEFAULT_GAMESCOPE_ARGS.copy(),
-                game_args=DEFAULT_GAME_ARGS.copy()
-                + [f"+sar_harness_instance {i}", "+sar_harness 1"],
+                game_args=DEFAULT_GAME_ARGS.copy() + get_instance_specific_args(i),
                 steam_runtime_sh=DEFAULT_STEAM_RUNTIME_SH,
                 portal2_sh=DEFAULT_PORTAL2_SH,
+                debug=False,
             )
         )
     for instance in instances:

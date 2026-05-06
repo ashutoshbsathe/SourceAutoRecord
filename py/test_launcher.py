@@ -7,6 +7,7 @@ from game_launcher import (
     DEFAULT_STEAM_RUNTIME_SH,
     DEFAULT_PORTAL2_SH,
     DEFAULT_STAGGER_DELAY,
+    get_instance_specific_args,
 )
 from p2harness import P2Harness, harness_pb2
 
@@ -19,18 +20,7 @@ for i in range(NUM_INSTANCES):
         GameInstance(
             instance_id=i,
             gamescope_args=DEFAULT_GAMESCOPE_ARGS.copy(),
-            game_args=DEFAULT_GAME_ARGS.copy()
-            + [
-                "-conclear",
-                "-dev",
-                "-condebug",
-                "+tv_port", str(47000 + i),
-                "+hostport", str(48000 + i),
-                "+clientport", str(49000 + i),
-                "+plugin_load", "sar",
-                "+sar_harness_instance", str(i),
-                "+sar_harness", "1",
-            ],
+            game_args=DEFAULT_GAME_ARGS.copy() + get_instance_specific_args(i),
             steam_runtime_sh=DEFAULT_STEAM_RUNTIME_SH,
             portal2_sh=DEFAULT_PORTAL2_SH,
         )

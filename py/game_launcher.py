@@ -34,6 +34,14 @@ DEFAULT_GAME_ARGS = [
 
 ENABLE_HARNESS_CMD = ["+sar_harness", "1"]
 
+def get_instance_specific_args(instance_id: int) -> list[str]:
+    return [
+        "+tv_port", str(47000 + instance_id),
+        "+hostport", str(48000 + instance_id),
+        "+clientport", str(49000 + instance_id),
+        "+sar_harness_instance", str(instance_id),
+    ] + ENABLE_HARNESS_CMD
+
 # Seconds to wait after the *last* instance launches before returning from start_all().
 DEFAULT_BOOT_WAIT_TIME = 10
 # Seconds between consecutive instance launches (avoids VPK file-lock contention).
@@ -57,12 +65,14 @@ class GameInstance:
         game_args: list[str],
         steam_runtime_sh: str = DEFAULT_STEAM_RUNTIME_SH,
         portal2_sh: str = DEFAULT_PORTAL2_SH,
+        debug: bool = False,
     ):
         self.instance_id = instance_id
         self.gamescope_args = gamescope_args
         self.game_args = game_args
         self.steam_runtime_sh = steam_runtime_sh
         self.portal2_sh = portal2_sh
+        self.debug = debug
         self.process: subprocess.Popen | None = None
         self.log_file_path = f"portal2_instance_{self.instance_id}.log"
 
@@ -85,16 +95,17 @@ class GameInstance:
             if self.gamescope_args
             else [steam_runtime_sh, portal2_sh] + self.game_args
         )
-        strace_log = f"strace_instance_{self.instance_id}.log"
-        # command = [
-        #     "strace",
-        #     "-f",              # follow forks (run.sh → portal2_linux)
-        #     "-tt",             # microsecond timestamps
-        #     "-o", strace_log,  # write to file (keeps game stdout clean)
-        #     "-s", "256",       # longer string captures
-        #     "--",
-        #     *command,
-        # ]
+        if self.debug:
+            strace_log = f"strace_instance_{self.instance_id}.log"
+            command = [
+                "strace",
+                "-f",              # follow forks (run.sh → portal2_linux)
+                "-tt",             # microsecond timestamps
+                "-o", strace_log,  # write to file (keeps game stdout clean)
+                "-s", "256",       # longer string captures
+                "--",
+                *command,
+            ]
 
         logger.info(f"[Instance {self.instance_id}] Starting: {' '.join(command)}")
         self.log_file = open(self.log_file_path, "w")
