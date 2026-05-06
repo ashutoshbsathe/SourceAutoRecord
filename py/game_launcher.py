@@ -25,7 +25,8 @@ DEFAULT_GAME_ARGS = [
     "-nosteam",
     "-novid",
     "-vulkan",
-    "-sw",
+    "-windowed",
+    "-low",
     "-nomousegrab",
     "+engine_no_focus_sleep",
     "0",
@@ -75,11 +76,26 @@ class GameInstance:
         portal2_sh = os.path.expanduser(self.portal2_sh)
 
         command = (
-            ["gamescope"]
-            + self.gamescope_args
-            + ["--", steam_runtime_sh, portal2_sh]
-            + self.game_args
+            (
+                ["gamescope"]
+                + self.gamescope_args
+                + ["--", steam_runtime_sh, portal2_sh]
+                + self.game_args
+            )
+            if self.gamescope_args
+            else [steam_runtime_sh, portal2_sh] + self.game_args
         )
+        if self.instance_id == 5:
+            strace_log = f"strace_instance_{self.instance_id}.log"
+            command = [
+                "strace",
+                "-f",              # follow forks (run.sh → portal2_linux)
+                "-tt",             # microsecond timestamps
+                "-o", strace_log,  # write to file (keeps game stdout clean)
+                "-s", "256",       # longer string captures
+                "--",
+                *command,
+            ]
 
         logger.info(f"[Instance {self.instance_id}] Starting: {' '.join(command)}")
         self.log_file = open(self.log_file_path, "w")
