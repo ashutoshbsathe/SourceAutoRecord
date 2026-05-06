@@ -28,6 +28,7 @@ from game_launcher import (
     DEFAULT_STEAM_RUNTIME_SH,
     DEFAULT_PORTAL2_SH,
     DEFAULT_STAGGER_DELAY,
+    get_instance_specific_args,
 )
 from rl_challenge_env import Portal2Env
 from rl.config import PPOConfig, parse_args
@@ -47,10 +48,10 @@ def launch_instances(config: PPOConfig):
         inst = GameInstance(
             instance_id=i,
             gamescope_args=DEFAULT_GAMESCOPE_ARGS.copy(),
-            game_args=DEFAULT_GAME_ARGS.copy()
-            + [f"+sar_harness_instance {i}", "+sar_harness 1"],
+            game_args=DEFAULT_GAME_ARGS.copy() + get_instance_specific_args(i),
             steam_runtime_sh=DEFAULT_STEAM_RUNTIME_SH,
             portal2_sh=DEFAULT_PORTAL2_SH,
+            debug=False,
         )
         inst.start()
         time.sleep(DEFAULT_STAGGER_DELAY)

@@ -24,7 +24,7 @@ export XLA_PYTHON_CLIENT_MEM_FRACTION=0.30
 python "$SCRIPT_DIR/train_rl_challenge.py" \
     --map-name "workshop/1858300862251329775/1644417521" \
     --target-pos "951.94,1137.39,449.03" \
-    --num-envs 4 \
+    --num-envs 8 \
     --num-ticks-per-step 8 \
     --num-steps 128 \
     --num-updates 10000 \
