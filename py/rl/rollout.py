@@ -17,7 +17,7 @@ import jax.numpy as jnp
 
 
 class RolloutBuffer:
-    """Fixed-size buffer for one rollout of (num_steps × num_envs) transitions.
+    """Fixed-size buffer for one rollout of (num_steps x num_envs) transitions.
 
     All storage is NumPy; data is converted to JAX arrays when consumed.
     """
@@ -27,12 +27,8 @@ class RolloutBuffer:
         self.num_envs = num_envs
 
         # Observations (ViT embeddings, not raw pixels)
-        self.image_embeds = np.zeros(
-            (num_steps, num_envs, embed_dim), dtype=np.float32
-        )
-        self.positions = np.zeros(
-            (num_steps, num_envs, 3), dtype=np.float32
-        )
+        self.image_embeds = np.zeros((num_steps, num_envs, embed_dim), dtype=np.float32)
+        self.positions = np.zeros((num_steps, num_envs, 3), dtype=np.float32)
 
         # Actions (stored per component)
         self.actions: Dict[str, np.ndarray] = {
@@ -70,12 +66,8 @@ class RolloutBuffer:
         """Flatten (T, N, ...) -> (T*N, ...) and convert to JAX arrays."""
         B = self.num_steps * self.num_envs
         return {
-            "image_embeds": jnp.array(
-                self.image_embeds.reshape(B, -1)
-            ),
-            "positions": jnp.array(
-                self.positions.reshape(B, -1)
-            ),
+            "image_embeds": jnp.array(self.image_embeds.reshape(B, -1)),
+            "positions": jnp.array(self.positions.reshape(B, -1)),
             "actions": {
                 k: jnp.array(v.reshape(B, *v.shape[2:]))
                 for k, v in self.actions.items()
@@ -86,6 +78,7 @@ class RolloutBuffer:
 
 
 # ──────────────── Episode statistics tracker ─────────────────────────────── #
+
 
 class EpisodeStats:
     """Track per-environment running episode return and length."""
@@ -120,6 +113,7 @@ class EpisodeStats:
 
 # ──────────────── Per-env step (runs in thread pool) ─────────────────────── #
 
+
 def _step_single_env(env, action_dict, prev_obs):
     """Step a single environment. Returns (obs, reward, done, error_flag).
 
@@ -152,6 +146,7 @@ def _step_single_env(env, action_dict, prev_obs):
 
 
 # ──────────────── Rollout collection ─────────────────────────────────────── #
+
 
 def collect_rollouts(
     envs,
@@ -194,9 +189,7 @@ def collect_rollouts(
 
             # ── Batch observations ──
             images = jnp.array(np.stack([obs["image"] for obs in current_obs]))
-            positions = jnp.array(
-                np.stack([obs["position"] for obs in current_obs])
-            )
+            positions = jnp.array(np.stack([obs["position"] for obs in current_obs]))
 
             # ── Encode images (frozen ViT) ──
             image_embeds = vision_encoder(images)  # (N, 768)
@@ -227,7 +220,9 @@ def collect_rollouts(
                     "buttons": np.array(actions["buttons"][i]),
                     "mouse": np.array(actions["mouse"][i]),
                 }
-                futures[pool.submit(_step_single_env, env, action_dict, current_obs[i])] = i
+                futures[
+                    pool.submit(_step_single_env, env, action_dict, current_obs[i])
+                ] = i
 
             # ── Collect results ──
             rewards = np.zeros(num_envs, dtype=np.float32)

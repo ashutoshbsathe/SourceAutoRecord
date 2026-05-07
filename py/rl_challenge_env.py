@@ -227,10 +227,11 @@ class Portal2Env(gym.Env):
         reward -= 1.0  # per-step penalty
         self.prev_dist = dist
 
-        # print(
-        #     f"[Portal2Env/{self.instance.instance_id}] reward={reward:.2f} dist={dist:.1f} "
-        #     f"ep={self.episode_steps}/{self.max_steps} global={self.global_steps}"
-        # )
+        if self.global_steps % 100 == 0:
+            print(
+                f"[Portal2Env/{self.instance.instance_id}] reward={reward:.2f} dist={dist:.1f} "
+                f"ep={self.episode_steps}/{self.max_steps} global={self.global_steps}"
+            )
 
         return obs, reward, terminated, truncated, {}
 

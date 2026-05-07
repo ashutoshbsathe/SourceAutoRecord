@@ -34,8 +34,10 @@ from rl_challenge_env import Portal2Env
 from rl.config import PPOConfig, parse_args
 from rl.model import VisionEncoder, ActorCritic
 from rl.ppo import compute_gae, create_ppo_fns, ppo_update
-from rl.rollout import EpisodeStats, collect_rollouts
 from rl.checkpoint import CheckpointManager, TBLogger
+from rl.inference_server import InferenceServer
+from rl.async_worker import AsyncRolloutWorker
+import queue
 
 
 # ─────────────────────── Instance management ─────────────────────────────── #
@@ -173,14 +175,27 @@ def main():
             model, optimizer, config.clip_eps, config.vf_coef, config.ent_coef
         )
 
-        # ── Reset all environments ──
-        print("[Main] Resetting environments...")
-        current_obs = []
-        for env in envs:
-            obs, _ = env.reset()
-            current_obs.append(obs)
-
-        ep_stats = EpisodeStats(config.num_envs)
+        # ── Start Async Workers ──
+        print("[Main] Starting InferenceServer and Async Workers...")
+        inference_server = InferenceServer(
+            compute_action_fn, vision_encoder, max_batch_size=config.num_envs
+        )
+        inference_server.start(params, rng)
+        
+        trajectory_queue = queue.Queue()
+        workers = []
+        for i, env in enumerate(envs):
+            worker = AsyncRolloutWorker(
+                worker_id=i,
+                env=env,
+                inference_server=inference_server,
+                trajectory_queue=trajectory_queue,
+                num_steps=config.num_steps,
+                gamma=config.gamma,
+                gae_lambda=config.gae_lambda,
+            )
+            workers.append(worker)
+            worker.start()
 
         # ────────────────────── TRAINING LOOP ──────────────────────── #
         print(
@@ -192,44 +207,38 @@ def main():
         for update in range(start_update, config.num_updates):
             t_update = time.time()
 
-            # ── 1. Collect rollouts ──
+            # ── 1. Collect rollouts asynchronously ──
             t_rollout = time.time()
-            rng, rollout_rng = jax.random.split(rng)
-            buffer, current_obs, rng = collect_rollouts(
-                envs,
-                compute_action_fn,
-                params,
-                vision_encoder,
-                current_obs,
-                config.num_steps,
-                rollout_rng,
-                ep_stats,
-            )
+            trajectories = []
+            while len(trajectories) < config.num_envs:
+                # Wait for trajectories from any worker
+                traj = trajectory_queue.get()
+                trajectories.append(traj)
             dt_rollout = time.time() - t_rollout
 
-            # ── 2. Bootstrap final value ──
-            final_images = jnp.array(np.stack([obs["image"] for obs in current_obs]))
-            final_positions = jnp.array(np.stack([obs["position"] for obs in current_obs]))
-            final_embeds = vision_encoder(final_images)
-            _, final_values = model.apply(params, final_embeds, final_positions)
-            final_values = final_values.squeeze(-1)
-
-            # ── 3. GAE ──
-            advantages, returns = compute_gae(
-                jnp.array(buffer.rewards),
-                jnp.array(buffer.values),
-                jnp.array(buffer.dones),
-                final_values,
-                config.gamma,
-                config.gae_lambda,
-            )
-
-            # ── 4. PPO update (updating model params) ──
+            # ── 2. Flatten and concatenate ──
+            buffer_flat = {
+                "image_embeds": jnp.array(np.concatenate([t["image_embeds"] for t in trajectories])),
+                "positions": jnp.array(np.concatenate([t["positions"] for t in trajectories])),
+                "actions": {
+                    k: jnp.array(np.concatenate([t["actions"][k] for t in trajectories]))
+                    for k in trajectories[0]["actions"].keys()
+                },
+                "log_probs": jnp.array(np.concatenate([t["log_probs"] for t in trajectories])),
+                "values": jnp.array(np.concatenate([t["values"] for t in trajectories])),
+            }
+            flat_advantages = jnp.array(np.concatenate([t["advantages"] for t in trajectories]))
+            flat_returns = jnp.array(np.concatenate([t["returns"] for t in trajectories]))
+            
+            # Combine rewards and dones for episode stats logging
+            flat_rewards = np.concatenate([t["rewards"] for t in trajectories])
+            flat_dones = np.concatenate([t["dones"] for t in trajectories])
+            
+            completed_returns = [t["ep_ret"] for t in trajectories if t["ep_ret"] is not None]
+            completed_lengths = [t["ep_len"] for t in trajectories if t["ep_len"] is not None]
+            
+            # ── 3. PPO update (updating model params) ──
             t_ppo = time.time()
-            buffer_flat = buffer.flatten()
-            batch_size = config.num_steps * config.num_envs
-            flat_advantages = advantages.reshape(batch_size)
-            flat_returns = returns.reshape(batch_size)
 
             rng, update_rng = jax.random.split(rng)
             params, opt_state, metrics = ppo_update(
@@ -243,13 +252,18 @@ def main():
                 config.num_minibatches,
                 update_rng,
             )
+            
+            # Send latest params to InferenceServer
+            rng, server_rng = jax.random.split(rng)
+            inference_server.update_params(params, server_rng)
+            
             dt_ppo = time.time() - t_ppo
 
-            # ── 5. Logging ──
+            # ── 4. Logging ──
             logger.log_ppo_metrics(metrics, update)
 
-            completed_returns, completed_lengths = ep_stats.flush()
-            logger.log_episode_stats(completed_returns, completed_lengths, update)
+            if completed_returns:
+                logger.log_episode_stats(completed_returns, completed_lengths, update)
 
             if callable(lr_schedule):
                 current_lr = float(lr_schedule(update))
@@ -281,7 +295,7 @@ def main():
                 f"{ep_info}"
             )
 
-            # ── 6. Checkpoint ──
+            # ── 5. Checkpoint ──
             if (update + 1) % config.checkpoint_freq == 0:
                 t_ckpt = time.time()
                 ckpt_mgr.save(update, params, opt_state)
@@ -295,6 +309,14 @@ def main():
 
     finally:
         # Always clean up game instances, even on crash
+        try:
+            if 'inference_server' in locals():
+                inference_server.stop()
+            if 'workers' in locals():
+                for w in workers:
+                    w.stop()
+        except:
+            pass
         cleanup(envs, instances, logger)
 
 
