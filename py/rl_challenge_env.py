@@ -11,6 +11,7 @@ from game_launcher import (
     DEFAULT_STEAM_RUNTIME_SH,
     DEFAULT_PORTAL2_SH,
     DEFAULT_STAGGER_DELAY,
+    get_instance_specific_args,
 )
 from p2harness import P2Harness, harness_pb2
 
@@ -257,9 +258,6 @@ class Portal2Env(gym.Env):
 
 
 if __name__ == "__main__":
-    from game_launcher import get_instance_specific_args
-
-    # yes above import is ugly af but its the only place its being used soooooo, yolo
     instances = []
     for i in range(8):
         instances.append(

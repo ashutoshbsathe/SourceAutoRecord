@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import jax
 import numpy as np
 from flax import serialization
+from tensorboardX import SummaryWriter
 
 
 # ──────────────────────── Checkpointing ──────────────────────────────────── #
@@ -112,16 +113,11 @@ class CheckpointManager:
 class TBLogger:
     """Lightweight TensorBoard logger using tensorboardX."""
 
-    def __init__(self, log_dir: str, run_name: Optional[str] = None):
-        from tensorboardX import SummaryWriter
-
-        if run_name is None:
-            run_name = time.strftime("ppo_%Y%m%d_%H%M%S")
-        full_dir = os.path.join(log_dir, run_name)
-        os.makedirs(full_dir, exist_ok=True)
-        self.writer = SummaryWriter(full_dir)
-        self.log_dir = full_dir
-        print(f"[TBLogger] Logging to {full_dir}")
+    def __init__(self, log_dir: str):
+        os.makedirs(log_dir, exist_ok=True)
+        self.writer = SummaryWriter(log_dir)
+        self.log_dir = log_dir
+        print(f"[TBLogger] Logging to {log_dir}")
 
     def log_scalar(self, tag: str, value: float, step: int):
         self.writer.add_scalar(tag, value, step)

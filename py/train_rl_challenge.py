@@ -11,6 +11,8 @@ Usage:
 See `python py/train_rl_challenge.py --help` for all flags.
 """
 
+import os
+import random
 import signal
 import sys
 import time
@@ -99,6 +101,22 @@ def cleanup(envs, instances, logger):
 
 def main():
     config = parse_args()
+
+    # ── Generate Run Name & Directories ──
+    if config.resume:
+        run_dir = os.path.abspath(config.resume)
+        print(f"[Main] Resuming run in directory: {run_dir}")
+    else:
+        adjectives = ["bold", "fast", "cool", "epic", "neat", "keen", "wild", "sage", "loud", "calm", "dark", "nova", "swift", "hyper"]
+        nouns = ["lion", "hawk", "bear", "wolf", "frog", "toad", "deer", "crow", "crab", "duck", "star", "moon", "sun", "wind", "fire"]
+        run_name = f"{random.choice(adjectives)}_{random.choice(nouns)}_{time.strftime('%Y%m%d_%H%M%S')}"
+        run_dir = os.path.abspath(os.path.join(config.log_dir, run_name))
+        os.makedirs(run_dir, exist_ok=True)
+        print(f"[Main] New run directory: {run_dir}")
+
+    config.log_dir = run_dir
+    config.checkpoint_dir = run_dir
+
     print(f"[Main] Config:\n{config}\n")
 
     # ── Verify JAX backend ──
