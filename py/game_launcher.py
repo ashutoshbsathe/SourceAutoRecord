@@ -34,13 +34,19 @@ DEFAULT_GAME_ARGS = [
 
 ENABLE_HARNESS_CMD = ["+sar_harness", "1"]
 
+
 def get_instance_specific_args(instance_id: int) -> list[str]:
     return [
-        "+tv_port", str(47000 + instance_id),
-        "+hostport", str(48000 + instance_id),
-        "+clientport", str(49000 + instance_id),
-        "+sar_harness_instance", str(instance_id),
+        "+tv_port",
+        str(47000 + instance_id),
+        "+hostport",
+        str(48000 + instance_id),
+        "+clientport",
+        str(49000 + instance_id),
+        "+sar_harness_instance",
+        str(instance_id),
     ] + ENABLE_HARNESS_CMD
+
 
 # Seconds to wait after the *last* instance launches before returning from start_all().
 DEFAULT_BOOT_WAIT_TIME = 10
@@ -99,10 +105,12 @@ class GameInstance:
             strace_log = f"strace_instance_{self.instance_id}.log"
             command = [
                 "strace",
-                "-f",              # follow forks (run.sh → portal2_linux)
-                "-tt",             # microsecond timestamps
-                "-o", strace_log,  # write to file (keeps game stdout clean)
-                "-s", "256",       # longer string captures
+                "-f",  # follow forks (run.sh → portal2_linux)
+                "-tt",  # microsecond timestamps
+                "-o",
+                strace_log,  # write to file (keeps game stdout clean)
+                "-s",
+                "256",  # longer string captures
                 "--",
                 *command,
             ]

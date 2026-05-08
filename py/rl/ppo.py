@@ -13,8 +13,8 @@ import flax.linen as nn
 
 from rl.model import ActorCritic, ActionDistParams, IndependentActionHead
 
-
 # ─────────────────────────── GAE ─────────────────────────────────────────── #
+
 
 def compute_gae(
     rewards: jnp.ndarray,
@@ -66,6 +66,7 @@ def compute_gae(
 
 # ────────────────────── PPO functions factory ────────────────────────────── #
 
+
 class PPOMetrics(NamedTuple):
     total_loss: jnp.ndarray
     policy_loss: jnp.ndarray
@@ -106,6 +107,7 @@ def create_ppo_fns(
             image_embeds, positions, actions (dict), old_log_probs,
             advantages, returns, old_values
         """
+
         def loss_fn(params):
             dist_params, values = model.apply(
                 params, batch["image_embeds"], batch["positions"]
@@ -141,7 +143,9 @@ def create_ppo_fns(
                 value_loss=v_loss,
                 entropy=ent.mean(),
                 approx_kl=((ratio - 1) - jnp.log(ratio)).mean(),
-                clip_fraction=(jnp.abs(ratio - 1) > clip_eps).astype(jnp.float32).mean(),
+                clip_fraction=(jnp.abs(ratio - 1) > clip_eps)
+                .astype(jnp.float32)
+                .mean(),
                 grad_norm=jnp.array(0.0),  # placeholder, filled below
             )
 
@@ -158,42 +162,71 @@ def create_ppo_fns(
 
 # ─────────────────────── Full PPO update pass ────────────────────────────── #
 
+
 def ppo_update(
     ppo_step_fn: Callable,
     params,
     opt_state,
-    buffer_flat: Dict[str, jnp.ndarray],
+    buffer_seq: Dict[str, jnp.ndarray],
     advantages: jnp.ndarray,
     returns: jnp.ndarray,
     num_epochs: int,
     num_minibatches: int,
+    max_seq_len: int,
     rng: jnp.ndarray,
 ):
-    """Run multiple epochs of mini-batch PPO updates.
+    """Run multiple epochs of mini-batch PPO updates on sequence chunks.
 
     Args:
         ppo_step_fn: JIT-compiled single-step function from create_ppo_fns.
         params:      current trainable parameters.
         opt_state:   current optimizer state.
-        buffer_flat: flattened rollout data (batch_size, ...).
-        advantages:  (batch_size,)
-        returns:     (batch_size,)
+        buffer_seq:  sequence rollout data (num_envs, num_steps, ...).
+        advantages:  (num_envs, num_steps)
+        returns:     (num_envs, num_steps)
         num_epochs:  number of passes over the data.
         num_minibatches: number of mini-batches per epoch.
+        max_seq_len: maximum context window for the Transformer.
         rng:         JAX PRNG key.
 
     Returns:
         params, opt_state, avg_metrics
     """
-    batch_size = advantages.shape[0]
+    num_envs, num_steps = advantages.shape
+
+    # Chunk sequences into blocks of max_seq_len
+    # If num_steps is not divisible, we truncate the end.
+    n_chunks = num_steps // max_seq_len
+    valid_steps = n_chunks * max_seq_len
+
+    def _chunk(x):
+        if x.ndim >= 2 and x.shape[0] == num_envs and x.shape[1] == num_steps:
+            # (B, T, ...) -> (B, n_chunks, max_seq_len, ...) -> (B * n_chunks, max_seq_len, ...)
+            reshaped = x[:, :valid_steps].reshape(
+                num_envs * n_chunks, max_seq_len, *x.shape[2:]
+            )
+            return reshaped
+        return x
+
+    chunked_buffer = {
+        "image_embeds": _chunk(buffer_seq["image_embeds"]),
+        "positions": _chunk(buffer_seq["positions"]),
+        "actions": {k: _chunk(v) for k, v in buffer_seq["actions"].items()},
+        "log_probs": _chunk(buffer_seq["log_probs"]),
+        "values": _chunk(buffer_seq["values"]),
+    }
+    chunked_adv = _chunk(advantages)
+    chunked_ret = _chunk(returns)
+
+    batch_size = num_envs * n_chunks
     minibatch_size = batch_size // num_minibatches
 
     # Normalise advantages (standard PPO practice)
-    advantages = (advantages - jnp.mean(advantages)) / (jnp.std(advantages) + 1e-8)
+    chunked_adv = (chunked_adv - jnp.mean(chunked_adv)) / (jnp.std(chunked_adv) + 1e-8)
 
     # Accumulate metrics for averaging
     metric_sums = None
-    n_steps = 0
+    n_steps_opt = 0
 
     for _epoch in range(num_epochs):
         rng, shuffle_rng = jax.random.split(rng)
@@ -203,15 +236,13 @@ def ppo_update(
             mb_idx = perm[mb_start : mb_start + minibatch_size]
 
             batch = {
-                "image_embeds": buffer_flat["image_embeds"][mb_idx],
-                "positions": buffer_flat["positions"][mb_idx],
-                "actions": {
-                    k: v[mb_idx] for k, v in buffer_flat["actions"].items()
-                },
-                "old_log_probs": buffer_flat["log_probs"][mb_idx],
-                "advantages": advantages[mb_idx],
-                "returns": returns[mb_idx],
-                "old_values": buffer_flat["values"][mb_idx],
+                "image_embeds": chunked_buffer["image_embeds"][mb_idx],
+                "positions": chunked_buffer["positions"][mb_idx],
+                "actions": {k: v[mb_idx] for k, v in chunked_buffer["actions"].items()},
+                "old_log_probs": chunked_buffer["log_probs"][mb_idx],
+                "advantages": chunked_adv[mb_idx],
+                "returns": chunked_ret[mb_idx],
+                "old_values": chunked_buffer["values"][mb_idx],
             }
 
             params, opt_state, metrics = ppo_step_fn(params, opt_state, batch)
@@ -219,10 +250,8 @@ def ppo_update(
             if metric_sums is None:
                 metric_sums = metrics
             else:
-                metric_sums = PPOMetrics(
-                    *[a + b for a, b in zip(metric_sums, metrics)]
-                )
-            n_steps += 1
+                metric_sums = PPOMetrics(*[a + b for a, b in zip(metric_sums, metrics)])
+            n_steps_opt += 1
 
-    avg_metrics = PPOMetrics(*[v / n_steps for v in metric_sums])
+    avg_metrics = PPOMetrics(*[v / n_steps_opt for v in metric_sums])
     return params, opt_state, avg_metrics

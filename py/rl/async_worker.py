@@ -4,6 +4,7 @@ import time
 import numpy as np
 from typing import Dict, Any, List
 
+
 def compute_gae_numpy(
     rewards: np.ndarray,
     values: np.ndarray,
@@ -20,16 +21,17 @@ def compute_gae_numpy(
     T = len(rewards)
     advantages = np.zeros(T, dtype=np.float32)
     last_gae = 0.0
-    
+
     for t in reversed(range(T)):
         next_value = last_value if t == T - 1 else values[t + 1]
         next_non_terminal = 1.0 - dones[t]
         delta = rewards[t] + gamma * next_value * next_non_terminal - values[t]
         last_gae = delta + gamma * gae_lambda * next_non_terminal * last_gae
         advantages[t] = last_gae
-        
+
     returns = advantages + values
     return advantages.astype(np.float32), returns.astype(np.float32)
+
 
 class LocalBuffer:
     def __init__(self, num_steps: int):
@@ -43,6 +45,8 @@ class LocalBuffer:
         self.dones = np.zeros(num_steps, dtype=np.float32)
         self.log_probs = np.zeros(num_steps, dtype=np.float32)
         self.values = np.zeros(num_steps, dtype=np.float32)
+        self.completed_returns = []
+        self.completed_lengths = []
 
     def store(self, obs, action, reward, done, log_prob, value, image_embed):
         self.images.append(obs["image"])
@@ -68,6 +72,9 @@ class LocalBuffer:
         self.dones.fill(0)
         self.log_probs.fill(0)
         self.values.fill(0)
+        self.completed_returns.clear()
+        self.completed_lengths.clear()
+
 
 class AsyncRolloutWorker:
     def __init__(
@@ -87,7 +94,7 @@ class AsyncRolloutWorker:
         self.num_steps = num_steps
         self.gamma = gamma
         self.gae_lambda = gae_lambda
-        
+
         self.stop_event = threading.Event()
         self.worker_thread = threading.Thread(target=self._worker_loop, daemon=True)
 
@@ -103,13 +110,17 @@ class AsyncRolloutWorker:
         obs, _ = self.env.reset()
         ep_ret = 0.0
         ep_len = 0
-        
+        is_first = True
+
         while not self.stop_event.is_set():
             try:
                 # 1. Get action from central InferenceServer
-                res = self.inference_server.get_action(obs)
+                # Pass is_first so the server knows to reset its KV cache for this worker
+                res = self.inference_server.get_action(self.worker_id, obs, is_first)
+                is_first = False
+
                 actions = res["actions"]
-                
+
                 # 2. Convert actions for env
                 action_dict = {
                     "move_fb": int(actions["move_fb"]),
@@ -119,44 +130,54 @@ class AsyncRolloutWorker:
                     "buttons": np.array(actions["buttons"]),
                     "mouse": np.array(actions["mouse"]),
                 }
-                
+
                 # 3. Step env
-                next_obs, reward, terminated, truncated, _info = self.env.step(action_dict)
+                next_obs, reward, terminated, truncated, _info = self.env.step(
+                    action_dict
+                )
                 done = terminated or truncated
-                
+
                 # 4. Store
                 local_buffer.store(
-                    obs, actions, float(reward), done, res["log_prob"], res["value"], res["image_embed"]
+                    obs,
+                    actions,
+                    float(reward),
+                    done,
+                    res["log_prob"],
+                    res["value"],
+                    res["image_embed"],
                 )
                 ep_ret += float(reward)
                 ep_len += 1
-                
-                # 5. End of rollout or episode
-                if local_buffer.is_full() or done:
+
+                # 5. End of rollout
+                if local_buffer.is_full():
                     # Bootstrap value
                     if not done:
-                        final_res = self.inference_server.get_action(next_obs)
+                        final_res = self.inference_server.get_action(
+                            self.worker_id, next_obs, is_first=False
+                        )
                         final_value = float(final_res["value"])
                     else:
                         final_value = 0.0
-                        
+
                     # Calculate GAE
                     advantages, returns = compute_gae_numpy(
-                        local_buffer.rewards[:local_buffer.step],
-                        local_buffer.values[:local_buffer.step],
-                        local_buffer.dones[:local_buffer.step],
+                        local_buffer.rewards[: local_buffer.step],
+                        local_buffer.values[: local_buffer.step],
+                        local_buffer.dones[: local_buffer.step],
                         final_value,
                         self.gamma,
-                        self.gae_lambda
+                        self.gae_lambda,
                     )
-                    
+
                     # Pack actions into structure
                     n = local_buffer.step
                     packed_actions = {
-                        k: np.stack([a[k] for a in local_buffer.actions]) 
+                        k: np.stack([a[k] for a in local_buffer.actions])
                         for k in local_buffer.actions[0].keys()
                     }
-                    
+
                     trajectory = {
                         "image_embeds": np.stack(local_buffer.image_embeds[:n]),
                         "positions": np.stack(local_buffer.positions[:n]),
@@ -167,20 +188,23 @@ class AsyncRolloutWorker:
                         "dones": np.array(local_buffer.dones[:n]),
                         "advantages": advantages,
                         "returns": returns,
-                        "ep_ret": ep_ret if done else None,
-                        "ep_len": ep_len if done else None,
+                        "completed_returns": list(local_buffer.completed_returns),
+                        "completed_lengths": list(local_buffer.completed_lengths),
                     }
-                    
+
                     self.trajectory_queue.put(trajectory)
                     local_buffer.clear()
-                    
+
                 if done:
+                    local_buffer.completed_returns.append(ep_ret)
+                    local_buffer.completed_lengths.append(ep_len)
                     obs, _ = self.env.reset()
                     ep_ret = 0.0
                     ep_len = 0
+                    is_first = True
                 else:
                     obs = next_obs
-                    
+
             except Exception as e:
                 print(f"[Worker {self.worker_id}] Error: {e.__class__.__name__}: {e}")
                 print(f"[Worker {self.worker_id}] Restarting environment...")
@@ -189,8 +213,9 @@ class AsyncRolloutWorker:
                     obs, _ = self.env.reset()
                 except Exception as restart_err:
                     print(f"[Worker {self.worker_id}] Restart failed: {restart_err}")
-                    time.sleep(5) # Prevent tight crash loop
-                    
+                    time.sleep(5)  # Prevent tight crash loop
+
                 local_buffer.clear()
                 ep_ret = 0.0
                 ep_len = 0
+                is_first = True

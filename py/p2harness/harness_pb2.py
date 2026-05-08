@@ -4,59 +4,56 @@
 # source: harness.proto
 # Protobuf Python Version: 7.34.1
 """Generated protocol buffer code."""
+
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import descriptor_pool as _descriptor_pool
 from google.protobuf import runtime_version as _runtime_version
 from google.protobuf import symbol_database as _symbol_database
 from google.protobuf.internal import builder as _builder
+
 _runtime_version.ValidateProtobufRuntimeVersion(
-    _runtime_version.Domain.PUBLIC,
-    7,
-    34,
-    1,
-    '',
-    'harness.proto'
+    _runtime_version.Domain.PUBLIC, 7, 34, 1, "", "harness.proto"
 )
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
 
 
-
-
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rharness.proto\x12\x0fportal2_harness\"*\n\x07Vector3\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02\"Z\n\x0c\x41gentMessage\x12.\n\x06\x61\x63tion\x18\x01 \x01(\x0b\x32\x1e.portal2_harness.ActionRequest\x12\x1a\n\x12\x63opy_pixels_to_shm\x18\x02 \x01(\x08\"g\n\x12\x45nvironmentMessage\x12)\n\x05state\x18\x01 \x01(\x0b\x32\x1a.portal2_harness.GameState\x12\x0f\n\x07success\x18\x02 \x01(\x08\x12\x15\n\rerror_message\x18\x03 \x01(\t\"\xc8\x01\n\tGameState\x12*\n\x08position\x18\x01 \x01(\x0b\x32\x18.portal2_harness.Vector3\x12*\n\x08velocity\x18\x02 \x01(\x0b\x32\x18.portal2_harness.Vector3\x12(\n\x06\x63\x61mera\x18\x03 \x01(\x0b\x32\x18.portal2_harness.Vector3\x12\x0e\n\x06health\x18\x04 \x01(\x05\x12\x14\n\x0cis_crouching\x18\x05 \x01(\x08\x12\x13\n\x0bserver_tick\x18\x06 \x01(\x05\"\xa8\x02\n\rActionRequest\x12\x11\n\tnum_ticks\x18\x01 \x01(\x05\x12\x13\n\x0bkey_forward\x18\x02 \x01(\x08\x12\x10\n\x08key_left\x18\x03 \x01(\x08\x12\x14\n\x0ckey_backward\x18\x04 \x01(\x08\x12\x11\n\tkey_right\x18\x05 \x01(\x08\x12\x0f\n\x07key_use\x18\x06 \x01(\x08\x12\x12\n\nkey_zoomin\x18\x07 \x01(\x08\x12\x13\n\x0bkey_zoomout\x18\x08 \x01(\x08\x12\x12\n\nkey_crouch\x18\t \x01(\x08\x12\x16\n\x0eportal_primary\x18\n \x01(\x08\x12\x18\n\x10portal_secondary\x18\x0b \x01(\x08\x12\x10\n\x08key_jump\x18\x0c \x01(\x08\x12\x10\n\x08mouse_dx\x18\r \x01(\x02\x12\x10\n\x08mouse_dy\x18\x0e \x01(\x02\"8\n\x0e\x41\x63tionResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rerror_message\x18\x02 \x01(\t\"!\n\x0e\x43ommandRequest\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\"9\n\x0f\x43ommandResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rerror_message\x18\x02 \x01(\t\" \n\x0cResetRequest\x12\x10\n\x08map_name\x18\x01 \x01(\t\"j\n\rResetResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rerror_message\x18\x02 \x01(\t\x12\x31\n\rinitial_state\x18\x03 \x01(\x0b\x32\x1a.portal2_harness.GameState\"=\n\x10HandshakeRequest\x12\x16\n\x0e\x63lient_version\x18\x01 \x01(\t\x12\x11\n\tclient_id\x18\x02 \x01(\t\"\x86\x01\n\x11HandshakeResponse\x12\x14\n\x0cgame_version\x18\x01 \x01(\t\x12\x10\n\x08map_name\x18\x02 \x01(\t\x12\x11\n\tshm_width\x18\x03 \x01(\x05\x12\x12\n\nshm_height\x18\x04 \x01(\x05\x12\x10\n\x08shm_size\x18\x05 \x01(\x05\x12\x10\n\x08shm_name\x18\x06 \x01(\t\"\x07\n\x05\x45mpty2\xe4\x03\n\x0ePortal2Harness\x12Y\n\x10InitialHandshake\x12!.portal2_harness.HandshakeRequest\x1a\".portal2_harness.HandshakeResponse\x12=\n\x07Observe\x12\x16.portal2_harness.Empty\x1a\x1a.portal2_harness.GameState\x12\x46\n\x03\x41\x63t\x12\x1e.portal2_harness.ActionRequest\x1a\x1f.portal2_harness.ActionResponse\x12S\n\x0e\x45xecuteCommand\x12\x1f.portal2_harness.CommandRequest\x1a .portal2_harness.CommandResponse\x12\x46\n\x05Reset\x12\x1d.portal2_harness.ResetRequest\x1a\x1e.portal2_harness.ResetResponse\x12S\n\tAgentLoop\x12\x1d.portal2_harness.AgentMessage\x1a#.portal2_harness.EnvironmentMessage(\x01\x30\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
+    b'\n\rharness.proto\x12\x0fportal2_harness"*\n\x07Vector3\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02"Z\n\x0c\x41gentMessage\x12.\n\x06\x61\x63tion\x18\x01 \x01(\x0b\x32\x1e.portal2_harness.ActionRequest\x12\x1a\n\x12\x63opy_pixels_to_shm\x18\x02 \x01(\x08"g\n\x12\x45nvironmentMessage\x12)\n\x05state\x18\x01 \x01(\x0b\x32\x1a.portal2_harness.GameState\x12\x0f\n\x07success\x18\x02 \x01(\x08\x12\x15\n\rerror_message\x18\x03 \x01(\t"\xc8\x01\n\tGameState\x12*\n\x08position\x18\x01 \x01(\x0b\x32\x18.portal2_harness.Vector3\x12*\n\x08velocity\x18\x02 \x01(\x0b\x32\x18.portal2_harness.Vector3\x12(\n\x06\x63\x61mera\x18\x03 \x01(\x0b\x32\x18.portal2_harness.Vector3\x12\x0e\n\x06health\x18\x04 \x01(\x05\x12\x14\n\x0cis_crouching\x18\x05 \x01(\x08\x12\x13\n\x0bserver_tick\x18\x06 \x01(\x05"\xa8\x02\n\rActionRequest\x12\x11\n\tnum_ticks\x18\x01 \x01(\x05\x12\x13\n\x0bkey_forward\x18\x02 \x01(\x08\x12\x10\n\x08key_left\x18\x03 \x01(\x08\x12\x14\n\x0ckey_backward\x18\x04 \x01(\x08\x12\x11\n\tkey_right\x18\x05 \x01(\x08\x12\x0f\n\x07key_use\x18\x06 \x01(\x08\x12\x12\n\nkey_zoomin\x18\x07 \x01(\x08\x12\x13\n\x0bkey_zoomout\x18\x08 \x01(\x08\x12\x12\n\nkey_crouch\x18\t \x01(\x08\x12\x16\n\x0eportal_primary\x18\n \x01(\x08\x12\x18\n\x10portal_secondary\x18\x0b \x01(\x08\x12\x10\n\x08key_jump\x18\x0c \x01(\x08\x12\x10\n\x08mouse_dx\x18\r \x01(\x02\x12\x10\n\x08mouse_dy\x18\x0e \x01(\x02"8\n\x0e\x41\x63tionResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rerror_message\x18\x02 \x01(\t"!\n\x0e\x43ommandRequest\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t"9\n\x0f\x43ommandResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rerror_message\x18\x02 \x01(\t" \n\x0cResetRequest\x12\x10\n\x08map_name\x18\x01 \x01(\t"j\n\rResetResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rerror_message\x18\x02 \x01(\t\x12\x31\n\rinitial_state\x18\x03 \x01(\x0b\x32\x1a.portal2_harness.GameState"=\n\x10HandshakeRequest\x12\x16\n\x0e\x63lient_version\x18\x01 \x01(\t\x12\x11\n\tclient_id\x18\x02 \x01(\t"\x86\x01\n\x11HandshakeResponse\x12\x14\n\x0cgame_version\x18\x01 \x01(\t\x12\x10\n\x08map_name\x18\x02 \x01(\t\x12\x11\n\tshm_width\x18\x03 \x01(\x05\x12\x12\n\nshm_height\x18\x04 \x01(\x05\x12\x10\n\x08shm_size\x18\x05 \x01(\x05\x12\x10\n\x08shm_name\x18\x06 \x01(\t"\x07\n\x05\x45mpty2\xe4\x03\n\x0ePortal2Harness\x12Y\n\x10InitialHandshake\x12!.portal2_harness.HandshakeRequest\x1a".portal2_harness.HandshakeResponse\x12=\n\x07Observe\x12\x16.portal2_harness.Empty\x1a\x1a.portal2_harness.GameState\x12\x46\n\x03\x41\x63t\x12\x1e.portal2_harness.ActionRequest\x1a\x1f.portal2_harness.ActionResponse\x12S\n\x0e\x45xecuteCommand\x12\x1f.portal2_harness.CommandRequest\x1a .portal2_harness.CommandResponse\x12\x46\n\x05Reset\x12\x1d.portal2_harness.ResetRequest\x1a\x1e.portal2_harness.ResetResponse\x12S\n\tAgentLoop\x12\x1d.portal2_harness.AgentMessage\x1a#.portal2_harness.EnvironmentMessage(\x01\x30\x01\x62\x06proto3'
+)
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
-_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'harness_pb2', _globals)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, "harness_pb2", _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
-  DESCRIPTOR._loaded_options = None
-  _globals['_VECTOR3']._serialized_start=34
-  _globals['_VECTOR3']._serialized_end=76
-  _globals['_AGENTMESSAGE']._serialized_start=78
-  _globals['_AGENTMESSAGE']._serialized_end=168
-  _globals['_ENVIRONMENTMESSAGE']._serialized_start=170
-  _globals['_ENVIRONMENTMESSAGE']._serialized_end=273
-  _globals['_GAMESTATE']._serialized_start=276
-  _globals['_GAMESTATE']._serialized_end=476
-  _globals['_ACTIONREQUEST']._serialized_start=479
-  _globals['_ACTIONREQUEST']._serialized_end=775
-  _globals['_ACTIONRESPONSE']._serialized_start=777
-  _globals['_ACTIONRESPONSE']._serialized_end=833
-  _globals['_COMMANDREQUEST']._serialized_start=835
-  _globals['_COMMANDREQUEST']._serialized_end=868
-  _globals['_COMMANDRESPONSE']._serialized_start=870
-  _globals['_COMMANDRESPONSE']._serialized_end=927
-  _globals['_RESETREQUEST']._serialized_start=929
-  _globals['_RESETREQUEST']._serialized_end=961
-  _globals['_RESETRESPONSE']._serialized_start=963
-  _globals['_RESETRESPONSE']._serialized_end=1069
-  _globals['_HANDSHAKEREQUEST']._serialized_start=1071
-  _globals['_HANDSHAKEREQUEST']._serialized_end=1132
-  _globals['_HANDSHAKERESPONSE']._serialized_start=1135
-  _globals['_HANDSHAKERESPONSE']._serialized_end=1269
-  _globals['_EMPTY']._serialized_start=1271
-  _globals['_EMPTY']._serialized_end=1278
-  _globals['_PORTAL2HARNESS']._serialized_start=1281
-  _globals['_PORTAL2HARNESS']._serialized_end=1765
+    DESCRIPTOR._loaded_options = None
+    _globals["_VECTOR3"]._serialized_start = 34
+    _globals["_VECTOR3"]._serialized_end = 76
+    _globals["_AGENTMESSAGE"]._serialized_start = 78
+    _globals["_AGENTMESSAGE"]._serialized_end = 168
+    _globals["_ENVIRONMENTMESSAGE"]._serialized_start = 170
+    _globals["_ENVIRONMENTMESSAGE"]._serialized_end = 273
+    _globals["_GAMESTATE"]._serialized_start = 276
+    _globals["_GAMESTATE"]._serialized_end = 476
+    _globals["_ACTIONREQUEST"]._serialized_start = 479
+    _globals["_ACTIONREQUEST"]._serialized_end = 775
+    _globals["_ACTIONRESPONSE"]._serialized_start = 777
+    _globals["_ACTIONRESPONSE"]._serialized_end = 833
+    _globals["_COMMANDREQUEST"]._serialized_start = 835
+    _globals["_COMMANDREQUEST"]._serialized_end = 868
+    _globals["_COMMANDRESPONSE"]._serialized_start = 870
+    _globals["_COMMANDRESPONSE"]._serialized_end = 927
+    _globals["_RESETREQUEST"]._serialized_start = 929
+    _globals["_RESETREQUEST"]._serialized_end = 961
+    _globals["_RESETRESPONSE"]._serialized_start = 963
+    _globals["_RESETRESPONSE"]._serialized_end = 1069
+    _globals["_HANDSHAKEREQUEST"]._serialized_start = 1071
+    _globals["_HANDSHAKEREQUEST"]._serialized_end = 1132
+    _globals["_HANDSHAKERESPONSE"]._serialized_start = 1135
+    _globals["_HANDSHAKERESPONSE"]._serialized_end = 1269
+    _globals["_EMPTY"]._serialized_start = 1271
+    _globals["_EMPTY"]._serialized_end = 1278
+    _globals["_PORTAL2HARNESS"]._serialized_start = 1281
+    _globals["_PORTAL2HARNESS"]._serialized_end = 1765
 # @@protoc_insertion_point(module_scope)

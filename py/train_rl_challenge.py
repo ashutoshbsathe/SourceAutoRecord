@@ -11,6 +11,7 @@ Usage:
 See `python py/train_rl_challenge.py --help` for all flags.
 """
 
+import coolname
 import os
 import random
 import signal
@@ -40,7 +41,6 @@ from rl.checkpoint import CheckpointManager, TBLogger
 from rl.inference_server import InferenceServer
 from rl.async_worker import AsyncRolloutWorker
 import queue
-
 
 # ─────────────────────── Instance management ─────────────────────────────── #
 
@@ -107,15 +107,12 @@ def main():
         run_dir = os.path.abspath(config.resume)
         print(f"[Main] Resuming run in directory: {run_dir}")
     else:
-        adjectives = ["bold", "fast", "cool", "epic", "neat", "keen", "wild", "sage", "loud", "calm", "dark", "nova", "swift", "hyper"]
-        nouns = ["lion", "hawk", "bear", "wolf", "frog", "toad", "deer", "crow", "crab", "duck", "star", "moon", "sun", "wind", "fire"]
-        run_name = f"{random.choice(adjectives)}_{random.choice(nouns)}_{time.strftime('%Y%m%d_%H%M%S')}"
+        run_name = f"{coolname.generate_slug(2)}_{time.strftime('%Y%m%d_%H%M%S')}"
         run_dir = os.path.abspath(os.path.join(config.log_dir, run_name))
         os.makedirs(run_dir, exist_ok=True)
         print(f"[Main] New run directory: {run_dir}")
 
     config.log_dir = run_dir
-    config.checkpoint_dir = run_dir
 
     print(f"[Main] Config:\n{config}\n")
 
@@ -139,7 +136,7 @@ def main():
 
     # ── Logging & checkpointing ──
     logger = TBLogger(config.log_dir)
-    ckpt_mgr = CheckpointManager(config.checkpoint_dir)
+    ckpt_mgr = CheckpointManager(config.log_dir)
 
     try:
         # ── Load frozen ViT ──
@@ -196,10 +193,13 @@ def main():
         # ── Start Async Workers ──
         print("[Main] Starting InferenceServer and Async Workers...")
         inference_server = InferenceServer(
-            compute_action_fn, vision_encoder, max_batch_size=config.num_envs
+            compute_action_fn,
+            vision_encoder,
+            max_batch_size=config.num_envs,
+            max_seq_len=config.max_seq_len,
         )
-        inference_server.start(params, rng)
-        
+        inference_server.start(params, rng, embed_dim=embed_dim)
+
         trajectory_queue = queue.Queue()
         workers = []
         for i, env in enumerate(envs):
@@ -234,27 +234,38 @@ def main():
                 trajectories.append(traj)
             dt_rollout = time.time() - t_rollout
 
-            # ── 2. Flatten and concatenate ──
-            buffer_flat = {
-                "image_embeds": jnp.array(np.concatenate([t["image_embeds"] for t in trajectories])),
-                "positions": jnp.array(np.concatenate([t["positions"] for t in trajectories])),
+            # ── 2. Stack trajectories to preserve (num_envs, num_steps, ...) ──
+            buffer_seq = {
+                "image_embeds": jnp.array(
+                    np.stack([t["image_embeds"] for t in trajectories])
+                ),
+                "positions": jnp.array(
+                    np.stack([t["positions"] for t in trajectories])
+                ),
                 "actions": {
-                    k: jnp.array(np.concatenate([t["actions"][k] for t in trajectories]))
+                    k: jnp.array(np.stack([t["actions"][k] for t in trajectories]))
                     for k in trajectories[0]["actions"].keys()
                 },
-                "log_probs": jnp.array(np.concatenate([t["log_probs"] for t in trajectories])),
-                "values": jnp.array(np.concatenate([t["values"] for t in trajectories])),
+                "log_probs": jnp.array(
+                    np.stack([t["log_probs"] for t in trajectories])
+                ),
+                "values": jnp.array(np.stack([t["values"] for t in trajectories])),
             }
-            flat_advantages = jnp.array(np.concatenate([t["advantages"] for t in trajectories]))
-            flat_returns = jnp.array(np.concatenate([t["returns"] for t in trajectories]))
-            
+            seq_advantages = jnp.array(
+                np.stack([t["advantages"] for t in trajectories])
+            )
+            seq_returns = jnp.array(np.stack([t["returns"] for t in trajectories]))
+
             # Combine rewards and dones for episode stats logging
             flat_rewards = np.concatenate([t["rewards"] for t in trajectories])
             flat_dones = np.concatenate([t["dones"] for t in trajectories])
-            
-            completed_returns = [t["ep_ret"] for t in trajectories if t["ep_ret"] is not None]
-            completed_lengths = [t["ep_len"] for t in trajectories if t["ep_len"] is not None]
-            
+
+            completed_returns = []
+            completed_lengths = []
+            for t in trajectories:
+                completed_returns.extend(t["completed_returns"])
+                completed_lengths.extend(t["completed_lengths"])
+
             # ── 3. PPO update (updating model params) ──
             t_ppo = time.time()
 
@@ -263,18 +274,19 @@ def main():
                 ppo_step_fn,
                 params,
                 opt_state,
-                buffer_flat,
-                flat_advantages,
-                flat_returns,
+                buffer_seq,
+                seq_advantages,
+                seq_returns,
                 config.num_epochs,
                 config.num_minibatches,
+                config.max_seq_len,
                 update_rng,
             )
-            
+
             # Send latest params to InferenceServer
             rng, server_rng = jax.random.split(rng)
             inference_server.update_params(params, server_rng)
-            
+
             dt_ppo = time.time() - t_ppo
 
             # ── 4. Logging ──
@@ -317,20 +329,24 @@ def main():
             if (update + 1) % config.checkpoint_freq == 0:
                 t_ckpt = time.time()
                 ckpt_mgr.save(update, params, opt_state)
-                print(f"[Checkpoint] Saved at update {update} ({time.time() - t_ckpt:.1f}s)")
+                print(
+                    f"[Checkpoint] Saved at update {update} ({time.time() - t_ckpt:.1f}s)"
+                )
 
         # ── Final checkpoint ──
         ckpt_mgr.save(config.num_updates - 1, params, opt_state)
 
         elapsed = time.time() - t_start
-        print(f"\n[Main] Training complete. {config.num_updates} updates in {elapsed:.1f}s")
+        print(
+            f"\n[Main] Training complete. {config.num_updates} updates in {elapsed:.1f}s"
+        )
 
     finally:
         # Always clean up game instances, even on crash
         try:
-            if 'inference_server' in locals():
+            if "inference_server" in locals():
                 inference_server.stop()
-            if 'workers' in locals():
+            if "workers" in locals():
                 for w in workers:
                     w.stop()
         except:

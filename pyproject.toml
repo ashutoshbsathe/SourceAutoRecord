@@ -35,4 +35,5 @@ dependencies = [
     "optax>=0.2.4",
     "msgpack>=1.0.0",
     "tensorboardX>=2.6.0",
+    "coolname>=5.0.0",
 ]

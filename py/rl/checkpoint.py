@@ -15,8 +15,8 @@ import numpy as np
 from flax import serialization
 from tensorboardX import SummaryWriter
 
-
 # ──────────────────────── Checkpointing ──────────────────────────────────── #
+
 
 class CheckpointManager:
     """Save and restore trainable params + optimizer state.
@@ -47,7 +47,7 @@ class CheckpointManager:
             try:
                 s = int(basename.split("_")[1].split(".")[0])
                 steps.append(s)
-            except (IndexError, ValueError):
+            except IndexError, ValueError:
                 continue
         return steps
 
@@ -110,6 +110,7 @@ class CheckpointManager:
 
 # ──────────────────────── TensorBoard Logger ─────────────────────────────── #
 
+
 class TBLogger:
     """Lightweight TensorBoard logger using tensorboardX."""
 
@@ -126,9 +127,7 @@ class TBLogger:
         """Log a PPOMetrics named-tuple."""
         for field_name in metrics._fields:
             val = getattr(metrics, field_name)
-            self.writer.add_scalar(
-                f"ppo/{field_name}", float(val), step
-            )
+            self.writer.add_scalar(f"ppo/{field_name}", float(val), step)
 
     def log_episode_stats(
         self,
@@ -138,21 +137,11 @@ class TBLogger:
     ):
         """Log completed episode statistics."""
         if returns:
-            self.writer.add_scalar(
-                "episode/mean_return", float(np.mean(returns)), step
-            )
-            self.writer.add_scalar(
-                "episode/max_return", float(np.max(returns)), step
-            )
-            self.writer.add_scalar(
-                "episode/min_return", float(np.min(returns)), step
-            )
-            self.writer.add_scalar(
-                "episode/mean_length", float(np.mean(lengths)), step
-            )
-            self.writer.add_scalar(
-                "episode/num_completed", len(returns), step
-            )
+            self.writer.add_scalar("episode/mean_return", float(np.mean(returns)), step)
+            self.writer.add_scalar("episode/max_return", float(np.max(returns)), step)
+            self.writer.add_scalar("episode/min_return", float(np.min(returns)), step)
+            self.writer.add_scalar("episode/mean_length", float(np.mean(lengths)), step)
+            self.writer.add_scalar("episode/num_completed", len(returns), step)
 
     def log_learning_rate(self, lr: float, step: int):
         self.writer.add_scalar("train/learning_rate", lr, step)

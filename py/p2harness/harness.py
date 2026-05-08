@@ -46,7 +46,9 @@ class P2Harness:
                 if self.shm is not None:
                     self.shm.close()
                 # Server tells us the SHM name; fall back to legacy name for old builds
-                shm_name = resp.shm_name if resp.shm_name else "portal2_harness_framebuffer"
+                shm_name = (
+                    resp.shm_name if resp.shm_name else "portal2_harness_framebuffer"
+                )
                 self.shm = shared_memory.SharedMemory(name=shm_name)
                 # Unregister so the python resource tracker doesn't complain about leaks
                 # TODO(absathe): kinda suspect, wonder if this should be done during cleanup

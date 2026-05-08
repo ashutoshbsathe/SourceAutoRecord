@@ -27,6 +27,9 @@ python "$SCRIPT_DIR/train_rl_challenge.py" \
     --num-envs 8 \
     --num-ticks-per-step 8 \
     --num-steps 128 \
+    --max-seq-len 64 \
+    --transformer-blocks 1 \
+    --transformer-heads 4 \
     --num-updates 10000 \
     --num-epochs 4 \
     --num-minibatches 4 \
@@ -39,7 +42,6 @@ python "$SCRIPT_DIR/train_rl_challenge.py" \
     --max-grad-norm 0.5 \
     --anneal-lr \
     --seed 42 \
-    --checkpoint-dir checkpoints/ \
     --checkpoint-freq 50 \
     --log-dir runs/ \
     "$@"

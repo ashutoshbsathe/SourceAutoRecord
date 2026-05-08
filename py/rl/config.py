@@ -39,6 +39,11 @@ class PPOConfig:
     trunk_hidden: int = 512
     trunk_out: int = 256
 
+    # --- Transformer / POMDP ---
+    max_seq_len: int = 128
+    transformer_blocks: int = 1
+    transformer_heads: int = 8
+
     # --- Infrastructure ---
     seed: int = 42
     checkpoint_dir: str = "checkpoints/"
@@ -83,13 +88,22 @@ def parse_args() -> PPOConfig:
     p.add_argument("--no-anneal-lr", dest="anneal_lr", action="store_false")
 
     # Model
-    p.add_argument("--vit-checkpoint", type=str, default="", help="Path to ViT .npz (empty=auto-download)")
+    p.add_argument(
+        "--vit-checkpoint",
+        type=str,
+        default="",
+        help="Path to ViT .npz (empty=auto-download)",
+    )
     p.add_argument("--trunk-hidden", type=int, default=512)
     p.add_argument("--trunk-out", type=int, default=256)
 
+    # Transformer / POMDP
+    p.add_argument("--max-seq-len", type=int, default=128)
+    p.add_argument("--transformer-blocks", type=int, default=1)
+    p.add_argument("--transformer-heads", type=int, default=8)
+
     # Infrastructure
     p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--checkpoint-dir", type=str, default="checkpoints/")
     p.add_argument("--checkpoint-freq", type=int, default=50)
     p.add_argument("--log-dir", type=str, default="runs/")
     p.add_argument("--resume", type=str, default="")
@@ -120,8 +134,10 @@ def parse_args() -> PPOConfig:
         vit_checkpoint=args.vit_checkpoint,
         trunk_hidden=args.trunk_hidden,
         trunk_out=args.trunk_out,
+        max_seq_len=args.max_seq_len,
+        transformer_blocks=args.transformer_blocks,
+        transformer_heads=args.transformer_heads,
         seed=args.seed,
-        checkpoint_dir=args.checkpoint_dir,
         checkpoint_freq=args.checkpoint_freq,
         log_dir=args.log_dir,
         resume=args.resume,
