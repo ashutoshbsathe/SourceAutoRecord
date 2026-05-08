@@ -3,6 +3,7 @@ from gymnasium import spaces
 import numpy as np
 import cv2
 import time
+import collections
 
 from game_launcher import (
     GameInstance,
@@ -33,7 +34,10 @@ class Portal2Env(gym.Env):
         target_pos: tuple = (0.0, 0.0, 0.0),
         render_mode: str = None,
         num_ticks_per_step: int = 1,
-        max_steps: int = 300,
+        max_steps: int = 256,
+        progress_threshold: float = 50.0,
+        progress_k: int = 8,
+        camera_penalty_scale: float = 1e-1,
     ):
         super().__init__()
         self.instance = instance
@@ -42,9 +46,15 @@ class Portal2Env(gym.Env):
         self.render_mode = render_mode
         self.num_ticks = num_ticks_per_step
         self.max_steps = max_steps
+        self.progress_threshold = progress_threshold
+        self.progress_k = progress_k
+        self.camera_penalty_scale = camera_penalty_scale
+
         self.episode_steps = 0
         self.global_steps = 0
         self.prev_dist = 0.0
+        self.dist_history = collections.deque(maxlen=self.progress_k)
+        self.button_history = collections.deque(maxlen=self.progress_k)
 
         address = f"localhost:{50000 + self.instance.instance_id}"
         self.harness = P2Harness(address)
@@ -103,10 +113,10 @@ class Portal2Env(gym.Env):
                     shape=(IMAGE_SIZE, IMAGE_SIZE, 3),
                     dtype=np.float32,
                 ),
-                "position": spaces.Box(
+                "kinematics": spaces.Box(
                     low=-10000.0,
                     high=10000.0,
-                    shape=(3,),
+                    shape=(6,),
                     dtype=np.float32,
                 ),
             }
@@ -117,12 +127,20 @@ class Portal2Env(gym.Env):
         pixels = self.harness.get_shm_pixels()
         resized = cv2.resize(pixels, (IMAGE_SIZE, IMAGE_SIZE))
         state = env_msg.state
-        pos = np.array(
-            [state.position.x, state.position.y, state.position.z], dtype=np.float32
+        kinematics = np.array(
+            [
+                state.position.x,
+                state.position.y,
+                state.position.z,
+                state.camera.x,
+                state.camera.y,
+                state.camera.z,
+            ],
+            dtype=np.float32,
         )
         return {
             "image": resized.astype(np.float32) / 255.0,
-            "position": pos * np.array([1.0, 1.0, 0.1], dtype=np.float32),
+            "kinematics": kinematics,
         }
 
     def _check_terminated(self, dist: float) -> bool:
@@ -167,6 +185,8 @@ class Portal2Env(gym.Env):
             self.restart_instance()
         self.episode_steps = 0
         self.prev_dist = 0.0
+        self.dist_history.clear()
+        self.button_history.clear()
 
         print(
             f"[Portal2Env/{self.instance.instance_id}] Resetting to map: {self.map_name}"
@@ -203,8 +223,8 @@ class Portal2Env(gym.Env):
             portal_primary=bool(action["portal"] == 1),
             portal_secondary=bool(action["portal"] == 2),
             key_jump=bool(action["buttons"][1] == 1),
-            mouse_dx=float(action["mouse"][0]),
-            mouse_dy=float(action["mouse"][1]),
+            mouse_dx=float(action["mouse"][0]) / 10, # desperate times, desperate measures
+            mouse_dy=float(action["mouse"][1]) / 10,
         )
         agent_msg = harness_pb2.AgentMessage(action=action_req, copy_pixels_to_shm=True)
 
@@ -222,16 +242,51 @@ class Portal2Env(gym.Env):
         terminated = self._check_terminated(dist)
         truncated = bool(self.episode_steps >= self.max_steps)
 
+        self.dist_history.append(dist)
+        button_state = (
+            int(action["portal"]),
+            int(action["zoom"]),
+            int(action["buttons"][0]),
+        )
+        self.button_history.append(button_state)
+
         dist_improvement = self.prev_dist - dist
         reward = dist_improvement if dist_improvement != 0 else -100.0
         reward += 10000.0 if terminated else 0.0
         reward -= 1.0  # per-step penalty
+
+        # Camera angle penalty
+        camera_penalty = self.camera_penalty_scale * (state.camera.x**2 + state.camera.z**2)
+        reward -= camera_penalty
+
+        # Long term progress penalty/reward
+        if len(self.dist_history) == self.progress_k:
+            progress = self.dist_history[0] - dist
+            penalty = progress - self.progress_threshold
+            penalty = penalty - self.progress_threshold if abs(penalty) < self.progress_threshold else penalty * 2
+        else:
+            penalty = 0
+        reward += penalty
+
+        # Button spam penalty
+        if len(self.button_history) == self.progress_k:
+            hist = list(self.button_history)
+            for i in range(3):
+                states = [h[i] for h in hist]
+                transitions = sum(
+                    1 for j in range(1, len(states)) if states[j] != states[j - 1]
+                )
+                held_any_k = any(s != 0 for s in states)
+
+                if held_any_k or transitions >= (self.progress_k / 4.0):
+                    reward -= 5.0  # Flat penalty per spammy button
+
         self.prev_dist = dist
 
         if self.global_steps % 100 == 0:
             print(
                 f"[Portal2Env/{self.instance.instance_id}] reward={reward:.2f} dist={dist:.1f} "
-                f"ep={self.episode_steps}/{self.max_steps} global={self.global_steps}"
+                f"cam={camera_penalty} ep={self.episode_steps}/{self.max_steps} global={self.global_steps}"
             )
 
         return obs, reward, terminated, truncated, {}

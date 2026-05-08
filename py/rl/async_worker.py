@@ -39,7 +39,7 @@ class LocalBuffer:
         self.step = 0
         self.images = []
         self.image_embeds = []
-        self.positions = []
+        self.kinematics = []
         self.actions = []
         self.rewards = np.zeros(num_steps, dtype=np.float32)
         self.dones = np.zeros(num_steps, dtype=np.float32)
@@ -51,7 +51,7 @@ class LocalBuffer:
     def store(self, obs, action, reward, done, log_prob, value, image_embed):
         self.images.append(obs["image"])
         self.image_embeds.append(image_embed)
-        self.positions.append(obs["position"])
+        self.kinematics.append(obs["kinematics"])
         self.actions.append(action)
         self.rewards[self.step] = reward
         self.dones[self.step] = float(done)
@@ -66,7 +66,7 @@ class LocalBuffer:
         self.step = 0
         self.images.clear()
         self.image_embeds.clear()
-        self.positions.clear()
+        self.kinematics.clear()
         self.actions.clear()
         self.rewards.fill(0)
         self.dones.fill(0)
@@ -180,7 +180,7 @@ class AsyncRolloutWorker:
 
                     trajectory = {
                         "image_embeds": np.stack(local_buffer.image_embeds[:n]),
-                        "positions": np.stack(local_buffer.positions[:n]),
+                        "kinematics": np.stack(local_buffer.kinematics[:n]),
                         "actions": packed_actions,
                         "log_probs": np.array(local_buffer.log_probs[:n]),
                         "values": np.array(local_buffer.values[:n]),

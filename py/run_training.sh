@@ -24,12 +24,12 @@ export XLA_PYTHON_CLIENT_MEM_FRACTION=0.30
 python "$SCRIPT_DIR/train_rl_challenge.py" \
     --map-name "workshop/1858300862251329775/1644417521" \
     --target-pos "951.94,1137.39,449.03" \
-    --num-envs 8 \
+    --num-envs 9 \
     --num-ticks-per-step 8 \
     --num-steps 128 \
-    --max-seq-len 64 \
-    --transformer-blocks 1 \
-    --transformer-heads 4 \
+    --max-seq-len 128 \
+    --transformer-blocks 2 \
+    --transformer-heads 8 \
     --num-updates 10000 \
     --num-epochs 4 \
     --num-minibatches 4 \
@@ -41,7 +41,7 @@ python "$SCRIPT_DIR/train_rl_challenge.py" \
     --ent-coef 0.01 \
     --max-grad-norm 0.5 \
     --anneal-lr \
-    --seed 42 \
+    --seed 1618 \
     --checkpoint-freq 50 \
     --log-dir runs/ \
     "$@"

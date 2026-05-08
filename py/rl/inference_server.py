@@ -30,7 +30,7 @@ class InferenceServer:
 
         # Persistent Cache (KV-cache equivalent for observation sequences)
         self.cache_images = None
-        self.cache_positions = None
+        self.cache_kinematics = None
         self.cache_lens = None
 
         # Updated atomically by the Learner thread
@@ -46,8 +46,8 @@ class InferenceServer:
         self.cache_images = np.zeros(
             (self.max_batch_size, self.max_seq_len, embed_dim), dtype=np.float32
         )
-        self.cache_positions = np.zeros(
-            (self.max_batch_size, self.max_seq_len, 3), dtype=np.float32
+        self.cache_kinematics = np.zeros(
+            (self.max_batch_size, self.max_seq_len, 6), dtype=np.float32
         )
         self.cache_lens = np.zeros(self.max_batch_size, dtype=np.int32)
         self.server_thread.start()
@@ -79,7 +79,7 @@ class InferenceServer:
             # Create dummy observations for padding
             # We assume the first request gives us the shape/dtype
             dummy_image = None
-            dummy_pos = None
+            dummy_kinematics = None
 
             while not self.stop_event.is_set():
                 try:
@@ -102,7 +102,7 @@ class InferenceServer:
                 if dummy_image is None:
                     first_obs = requests[0][1]
                     dummy_image = np.zeros_like(first_obs["image"])
-                    dummy_pos = np.zeros_like(first_obs["position"])
+                    dummy_kinematics = np.zeros_like(first_obs["kinematics"])
 
                 # We must batch images for the vision_encoder
                 images = []
@@ -122,12 +122,12 @@ class InferenceServer:
                         if is_first:
                             self.cache_lens[worker_id] = 0
                             self.cache_images[worker_id].fill(0)
-                            self.cache_positions[worker_id].fill(0)
+                            self.cache_kinematics[worker_id].fill(0)
 
                         curr_len = self.cache_lens[worker_id]
                         if curr_len < self.max_seq_len:
                             self.cache_images[worker_id, curr_len] = image_embeds[i]
-                            self.cache_positions[worker_id, curr_len] = obs["position"]
+                            self.cache_kinematics[worker_id, curr_len] = obs["kinematics"]
                             self.cache_lens[worker_id] += 1
                         else:
                             # Shift left (sliding window)
@@ -135,10 +135,10 @@ class InferenceServer:
                                 worker_id, 1:
                             ]
                             self.cache_images[worker_id, -1] = image_embeds[i]
-                            self.cache_positions[worker_id, :-1] = self.cache_positions[
+                            self.cache_kinematics[worker_id, :-1] = self.cache_kinematics[
                                 worker_id, 1:
                             ]
-                            self.cache_positions[worker_id, -1] = obs["position"]
+                            self.cache_kinematics[worker_id, -1] = obs["kinematics"]
 
                     # 3. Create JAX batch from persistent cache
                     # We always run the full batch of max_batch_size environments
@@ -148,7 +148,7 @@ class InferenceServer:
                     self.rng = rng
 
                     actions, log_probs, values = self.compute_action_fn(
-                        params, self.cache_images, self.cache_positions, step_rng
+                        params, self.cache_images, self.cache_kinematics, step_rng
                     )
 
                     # 4. Resolve futures

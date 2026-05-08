@@ -28,8 +28,7 @@ DEFAULT_GAME_ARGS = [
     "-windowed",
     "-low",
     "-nomousegrab",
-    "+engine_no_focus_sleep",
-    "0",
+    "+engine_no_focus_sleep 0",
 ]
 
 ENABLE_HARNESS_CMD = ["+sar_harness", "1"]

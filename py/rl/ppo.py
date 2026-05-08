@@ -104,13 +104,13 @@ def create_ppo_fns(
         """One PPO gradient step on a mini-batch.
 
         batch is a dict with keys:
-            image_embeds, positions, actions (dict), old_log_probs,
+            image_embeds, kinematics, actions (dict), old_log_probs,
             advantages, returns, old_values
         """
 
         def loss_fn(params):
             dist_params, values = model.apply(
-                params, batch["image_embeds"], batch["positions"]
+                params, batch["image_embeds"], batch["kinematics"]
             )
             values = values.squeeze(-1)
 
@@ -210,7 +210,7 @@ def ppo_update(
 
     chunked_buffer = {
         "image_embeds": _chunk(buffer_seq["image_embeds"]),
-        "positions": _chunk(buffer_seq["positions"]),
+        "kinematics": _chunk(buffer_seq["kinematics"]),
         "actions": {k: _chunk(v) for k, v in buffer_seq["actions"].items()},
         "log_probs": _chunk(buffer_seq["log_probs"]),
         "values": _chunk(buffer_seq["values"]),
@@ -237,7 +237,7 @@ def ppo_update(
 
             batch = {
                 "image_embeds": chunked_buffer["image_embeds"][mb_idx],
-                "positions": chunked_buffer["positions"][mb_idx],
+                "kinematics": chunked_buffer["kinematics"][mb_idx],
                 "actions": {k: v[mb_idx] for k, v in chunked_buffer["actions"].items()},
                 "old_log_probs": chunked_buffer["log_probs"][mb_idx],
                 "advantages": chunked_adv[mb_idx],

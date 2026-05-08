@@ -459,21 +459,21 @@ class ActorCritic(nn.Module):
     transformer_heads: int = 8
 
     @nn.compact
-    def __call__(self, image_embed, position):
+    def __call__(self, image_embed, kinematics):
         """
         Args:
             image_embed: (B, T, 768) or (B, 768)
-            position: (B, T, 3) or (B, 3)
+            kinematics: (B, T, 6) or (B, 6)
         """
         is_single = image_embed.ndim == 2
         if is_single:
             image_embed = image_embed[:, None, :]
-            position = position[:, None, :]
+            kinematics = kinematics[:, None, :]
 
         B, T, _ = image_embed.shape
 
         img = nn.LayerNorm(name="ln_image")(image_embed)
-        pos = nn.Dense(self.embed_dim, name="pos_proj")(position)
+        pos = nn.Dense(self.embed_dim, name="pos_proj")(kinematics)
         pos = nn.LayerNorm(name="ln_pos")(pos)
 
         fused = jnp.concatenate([img, pos], axis=-1)

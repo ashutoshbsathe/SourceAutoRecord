@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Portal 2 RL Challenge — PPO + ViT-B/16 Training Orchestrator.
 
@@ -58,12 +57,14 @@ def launch_instances(config: PPOConfig):
             debug=False,
         )
         inst.start()
-        time.sleep(DEFAULT_STAGGER_DELAY)
         instances.append(inst)
+        time.sleep(DEFAULT_STAGGER_DELAY / 5)
 
     # Wait for the last instance to boot
-    print(f"[Launcher] Waiting {DEFAULT_STAGGER_DELAY}s for instances to boot...")
-    time.sleep(DEFAULT_STAGGER_DELAY)
+    print(
+        f"[Launcher] Waiting {config.num_envs * DEFAULT_STAGGER_DELAY / 2}s for instances to boot..."
+    )
+    time.sleep(config.num_envs * DEFAULT_STAGGER_DELAY / 2)
 
     envs = [
         Portal2Env(
@@ -153,8 +154,8 @@ def main():
         )
         rng, init_rng = jax.random.split(rng)
         dummy_img = jnp.zeros((1, embed_dim))
-        dummy_pos = jnp.zeros((1, 3))
-        params = model.init(init_rng, dummy_img, dummy_pos)
+        dummy_kinematics = jnp.zeros((1, 6))
+        params = model.init(init_rng, dummy_img, dummy_kinematics)
         print(
             f"[Main] Trainable param count: {sum(x.size for x in jax.tree.leaves(params)):,}"
         )
@@ -239,8 +240,8 @@ def main():
                 "image_embeds": jnp.array(
                     np.stack([t["image_embeds"] for t in trajectories])
                 ),
-                "positions": jnp.array(
-                    np.stack([t["positions"] for t in trajectories])
+                "kinematics": jnp.array(
+                    np.stack([t["kinematics"] for t in trajectories])
                 ),
                 "actions": {
                     k: jnp.array(np.stack([t["actions"][k] for t in trajectories]))
