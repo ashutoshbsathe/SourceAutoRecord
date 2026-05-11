@@ -19,6 +19,7 @@
 #include "Features/OverlayRender.hpp"
 #include "Features/PlayerTrace.hpp"
 #include "Features/Session.hpp"
+#include "Features/Harness/Harness.hpp"
 #include "Features/Stats/Sync.hpp"
 #include "Features/Stitcher.hpp"
 #include "Features/Tas/TasController.hpp"
@@ -582,6 +583,7 @@ DETOUR(Client::DecodeUserCmdFromBuffer, int nSlot, int buf, signed int sequence_
 
 	auto m_pCommands = *reinterpret_cast<uintptr_t *>((uintptr_t)thisptr + nSlot * Offsets::PerUserInput_tSize + Offsets::m_pCommands);
 	auto cmd = reinterpret_cast<CUserCmd *>(m_pCommands + Offsets::CUserCmdSize * (sequence_number % Offsets::MULTIPLAYER_BACKUP));
+	if (harness) harness->RecordDemoAction(*cmd);
 
 	Vector cmdMove = {cmd->sidemove, cmd->forwardmove, cmd->upmove};
 	if (nSlot == 0) {

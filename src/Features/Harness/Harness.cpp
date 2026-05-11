@@ -12,10 +12,18 @@
 #include "Modules/Client.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
+#include "Modules/FileSystem.hpp"
 #include "Modules/Server.hpp"
+#include "RolloutRecorder.hpp"
 #include "SAR.hpp"
 #include "Scheduler.hpp"
 #include "Utils/SDK.hpp"
+
+void** g_harness_videomode_ptr = nullptr;
+
+void Portal2Harness_InitVideoMode(void** videomode) {
+  g_harness_videomode_ptr = videomode;
+}
 
 Harness* harness;
 
@@ -121,6 +129,7 @@ Harness::Harness()
                  "Derives gRPC port as 50000+N and SHM name as\n"
                  "portal2_harness_framebuffer_N.\n") {
   this->hasLoaded = true;
+  this->rolloutRecorder = new RolloutRecorder();
 }
 
 Harness::~Harness() {
@@ -214,9 +223,13 @@ ON_EVENT(SESSION_START) {
   harness->harnessControlActive = false;
 }
 
+void Harness::RecordDemoAction(const CUserCmd& cmd) {
+  this->lastDemoAction = cmd;
+}
+
 // PRE_TICK: Manage warmup countdown and tick synchronization
 ON_EVENT(PRE_TICK) {
-  if (!harness || !harness->IsEnabled()) return;
+  if (!harness || !harness->IsEnabled() || harness->isRecordingRollout) return;
   if (!harness->harnessControlActive && harness->warmupTicksRemaining <= 0)
     return;
 
@@ -248,4 +261,109 @@ ON_EVENT(PRE_TICK) {
       harness->tickCV.notify_one();
     }
   }
+}
+
+// POST_TICK: Record rollout data during demo playback
+ON_EVENT(POST_TICK) {
+  if (!harness || !harness->isRecordingRollout || !harness->rolloutRecorder->IsActive())
+    return;
+
+  if (!engine->demoplayer->IsPlaying()) return;
+
+  harness->wasPlayingDemo = true;
+
+  portal2_harness::GameState state;
+  Portal2HarnessImpl impl;
+  if (impl.InternalObserve(&state)) {
+    portal2_harness::ActionRequest action;
+    harness->rolloutRecorder->MapUserCmdToAction(harness->lastDemoAction, &action);
+
+    void* pixels = nullptr;
+    size_t pixelSize = 0;
+    if (harness->rolloutRecorder->CapturesPixels() && g_harness_videomode_ptr && *g_harness_videomode_ptr) {
+      void* videomode = *g_harness_videomode_ptr;
+      pixels = harness->rolloutRecorder->GetBuffer();
+      pixelSize = harness->rolloutRecorder->GetBufferSize();
+      Memory::VMT<void(__rescall*)(void*, int, int, int, int, void*, int)>(
+          videomode, Offsets::ReadScreenPixels)(
+          videomode, 0, 0, 854, 480, pixels,
+          2 /* IMAGE_FORMAT_RGB888 */);
+    }
+    
+    harness->rolloutRecorder->RecordTick(state, action, pixels, pixelSize);
+
+    if (harness->rolloutRecorder->recordedTicks % 500 == 0) {
+      console->Print("Harness: Recorded %zu ticks (%zu bytes)...\n",
+                     harness->rolloutRecorder->recordedTicks,
+                     harness->rolloutRecorder->totalBytes);
+    }
+  }
+}
+
+// Manual stop command
+CON_COMMAND(sar_harness_stop_rollout, "sar_harness_stop_rollout - Stops the current rollout recording.\n") {
+  if (harness && harness->isRecordingRollout) {
+    size_t ticks = harness->rolloutRecorder->recordedTicks;
+    size_t bytes = harness->rolloutRecorder->totalBytes;
+    harness->rolloutRecorder->Stop();
+    harness->isRecordingRollout = false;
+    harness->wasPlayingDemo = false;
+    console->Print("Harness: Stopped recording. Total: %zu ticks (%zu bytes).\n", ticks, bytes);
+  } else {
+    console->Print("Harness: No rollout recording active.\n");
+  }
+}
+
+// Automatically stop recording when the game is shut down
+ON_EVENT(SESSION_END) {
+  // We removed the auto-stop from SESSION_END to avoid closing during demo map loads.
+  // Use sar_harness_stop_rollout or let it finish naturally.
+}
+
+DECL_COMMAND_FILE_COMPLETION(sar_harness_playdemo, ".dem", "", 1);
+CON_COMMAND_F_COMPLETION(
+    sar_harness_playdemo,
+    "sar_harness_playdemo <demo> [output] [pixels:0|1] - Plays a demo and "
+    "records a .rollout file.\n",
+    0, AUTOCOMPLETION_FUNCTION(sar_harness_playdemo)) {
+  if (args.ArgC() < 2) {
+    return console->Print(sar_harness_playdemo.ThisPtr()->m_pszHelpString);
+  }
+
+  std::string demoPath = args[1];
+  std::string outputPath = (args.ArgC() >= 3) ? args[2] : (demoPath + ".rollout");
+  bool capturePixels = (args.ArgC() >= 4) ? (std::string(args[3]) == "1") : false;
+
+  if (!Utils::EndsWith(demoPath, ".dem")) demoPath += ".dem";
+  if (!Utils::EndsWith(outputPath, ".rollout")) outputPath += ".rollout";
+
+  // Ensure absolute path in the game directory if it's just a filename
+  if (outputPath.find('/') == std::string::npos && outputPath.find('\\') == std::string::npos) {
+    outputPath = std::string(engine->GetGameDirectory()) + "/" + outputPath;
+  }
+
+  // Check if demo file exists
+  auto fullPath = fileSystem->FindFileSomewhere(demoPath).value_or(demoPath);
+  if (!std::filesystem::exists(fullPath)) {
+    return console->Warning("Harness: Demo file not found: %s\n",
+                            demoPath.c_str());
+  }
+
+  console->Print("Harness: Starting rollout recording to %s\n",
+                 outputPath.c_str());
+
+  std::string shmName = std::string("portal2_harness_framebuffer_") + harness->instanceId.GetString();
+
+  if (!harness->rolloutRecorder->Start(outputPath, engine->GetCurrentMapName(),
+                                       shmName, 854, 480, 1.0f / engine->GetIPT(),
+                                       capturePixels)) {
+    return console->Warning("Harness: Failed to open rollout file for writing!\n");
+  }
+
+  harness->isRecordingRollout = true;
+  harness->wasPlayingDemo = false;
+
+  // Execute playdemo
+  std::string cmd = "playdemo " + demoPath;
+  engine->ExecuteCommand(cmd.c_str(), true);
 }

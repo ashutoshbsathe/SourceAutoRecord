@@ -14,11 +14,8 @@
 #include "Utils/Memory.hpp"
 #include "Utils/SDK.hpp"
 
-static void** g_harness_videomode = nullptr;
-
-void Portal2Harness_InitVideoMode(void** videomode) {
-  g_harness_videomode = videomode;
-}
+extern void** g_harness_videomode_ptr;
+#define g_harness_videomode g_harness_videomode_ptr
 
 Portal2HarnessImpl::Portal2HarnessImpl() {}
 
@@ -54,27 +51,48 @@ grpc::Status Portal2HarnessImpl::InitialHandshake(
 grpc::Status Portal2HarnessImpl::Observe(grpc::ServerContext* context,
                                          const portal2_harness::Empty* request,
                                          portal2_harness::GameState* response) {
-  if (!session->isRunning) {
-    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
-                        "No session running");
+  if (this->InternalObserve(response)) {
+    return grpc::Status::OK;
+  }
+  return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to observe state");
+}
+
+bool Portal2HarnessImpl::InternalObserve(portal2_harness::GameState* response) {
+  if (!session->isRunning) return false;
+
+  void* player = nullptr;
+  bool isDemo = engine->demoplayer->IsPlaying();
+
+  if (isDemo) {
+    player = client->GetPlayer(1);
+  } else {
+    player = server->GetPlayer(1);
   }
 
-  // Get player entity (slot 0, index 1)
-  void* player = server->GetPlayer(1);
-  if (!player) {
-    return grpc::Status(grpc::StatusCode::INTERNAL,
-                        "Failed to get player entity");
-  }
+  if (!player) return false;
 
-  ServerEnt* pl = (ServerEnt*)player;
-
-  // Read player state
-  Vector position = pl->abs_origin();
-  Vector velocity = pl->abs_velocity();
+  Vector position;
+  Vector velocity;
   QAngle angles = engine->GetAngles(0);
-  int health = pl->field<int>("m_iHealth");
-  bool crouching = pl->ducked();
-  int serverTick = server->gpGlobals->tickcount;
+  int health = 100;
+  bool crouching = false;
+  int serverTick = 0;
+
+  if (isDemo) {
+    ClientEnt* cl = (ClientEnt*)player;
+    position = cl->abs_origin();
+    velocity = cl->abs_velocity();
+    crouching = cl->ducked();
+    serverTick = engine->GetTick();
+    // Health isn't easily available on client without more work, 100 is fine for demos
+  } else {
+    ServerEnt* pl = (ServerEnt*)player;
+    position = pl->abs_origin();
+    velocity = pl->abs_velocity();
+    health = pl->field<int>("m_iHealth");
+    crouching = pl->ducked();
+    serverTick = server->gpGlobals->tickcount;
+  }
 
   // Fill response
   response->mutable_position()->set_x(position.x);
@@ -93,7 +111,7 @@ grpc::Status Portal2HarnessImpl::Observe(grpc::ServerContext* context,
   response->set_is_crouching(crouching);
   response->set_server_tick(serverTick);
 
-  return grpc::Status::OK;
+  return true;
 }
 
 grpc::Status Portal2HarnessImpl::Act(

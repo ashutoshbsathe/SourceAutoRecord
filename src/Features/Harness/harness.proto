@@ -132,4 +132,18 @@ message HandshakeResponse {
   string shm_name = 6;  // POSIX SHM name (without leading /), set by server
 }
 
+message RolloutHeader {
+  string map_name = 1;
+  int32 shm_width = 2;
+  int32 shm_height = 3;
+  float tickrate = 4;
+  string shm_name = 5;  // not always needed tbh
+}
+
+message RolloutStep {
+  GameState state = 1;
+  ActionRequest action = 2;
+  bytes image_data = 3;
+}
+
 message Empty {}

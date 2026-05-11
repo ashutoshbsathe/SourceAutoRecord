@@ -1,0 +1,37 @@
+#pragma once
+#include <fstream>
+#include <string>
+#include "harness.pb.h"
+#include "Utils/SDK.hpp"
+#include "Utils/SDK/UserCmd.hpp"
+
+class RolloutRecorder {
+public:
+    RolloutRecorder();
+    ~RolloutRecorder();
+
+    bool Start(const std::string& path, const std::string& mapName, const std::string& shmName, int width, int height, float tickrate, bool capturePixels);
+    void Stop();
+    bool IsActive() const { return isActive; }
+    bool CapturesPixels() const { return capturePixels; }
+
+    void RecordTick(const portal2_harness::GameState& state, const portal2_harness::ActionRequest& action, void* pixels, size_t pixelSize);
+    
+    void* GetBuffer() { return pixelBuffer; }
+    size_t GetBufferSize() { return pixelBufferSize; }
+
+    static void MapUserCmdToAction(const CUserCmd& cmd, portal2_harness::ActionRequest* req);
+
+private:
+    void WriteMessage(const google::protobuf::Message& msg);
+
+    std::ofstream file;
+    bool isActive = false;
+    bool capturePixels = false;
+    void* pixelBuffer = nullptr;
+    size_t pixelBufferSize = 0;
+
+public:
+    size_t recordedTicks = 0;
+    size_t totalBytes = 0;
+};

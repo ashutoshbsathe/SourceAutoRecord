@@ -40,9 +40,17 @@ class Harness : public Feature {
   // Warmup state
   std::atomic<int> warmupTicksRemaining{0};
 
- private:
+  // Rollout Recording
+  void RecordDemoAction(const CUserCmd& cmd);
+  bool isRecordingRollout = false;
+  bool wasPlayingDemo = false;
+  CUserCmd lastDemoAction;
+  class RolloutRecorder* rolloutRecorder = nullptr;
+
   Variable enabled;
   Variable instanceId;  // sar_harness_instance: integer N → port 50000+N, shm suffix _N
+
+ private:
   std::unique_ptr<grpc::Server> server;
   std::thread serverThread;
   std::atomic<bool> shouldRun{false};
@@ -80,7 +88,11 @@ class Portal2HarnessImpl final
       grpc::ServerReaderWriter<portal2_harness::EnvironmentMessage,
                                portal2_harness::AgentMessage>* stream) override;
 
+  bool InternalObserve(portal2_harness::GameState* response);
+
  private:
   bool playerDied = false;
   HarnessShm shm;
 };
+
+extern Command sar_harness_playdemo;
