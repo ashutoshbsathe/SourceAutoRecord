@@ -113,6 +113,70 @@ struct ResetRequestDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ResetRequestDefaultTypeInternal _ResetRequest_default_instance_;
 
+inline constexpr RenderDemoResponse::Impl_::Impl_(
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        error_message_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        final_output_path_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        success_{false},
+        recorded_ticks_{0},
+        total_bytes_{::int64_t{0}} {}
+
+template <typename>
+PROTOBUF_CONSTEXPR RenderDemoResponse::RenderDemoResponse(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(RenderDemoResponse_class_data_.base()),
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(),
+#endif  // PROTOBUF_CUSTOM_VTABLE
+      _impl_(::_pbi::ConstantInitialized()) {
+}
+struct RenderDemoResponseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR RenderDemoResponseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~RenderDemoResponseDefaultTypeInternal() {}
+  union {
+    RenderDemoResponse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 RenderDemoResponseDefaultTypeInternal _RenderDemoResponse_default_instance_;
+
+inline constexpr RenderDemoRequest::Impl_::Impl_(
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        demo_path_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        output_path_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        capture_pixels_{false} {}
+
+template <typename>
+PROTOBUF_CONSTEXPR RenderDemoRequest::RenderDemoRequest(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(RenderDemoRequest_class_data_.base()),
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(),
+#endif  // PROTOBUF_CUSTOM_VTABLE
+      _impl_(::_pbi::ConstantInitialized()) {
+}
+struct RenderDemoRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR RenderDemoRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~RenderDemoRequestDefaultTypeInternal() {}
+  union {
+    RenderDemoRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 RenderDemoRequestDefaultTypeInternal _RenderDemoRequest_default_instance_;
+
 inline constexpr HandshakeResponse::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
@@ -617,6 +681,28 @@ const ::uint32_t
         2,
         0,
         0x000, // bitmap
+        0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::RenderDemoRequest, _impl_._has_bits_),
+        6, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::RenderDemoRequest, _impl_.demo_path_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::RenderDemoRequest, _impl_.output_path_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::RenderDemoRequest, _impl_.capture_pixels_),
+        0,
+        1,
+        2,
+        0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::RenderDemoResponse, _impl_._has_bits_),
+        8, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::RenderDemoResponse, _impl_.success_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::RenderDemoResponse, _impl_.error_message_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::RenderDemoResponse, _impl_.final_output_path_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::RenderDemoResponse, _impl_.recorded_ticks_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::RenderDemoResponse, _impl_.total_bytes_),
+        2,
+        0,
+        1,
+        3,
+        4,
 };
 
 static const ::_pbi::MigrationSchema
@@ -636,6 +722,8 @@ static const ::_pbi::MigrationSchema
         {126, sizeof(::portal2_harness::RolloutHeader)},
         {139, sizeof(::portal2_harness::RolloutStep)},
         {148, sizeof(::portal2_harness::Empty)},
+        {149, sizeof(::portal2_harness::RenderDemoRequest)},
+        {158, sizeof(::portal2_harness::RenderDemoResponse)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::portal2_harness::_Vector3_default_instance_._instance,
@@ -653,6 +741,8 @@ static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::portal2_harness::_RolloutHeader_default_instance_._instance,
     &::portal2_harness::_RolloutStep_default_instance_._instance,
     &::portal2_harness::_Empty_default_instance_._instance,
+    &::portal2_harness::_RenderDemoRequest_default_instance_._instance,
+    &::portal2_harness::_RenderDemoResponse_default_instance_._instance,
 };
 const char descriptor_table_protodef_harness_2eproto[] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     protodesc_cold) = {
@@ -693,32 +783,39 @@ const char descriptor_table_protodef_harness_2eproto[] ABSL_ATTRIBUTE_SECTION_VA
     "\002\022\020\n\010shm_name\030\005 \001(\t\"|\n\013RolloutStep\022)\n\005st"
     "ate\030\001 \001(\0132\032.portal2_harness.GameState\022.\n"
     "\006action\030\002 \001(\0132\036.portal2_harness.ActionRe"
-    "quest\022\022\n\nimage_data\030\003 \001(\014\"\007\n\005Empty2\344\003\n\016P"
-    "ortal2Harness\022Y\n\020InitialHandshake\022!.port"
-    "al2_harness.HandshakeRequest\032\".portal2_h"
-    "arness.HandshakeResponse\022=\n\007Observe\022\026.po"
-    "rtal2_harness.Empty\032\032.portal2_harness.Ga"
-    "meState\022F\n\003Act\022\036.portal2_harness.ActionR"
-    "equest\032\037.portal2_harness.ActionResponse\022"
-    "S\n\016ExecuteCommand\022\037.portal2_harness.Comm"
-    "andRequest\032 .portal2_harness.CommandResp"
-    "onse\022F\n\005Reset\022\035.portal2_harness.ResetReq"
-    "uest\032\036.portal2_harness.ResetResponse\022S\n\t"
-    "AgentLoop\022\035.portal2_harness.AgentMessage"
-    "\032#.portal2_harness.EnvironmentMessage(\0010"
-    "\001b\006proto3"
+    "quest\022\022\n\nimage_data\030\003 \001(\014\"\007\n\005Empty\"S\n\021Re"
+    "nderDemoRequest\022\021\n\tdemo_path\030\001 \001(\t\022\023\n\013ou"
+    "tput_path\030\002 \001(\t\022\026\n\016capture_pixels\030\003 \001(\010\""
+    "\204\001\n\022RenderDemoResponse\022\017\n\007success\030\001 \001(\010\022"
+    "\025\n\rerror_message\030\002 \001(\t\022\031\n\021final_output_p"
+    "ath\030\003 \001(\t\022\026\n\016recorded_ticks\030\004 \001(\005\022\023\n\013tot"
+    "al_bytes\030\005 \001(\0032\273\004\n\016Portal2Harness\022Y\n\020Ini"
+    "tialHandshake\022!.portal2_harness.Handshak"
+    "eRequest\032\".portal2_harness.HandshakeResp"
+    "onse\022=\n\007Observe\022\026.portal2_harness.Empty\032"
+    "\032.portal2_harness.GameState\022F\n\003Act\022\036.por"
+    "tal2_harness.ActionRequest\032\037.portal2_har"
+    "ness.ActionResponse\022S\n\016ExecuteCommand\022\037."
+    "portal2_harness.CommandRequest\032 .portal2"
+    "_harness.CommandResponse\022F\n\005Reset\022\035.port"
+    "al2_harness.ResetRequest\032\036.portal2_harne"
+    "ss.ResetResponse\022S\n\tAgentLoop\022\035.portal2_"
+    "harness.AgentMessage\032#.portal2_harness.E"
+    "nvironmentMessage(\0010\001\022U\n\nRenderDemo\022\".po"
+    "rtal2_harness.RenderDemoRequest\032#.portal"
+    "2_harness.RenderDemoResponseb\006proto3"
 };
 static ::absl::once_flag descriptor_table_harness_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_harness_2eproto = {
     false,
     false,
-    2009,
+    2316,
     descriptor_table_protodef_harness_2eproto,
     "harness.proto",
     &descriptor_table_harness_2eproto_once,
     nullptr,
     0,
-    15,
+    17,
     schemas,
     file_default_instances,
     TableStruct_harness_2eproto::offsets,
@@ -5811,6 +5908,758 @@ Empty::_table_ = {
 
 ::google::protobuf::Metadata Empty::GetMetadata() const {
   return ::google::protobuf::internal::ZeroFieldsBase::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+class RenderDemoRequest::_Internal {
+ public:
+  using HasBits =
+      decltype(::std::declval<RenderDemoRequest>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(RenderDemoRequest, _impl_._has_bits_);
+};
+
+RenderDemoRequest::RenderDemoRequest(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, RenderDemoRequest_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:portal2_harness.RenderDemoRequest)
+}
+PROTOBUF_NDEBUG_INLINE RenderDemoRequest::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    const ::portal2_harness::RenderDemoRequest& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        demo_path_(arena, from.demo_path_),
+        output_path_(arena, from.output_path_) {}
+
+RenderDemoRequest::RenderDemoRequest(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const RenderDemoRequest& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, RenderDemoRequest_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  RenderDemoRequest* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  _impl_.capture_pixels_ = from._impl_.capture_pixels_;
+
+  // @@protoc_insertion_point(copy_constructor:portal2_harness.RenderDemoRequest)
+}
+PROTOBUF_NDEBUG_INLINE RenderDemoRequest::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        demo_path_(arena),
+        output_path_(arena) {}
+
+inline void RenderDemoRequest::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  _impl_.capture_pixels_ = {};
+}
+RenderDemoRequest::~RenderDemoRequest() {
+  // @@protoc_insertion_point(destructor:portal2_harness.RenderDemoRequest)
+  SharedDtor(*this);
+}
+inline void RenderDemoRequest::SharedDtor(MessageLite& self) {
+  RenderDemoRequest& this_ = static_cast<RenderDemoRequest&>(self);
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.demo_path_.Destroy();
+  this_._impl_.output_path_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+inline void* PROTOBUF_NONNULL RenderDemoRequest::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) RenderDemoRequest(arena);
+}
+constexpr auto RenderDemoRequest::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(RenderDemoRequest),
+                                            alignof(RenderDemoRequest));
+}
+constexpr auto RenderDemoRequest::InternalGenerateClassData_() {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &_RenderDemoRequest_default_instance_._instance,
+          &_table_.header,
+          nullptr,  // OnDemandRegisterArenaDtor
+          nullptr,  // IsInitialized
+          &RenderDemoRequest::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<RenderDemoRequest>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &RenderDemoRequest::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<RenderDemoRequest>(), &RenderDemoRequest::ByteSizeLong,
+              &RenderDemoRequest::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(RenderDemoRequest, _impl_._cached_size_),
+          false,
+      },
+      &RenderDemoRequest::kDescriptorMethods,
+      &descriptor_table_harness_2eproto,
+      nullptr,  // tracker
+  };
+}
+
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull RenderDemoRequest_class_data_ =
+        RenderDemoRequest::InternalGenerateClassData_();
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+RenderDemoRequest::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&RenderDemoRequest_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(RenderDemoRequest_class_data_.tc_table);
+  return RenderDemoRequest_class_data_.base();
+}
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::_pbi::TcParseTable<2, 3, 0, 62, 2>
+RenderDemoRequest::_table_ = {
+  {
+    PROTOBUF_FIELD_OFFSET(RenderDemoRequest, _impl_._has_bits_),
+    0, // no _extensions_
+    3, 24,  // max_field_number, fast_idx_mask
+    offsetof(decltype(_table_), field_lookup_table),
+    4294967288,  // skipmap
+    offsetof(decltype(_table_), field_entries),
+    3,  // num_field_entries
+    0,  // num_aux_entries
+    offsetof(decltype(_table_), field_names),  // no aux_entries
+    RenderDemoRequest_class_data_.base(),
+    nullptr,  // post_loop_handler
+    ::_pbi::TcParser::GenericFallback,  // fallback
+    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+    ::_pbi::TcParser::GetTable<::portal2_harness::RenderDemoRequest>(),  // to_prefetch
+    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+  }, {{
+    {::_pbi::TcParser::MiniParse, {}},
+    // string demo_path = 1;
+    {::_pbi::TcParser::FastUS1,
+     {10, 0, 0, PROTOBUF_FIELD_OFFSET(RenderDemoRequest, _impl_.demo_path_)}},
+    // string output_path = 2;
+    {::_pbi::TcParser::FastUS1,
+     {18, 1, 0, PROTOBUF_FIELD_OFFSET(RenderDemoRequest, _impl_.output_path_)}},
+    // bool capture_pixels = 3;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(RenderDemoRequest, _impl_.capture_pixels_), 2>(),
+     {24, 2, 0, PROTOBUF_FIELD_OFFSET(RenderDemoRequest, _impl_.capture_pixels_)}},
+  }}, {{
+    65535, 65535
+  }}, {{
+    // string demo_path = 1;
+    {PROTOBUF_FIELD_OFFSET(RenderDemoRequest, _impl_.demo_path_), _Internal::kHasBitsOffset + 0, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    // string output_path = 2;
+    {PROTOBUF_FIELD_OFFSET(RenderDemoRequest, _impl_.output_path_), _Internal::kHasBitsOffset + 1, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    // bool capture_pixels = 3;
+    {PROTOBUF_FIELD_OFFSET(RenderDemoRequest, _impl_.capture_pixels_), _Internal::kHasBitsOffset + 2, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kBool)},
+  }},
+  // no aux_entries
+  {{
+    "\41\11\13\0\0\0\0\0"
+    "portal2_harness.RenderDemoRequest"
+    "demo_path"
+    "output_path"
+  }},
+};
+PROTOBUF_NOINLINE void RenderDemoRequest::Clear() {
+// @@protoc_insertion_point(message_clear_start:portal2_harness.RenderDemoRequest)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if ((cached_has_bits & 0x00000003u) != 0) {
+    if ((cached_has_bits & 0x00000001u) != 0) {
+      _impl_.demo_path_.ClearNonDefaultToEmpty();
+    }
+    if ((cached_has_bits & 0x00000002u) != 0) {
+      _impl_.output_path_.ClearNonDefaultToEmpty();
+    }
+  }
+  _impl_.capture_pixels_ = false;
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL RenderDemoRequest::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const RenderDemoRequest& this_ = static_cast<const RenderDemoRequest&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL RenderDemoRequest::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const RenderDemoRequest& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(serialize_to_array_start:portal2_harness.RenderDemoRequest)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  // string demo_path = 1;
+  if ((this_._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    if (!this_._internal_demo_path().empty()) {
+      const ::std::string& _s = this_._internal_demo_path();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "portal2_harness.RenderDemoRequest.demo_path");
+      target = stream->WriteStringMaybeAliased(1, _s, target);
+    }
+  }
+
+  // string output_path = 2;
+  if ((this_._impl_._has_bits_[0] & 0x00000002u) != 0) {
+    if (!this_._internal_output_path().empty()) {
+      const ::std::string& _s = this_._internal_output_path();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "portal2_harness.RenderDemoRequest.output_path");
+      target = stream->WriteStringMaybeAliased(2, _s, target);
+    }
+  }
+
+  // bool capture_pixels = 3;
+  if ((this_._impl_._has_bits_[0] & 0x00000004u) != 0) {
+    if (this_._internal_capture_pixels() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteBoolToArray(
+          3, this_._internal_capture_pixels(), target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:portal2_harness.RenderDemoRequest)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t RenderDemoRequest::ByteSizeLong(const MessageLite& base) {
+  const RenderDemoRequest& this_ = static_cast<const RenderDemoRequest&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t RenderDemoRequest::ByteSizeLong() const {
+  const RenderDemoRequest& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:portal2_harness.RenderDemoRequest)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if ((cached_has_bits & 0x00000007u) != 0) {
+    // string demo_path = 1;
+    if ((cached_has_bits & 0x00000001u) != 0) {
+      if (!this_._internal_demo_path().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_demo_path());
+      }
+    }
+    // string output_path = 2;
+    if ((cached_has_bits & 0x00000002u) != 0) {
+      if (!this_._internal_output_path().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_output_path());
+      }
+    }
+    // bool capture_pixels = 3;
+    if ((cached_has_bits & 0x00000004u) != 0) {
+      if (this_._internal_capture_pixels() != 0) {
+        total_size += 2;
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void RenderDemoRequest::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::google::protobuf::MessageLite& from_msg) {
+  auto* const _this = static_cast<RenderDemoRequest*>(&to_msg);
+  auto& from = static_cast<const RenderDemoRequest&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:portal2_harness.RenderDemoRequest)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if ((cached_has_bits & 0x00000007u) != 0) {
+    if ((cached_has_bits & 0x00000001u) != 0) {
+      if (!from._internal_demo_path().empty()) {
+        _this->_internal_set_demo_path(from._internal_demo_path());
+      } else {
+        if (_this->_impl_.demo_path_.IsDefault()) {
+          _this->_internal_set_demo_path("");
+        }
+      }
+    }
+    if ((cached_has_bits & 0x00000002u) != 0) {
+      if (!from._internal_output_path().empty()) {
+        _this->_internal_set_output_path(from._internal_output_path());
+      } else {
+        if (_this->_impl_.output_path_.IsDefault()) {
+          _this->_internal_set_output_path("");
+        }
+      }
+    }
+    if ((cached_has_bits & 0x00000004u) != 0) {
+      if (from._internal_capture_pixels() != 0) {
+        _this->_impl_.capture_pixels_ = from._impl_.capture_pixels_;
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void RenderDemoRequest::CopyFrom(const RenderDemoRequest& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:portal2_harness.RenderDemoRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void RenderDemoRequest::InternalSwap(RenderDemoRequest* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.demo_path_, &other->_impl_.demo_path_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.output_path_, &other->_impl_.output_path_, arena);
+  swap(_impl_.capture_pixels_, other->_impl_.capture_pixels_);
+}
+
+::google::protobuf::Metadata RenderDemoRequest::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+class RenderDemoResponse::_Internal {
+ public:
+  using HasBits =
+      decltype(::std::declval<RenderDemoResponse>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_._has_bits_);
+};
+
+RenderDemoResponse::RenderDemoResponse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, RenderDemoResponse_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:portal2_harness.RenderDemoResponse)
+}
+PROTOBUF_NDEBUG_INLINE RenderDemoResponse::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    const ::portal2_harness::RenderDemoResponse& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        error_message_(arena, from.error_message_),
+        final_output_path_(arena, from.final_output_path_) {}
+
+RenderDemoResponse::RenderDemoResponse(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const RenderDemoResponse& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, RenderDemoResponse_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  RenderDemoResponse* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  ::memcpy(reinterpret_cast<char *>(&_impl_) +
+               offsetof(Impl_, success_),
+           reinterpret_cast<const char *>(&from._impl_) +
+               offsetof(Impl_, success_),
+           offsetof(Impl_, total_bytes_) -
+               offsetof(Impl_, success_) +
+               sizeof(Impl_::total_bytes_));
+
+  // @@protoc_insertion_point(copy_constructor:portal2_harness.RenderDemoResponse)
+}
+PROTOBUF_NDEBUG_INLINE RenderDemoResponse::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        error_message_(arena),
+        final_output_path_(arena) {}
+
+inline void RenderDemoResponse::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  ::memset(reinterpret_cast<char *>(&_impl_) +
+               offsetof(Impl_, success_),
+           0,
+           offsetof(Impl_, total_bytes_) -
+               offsetof(Impl_, success_) +
+               sizeof(Impl_::total_bytes_));
+}
+RenderDemoResponse::~RenderDemoResponse() {
+  // @@protoc_insertion_point(destructor:portal2_harness.RenderDemoResponse)
+  SharedDtor(*this);
+}
+inline void RenderDemoResponse::SharedDtor(MessageLite& self) {
+  RenderDemoResponse& this_ = static_cast<RenderDemoResponse&>(self);
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.error_message_.Destroy();
+  this_._impl_.final_output_path_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+inline void* PROTOBUF_NONNULL RenderDemoResponse::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) RenderDemoResponse(arena);
+}
+constexpr auto RenderDemoResponse::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(RenderDemoResponse),
+                                            alignof(RenderDemoResponse));
+}
+constexpr auto RenderDemoResponse::InternalGenerateClassData_() {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &_RenderDemoResponse_default_instance_._instance,
+          &_table_.header,
+          nullptr,  // OnDemandRegisterArenaDtor
+          nullptr,  // IsInitialized
+          &RenderDemoResponse::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<RenderDemoResponse>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &RenderDemoResponse::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<RenderDemoResponse>(), &RenderDemoResponse::ByteSizeLong,
+              &RenderDemoResponse::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_._cached_size_),
+          false,
+      },
+      &RenderDemoResponse::kDescriptorMethods,
+      &descriptor_table_harness_2eproto,
+      nullptr,  // tracker
+  };
+}
+
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull RenderDemoResponse_class_data_ =
+        RenderDemoResponse::InternalGenerateClassData_();
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+RenderDemoResponse::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&RenderDemoResponse_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(RenderDemoResponse_class_data_.tc_table);
+  return RenderDemoResponse_class_data_.base();
+}
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::_pbi::TcParseTable<3, 5, 0, 73, 2>
+RenderDemoResponse::_table_ = {
+  {
+    PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_._has_bits_),
+    0, // no _extensions_
+    5, 56,  // max_field_number, fast_idx_mask
+    offsetof(decltype(_table_), field_lookup_table),
+    4294967264,  // skipmap
+    offsetof(decltype(_table_), field_entries),
+    5,  // num_field_entries
+    0,  // num_aux_entries
+    offsetof(decltype(_table_), field_names),  // no aux_entries
+    RenderDemoResponse_class_data_.base(),
+    nullptr,  // post_loop_handler
+    ::_pbi::TcParser::GenericFallback,  // fallback
+    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+    ::_pbi::TcParser::GetTable<::portal2_harness::RenderDemoResponse>(),  // to_prefetch
+    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+  }, {{
+    {::_pbi::TcParser::MiniParse, {}},
+    // bool success = 1;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(RenderDemoResponse, _impl_.success_), 2>(),
+     {8, 2, 0, PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_.success_)}},
+    // string error_message = 2;
+    {::_pbi::TcParser::FastUS1,
+     {18, 0, 0, PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_.error_message_)}},
+    // string final_output_path = 3;
+    {::_pbi::TcParser::FastUS1,
+     {26, 1, 0, PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_.final_output_path_)}},
+    // int32 recorded_ticks = 4;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(RenderDemoResponse, _impl_.recorded_ticks_), 3>(),
+     {32, 3, 0, PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_.recorded_ticks_)}},
+    // int64 total_bytes = 5;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(RenderDemoResponse, _impl_.total_bytes_), 4>(),
+     {40, 4, 0, PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_.total_bytes_)}},
+    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::MiniParse, {}},
+  }}, {{
+    65535, 65535
+  }}, {{
+    // bool success = 1;
+    {PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_.success_), _Internal::kHasBitsOffset + 2, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kBool)},
+    // string error_message = 2;
+    {PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_.error_message_), _Internal::kHasBitsOffset + 0, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    // string final_output_path = 3;
+    {PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_.final_output_path_), _Internal::kHasBitsOffset + 1, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    // int32 recorded_ticks = 4;
+    {PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_.recorded_ticks_), _Internal::kHasBitsOffset + 3, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    // int64 total_bytes = 5;
+    {PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_.total_bytes_), _Internal::kHasBitsOffset + 4, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
+  }},
+  // no aux_entries
+  {{
+    "\42\0\15\21\0\0\0\0"
+    "portal2_harness.RenderDemoResponse"
+    "error_message"
+    "final_output_path"
+  }},
+};
+PROTOBUF_NOINLINE void RenderDemoResponse::Clear() {
+// @@protoc_insertion_point(message_clear_start:portal2_harness.RenderDemoResponse)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if ((cached_has_bits & 0x00000003u) != 0) {
+    if ((cached_has_bits & 0x00000001u) != 0) {
+      _impl_.error_message_.ClearNonDefaultToEmpty();
+    }
+    if ((cached_has_bits & 0x00000002u) != 0) {
+      _impl_.final_output_path_.ClearNonDefaultToEmpty();
+    }
+  }
+  if ((cached_has_bits & 0x0000001cu) != 0) {
+    ::memset(&_impl_.success_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.total_bytes_) -
+        reinterpret_cast<char*>(&_impl_.success_)) + sizeof(_impl_.total_bytes_));
+  }
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL RenderDemoResponse::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const RenderDemoResponse& this_ = static_cast<const RenderDemoResponse&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL RenderDemoResponse::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const RenderDemoResponse& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(serialize_to_array_start:portal2_harness.RenderDemoResponse)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  // bool success = 1;
+  if ((this_._impl_._has_bits_[0] & 0x00000004u) != 0) {
+    if (this_._internal_success() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteBoolToArray(
+          1, this_._internal_success(), target);
+    }
+  }
+
+  // string error_message = 2;
+  if ((this_._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    if (!this_._internal_error_message().empty()) {
+      const ::std::string& _s = this_._internal_error_message();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "portal2_harness.RenderDemoResponse.error_message");
+      target = stream->WriteStringMaybeAliased(2, _s, target);
+    }
+  }
+
+  // string final_output_path = 3;
+  if ((this_._impl_._has_bits_[0] & 0x00000002u) != 0) {
+    if (!this_._internal_final_output_path().empty()) {
+      const ::std::string& _s = this_._internal_final_output_path();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "portal2_harness.RenderDemoResponse.final_output_path");
+      target = stream->WriteStringMaybeAliased(3, _s, target);
+    }
+  }
+
+  // int32 recorded_ticks = 4;
+  if ((this_._impl_._has_bits_[0] & 0x00000008u) != 0) {
+    if (this_._internal_recorded_ticks() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<4>(
+              stream, this_._internal_recorded_ticks(), target);
+    }
+  }
+
+  // int64 total_bytes = 5;
+  if ((this_._impl_._has_bits_[0] & 0x00000010u) != 0) {
+    if (this_._internal_total_bytes() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt64ToArrayWithField<5>(
+              stream, this_._internal_total_bytes(), target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:portal2_harness.RenderDemoResponse)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t RenderDemoResponse::ByteSizeLong(const MessageLite& base) {
+  const RenderDemoResponse& this_ = static_cast<const RenderDemoResponse&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t RenderDemoResponse::ByteSizeLong() const {
+  const RenderDemoResponse& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:portal2_harness.RenderDemoResponse)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if ((cached_has_bits & 0x0000001fu) != 0) {
+    // string error_message = 2;
+    if ((cached_has_bits & 0x00000001u) != 0) {
+      if (!this_._internal_error_message().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_error_message());
+      }
+    }
+    // string final_output_path = 3;
+    if ((cached_has_bits & 0x00000002u) != 0) {
+      if (!this_._internal_final_output_path().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_final_output_path());
+      }
+    }
+    // bool success = 1;
+    if ((cached_has_bits & 0x00000004u) != 0) {
+      if (this_._internal_success() != 0) {
+        total_size += 2;
+      }
+    }
+    // int32 recorded_ticks = 4;
+    if ((cached_has_bits & 0x00000008u) != 0) {
+      if (this_._internal_recorded_ticks() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
+            this_._internal_recorded_ticks());
+      }
+    }
+    // int64 total_bytes = 5;
+    if ((cached_has_bits & 0x00000010u) != 0) {
+      if (this_._internal_total_bytes() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+            this_._internal_total_bytes());
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void RenderDemoResponse::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::google::protobuf::MessageLite& from_msg) {
+  auto* const _this = static_cast<RenderDemoResponse*>(&to_msg);
+  auto& from = static_cast<const RenderDemoResponse&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:portal2_harness.RenderDemoResponse)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if ((cached_has_bits & 0x0000001fu) != 0) {
+    if ((cached_has_bits & 0x00000001u) != 0) {
+      if (!from._internal_error_message().empty()) {
+        _this->_internal_set_error_message(from._internal_error_message());
+      } else {
+        if (_this->_impl_.error_message_.IsDefault()) {
+          _this->_internal_set_error_message("");
+        }
+      }
+    }
+    if ((cached_has_bits & 0x00000002u) != 0) {
+      if (!from._internal_final_output_path().empty()) {
+        _this->_internal_set_final_output_path(from._internal_final_output_path());
+      } else {
+        if (_this->_impl_.final_output_path_.IsDefault()) {
+          _this->_internal_set_final_output_path("");
+        }
+      }
+    }
+    if ((cached_has_bits & 0x00000004u) != 0) {
+      if (from._internal_success() != 0) {
+        _this->_impl_.success_ = from._impl_.success_;
+      }
+    }
+    if ((cached_has_bits & 0x00000008u) != 0) {
+      if (from._internal_recorded_ticks() != 0) {
+        _this->_impl_.recorded_ticks_ = from._impl_.recorded_ticks_;
+      }
+    }
+    if ((cached_has_bits & 0x00000010u) != 0) {
+      if (from._internal_total_bytes() != 0) {
+        _this->_impl_.total_bytes_ = from._impl_.total_bytes_;
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void RenderDemoResponse::CopyFrom(const RenderDemoResponse& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:portal2_harness.RenderDemoResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void RenderDemoResponse::InternalSwap(RenderDemoResponse* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.error_message_, &other->_impl_.error_message_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.final_output_path_, &other->_impl_.final_output_path_, arena);
+  ::google::protobuf::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_.total_bytes_)
+      + sizeof(RenderDemoResponse::_impl_.total_bytes_)
+      - PROTOBUF_FIELD_OFFSET(RenderDemoResponse, _impl_.success_)>(
+          reinterpret_cast<char*>(&_impl_.success_),
+          reinterpret_cast<char*>(&other->_impl_.success_));
+}
+
+::google::protobuf::Metadata RenderDemoResponse::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
 }
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace portal2_harness

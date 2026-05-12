@@ -211,7 +211,7 @@ void Harness::StopServer() {
 
 // SESSION_START: When a session begins with harness enabled, activate TasPlayer
 ON_EVENT(SESSION_START) {
-  if (!harness || !harness->IsEnabled()) return;
+  if (!harness || !harness->IsEnabled() || harness->isRecordingRollout) return;
 
   console->Print(
       "Harness: Session started, activating TasPlayer and starting %d warmup "
@@ -306,18 +306,32 @@ CON_COMMAND(sar_harness_stop_rollout, "sar_harness_stop_rollout - Stops the curr
     size_t ticks = harness->rolloutRecorder->recordedTicks;
     size_t bytes = harness->rolloutRecorder->totalBytes;
     harness->rolloutRecorder->Stop();
-    harness->isRecordingRollout = false;
-    harness->wasPlayingDemo = false;
+    {
+      std::lock_guard<std::mutex> lock(harness->recordingMutex);
+      harness->isRecordingRollout = false;
+      harness->wasPlayingDemo = false;
+      harness->recordingCV.notify_all();
+    }
     console->Print("Harness: Stopped recording. Total: %zu ticks (%zu bytes).\n", ticks, bytes);
   } else {
     console->Print("Harness: No rollout recording active.\n");
   }
 }
 
-// Automatically stop recording when the game is shut down
-ON_EVENT(SESSION_END) {
-  // We removed the auto-stop from SESSION_END to avoid closing during demo map loads.
-  // Use sar_harness_stop_rollout or let it finish naturally.
+// Automatically stop recording when demo playback ends
+ON_EVENT(DEMO_STOP) {
+  if (harness && harness->isRecordingRollout) {
+    size_t ticks = harness->rolloutRecorder->recordedTicks;
+    size_t bytes = harness->rolloutRecorder->totalBytes;
+    harness->rolloutRecorder->Stop();
+    {
+      std::lock_guard<std::mutex> lock(harness->recordingMutex);
+      harness->isRecordingRollout = false;
+      harness->wasPlayingDemo = false;
+      harness->recordingCV.notify_all();
+    }
+    console->Print("Harness: Demo playback finished. Stopped recording. Total: %zu ticks (%zu bytes).\n", ticks, bytes);
+  }
 }
 
 DECL_COMMAND_FILE_COMPLETION(sar_harness_playdemo, ".dem", "", 1);
@@ -360,10 +374,13 @@ CON_COMMAND_F_COMPLETION(
     return console->Warning("Harness: Failed to open rollout file for writing!\n");
   }
 
-  harness->isRecordingRollout = true;
-  harness->wasPlayingDemo = false;
+  {
+    std::lock_guard<std::mutex> lock(harness->recordingMutex);
+    harness->isRecordingRollout = true;
+    harness->wasPlayingDemo = false;
+  }
 
   // Execute playdemo
-  std::string cmd = "playdemo " + demoPath;
+  std::string cmd = "playdemo \"" + demoPath + "\"";
   engine->ExecuteCommand(cmd.c_str(), true);
 }

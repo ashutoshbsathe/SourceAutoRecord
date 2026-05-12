@@ -22,6 +22,10 @@ service Portal2Harness {
 
   // Bidirectional stream for high-performance agent loop
   rpc AgentLoop(stream AgentMessage) returns (stream EnvironmentMessage);
+
+  // First-class endpoint to render a demo file end-to-end.
+  // Initiates playback and blocks internally until rollout conversion concludes.
+  rpc RenderDemo(RenderDemoRequest) returns (RenderDemoResponse);
 }
 
 // --- Shared Types ---
@@ -132,6 +136,8 @@ message HandshakeResponse {
   string shm_name = 6;  // POSIX SHM name (without leading /), set by server
 }
 
+// --- Rollout Recorder Messages ---
+
 message RolloutHeader {
   string map_name = 1;
   int32 shm_width = 2;
@@ -147,3 +153,19 @@ message RolloutStep {
 }
 
 message Empty {}
+
+// --- Render Demo Messages ---
+
+message RenderDemoRequest {
+  string demo_path = 1;
+  string output_path = 2;
+  bool capture_pixels = 3;
+}
+
+message RenderDemoResponse {
+  bool success = 1;
+  string error_message = 2;
+  string final_output_path = 3;
+  int32 recorded_ticks = 4;
+  int64 total_bytes = 5;
+}

@@ -94,6 +94,14 @@ class HandshakeResponse;
 struct HandshakeResponseDefaultTypeInternal;
 extern HandshakeResponseDefaultTypeInternal _HandshakeResponse_default_instance_;
 extern const ::google::protobuf::internal::ClassDataFull HandshakeResponse_class_data_;
+class RenderDemoRequest;
+struct RenderDemoRequestDefaultTypeInternal;
+extern RenderDemoRequestDefaultTypeInternal _RenderDemoRequest_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull RenderDemoRequest_class_data_;
+class RenderDemoResponse;
+struct RenderDemoResponseDefaultTypeInternal;
+extern RenderDemoResponseDefaultTypeInternal _RenderDemoResponse_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull RenderDemoResponse_class_data_;
 class ResetRequest;
 struct ResetRequestDefaultTypeInternal;
 extern ResetRequestDefaultTypeInternal _ResetRequest_default_instance_;
@@ -785,6 +793,480 @@ class ResetRequest final : public ::google::protobuf::Message
 };
 
 extern const ::google::protobuf::internal::ClassDataFull ResetRequest_class_data_;
+// -------------------------------------------------------------------
+
+class RenderDemoResponse final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:portal2_harness.RenderDemoResponse) */ {
+ public:
+  inline RenderDemoResponse() : RenderDemoResponse(nullptr) {}
+  ~RenderDemoResponse() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(RenderDemoResponse* PROTOBUF_NONNULL msg, std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(RenderDemoResponse));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR RenderDemoResponse(::google::protobuf::internal::ConstantInitialized);
+
+  inline RenderDemoResponse(const RenderDemoResponse& from) : RenderDemoResponse(nullptr, from) {}
+  inline RenderDemoResponse(RenderDemoResponse&& from) noexcept
+      : RenderDemoResponse(nullptr, ::std::move(from)) {}
+  inline RenderDemoResponse& operator=(const RenderDemoResponse& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline RenderDemoResponse& operator=(RenderDemoResponse&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const RenderDemoResponse& default_instance() {
+    return *reinterpret_cast<const RenderDemoResponse*>(
+        &_RenderDemoResponse_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 16;
+  friend void swap(RenderDemoResponse& a, RenderDemoResponse& b) { a.Swap(&b); }
+  inline void Swap(RenderDemoResponse* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(RenderDemoResponse* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  RenderDemoResponse* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<RenderDemoResponse>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const RenderDemoResponse& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const RenderDemoResponse& from) { RenderDemoResponse::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(RenderDemoResponse* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "portal2_harness.RenderDemoResponse"; }
+
+ protected:
+  explicit RenderDemoResponse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  RenderDemoResponse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const RenderDemoResponse& from);
+  RenderDemoResponse(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, RenderDemoResponse&& from) noexcept
+      : RenderDemoResponse(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kErrorMessageFieldNumber = 2,
+    kFinalOutputPathFieldNumber = 3,
+    kSuccessFieldNumber = 1,
+    kRecordedTicksFieldNumber = 4,
+    kTotalBytesFieldNumber = 5,
+  };
+  // string error_message = 2;
+  void clear_error_message() ;
+  const ::std::string& error_message() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_error_message(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_error_message();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_error_message();
+  void set_allocated_error_message(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_error_message() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_error_message(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_error_message();
+
+  public:
+  // string final_output_path = 3;
+  void clear_final_output_path() ;
+  const ::std::string& final_output_path() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_final_output_path(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_final_output_path();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_final_output_path();
+  void set_allocated_final_output_path(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_final_output_path() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_final_output_path(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_final_output_path();
+
+  public:
+  // bool success = 1;
+  void clear_success() ;
+  bool success() const;
+  void set_success(bool value);
+
+  private:
+  bool _internal_success() const;
+  void _internal_set_success(bool value);
+
+  public:
+  // int32 recorded_ticks = 4;
+  void clear_recorded_ticks() ;
+  ::int32_t recorded_ticks() const;
+  void set_recorded_ticks(::int32_t value);
+
+  private:
+  ::int32_t _internal_recorded_ticks() const;
+  void _internal_set_recorded_ticks(::int32_t value);
+
+  public:
+  // int64 total_bytes = 5;
+  void clear_total_bytes() ;
+  ::int64_t total_bytes() const;
+  void set_total_bytes(::int64_t value);
+
+  private:
+  ::int64_t _internal_total_bytes() const;
+  void _internal_set_total_bytes(::int64_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:portal2_harness.RenderDemoResponse)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<3, 5,
+                                   0, 73,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const RenderDemoResponse& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::internal::ArenaStringPtr error_message_;
+    ::google::protobuf::internal::ArenaStringPtr final_output_path_;
+    bool success_;
+    ::int32_t recorded_ticks_;
+    ::int64_t total_bytes_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_harness_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull RenderDemoResponse_class_data_;
+// -------------------------------------------------------------------
+
+class RenderDemoRequest final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:portal2_harness.RenderDemoRequest) */ {
+ public:
+  inline RenderDemoRequest() : RenderDemoRequest(nullptr) {}
+  ~RenderDemoRequest() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(RenderDemoRequest* PROTOBUF_NONNULL msg, std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(RenderDemoRequest));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR RenderDemoRequest(::google::protobuf::internal::ConstantInitialized);
+
+  inline RenderDemoRequest(const RenderDemoRequest& from) : RenderDemoRequest(nullptr, from) {}
+  inline RenderDemoRequest(RenderDemoRequest&& from) noexcept
+      : RenderDemoRequest(nullptr, ::std::move(from)) {}
+  inline RenderDemoRequest& operator=(const RenderDemoRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline RenderDemoRequest& operator=(RenderDemoRequest&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const RenderDemoRequest& default_instance() {
+    return *reinterpret_cast<const RenderDemoRequest*>(
+        &_RenderDemoRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 15;
+  friend void swap(RenderDemoRequest& a, RenderDemoRequest& b) { a.Swap(&b); }
+  inline void Swap(RenderDemoRequest* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(RenderDemoRequest* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  RenderDemoRequest* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<RenderDemoRequest>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const RenderDemoRequest& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const RenderDemoRequest& from) { RenderDemoRequest::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(RenderDemoRequest* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "portal2_harness.RenderDemoRequest"; }
+
+ protected:
+  explicit RenderDemoRequest(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  RenderDemoRequest(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const RenderDemoRequest& from);
+  RenderDemoRequest(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, RenderDemoRequest&& from) noexcept
+      : RenderDemoRequest(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kDemoPathFieldNumber = 1,
+    kOutputPathFieldNumber = 2,
+    kCapturePixelsFieldNumber = 3,
+  };
+  // string demo_path = 1;
+  void clear_demo_path() ;
+  const ::std::string& demo_path() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_demo_path(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_demo_path();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_demo_path();
+  void set_allocated_demo_path(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_demo_path() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_demo_path(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_demo_path();
+
+  public:
+  // string output_path = 2;
+  void clear_output_path() ;
+  const ::std::string& output_path() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_output_path(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_output_path();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_output_path();
+  void set_allocated_output_path(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_output_path() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_output_path(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_output_path();
+
+  public:
+  // bool capture_pixels = 3;
+  void clear_capture_pixels() ;
+  bool capture_pixels() const;
+  void set_capture_pixels(bool value);
+
+  private:
+  bool _internal_capture_pixels() const;
+  void _internal_set_capture_pixels(bool value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:portal2_harness.RenderDemoRequest)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<2, 3,
+                                   0, 62,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const RenderDemoRequest& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::internal::ArenaStringPtr demo_path_;
+    ::google::protobuf::internal::ArenaStringPtr output_path_;
+    bool capture_pixels_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_harness_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull RenderDemoRequest_class_data_;
 // -------------------------------------------------------------------
 
 class HandshakeResponse final : public ::google::protobuf::Message
@@ -6033,6 +6515,370 @@ inline void RolloutStep::set_allocated_image_data(::std::string* PROTOBUF_NULLAB
 // -------------------------------------------------------------------
 
 // Empty
+
+// -------------------------------------------------------------------
+
+// RenderDemoRequest
+
+// string demo_path = 1;
+inline void RenderDemoRequest::clear_demo_path() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.demo_path_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline const ::std::string& RenderDemoRequest::demo_path() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.RenderDemoRequest.demo_path)
+  return _internal_demo_path();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void RenderDemoRequest::set_demo_path(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.demo_path_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:portal2_harness.RenderDemoRequest.demo_path)
+}
+inline ::std::string* PROTOBUF_NONNULL RenderDemoRequest::mutable_demo_path()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_demo_path();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.RenderDemoRequest.demo_path)
+  return _s;
+}
+inline const ::std::string& RenderDemoRequest::_internal_demo_path() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.demo_path_.Get();
+}
+inline void RenderDemoRequest::_internal_set_demo_path(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.demo_path_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL RenderDemoRequest::_internal_mutable_demo_path() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001u;
+  return _impl_.demo_path_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE RenderDemoRequest::release_demo_path() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.RenderDemoRequest.demo_path)
+  if ((_impl_._has_bits_[0] & 0x00000001u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  auto* released = _impl_.demo_path_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.demo_path_.Set("", GetArena());
+  }
+  return released;
+}
+inline void RenderDemoRequest::set_allocated_demo_path(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  _impl_.demo_path_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.demo_path_.IsDefault()) {
+    _impl_.demo_path_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.RenderDemoRequest.demo_path)
+}
+
+// string output_path = 2;
+inline void RenderDemoRequest::clear_output_path() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.output_path_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline const ::std::string& RenderDemoRequest::output_path() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.RenderDemoRequest.output_path)
+  return _internal_output_path();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void RenderDemoRequest::set_output_path(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.output_path_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:portal2_harness.RenderDemoRequest.output_path)
+}
+inline ::std::string* PROTOBUF_NONNULL RenderDemoRequest::mutable_output_path()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_output_path();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.RenderDemoRequest.output_path)
+  return _s;
+}
+inline const ::std::string& RenderDemoRequest::_internal_output_path() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.output_path_.Get();
+}
+inline void RenderDemoRequest::_internal_set_output_path(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.output_path_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL RenderDemoRequest::_internal_mutable_output_path() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  return _impl_.output_path_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE RenderDemoRequest::release_output_path() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.RenderDemoRequest.output_path)
+  if ((_impl_._has_bits_[0] & 0x00000002u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  auto* released = _impl_.output_path_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.output_path_.Set("", GetArena());
+  }
+  return released;
+}
+inline void RenderDemoRequest::set_allocated_output_path(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+  _impl_.output_path_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.output_path_.IsDefault()) {
+    _impl_.output_path_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.RenderDemoRequest.output_path)
+}
+
+// bool capture_pixels = 3;
+inline void RenderDemoRequest::clear_capture_pixels() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.capture_pixels_ = false;
+  _impl_._has_bits_[0] &= ~0x00000004u;
+}
+inline bool RenderDemoRequest::capture_pixels() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.RenderDemoRequest.capture_pixels)
+  return _internal_capture_pixels();
+}
+inline void RenderDemoRequest::set_capture_pixels(bool value) {
+  _internal_set_capture_pixels(value);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  // @@protoc_insertion_point(field_set:portal2_harness.RenderDemoRequest.capture_pixels)
+}
+inline bool RenderDemoRequest::_internal_capture_pixels() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.capture_pixels_;
+}
+inline void RenderDemoRequest::_internal_set_capture_pixels(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.capture_pixels_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// RenderDemoResponse
+
+// bool success = 1;
+inline void RenderDemoResponse::clear_success() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.success_ = false;
+  _impl_._has_bits_[0] &= ~0x00000004u;
+}
+inline bool RenderDemoResponse::success() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.RenderDemoResponse.success)
+  return _internal_success();
+}
+inline void RenderDemoResponse::set_success(bool value) {
+  _internal_set_success(value);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  // @@protoc_insertion_point(field_set:portal2_harness.RenderDemoResponse.success)
+}
+inline bool RenderDemoResponse::_internal_success() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.success_;
+}
+inline void RenderDemoResponse::_internal_set_success(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.success_ = value;
+}
+
+// string error_message = 2;
+inline void RenderDemoResponse::clear_error_message() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.error_message_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline const ::std::string& RenderDemoResponse::error_message() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.RenderDemoResponse.error_message)
+  return _internal_error_message();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void RenderDemoResponse::set_error_message(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.error_message_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:portal2_harness.RenderDemoResponse.error_message)
+}
+inline ::std::string* PROTOBUF_NONNULL RenderDemoResponse::mutable_error_message()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_error_message();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.RenderDemoResponse.error_message)
+  return _s;
+}
+inline const ::std::string& RenderDemoResponse::_internal_error_message() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.error_message_.Get();
+}
+inline void RenderDemoResponse::_internal_set_error_message(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.error_message_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL RenderDemoResponse::_internal_mutable_error_message() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001u;
+  return _impl_.error_message_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE RenderDemoResponse::release_error_message() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.RenderDemoResponse.error_message)
+  if ((_impl_._has_bits_[0] & 0x00000001u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  auto* released = _impl_.error_message_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.error_message_.Set("", GetArena());
+  }
+  return released;
+}
+inline void RenderDemoResponse::set_allocated_error_message(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  _impl_.error_message_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.error_message_.IsDefault()) {
+    _impl_.error_message_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.RenderDemoResponse.error_message)
+}
+
+// string final_output_path = 3;
+inline void RenderDemoResponse::clear_final_output_path() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.final_output_path_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline const ::std::string& RenderDemoResponse::final_output_path() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.RenderDemoResponse.final_output_path)
+  return _internal_final_output_path();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void RenderDemoResponse::set_final_output_path(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.final_output_path_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:portal2_harness.RenderDemoResponse.final_output_path)
+}
+inline ::std::string* PROTOBUF_NONNULL RenderDemoResponse::mutable_final_output_path()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_final_output_path();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.RenderDemoResponse.final_output_path)
+  return _s;
+}
+inline const ::std::string& RenderDemoResponse::_internal_final_output_path() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.final_output_path_.Get();
+}
+inline void RenderDemoResponse::_internal_set_final_output_path(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.final_output_path_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL RenderDemoResponse::_internal_mutable_final_output_path() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  return _impl_.final_output_path_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE RenderDemoResponse::release_final_output_path() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.RenderDemoResponse.final_output_path)
+  if ((_impl_._has_bits_[0] & 0x00000002u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  auto* released = _impl_.final_output_path_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.final_output_path_.Set("", GetArena());
+  }
+  return released;
+}
+inline void RenderDemoResponse::set_allocated_final_output_path(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+  _impl_.final_output_path_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.final_output_path_.IsDefault()) {
+    _impl_.final_output_path_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.RenderDemoResponse.final_output_path)
+}
+
+// int32 recorded_ticks = 4;
+inline void RenderDemoResponse::clear_recorded_ticks() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.recorded_ticks_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000008u;
+}
+inline ::int32_t RenderDemoResponse::recorded_ticks() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.RenderDemoResponse.recorded_ticks)
+  return _internal_recorded_ticks();
+}
+inline void RenderDemoResponse::set_recorded_ticks(::int32_t value) {
+  _internal_set_recorded_ticks(value);
+  _impl_._has_bits_[0] |= 0x00000008u;
+  // @@protoc_insertion_point(field_set:portal2_harness.RenderDemoResponse.recorded_ticks)
+}
+inline ::int32_t RenderDemoResponse::_internal_recorded_ticks() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.recorded_ticks_;
+}
+inline void RenderDemoResponse::_internal_set_recorded_ticks(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.recorded_ticks_ = value;
+}
+
+// int64 total_bytes = 5;
+inline void RenderDemoResponse::clear_total_bytes() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.total_bytes_ = ::int64_t{0};
+  _impl_._has_bits_[0] &= ~0x00000010u;
+}
+inline ::int64_t RenderDemoResponse::total_bytes() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.RenderDemoResponse.total_bytes)
+  return _internal_total_bytes();
+}
+inline void RenderDemoResponse::set_total_bytes(::int64_t value) {
+  _internal_set_total_bytes(value);
+  _impl_._has_bits_[0] |= 0x00000010u;
+  // @@protoc_insertion_point(field_set:portal2_harness.RenderDemoResponse.total_bytes)
+}
+inline ::int64_t RenderDemoResponse::_internal_total_bytes() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.total_bytes_;
+}
+inline void RenderDemoResponse::_internal_set_total_bytes(::int64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.total_bytes_ = value;
+}
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop

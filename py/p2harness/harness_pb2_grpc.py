@@ -46,6 +46,11 @@ class Portal2HarnessStub(object):
                 request_serializer=harness__pb2.AgentMessage.SerializeToString,
                 response_deserializer=harness__pb2.EnvironmentMessage.FromString,
                 _registered_method=True)
+        self.RenderDemo = channel.unary_unary(
+                '/portal2_harness.Portal2Harness/RenderDemo',
+                request_serializer=harness__pb2.RenderDemoRequest.SerializeToString,
+                response_deserializer=harness__pb2.RenderDemoResponse.FromString,
+                _registered_method=True)
 
 
 class Portal2HarnessServicer(object):
@@ -95,6 +100,14 @@ class Portal2HarnessServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def RenderDemo(self, request, context):
+        """First-class endpoint to render a demo file end-to-end.
+        Initiates playback and blocks internally until rollout conversion concludes.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_Portal2HarnessServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -127,6 +140,11 @@ def add_Portal2HarnessServicer_to_server(servicer, server):
                     servicer.AgentLoop,
                     request_deserializer=harness__pb2.AgentMessage.FromString,
                     response_serializer=harness__pb2.EnvironmentMessage.SerializeToString,
+            ),
+            'RenderDemo': grpc.unary_unary_rpc_method_handler(
+                    servicer.RenderDemo,
+                    request_deserializer=harness__pb2.RenderDemoRequest.FromString,
+                    response_serializer=harness__pb2.RenderDemoResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -293,6 +311,33 @@ class Portal2Harness(object):
             '/portal2_harness.Portal2Harness/AgentLoop',
             harness__pb2.AgentMessage.SerializeToString,
             harness__pb2.EnvironmentMessage.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RenderDemo(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/portal2_harness.Portal2Harness/RenderDemo',
+            harness__pb2.RenderDemoRequest.SerializeToString,
+            harness__pb2.RenderDemoResponse.FromString,
             options,
             channel_credentials,
             insecure,

@@ -42,7 +42,9 @@ class Harness : public Feature {
 
   // Rollout Recording
   void RecordDemoAction(const CUserCmd& cmd);
-  bool isRecordingRollout = false;
+  std::atomic<bool> isRecordingRollout{false};
+  std::mutex recordingMutex;
+  std::condition_variable recordingCV;
   bool wasPlayingDemo = false;
   CUserCmd lastDemoAction;
   class RolloutRecorder* rolloutRecorder = nullptr;
@@ -87,6 +89,11 @@ class Portal2HarnessImpl final
       grpc::ServerContext* context,
       grpc::ServerReaderWriter<portal2_harness::EnvironmentMessage,
                                portal2_harness::AgentMessage>* stream) override;
+
+  grpc::Status RenderDemo(
+      grpc::ServerContext* context,
+      const portal2_harness::RenderDemoRequest* request,
+      portal2_harness::RenderDemoResponse* response) override;
 
   bool InternalObserve(portal2_harness::GameState* response);
 

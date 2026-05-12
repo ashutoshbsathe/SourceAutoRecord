@@ -13,6 +13,9 @@
 #include "Scheduler.hpp"
 #include "Utils/Memory.hpp"
 #include "Utils/SDK.hpp"
+#include <filesystem>
+#include "Modules/FileSystem.hpp"
+#include "RolloutRecorder.hpp"
 
 extern void** g_harness_videomode_ptr;
 #define g_harness_videomode g_harness_videomode_ptr
@@ -364,5 +367,118 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
     stream->Write(env_msg);
   }
 
+  return grpc::Status::OK;
+}
+
+grpc::Status Portal2HarnessImpl::RenderDemo(
+    grpc::ServerContext* context,
+    const portal2_harness::RenderDemoRequest* request,
+    portal2_harness::RenderDemoResponse* response) {
+  std::string demoPath = request->demo_path();
+  std::string outputPath = request->output_path();
+  bool capturePixels = request->capture_pixels();
+
+  if (demoPath.empty()) {
+    response->set_success(false);
+    response->set_error_message("Empty demo_path");
+    return grpc::Status::OK;
+  }
+
+  if (!Utils::EndsWith(demoPath, ".dem")) demoPath += ".dem";
+  if (outputPath.empty()) outputPath = demoPath + ".rollout";
+  else if (!Utils::EndsWith(outputPath, ".rollout")) outputPath += ".rollout";
+
+  // Ensure absolute path in the game directory if it's just a filename
+  if (outputPath.find('/') == std::string::npos && outputPath.find('\\') == std::string::npos) {
+    outputPath = std::string(engine->GetGameDirectory()) + "/" + outputPath;
+  }
+
+  // Check if demo file exists
+  auto fullPath = fileSystem->FindFileSomewhere(demoPath).value_or(demoPath);
+  if (!std::filesystem::exists(fullPath)) {
+    response->set_success(false);
+    response->set_error_message("Demo file not found: " + demoPath);
+    return grpc::Status::OK;
+  }
+
+  console->Print("Harness: RenderDemo initiating playback for %s\n", demoPath.c_str());
+
+  std::string shmName = std::string("portal2_harness_framebuffer_") + harness->instanceId.GetString();
+
+  // Dispatch playdemo execution and recorder start to main thread
+  std::atomic<bool> setupDone{false};
+  std::atomic<bool> setupSuccess{false};
+
+  Scheduler::OnMainThread([&]() {
+    // Unpause the engine so demo playback frames actually advance freely
+    engine->SetAdvancing(false);
+    harness->harnessControlActive = false;
+    harness->warmupTicksRemaining = 0;
+    harness->ticksRemaining = 0;
+
+    // Wake up any lingering Act() threads if needed
+    {
+      std::lock_guard<std::mutex> lk(harness->tickMutex);
+      harness->tickCV.notify_all();
+    }
+
+    if (!harness->rolloutRecorder->Start(outputPath, engine->GetCurrentMapName(),
+                                         shmName, 854, 480, 1.0f / engine->GetIPT(),
+                                         capturePixels)) {
+      console->Warning("Harness: Failed to open rollout file for writing!\n");
+      setupDone.store(true);
+      return;
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(harness->recordingMutex);
+      harness->isRecordingRollout = true;
+      harness->wasPlayingDemo = false;
+    }
+
+    std::string cmd = "playdemo \"" + demoPath + "\"";
+    engine->ExecuteCommand(cmd.c_str(), true);
+    setupSuccess.store(true);
+    setupDone.store(true);
+  });
+
+  while (!setupDone.load()) {
+    if (context->IsCancelled()) return grpc::Status::CANCELLED;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+
+  if (!setupSuccess.load()) {
+    response->set_success(false);
+    response->set_error_message("Failed to initialize rollout file writer");
+    return grpc::Status::OK;
+  }
+
+  // Sleep cleanly on the server-side condition variable until recording completes end-to-end
+  std::unique_lock<std::mutex> lock(harness->recordingMutex);
+  while (harness->isRecordingRollout.load()) {
+    if (context->IsCancelled()) break;
+    harness->recordingCV.wait_for(lock, std::chrono::milliseconds(50));
+  }
+
+  if (context->IsCancelled()) {
+    // If canceled by client timeout, dispatch Stop to ensure file stream flushes safely
+    Scheduler::OnMainThread([]() {
+      if (harness && harness->isRecordingRollout) {
+        harness->rolloutRecorder->Stop();
+        {
+          std::lock_guard<std::mutex> lk(harness->recordingMutex);
+          harness->isRecordingRollout = false;
+          harness->wasPlayingDemo = false;
+          harness->recordingCV.notify_all();
+        }
+      }
+    });
+    return grpc::Status::CANCELLED;
+  }
+
+  response->set_success(true);
+  response->set_final_output_path(outputPath);
+  response->set_recorded_ticks(harness->rolloutRecorder->recordedTicks);
+  response->set_total_bytes(harness->rolloutRecorder->totalBytes);
   return grpc::Status::OK;
 }

@@ -29,6 +29,7 @@ static const char* Portal2Harness_method_names[] = {
   "/portal2_harness.Portal2Harness/ExecuteCommand",
   "/portal2_harness.Portal2Harness/Reset",
   "/portal2_harness.Portal2Harness/AgentLoop",
+  "/portal2_harness.Portal2Harness/RenderDemo",
 };
 
 std::unique_ptr< Portal2Harness::Stub> Portal2Harness::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -44,6 +45,7 @@ Portal2Harness::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& cha
   , rpcmethod_ExecuteCommand_(Portal2Harness_method_names[3], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_Reset_(Portal2Harness_method_names[4], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_AgentLoop_(Portal2Harness_method_names[5], options.suffix_for_stats(),::grpc::internal::RpcMethod::BIDI_STREAMING, channel)
+  , rpcmethod_RenderDemo_(Portal2Harness_method_names[6], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
 ::grpc::Status Portal2Harness::Stub::InitialHandshake(::grpc::ClientContext* context, const ::portal2_harness::HandshakeRequest& request, ::portal2_harness::HandshakeResponse* response) {
@@ -177,6 +179,29 @@ void Portal2Harness::Stub::async::AgentLoop(::grpc::ClientContext* context, ::gr
   return ::grpc::internal::ClientAsyncReaderWriterFactory< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>::Create(channel_.get(), cq, rpcmethod_AgentLoop_, context, false, nullptr);
 }
 
+::grpc::Status Portal2Harness::Stub::RenderDemo(::grpc::ClientContext* context, const ::portal2_harness::RenderDemoRequest& request, ::portal2_harness::RenderDemoResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::portal2_harness::RenderDemoRequest, ::portal2_harness::RenderDemoResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_RenderDemo_, context, request, response);
+}
+
+void Portal2Harness::Stub::async::RenderDemo(::grpc::ClientContext* context, const ::portal2_harness::RenderDemoRequest* request, ::portal2_harness::RenderDemoResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::portal2_harness::RenderDemoRequest, ::portal2_harness::RenderDemoResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_RenderDemo_, context, request, response, std::move(f));
+}
+
+void Portal2Harness::Stub::async::RenderDemo(::grpc::ClientContext* context, const ::portal2_harness::RenderDemoRequest* request, ::portal2_harness::RenderDemoResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_RenderDemo_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::portal2_harness::RenderDemoResponse>* Portal2Harness::Stub::PrepareAsyncRenderDemoRaw(::grpc::ClientContext* context, const ::portal2_harness::RenderDemoRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::portal2_harness::RenderDemoResponse, ::portal2_harness::RenderDemoRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_RenderDemo_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::portal2_harness::RenderDemoResponse>* Portal2Harness::Stub::AsyncRenderDemoRaw(::grpc::ClientContext* context, const ::portal2_harness::RenderDemoRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncRenderDemoRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
 Portal2Harness::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       Portal2Harness_method_names[0],
@@ -238,6 +263,16 @@ Portal2Harness::Service::Service() {
              ::portal2_harness::AgentMessage>* stream) {
                return service->AgentLoop(ctx, stream);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      Portal2Harness_method_names[6],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< Portal2Harness::Service, ::portal2_harness::RenderDemoRequest, ::portal2_harness::RenderDemoResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](Portal2Harness::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::portal2_harness::RenderDemoRequest* req,
+             ::portal2_harness::RenderDemoResponse* resp) {
+               return service->RenderDemo(ctx, req, resp);
+             }, this)));
 }
 
 Portal2Harness::Service::~Service() {
@@ -281,6 +316,13 @@ Portal2Harness::Service::~Service() {
 ::grpc::Status Portal2Harness::Service::AgentLoop(::grpc::ServerContext* context, ::grpc::ServerReaderWriter< ::portal2_harness::EnvironmentMessage, ::portal2_harness::AgentMessage>* stream) {
   (void) context;
   (void) stream;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status Portal2Harness::Service::RenderDemo(::grpc::ServerContext* context, const ::portal2_harness::RenderDemoRequest* request, ::portal2_harness::RenderDemoResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

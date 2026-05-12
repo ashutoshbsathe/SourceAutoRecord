@@ -69,9 +69,26 @@ class P2Harness:
         """Call Act RPC to send a synchronous action."""
         return self.stub.Act(action)
 
-    def execute_command(self, command: str) -> harness_pb2.CommandResponse:
+    def execute_command(self, command: str, timeout: float | None = None) -> harness_pb2.CommandResponse:
         """Call ExecuteCommand RPC to run a server console command."""
-        return self.stub.ExecuteCommand(harness_pb2.CommandRequest(command=command))
+        return self.stub.ExecuteCommand(
+            harness_pb2.CommandRequest(command=command), timeout=timeout
+        )
+
+    def render_demo(
+        self,
+        demo_path: str,
+        output_path: str = "",
+        capture_pixels: bool = True,
+        timeout: float | None = None,
+    ) -> harness_pb2.RenderDemoResponse:
+        """Call RenderDemo RPC to convert a demo file to a rollout end-to-end synchronously."""
+        req = harness_pb2.RenderDemoRequest(
+            demo_path=demo_path,
+            output_path=output_path,
+            capture_pixels=capture_pixels,
+        )
+        return self.stub.RenderDemo(req, timeout=timeout)
 
     def reset(self, map_name: str = "") -> harness_pb2.ResetResponse:
         """Call Reset RPC. Restart level or change map."""
