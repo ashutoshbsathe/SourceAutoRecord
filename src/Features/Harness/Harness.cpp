@@ -284,9 +284,14 @@ ON_EVENT(POST_TICK) {
       void* videomode = *g_harness_videomode_ptr;
       pixels = harness->rolloutRecorder->GetBuffer();
       pixelSize = harness->rolloutRecorder->GetBufferSize();
+      int sw = 854;
+      int sh = 480;
+      if (engine && engine->GetScreenSize) {
+        engine->GetScreenSize(nullptr, sw, sh);
+      }
       Memory::VMT<void(__rescall*)(void*, int, int, int, int, void*, int)>(
           videomode, Offsets::ReadScreenPixels)(
-          videomode, 0, 0, 854, 480, pixels,
+          videomode, 0, 0, sw, sh, pixels,
           2 /* IMAGE_FORMAT_RGB888 */);
     }
     
@@ -368,8 +373,14 @@ CON_COMMAND_F_COMPLETION(
 
   std::string shmName = std::string("portal2_harness_framebuffer_") + harness->instanceId.GetString();
 
+  int sw = 854;
+  int sh = 480;
+  if (engine && engine->GetScreenSize) {
+    engine->GetScreenSize(nullptr, sw, sh);
+  }
+
   if (!harness->rolloutRecorder->Start(outputPath, engine->GetCurrentMapName(),
-                                       shmName, 854, 480, 1.0f / engine->GetIPT(),
+                                       shmName, sw, sh, 1.0f / engine->GetIPT(),
                                        capturePixels)) {
     return console->Warning("Harness: Failed to open rollout file for writing!\n");
   }

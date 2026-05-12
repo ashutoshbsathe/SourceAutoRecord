@@ -33,14 +33,20 @@ grpc::Status Portal2HarnessImpl::InitialHandshake(
   int instanceN = harness ? harness->GetInstanceId() : 0;
   std::string shmName = "/portal2_harness_framebuffer_" + std::to_string(instanceN);
 
-  size_t shmWidth = 854;
-  size_t shmHeight = 480;
+  int sw = 854;
+  int sh = 480;
+  if (engine && engine->GetScreenSize) {
+    engine->GetScreenSize(nullptr, sw, sh);
+  }
+
+  size_t shmWidth = sw;
+  size_t shmHeight = sh;
   size_t shmSize = shmWidth * shmHeight * 3;
   shm.Init(shmName, shmSize);
 
   console->Print(
-      "Harness: InitialHandshake called. Responding with: version=%s, map=%s, shm=%s\n",
-      version.c_str(), map.c_str(), shmName.c_str());
+      "Harness: InitialHandshake called. Responding with: version=%s, map=%s, shm=%s (%dx%d)\n",
+      version.c_str(), map.c_str(), shmName.c_str(), sw, sh);
   response->set_game_version(version);
   response->set_map_name(map);
   response->set_shm_width(shmWidth);
@@ -350,9 +356,14 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
           g_harness_videomode && *g_harness_videomode) {
         std::atomic<bool> pixelsRead{false};
         Scheduler::OnMainThread([&]() {
+          int sw = 854;
+          int sh = 480;
+          if (engine && engine->GetScreenSize) {
+            engine->GetScreenSize(nullptr, sw, sh);
+          }
           Memory::VMT<void(__rescall*)(void*, int, int, int, int, void*, int)>(
               *g_harness_videomode, Offsets::ReadScreenPixels)(
-              *g_harness_videomode, 0, 0, 854, 480, shm.GetBuffer(),
+              *g_harness_videomode, 0, 0, sw, sh, shm.GetBuffer(),
               2 /* IMAGE_FORMAT_RGB888 */);
           pixelsRead.store(true);
         });
@@ -422,8 +433,14 @@ grpc::Status Portal2HarnessImpl::RenderDemo(
       harness->tickCV.notify_all();
     }
 
+    int sw = 854;
+    int sh = 480;
+    if (engine && engine->GetScreenSize) {
+      engine->GetScreenSize(nullptr, sw, sh);
+    }
+
     if (!harness->rolloutRecorder->Start(outputPath, engine->GetCurrentMapName(),
-                                         shmName, 854, 480, 1.0f / engine->GetIPT(),
+                                         shmName, sw, sh, 1.0f / engine->GetIPT(),
                                          capturePixels)) {
       console->Warning("Harness: Failed to open rollout file for writing!\n");
       setupDone.store(true);
