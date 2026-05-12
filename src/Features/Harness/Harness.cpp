@@ -392,6 +392,6 @@ CON_COMMAND_F_COMPLETION(
   }
 
   // Execute playdemo
-  std::string cmd = "playdemo \"" + demoPath + "\"";
+  std::string cmd = "sar_disable_challenge_stats_hud -1; hideconsole; playdemo \"" + demoPath + "\"";
   engine->ExecuteCommand(cmd.c_str(), true);
 }
