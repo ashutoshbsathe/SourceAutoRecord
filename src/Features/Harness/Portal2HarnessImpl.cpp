@@ -16,6 +16,8 @@
 #include <filesystem>
 #include "Modules/FileSystem.hpp"
 #include "RolloutRecorder.hpp"
+#include "Features/Demo/Demo.hpp"
+#include "Features/Demo/DemoParser.hpp"
 
 extern void** g_harness_videomode_ptr;
 #define g_harness_videomode g_harness_videomode_ptr
@@ -416,6 +418,16 @@ grpc::Status Portal2HarnessImpl::RenderDemo(
 
   std::string shmName = std::string("portal2_harness_framebuffer_") + harness->instanceId.GetString();
 
+  std::string targetMapName = engine->GetCurrentMapName();
+  {
+    DemoParser parser;
+    parser.headerOnly = true;
+    Demo demoHeader;
+    if (parser.Parse(fullPath, &demoHeader)) {
+      targetMapName = demoHeader.mapName;
+    }
+  }
+
   // Dispatch playdemo execution and recorder start to main thread
   std::atomic<bool> setupDone{false};
   std::atomic<bool> setupSuccess{false};
@@ -439,7 +451,7 @@ grpc::Status Portal2HarnessImpl::RenderDemo(
       engine->GetScreenSize(nullptr, sw, sh);
     }
 
-    if (!harness->rolloutRecorder->Start(outputPath, engine->GetCurrentMapName(),
+    if (!harness->rolloutRecorder->Start(outputPath, targetMapName,
                                          shmName, sw, sh, 1.0f / engine->GetIPT(),
                                          capturePixels)) {
       console->Warning("Harness: Failed to open rollout file for writing!\n");

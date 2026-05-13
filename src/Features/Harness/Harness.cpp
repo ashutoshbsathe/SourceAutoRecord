@@ -18,6 +18,8 @@
 #include "SAR.hpp"
 #include "Scheduler.hpp"
 #include "Utils/SDK.hpp"
+#include "Features/Demo/Demo.hpp"
+#include "Features/Demo/DemoParser.hpp"
 
 void** g_harness_videomode_ptr = nullptr;
 
@@ -373,13 +375,23 @@ CON_COMMAND_F_COMPLETION(
 
   std::string shmName = std::string("portal2_harness_framebuffer_") + harness->instanceId.GetString();
 
+  std::string targetMapName = engine->GetCurrentMapName();
+  {
+    DemoParser parser;
+    parser.headerOnly = true;
+    Demo demoHeader;
+    if (parser.Parse(fullPath, &demoHeader)) {
+      targetMapName = demoHeader.mapName;
+    }
+  }
+
   int sw = 854;
   int sh = 480;
   if (engine && engine->GetScreenSize) {
     engine->GetScreenSize(nullptr, sw, sh);
   }
 
-  if (!harness->rolloutRecorder->Start(outputPath, engine->GetCurrentMapName(),
+  if (!harness->rolloutRecorder->Start(outputPath, targetMapName,
                                        shmName, sw, sh, 1.0f / engine->GetIPT(),
                                        capturePixels)) {
     return console->Warning("Harness: Failed to open rollout file for writing!\n");
