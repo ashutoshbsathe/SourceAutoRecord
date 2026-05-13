@@ -454,7 +454,7 @@ grpc::Status Portal2HarnessImpl::RenderDemo(
     }
 
     std::string cmd = "sar_disable_challenge_stats_hud -1; hideconsole; playdemo \"" + demoPath + "\"";
-    engine->ExecuteCommand(cmd.c_str(), true);
+    engine->ExecuteCommand(cmd.c_str(), false);
     setupSuccess.store(true);
     setupDone.store(true);
   });
