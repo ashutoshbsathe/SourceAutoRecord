@@ -15,6 +15,7 @@
 #include "Modules/FileSystem.hpp"
 #include "Modules/Server.hpp"
 #include "RolloutRecorder.hpp"
+#include "HdemRecorder.hpp"
 #include "SAR.hpp"
 #include "Scheduler.hpp"
 #include "Utils/SDK.hpp"
@@ -129,9 +130,14 @@ Harness::Harness()
       instanceId("sar_harness_instance", "0",
                  "Instance index N for multi-game-process RL training.\n"
                  "Derives gRPC port as 50000+N and SHM name as\n"
-                 "portal2_harness_framebuffer_N.\n") {
+                 "portal2_harness_framebuffer_N.\n"),
+      harnessRecord("sar_harness_record", "0",
+                    "Enable harness demo recording alongside normal demo recording.\n"
+                    "When enabled, any 'record' command will also produce a .hdem sidecar.\n"
+                    "0 = off, 1 = record .hdem alongside .dem\n") {
   this->hasLoaded = true;
   this->rolloutRecorder = new RolloutRecorder();
+  this->hdemRecorder = new HdemRecorder();
 }
 
 Harness::~Harness() {
@@ -144,6 +150,9 @@ Harness::~Harness() {
   }
 
   this->StopServer();
+  if (this->hdemRecorder) {
+    delete this->hdemRecorder;
+  }
 }
 
 // docs/Harness.cpp:StartServer>
@@ -213,6 +222,9 @@ void Harness::StopServer() {
 
 // SESSION_START: When a session begins with harness enabled, activate TasPlayer
 ON_EVENT(SESSION_START) {
+  if (harness && harness->hdemRecorder) {
+    harness->hdemRecorder->DiscoverEntities();
+  }
   if (!harness || !harness->IsEnabled() || harness->isRecordingRollout) return;
 
   console->Print(
@@ -265,6 +277,26 @@ ON_EVENT(PRE_TICK) {
   }
 }
 
+// POST_TICK: Drive active sidecar recording stream tick-by-tick
+ON_EVENT(POST_TICK) {
+  // Ensure harness framework and sidecar recording module are present and active
+  if (!harness || !harness->hdemRecorder || !harness->hdemRecorder->IsActive()) {
+    return;
+  }
+
+  // Ensure game engine structures are fully initialized
+  if (!engine || !engine->hoststate || !server || !server->gpGlobals) {
+    return;
+  }
+
+  // Only record state frames when server simulation is actively ticking a live map
+  if (!engine->hoststate->m_activeGame) {
+    return;
+  }
+
+  harness->hdemRecorder->RecordTick(server->gpGlobals->tickcount);
+}
+
 // POST_TICK: Record rollout data during demo playback
 ON_EVENT(POST_TICK) {
   if (!harness || !harness->isRecordingRollout || !harness->rolloutRecorder->IsActive())
@@ -304,6 +336,18 @@ ON_EVENT(POST_TICK) {
                      harness->rolloutRecorder->recordedTicks,
                      harness->rolloutRecorder->totalBytes);
     }
+  }
+}
+
+ON_EVENT(SESSION_END) {
+  if (harness && harness->hdemRecorder && harness->hdemRecorder->IsActive()) {
+    harness->hdemRecorder->Stop();
+  }
+}
+
+ON_EVENT(DEMO_STOP) {
+  if (harness && harness->hdemRecorder && harness->hdemRecorder->IsActive()) {
+    harness->hdemRecorder->Stop();
   }
 }
 

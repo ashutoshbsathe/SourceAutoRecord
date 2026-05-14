@@ -48,9 +48,11 @@ class Harness : public Feature {
   bool wasPlayingDemo = false;
   CUserCmd lastDemoAction;
   class RolloutRecorder* rolloutRecorder = nullptr;
+  class HdemRecorder* hdemRecorder = nullptr;
 
   Variable enabled;
   Variable instanceId;  // sar_harness_instance: integer N → port 50000+N, shm suffix _N
+  Variable harnessRecord;
 
  private:
   std::unique_ptr<grpc::Server> server;

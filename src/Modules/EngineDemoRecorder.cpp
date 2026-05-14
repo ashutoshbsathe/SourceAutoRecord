@@ -14,6 +14,8 @@
 #include "Features/Speedrun/SpeedrunTimer.hpp"
 #include "Features/Timer/Timer.hpp"
 #include "Features/TimescaleDetect.hpp"
+#include "Features/Harness/Harness.hpp"
+#include "Features/Harness/HdemRecorder.hpp"
 #include "Offsets.hpp"
 #include "Server.hpp"
 #include "Utils.hpp"
@@ -222,6 +224,16 @@ DETOUR(EngineDemoRecorder::StartRecording, const char *filename, bool continuous
 
 	auto result = EngineDemoRecorder::StartRecording(thisptr, filename, continuously);
 
+	if (result && harness && harness->harnessRecord.GetBool() && harness->hdemRecorder) {
+		std::string baseName = engine->demorecorder->m_szDemoBaseName ? engine->demorecorder->m_szDemoBaseName : "";
+		if (!baseName.empty()) {
+			std::string path = std::string(engine->GetGameDirectory()) + "/" + baseName + ".hdem";
+			float tr = engine->GetIPT() > 0 ? (1.0f / engine->GetIPT()) : 60.0f;
+			harness->hdemRecorder->Start(path, engine->GetCurrentMapName(), tr);
+			console->Print("Harness: Started sidecar recording to %s\n", path.c_str());
+		}
+	}
+
 	needToRecordInitialVals = true;
 
 	return result;
@@ -233,6 +245,11 @@ DETOUR(EngineDemoRecorder::StopRecording) {
 	//   m_bRecording = false
 	//   m_nDemoNumber = 0
 	auto result = EngineDemoRecorder::StopRecording(thisptr);
+
+	if (harness && harness->hdemRecorder && harness->hdemRecorder->IsActive()) {
+		harness->hdemRecorder->Stop();
+		console->Print("Harness: Stopped sidecar recording.\n");
+	}
 
 	if (engine->demorecorder->isRecordingDemo) {
 		std::string demoName = engine->demorecorder->GetDemoFilename();
