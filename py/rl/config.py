@@ -10,7 +10,7 @@ class PPOConfig:
     """All hyperparameters for PPO + ViT training."""
 
     # --- Environment (mandatory, no defaults) ---
-    map_name: str = ""
+    map_name: str = ''
     target_pos: Tuple[float, float, float] = (0.0, 0.0, 0.0)
 
     # --- Environment (optional) ---
@@ -35,7 +35,7 @@ class PPOConfig:
     anneal_lr: bool = True
 
     # --- Model ---
-    vit_checkpoint: str = ""  # empty = auto-download from Google
+    vit_checkpoint: str = ''  # empty = auto-download from Google
     trunk_hidden: int = 512
     trunk_out: int = 256
 
@@ -46,72 +46,72 @@ class PPOConfig:
 
     # --- Infrastructure ---
     seed: int = 42
-    checkpoint_dir: str = "checkpoints/"
+    checkpoint_dir: str = 'checkpoints/'
     checkpoint_freq: int = 50
-    log_dir: str = "runs/"
-    resume: str = ""
+    log_dir: str = 'runs/'
+    resume: str = ''
 
 
 def parse_args() -> PPOConfig:
     """Parse CLI flags into a PPOConfig. --map-name and --target-pos are required."""
-    p = argparse.ArgumentParser(description="PPO + ViT-B/16 Portal 2 RL Training")
+    p = argparse.ArgumentParser(description='PPO + ViT-B/16 Portal 2 RL Training')
 
     # Mandatory
-    p.add_argument("--map-name", type=str, required=True, help="Portal 2 map name")
+    p.add_argument('--map-name', type=str, required=True, help='Portal 2 map name')
     p.add_argument(
-        "--target-pos",
+        '--target-pos',
         type=str,
         required=True,
         help="Target position as comma-separated x,y,z (e.g. '100,200,50')",
     )
 
     # Environment
-    p.add_argument("--num-envs", type=int, default=4)
-    p.add_argument("--max-episode-steps", type=int, default=300)
-    p.add_argument("--num-ticks-per-step", type=int, default=1)
+    p.add_argument('--num-envs', type=int, default=4)
+    p.add_argument('--max-episode-steps', type=int, default=300)
+    p.add_argument('--num-ticks-per-step', type=int, default=1)
 
     # Rollout
-    p.add_argument("--num-steps", type=int, default=128)
+    p.add_argument('--num-steps', type=int, default=128)
 
     # PPO
-    p.add_argument("--num-updates", type=int, default=10000)
-    p.add_argument("--num-epochs", type=int, default=4)
-    p.add_argument("--num-minibatches", type=int, default=4)
-    p.add_argument("--learning-rate", type=float, default=3e-4)
-    p.add_argument("--gamma", type=float, default=0.99)
-    p.add_argument("--gae-lambda", type=float, default=0.95)
-    p.add_argument("--clip-eps", type=float, default=0.2)
-    p.add_argument("--vf-coef", type=float, default=0.5)
-    p.add_argument("--ent-coef", type=float, default=0.01)
-    p.add_argument("--max-grad-norm", type=float, default=0.5)
-    p.add_argument("--anneal-lr", action="store_true", default=True)
-    p.add_argument("--no-anneal-lr", dest="anneal_lr", action="store_false")
+    p.add_argument('--num-updates', type=int, default=10000)
+    p.add_argument('--num-epochs', type=int, default=4)
+    p.add_argument('--num-minibatches', type=int, default=4)
+    p.add_argument('--learning-rate', type=float, default=3e-4)
+    p.add_argument('--gamma', type=float, default=0.99)
+    p.add_argument('--gae-lambda', type=float, default=0.95)
+    p.add_argument('--clip-eps', type=float, default=0.2)
+    p.add_argument('--vf-coef', type=float, default=0.5)
+    p.add_argument('--ent-coef', type=float, default=0.01)
+    p.add_argument('--max-grad-norm', type=float, default=0.5)
+    p.add_argument('--anneal-lr', action='store_true', default=True)
+    p.add_argument('--no-anneal-lr', dest='anneal_lr', action='store_false')
 
     # Model
     p.add_argument(
-        "--vit-checkpoint",
+        '--vit-checkpoint',
         type=str,
-        default="",
-        help="Path to ViT .npz (empty=auto-download)",
+        default='',
+        help='Path to ViT .npz (empty=auto-download)',
     )
-    p.add_argument("--trunk-hidden", type=int, default=512)
-    p.add_argument("--trunk-out", type=int, default=256)
+    p.add_argument('--trunk-hidden', type=int, default=512)
+    p.add_argument('--trunk-out', type=int, default=256)
 
     # Transformer / POMDP
-    p.add_argument("--max-seq-len", type=int, default=128)
-    p.add_argument("--transformer-blocks", type=int, default=1)
-    p.add_argument("--transformer-heads", type=int, default=8)
+    p.add_argument('--max-seq-len', type=int, default=128)
+    p.add_argument('--transformer-blocks', type=int, default=1)
+    p.add_argument('--transformer-heads', type=int, default=8)
 
     # Infrastructure
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--checkpoint-freq", type=int, default=50)
-    p.add_argument("--log-dir", type=str, default="runs/")
-    p.add_argument("--resume", type=str, default="")
+    p.add_argument('--seed', type=int, default=42)
+    p.add_argument('--checkpoint-freq', type=int, default=50)
+    p.add_argument('--log-dir', type=str, default='runs/')
+    p.add_argument('--resume', type=str, default='')
 
     args = p.parse_args()
 
     # Parse target_pos
-    tx, ty, tz = [float(v) for v in args.target_pos.split(",")]
+    tx, ty, tz = [float(v) for v in args.target_pos.split(',')]
 
     return PPOConfig(
         map_name=args.map_name,

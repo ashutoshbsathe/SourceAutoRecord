@@ -24,7 +24,8 @@ service Portal2Harness {
   rpc AgentLoop(stream AgentMessage) returns (stream EnvironmentMessage);
 
   // First-class endpoint to render a demo file end-to-end.
-  // Initiates playback and blocks internally until rollout conversion concludes.
+  // Initiates playback and blocks internally until rollout conversion
+  // concludes.
   rpc RenderDemo(RenderDemoRequest) returns (RenderDemoResponse);
 }
 

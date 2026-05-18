@@ -49,9 +49,9 @@ class LocalBuffer:
         self.completed_lengths = []
 
     def store(self, obs, action, reward, done, log_prob, value, image_embed):
-        self.images.append(obs["image"])
+        self.images.append(obs['image'])
         self.image_embeds.append(image_embed)
-        self.kinematics.append(obs["kinematics"])
+        self.kinematics.append(obs['kinematics'])
         self.actions.append(action)
         self.rewards[self.step] = reward
         self.dones[self.step] = float(done)
@@ -119,16 +119,16 @@ class AsyncRolloutWorker:
                 res = self.inference_server.get_action(self.worker_id, obs, is_first)
                 is_first = False
 
-                actions = res["actions"]
+                actions = res['actions']
 
                 # 2. Convert actions for env
                 action_dict = {
-                    "move_fb": int(actions["move_fb"]),
-                    "move_lr": int(actions["move_lr"]),
-                    "zoom": int(actions["zoom"]),
-                    "portal": int(actions["portal"]),
-                    "buttons": np.array(actions["buttons"]),
-                    "mouse": np.array(actions["mouse"]),
+                    'move_fb': int(actions['move_fb']),
+                    'move_lr': int(actions['move_lr']),
+                    'zoom': int(actions['zoom']),
+                    'portal': int(actions['portal']),
+                    'buttons': np.array(actions['buttons']),
+                    'mouse': np.array(actions['mouse']),
                 }
 
                 # 3. Step env
@@ -143,9 +143,9 @@ class AsyncRolloutWorker:
                     actions,
                     float(reward),
                     done,
-                    res["log_prob"],
-                    res["value"],
-                    res["image_embed"],
+                    res['log_prob'],
+                    res['value'],
+                    res['image_embed'],
                 )
                 ep_ret += float(reward)
                 ep_len += 1
@@ -157,7 +157,7 @@ class AsyncRolloutWorker:
                         final_res = self.inference_server.get_action(
                             self.worker_id, next_obs, is_first=False
                         )
-                        final_value = float(final_res["value"])
+                        final_value = float(final_res['value'])
                     else:
                         final_value = 0.0
 
@@ -179,17 +179,17 @@ class AsyncRolloutWorker:
                     }
 
                     trajectory = {
-                        "image_embeds": np.stack(local_buffer.image_embeds[:n]),
-                        "kinematics": np.stack(local_buffer.kinematics[:n]),
-                        "actions": packed_actions,
-                        "log_probs": np.array(local_buffer.log_probs[:n]),
-                        "values": np.array(local_buffer.values[:n]),
-                        "rewards": np.array(local_buffer.rewards[:n]),
-                        "dones": np.array(local_buffer.dones[:n]),
-                        "advantages": advantages,
-                        "returns": returns,
-                        "completed_returns": list(local_buffer.completed_returns),
-                        "completed_lengths": list(local_buffer.completed_lengths),
+                        'image_embeds': np.stack(local_buffer.image_embeds[:n]),
+                        'kinematics': np.stack(local_buffer.kinematics[:n]),
+                        'actions': packed_actions,
+                        'log_probs': np.array(local_buffer.log_probs[:n]),
+                        'values': np.array(local_buffer.values[:n]),
+                        'rewards': np.array(local_buffer.rewards[:n]),
+                        'dones': np.array(local_buffer.dones[:n]),
+                        'advantages': advantages,
+                        'returns': returns,
+                        'completed_returns': list(local_buffer.completed_returns),
+                        'completed_lengths': list(local_buffer.completed_lengths),
                     }
 
                     self.trajectory_queue.put(trajectory)
@@ -206,13 +206,13 @@ class AsyncRolloutWorker:
                     obs = next_obs
 
             except Exception as e:
-                print(f"[Worker {self.worker_id}] Error: {e.__class__.__name__}: {e}")
-                print(f"[Worker {self.worker_id}] Restarting environment...")
+                print(f'[Worker {self.worker_id}] Error: {e.__class__.__name__}: {e}')
+                print(f'[Worker {self.worker_id}] Restarting environment...')
                 try:
                     self.env.restart_instance()
                     obs, _ = self.env.reset()
                 except Exception as restart_err:
-                    print(f"[Worker {self.worker_id}] Restart failed: {restart_err}")
+                    print(f'[Worker {self.worker_id}] Restart failed: {restart_err}')
                     time.sleep(5)  # Prevent tight crash loop
 
                 local_buffer.clear()

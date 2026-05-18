@@ -27,7 +27,7 @@ import flax.linen as nn
 IMAGENET_MEAN = jnp.array([0.485, 0.456, 0.406])
 IMAGENET_STD = jnp.array([0.229, 0.224, 0.225])
 
-VIT_B16_URL = "https://storage.googleapis.com/vit_models/imagenet21k/ViT-B_16.npz"
+VIT_B16_URL = 'https://storage.googleapis.com/vit_models/imagenet21k/ViT-B_16.npz'
 VIT_B16_CONFIG = dict(
     num_layers=12, num_heads=12, hidden_size=768, mlp_dim=3072, patch_size=16
 )
@@ -44,9 +44,9 @@ class MlpBlock(nn.Module):
     @nn.compact
     def __call__(self, x):
         d = x.shape[-1]
-        x = nn.Dense(self.mlp_dim, name="fc1")(x)
+        x = nn.Dense(self.mlp_dim, name='fc1')(x)
         x = nn.gelu(x)
-        x = nn.Dense(d, name="fc2")(x)
+        x = nn.Dense(d, name='fc2')(x)
         return x
 
 
@@ -58,12 +58,12 @@ class TransformerBlock(nn.Module):
 
     @nn.compact
     def __call__(self, x):
-        y = nn.LayerNorm(name="ln1")(x)
-        y = nn.MultiHeadDotProductAttention(num_heads=self.num_heads, name="attn")(y, y)
+        y = nn.LayerNorm(name='ln1')(x)
+        y = nn.MultiHeadDotProductAttention(num_heads=self.num_heads, name='attn')(y, y)
         x = x + y
 
-        y = nn.LayerNorm(name="ln2")(x)
-        y = MlpBlock(self.mlp_dim, name="mlp")(y)
+        y = nn.LayerNorm(name='ln2')(x)
+        y = MlpBlock(self.mlp_dim, name='mlp')(y)
         x = x + y
         return x
 
@@ -86,16 +86,16 @@ class MemoryTransformerBlock(nn.Module):
 
     @nn.compact
     def __call__(self, x, mask=None):
-        y = nn.LayerNorm(name="ln1")(x)
+        y = nn.LayerNorm(name='ln1')(x)
         # Flax attention automatically converts boolean mask (False) to -inf
         # which is numerically stable before softmax.
-        y = nn.MultiHeadDotProductAttention(num_heads=self.num_heads, name="attn")(
+        y = nn.MultiHeadDotProductAttention(num_heads=self.num_heads, name='attn')(
             y, y, mask=mask
         )
         x = x + y
 
-        y = nn.LayerNorm(name="ln2")(x)
-        y = MlpBlock(self.mlp_dim, name="mlp")(y)
+        y = nn.LayerNorm(name='ln2')(x)
+        y = MlpBlock(self.mlp_dim, name='mlp')(y)
         x = x + y
         return x
 
@@ -127,22 +127,20 @@ class ViTB16(nn.Module):
             self.hidden_size,
             kernel_size=(self.patch_size, self.patch_size),
             strides=(self.patch_size, self.patch_size),
-            padding="VALID",
-            name="patch_embed",
-        )(
-            x
-        )  # (B, 14, 14, 768)
+            padding='VALID',
+            name='patch_embed',
+        )(x)  # (B, 14, 14, 768)
         x = x.reshape(B, n_patches, self.hidden_size)
 
         # Prepend CLS token
-        cls = self.param("cls_token", nn.initializers.zeros, (1, 1, self.hidden_size))
+        cls = self.param('cls_token', nn.initializers.zeros, (1, 1, self.hidden_size))
         x = jnp.concatenate(
             [jnp.broadcast_to(cls, (B, 1, self.hidden_size)), x], axis=1
         )
 
         # Position embeddings
         pos = self.param(
-            "pos_embed", nn.initializers.zeros, (1, n_patches + 1, self.hidden_size)
+            'pos_embed', nn.initializers.zeros, (1, n_patches + 1, self.hidden_size)
         )
         x = x + pos
 
@@ -151,28 +149,28 @@ class ViTB16(nn.Module):
             x = TransformerBlock(
                 num_heads=self.num_heads,
                 mlp_dim=self.mlp_dim,
-                name=f"block_{i}",
+                name=f'block_{i}',
             )(x)
 
-        x = nn.LayerNorm(name="final_ln")(x)
+        x = nn.LayerNorm(name='final_ln')(x)
         return x[:, 0]  # CLS token
 
 
 # ─────────── Pretrained weight loading from Google .npz ──────────────────── #
 
 
-def _download_checkpoint(url: str, cache_dir: str = "~/.cache/vit_jax") -> str:
+def _download_checkpoint(url: str, cache_dir: str = '~/.cache/vit_jax') -> str:
     """Download the ViT .npz checkpoint if not already cached."""
     cache_dir = os.path.expanduser(cache_dir)
     os.makedirs(cache_dir, exist_ok=True)
     filename = os.path.basename(url)
     local_path = os.path.join(cache_dir, filename)
     if os.path.exists(local_path):
-        print(f"[ViT] Using cached checkpoint: {local_path}")
+        print(f'[ViT] Using cached checkpoint: {local_path}')
         return local_path
-    print(f"[ViT] Downloading {url} ...")
+    print(f'[ViT] Downloading {url} ...')
     urllib.request.urlretrieve(url, local_path)
-    print(f"[ViT] Saved to {local_path}")
+    print(f'[ViT] Saved to {local_path}')
     return local_path
 
 
@@ -187,66 +185,66 @@ def load_vit_params_from_npz(npz_path: str, num_layers: int = 12):
     params = {}
 
     # CLS token & position embeddings
-    params["cls_token"] = data["cls"]
-    params["pos_embed"] = data["Transformer/posembed_input/pos_embedding"]
+    params['cls_token'] = data['cls']
+    params['pos_embed'] = data['Transformer/posembed_input/pos_embedding']
 
     # Patch embedding (Conv)
-    params["patch_embed"] = {
-        "kernel": data["embedding/kernel"],
-        "bias": data["embedding/bias"],
+    params['patch_embed'] = {
+        'kernel': data['embedding/kernel'],
+        'bias': data['embedding/bias'],
     }
 
     # Final LayerNorm
-    params["final_ln"] = {
-        "scale": data["Transformer/encoder_norm/scale"],
-        "bias": data["Transformer/encoder_norm/bias"],
+    params['final_ln'] = {
+        'scale': data['Transformer/encoder_norm/scale'],
+        'bias': data['Transformer/encoder_norm/bias'],
     }
 
     # Transformer blocks
     for i in range(num_layers):
-        pf = f"Transformer/encoderblock_{i}"
-        params[f"block_{i}"] = {
-            "ln1": {
-                "scale": data[f"{pf}/LayerNorm_0/scale"],
-                "bias": data[f"{pf}/LayerNorm_0/bias"],
+        pf = f'Transformer/encoderblock_{i}'
+        params[f'block_{i}'] = {
+            'ln1': {
+                'scale': data[f'{pf}/LayerNorm_0/scale'],
+                'bias': data[f'{pf}/LayerNorm_0/bias'],
             },
-            "attn": {
-                "query": {
-                    "kernel": data[f"{pf}/MultiHeadDotProductAttention_1/query/kernel"],
-                    "bias": data[f"{pf}/MultiHeadDotProductAttention_1/query/bias"],
+            'attn': {
+                'query': {
+                    'kernel': data[f'{pf}/MultiHeadDotProductAttention_1/query/kernel'],
+                    'bias': data[f'{pf}/MultiHeadDotProductAttention_1/query/bias'],
                 },
-                "key": {
-                    "kernel": data[f"{pf}/MultiHeadDotProductAttention_1/key/kernel"],
-                    "bias": data[f"{pf}/MultiHeadDotProductAttention_1/key/bias"],
+                'key': {
+                    'kernel': data[f'{pf}/MultiHeadDotProductAttention_1/key/kernel'],
+                    'bias': data[f'{pf}/MultiHeadDotProductAttention_1/key/bias'],
                 },
-                "value": {
-                    "kernel": data[f"{pf}/MultiHeadDotProductAttention_1/value/kernel"],
-                    "bias": data[f"{pf}/MultiHeadDotProductAttention_1/value/bias"],
+                'value': {
+                    'kernel': data[f'{pf}/MultiHeadDotProductAttention_1/value/kernel'],
+                    'bias': data[f'{pf}/MultiHeadDotProductAttention_1/value/bias'],
                 },
-                "out": {
-                    "kernel": data[f"{pf}/MultiHeadDotProductAttention_1/out/kernel"],
-                    "bias": data[f"{pf}/MultiHeadDotProductAttention_1/out/bias"],
+                'out': {
+                    'kernel': data[f'{pf}/MultiHeadDotProductAttention_1/out/kernel'],
+                    'bias': data[f'{pf}/MultiHeadDotProductAttention_1/out/bias'],
                 },
             },
-            "ln2": {
-                "scale": data[f"{pf}/LayerNorm_2/scale"],
-                "bias": data[f"{pf}/LayerNorm_2/bias"],
+            'ln2': {
+                'scale': data[f'{pf}/LayerNorm_2/scale'],
+                'bias': data[f'{pf}/LayerNorm_2/bias'],
             },
-            "mlp": {
-                "fc1": {
-                    "kernel": data[f"{pf}/MlpBlock_3/Dense_0/kernel"],
-                    "bias": data[f"{pf}/MlpBlock_3/Dense_0/bias"],
+            'mlp': {
+                'fc1': {
+                    'kernel': data[f'{pf}/MlpBlock_3/Dense_0/kernel'],
+                    'bias': data[f'{pf}/MlpBlock_3/Dense_0/bias'],
                 },
-                "fc2": {
-                    "kernel": data[f"{pf}/MlpBlock_3/Dense_1/kernel"],
-                    "bias": data[f"{pf}/MlpBlock_3/Dense_1/bias"],
+                'fc2': {
+                    'kernel': data[f'{pf}/MlpBlock_3/Dense_1/kernel'],
+                    'bias': data[f'{pf}/MlpBlock_3/Dense_1/bias'],
                 },
             },
         }
 
     # Convert all arrays to jnp, in bfloat16 to halve VRAM
     params = jax.tree.map(lambda x: jnp.array(x, dtype=jnp.bfloat16), params)
-    return {"params": params}
+    return {'params': params}
 
 
 # ─────────────────── Frozen ViT vision encoder ───────────────────────────── #
@@ -260,25 +258,25 @@ class VisionEncoder:
     halve VRAM usage (~172 MB instead of ~344 MB).
     """
 
-    def __init__(self, checkpoint_path: str = ""):
+    def __init__(self, checkpoint_path: str = ''):
         # Download if no local path provided
         if not checkpoint_path or not os.path.exists(checkpoint_path):
             checkpoint_path = _download_checkpoint(VIT_B16_URL)
 
         self.model = ViTB16(**VIT_B16_CONFIG)
         self.variables = load_vit_params_from_npz(
-            checkpoint_path, VIT_B16_CONFIG["num_layers"]
+            checkpoint_path, VIT_B16_CONFIG['num_layers']
         )
-        self.hidden_size: int = VIT_B16_CONFIG["hidden_size"]
+        self.hidden_size: int = VIT_B16_CONFIG['hidden_size']
 
         # JIT-compile the forward pass
         self._apply_jit = jax.jit(self.model.apply)
 
         n_params = sum(x.size for x in jax.tree.leaves(self.variables))
-        dtype = jax.tree.leaves(self.variables["params"])[0].dtype
+        dtype = jax.tree.leaves(self.variables['params'])[0].dtype
         print(
-            f"[VisionEncoder] Loaded ViT-B/16: {n_params:,} params, "
-            f"dtype={dtype}, hidden_size={self.hidden_size}"
+            f'[VisionEncoder] Loaded ViT-B/16: {n_params:,} params, '
+            f'dtype={dtype}, hidden_size={self.hidden_size}'
         )
 
     def __call__(self, images: jnp.ndarray) -> jnp.ndarray:
@@ -323,13 +321,13 @@ class IndependentActionHead(nn.Module):
 
     @nn.compact
     def __call__(self, features: jnp.ndarray) -> ActionDistParams:
-        move_fb = nn.Dense(3, name="head_move_fb")(features)
-        move_lr = nn.Dense(3, name="head_move_lr")(features)
-        zoom = nn.Dense(3, name="head_zoom")(features)
-        portal = nn.Dense(3, name="head_portal")(features)
-        buttons = nn.Dense(3, name="head_buttons")(features)
-        mouse_mean = nn.Dense(2, name="head_mouse_mean")(features)
-        mouse_log_std = self.param("mouse_log_std", nn.initializers.zeros, (2,))
+        move_fb = nn.Dense(3, name='head_move_fb')(features)
+        move_lr = nn.Dense(3, name='head_move_lr')(features)
+        zoom = nn.Dense(3, name='head_zoom')(features)
+        portal = nn.Dense(3, name='head_portal')(features)
+        buttons = nn.Dense(3, name='head_buttons')(features)
+        mouse_mean = nn.Dense(2, name='head_mouse_mean')(features)
+        mouse_log_std = self.param('mouse_log_std', nn.initializers.zeros, (2,))
         return ActionDistParams(
             move_fb_logits=move_fb,
             move_lr_logits=move_lr,
@@ -377,12 +375,12 @@ class IndependentActionHead(nn.Module):
         lp = lp + lp_m.sum(axis=-1)
 
         actions = {
-            "move_fb": move_fb,
-            "move_lr": move_lr,
-            "zoom": zoom,
-            "portal": portal,
-            "buttons": buttons,
-            "mouse": mouse,
+            'move_fb': move_fb,
+            'move_lr': move_lr,
+            'zoom': zoom,
+            'portal': portal,
+            'buttons': buttons,
+            'mouse': mouse,
         }
         return actions, lp
 
@@ -398,20 +396,20 @@ class IndependentActionHead(nn.Module):
 
         lp = (
             lp
-            + _clp(dist.move_fb_logits, actions["move_fb"])
-            + _clp(dist.move_lr_logits, actions["move_lr"])
-            + _clp(dist.zoom_logits, actions["zoom"])
-            + _clp(dist.portal_logits, actions["portal"])
+            + _clp(dist.move_fb_logits, actions['move_fb'])
+            + _clp(dist.move_lr_logits, actions['move_lr'])
+            + _clp(dist.zoom_logits, actions['zoom'])
+            + _clp(dist.portal_logits, actions['portal'])
         )
 
-        b = actions["buttons"].astype(jnp.float32)
+        b = actions['buttons'].astype(jnp.float32)
         lp_btn = b * jax.nn.log_sigmoid(dist.buttons_logits) + (
             1 - b
         ) * jax.nn.log_sigmoid(-dist.buttons_logits)
         lp = lp + lp_btn.sum(axis=-1)
 
         std = jnp.exp(dist.mouse_log_std)
-        m = actions["mouse"]
+        m = actions['mouse']
         lp_m = (
             -0.5 * ((m - dist.mouse_mean) / std) ** 2
             - jnp.log(std)
@@ -472,9 +470,9 @@ class ActorCritic(nn.Module):
 
         B, T, _ = image_embed.shape
 
-        img = nn.LayerNorm(name="ln_image")(image_embed)
-        pos = nn.Dense(self.embed_dim, name="pos_proj")(kinematics)
-        pos = nn.LayerNorm(name="ln_pos")(pos)
+        img = nn.LayerNorm(name='ln_image')(image_embed)
+        pos = nn.Dense(self.embed_dim, name='pos_proj')(kinematics)
+        pos = nn.LayerNorm(name='ln_pos')(pos)
 
         fused = jnp.concatenate([img, pos], axis=-1)
 
@@ -490,19 +488,19 @@ class ActorCritic(nn.Module):
             x = MemoryTransformerBlock(
                 num_heads=self.transformer_heads,
                 mlp_dim=self.trunk_hidden,
-                name=f"memory_block_{i}",
+                name=f'memory_block_{i}',
             )(x, mask=mask)
 
-        x = nn.Dense(self.trunk_hidden, name="trunk_fc1")(x)
+        x = nn.Dense(self.trunk_hidden, name='trunk_fc1')(x)
         x = nn.relu(x)
-        x = nn.LayerNorm(name="ln_trunk1")(x)
-        x = nn.Dense(self.trunk_out, name="trunk_fc2")(x)
+        x = nn.LayerNorm(name='ln_trunk1')(x)
+        x = nn.Dense(self.trunk_out, name='trunk_fc2')(x)
         x = nn.relu(x)
-        x = nn.LayerNorm(name="ln_trunk2")(x)
+        x = nn.LayerNorm(name='ln_trunk2')(x)
 
         if is_single:
             x = x[:, 0, :]
 
-        dist_params = IndependentActionHead(name="action_head")(x)
-        value = nn.Dense(1, name="critic_head")(x)
+        dist_params = IndependentActionHead(name='action_head')(x)
+        value = nn.Dense(1, name='critic_head')(x)
         return dist_params, value

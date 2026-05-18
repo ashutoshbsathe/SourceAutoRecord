@@ -32,12 +32,12 @@ class RolloutBuffer:
 
         # Actions (stored per component)
         self.actions: Dict[str, np.ndarray] = {
-            "move_fb": np.zeros((num_steps, num_envs), dtype=np.int32),
-            "move_lr": np.zeros((num_steps, num_envs), dtype=np.int32),
-            "zoom": np.zeros((num_steps, num_envs), dtype=np.int32),
-            "portal": np.zeros((num_steps, num_envs), dtype=np.int32),
-            "buttons": np.zeros((num_steps, num_envs, 3), dtype=np.int32),
-            "mouse": np.zeros((num_steps, num_envs, 2), dtype=np.float32),
+            'move_fb': np.zeros((num_steps, num_envs), dtype=np.int32),
+            'move_lr': np.zeros((num_steps, num_envs), dtype=np.int32),
+            'zoom': np.zeros((num_steps, num_envs), dtype=np.int32),
+            'portal': np.zeros((num_steps, num_envs), dtype=np.int32),
+            'buttons': np.zeros((num_steps, num_envs, 3), dtype=np.int32),
+            'mouse': np.zeros((num_steps, num_envs, 2), dtype=np.float32),
         }
 
         self.log_probs = np.zeros((num_steps, num_envs), dtype=np.float32)
@@ -66,14 +66,14 @@ class RolloutBuffer:
         """Flatten (T, N, ...) -> (T*N, ...) and convert to JAX arrays."""
         B = self.num_steps * self.num_envs
         return {
-            "image_embeds": jnp.array(self.image_embeds.reshape(B, -1)),
-            "positions": jnp.array(self.positions.reshape(B, -1)),
-            "actions": {
+            'image_embeds': jnp.array(self.image_embeds.reshape(B, -1)),
+            'positions': jnp.array(self.positions.reshape(B, -1)),
+            'actions': {
                 k: jnp.array(v.reshape(B, *v.shape[2:]))
                 for k, v in self.actions.items()
             },
-            "log_probs": jnp.array(self.log_probs.reshape(B)),
-            "values": jnp.array(self.values.reshape(B)),
+            'log_probs': jnp.array(self.log_probs.reshape(B)),
+            'values': jnp.array(self.values.reshape(B)),
         }
 
 
@@ -130,17 +130,17 @@ def _step_single_env(env, action_dict, prev_obs):
         return obs, float(reward), done, False
 
     except Exception as e:
-        env_id = getattr(env, "instance", None)
-        env_id = env_id.instance_id if env_id else "?"
+        env_id = getattr(env, 'instance', None)
+        env_id = env_id.instance_id if env_id else '?'
         print(
-            f"[Rollout] Env {env_id} error: {e.__class__.__name__}: {e}\n"
-            f"         Restarting instance and resetting..."
+            f'[Rollout] Env {env_id} error: {e.__class__.__name__}: {e}\n'
+            f'         Restarting instance and resetting...'
         )
         try:
             env.restart_instance()
             obs, _ = env.reset()
         except Exception as e2:
-            print(f"[Rollout] Env {env_id} restart also failed: {e2}")
+            print(f'[Rollout] Env {env_id} restart also failed: {e2}')
             obs = prev_obs  # fallback to previous observation
         return obs, 0.0, True, True  # done=True so GAE doesn't bootstrap
 
@@ -157,7 +157,7 @@ def collect_rollouts(
     num_steps: int,
     rng: jnp.ndarray,
     ep_stats: EpisodeStats,
-) -> Tuple["RolloutBuffer", List[dict], jnp.ndarray]:
+) -> Tuple['RolloutBuffer', List[dict], jnp.ndarray]:
     """Collect a rollout of transitions from multiple environments.
 
     Environment steps are parallelised with a thread pool so one slow or
@@ -188,8 +188,8 @@ def collect_rollouts(
             rng, step_rng = jax.random.split(rng)
 
             # ── Batch observations ──
-            images = jnp.array(np.stack([obs["image"] for obs in current_obs]))
-            positions = jnp.array(np.stack([obs["position"] for obs in current_obs]))
+            images = jnp.array(np.stack([obs['image'] for obs in current_obs]))
+            positions = jnp.array(np.stack([obs['position'] for obs in current_obs]))
 
             # ── Encode images (frozen ViT) ──
             image_embeds = vision_encoder(images)  # (N, 768)
@@ -213,12 +213,12 @@ def collect_rollouts(
             futures = {}
             for i, env in enumerate(envs):
                 action_dict = {
-                    "move_fb": int(actions["move_fb"][i]),
-                    "move_lr": int(actions["move_lr"][i]),
-                    "zoom": int(actions["zoom"][i]),
-                    "portal": int(actions["portal"][i]),
-                    "buttons": np.array(actions["buttons"][i]),
-                    "mouse": np.array(actions["mouse"][i]),
+                    'move_fb': int(actions['move_fb'][i]),
+                    'move_lr': int(actions['move_lr'][i]),
+                    'zoom': int(actions['zoom'][i]),
+                    'portal': int(actions['portal'][i]),
+                    'buttons': np.array(actions['buttons'][i]),
+                    'mouse': np.array(actions['mouse'][i]),
                 }
                 futures[
                     pool.submit(_step_single_env, env, action_dict, current_obs[i])

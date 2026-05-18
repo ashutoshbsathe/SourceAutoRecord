@@ -110,29 +110,29 @@ def create_ppo_fns(
 
         def loss_fn(params):
             dist_params, values = model.apply(
-                params, batch["image_embeds"], batch["kinematics"]
+                params, batch['image_embeds'], batch['kinematics']
             )
             values = values.squeeze(-1)
 
             new_log_probs = IndependentActionHead.log_prob(
-                dist_params, batch["actions"]
+                dist_params, batch['actions']
             )
             ent = IndependentActionHead.entropy(dist_params)
 
             # ── policy loss (clipped surrogate) ──
-            ratio = jnp.exp(new_log_probs - batch["old_log_probs"])
-            pg_loss1 = -batch["advantages"] * ratio
-            pg_loss2 = -batch["advantages"] * jnp.clip(
+            ratio = jnp.exp(new_log_probs - batch['old_log_probs'])
+            pg_loss1 = -batch['advantages'] * ratio
+            pg_loss2 = -batch['advantages'] * jnp.clip(
                 ratio, 1.0 - clip_eps, 1.0 + clip_eps
             )
             pg_loss = jnp.maximum(pg_loss1, pg_loss2).mean()
 
             # ── value loss (clipped) ──
-            v_unclipped = (values - batch["returns"]) ** 2
-            v_clipped = batch["old_values"] + jnp.clip(
-                values - batch["old_values"], -clip_eps, clip_eps
+            v_unclipped = (values - batch['returns']) ** 2
+            v_clipped = batch['old_values'] + jnp.clip(
+                values - batch['old_values'], -clip_eps, clip_eps
             )
-            v_loss_clipped = (v_clipped - batch["returns"]) ** 2
+            v_loss_clipped = (v_clipped - batch['returns']) ** 2
             v_loss = 0.5 * jnp.maximum(v_unclipped, v_loss_clipped).mean()
 
             loss = pg_loss + vf_coef * v_loss - ent_coef * ent.mean()
@@ -209,11 +209,11 @@ def ppo_update(
         return x
 
     chunked_buffer = {
-        "image_embeds": _chunk(buffer_seq["image_embeds"]),
-        "kinematics": _chunk(buffer_seq["kinematics"]),
-        "actions": {k: _chunk(v) for k, v in buffer_seq["actions"].items()},
-        "log_probs": _chunk(buffer_seq["log_probs"]),
-        "values": _chunk(buffer_seq["values"]),
+        'image_embeds': _chunk(buffer_seq['image_embeds']),
+        'kinematics': _chunk(buffer_seq['kinematics']),
+        'actions': {k: _chunk(v) for k, v in buffer_seq['actions'].items()},
+        'log_probs': _chunk(buffer_seq['log_probs']),
+        'values': _chunk(buffer_seq['values']),
     }
     chunked_adv = _chunk(advantages)
     chunked_ret = _chunk(returns)
@@ -236,13 +236,13 @@ def ppo_update(
             mb_idx = perm[mb_start : mb_start + minibatch_size]
 
             batch = {
-                "image_embeds": chunked_buffer["image_embeds"][mb_idx],
-                "kinematics": chunked_buffer["kinematics"][mb_idx],
-                "actions": {k: v[mb_idx] for k, v in chunked_buffer["actions"].items()},
-                "old_log_probs": chunked_buffer["log_probs"][mb_idx],
-                "advantages": chunked_adv[mb_idx],
-                "returns": chunked_ret[mb_idx],
-                "old_values": chunked_buffer["values"][mb_idx],
+                'image_embeds': chunked_buffer['image_embeds'][mb_idx],
+                'kinematics': chunked_buffer['kinematics'][mb_idx],
+                'actions': {k: v[mb_idx] for k, v in chunked_buffer['actions'].items()},
+                'old_log_probs': chunked_buffer['log_probs'][mb_idx],
+                'advantages': chunked_adv[mb_idx],
+                'returns': chunked_ret[mb_idx],
+                'old_values': chunked_buffer['values'][mb_idx],
             }
 
             params, opt_state, metrics = ppo_step_fn(params, opt_state, batch)

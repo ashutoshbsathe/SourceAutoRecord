@@ -70,9 +70,9 @@ class InferenceServer:
         self.request_queue.put((worker_id, obs, is_first, event, result_bucket))
         event.wait()
 
-        if "error" in result_bucket:
-            raise RuntimeError(result_bucket["error"])
-        return result_bucket["result"]
+        if 'error' in result_bucket:
+            raise RuntimeError(result_bucket['error'])
+        return result_bucket['result']
 
     def _server_loop(self):
         try:
@@ -101,13 +101,13 @@ class InferenceServer:
 
                 if dummy_image is None:
                     first_obs = requests[0][1]
-                    dummy_image = np.zeros_like(first_obs["image"])
-                    dummy_kinematics = np.zeros_like(first_obs["kinematics"])
+                    dummy_image = np.zeros_like(first_obs['image'])
+                    dummy_kinematics = np.zeros_like(first_obs['kinematics'])
 
                 # We must batch images for the vision_encoder
                 images = []
                 for r in requests:
-                    images.append(r[1]["image"])
+                    images.append(r[1]['image'])
                 while len(images) < self.max_batch_size:
                     images.append(dummy_image)
                 batch_images = np.stack(images)
@@ -127,7 +127,9 @@ class InferenceServer:
                         curr_len = self.cache_lens[worker_id]
                         if curr_len < self.max_seq_len:
                             self.cache_images[worker_id, curr_len] = image_embeds[i]
-                            self.cache_kinematics[worker_id, curr_len] = obs["kinematics"]
+                            self.cache_kinematics[worker_id, curr_len] = obs[
+                                'kinematics'
+                            ]
                             self.cache_lens[worker_id] += 1
                         else:
                             # Shift left (sliding window)
@@ -135,10 +137,10 @@ class InferenceServer:
                                 worker_id, 1:
                             ]
                             self.cache_images[worker_id, -1] = image_embeds[i]
-                            self.cache_kinematics[worker_id, :-1] = self.cache_kinematics[
-                                worker_id, 1:
-                            ]
-                            self.cache_kinematics[worker_id, -1] = obs["kinematics"]
+                            self.cache_kinematics[worker_id, :-1] = (
+                                self.cache_kinematics[worker_id, 1:]
+                            )
+                            self.cache_kinematics[worker_id, -1] = obs['kinematics']
 
                     # 3. Create JAX batch from persistent cache
                     # We always run the full batch of max_batch_size environments
@@ -166,11 +168,11 @@ class InferenceServer:
                         worker_value = np.array(values[worker_id, idx])
                         worker_embed = np.array(image_embeds[i])
 
-                        result_bucket["result"] = {
-                            "actions": worker_actions,
-                            "log_prob": worker_log_prob,
-                            "value": worker_value,
-                            "image_embed": worker_embed,
+                        result_bucket['result'] = {
+                            'actions': worker_actions,
+                            'log_prob': worker_log_prob,
+                            'value': worker_value,
+                            'image_embed': worker_embed,
                         }
                         event.set()
 
@@ -181,11 +183,11 @@ class InferenceServer:
                     traceback.print_exc()
                     for r in requests:
                         _, _, _, event, result_bucket = r
-                        result_bucket["error"] = str(e)
+                        result_bucket['error'] = str(e)
                         event.set()
 
         except Exception as e:
-            print(f"[InferenceServer] FATAL THREAD CRASH: {e}")
+            print(f'[InferenceServer] FATAL THREAD CRASH: {e}')
             import traceback
 
             traceback.print_exc()

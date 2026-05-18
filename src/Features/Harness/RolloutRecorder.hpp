@@ -1,38 +1,43 @@
 #pragma once
+#include <fstream>
+#include <string>
+
 #include "Utils/SDK.hpp"
 #include "Utils/SDK/UserCmd.hpp"
 #include "harness.pb.h"
 
-#include <fstream>
-#include <string>
-
 class RolloutRecorder {
-public:
-	RolloutRecorder();
-	~RolloutRecorder();
+ public:
+  RolloutRecorder();
+  ~RolloutRecorder();
 
-	bool Start(const std::string &path, const std::string &mapName, const std::string &shmName, int width, int height, float tickrate, bool capturePixels);
-	void Stop();
-	bool IsActive() const { return isActive; }
-	bool CapturesPixels() const { return capturePixels; }
+  bool Start(const std::string& path, const std::string& mapName,
+             const std::string& shmName, int width, int height, float tickrate,
+             bool capturePixels);
+  void Stop();
+  bool IsActive() const { return isActive; }
+  bool CapturesPixels() const { return capturePixels; }
 
-	void RecordTick(const portal2_harness::GameState &state, const portal2_harness::ActionRequest &action, void *pixels, size_t pixelSize);
+  void RecordTick(const portal2_harness::GameState& state,
+                  const portal2_harness::ActionRequest& action, void* pixels,
+                  size_t pixelSize);
 
-	void *GetBuffer() { return pixelBuffer; }
-	size_t GetBufferSize() { return pixelBufferSize; }
+  void* GetBuffer() { return pixelBuffer; }
+  size_t GetBufferSize() { return pixelBufferSize; }
 
-	static void MapUserCmdToAction(const CUserCmd &cmd, portal2_harness::ActionRequest *req);
+  static void MapUserCmdToAction(const CUserCmd& cmd,
+                                 portal2_harness::ActionRequest* req);
 
-private:
-	void WriteMessage(const google::protobuf::Message &msg);
+ private:
+  void WriteMessage(const google::protobuf::Message& msg);
 
-	std::ofstream file;
-	bool isActive = false;
-	bool capturePixels = false;
-	void *pixelBuffer = nullptr;
-	size_t pixelBufferSize = 0;
+  std::ofstream file;
+  bool isActive = false;
+  bool capturePixels = false;
+  void* pixelBuffer = nullptr;
+  size_t pixelBufferSize = 0;
 
-public:
-	size_t recordedTicks = 0;
-	size_t totalBytes = 0;
+ public:
+  size_t recordedTicks = 0;
+  size_t totalBytes = 0;
 };

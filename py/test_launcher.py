@@ -29,20 +29,20 @@ for instance in instances:
     instance.start()
     time.sleep(DEFAULT_STAGGER_DELAY)
 
-print("Booting...")
+print('Booting...')
 time.sleep(10)
 
 harnesses = []
 for i in range(NUM_INSTANCES):
-    harnesses.append(P2Harness(f"localhost:{50000 + i}"))
+    harnesses.append(P2Harness(f'localhost:{50000 + i}'))
 
-print("Handshaking...")
+print('Handshaking...')
 for harness in harnesses:
     print(harness.handshake())
-    harness.reset("sp_a2_laser_chaining")
+    harness.reset('sp_a2_laser_chaining')
     harness.start_agent_loop()
 
-print("Stepping in parallel...")
+print('Stepping in parallel...')
 
 
 def step_env(harness, i, step):
@@ -59,7 +59,7 @@ with ThreadPoolExecutor(max_workers=NUM_INSTANCES) as pool:
             futures.append(pool.submit(step_env, harness, i, step))
         for future in as_completed(futures):
             future.result()
-        print(f"Global step {step} completed")
+        print(f'Global step {step} completed')
 
 for harness in harnesses:
     harness.close()

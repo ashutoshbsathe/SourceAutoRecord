@@ -23,7 +23,9 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from p2harness.harness_pb2 import RolloutHeader, RolloutStep
 
 
-def draw_hud(frame: np.ndarray, header: RolloutHeader, step: RolloutStep, frame_idx: int):
+def draw_hud(
+    frame: np.ndarray, header: RolloutHeader, step: RolloutStep, frame_idx: int
+):
     """Draws a premium HUD overlay displaying agent controls and state telemetry."""
     h, w, _ = frame.shape
     act = step.action
@@ -35,7 +37,9 @@ def draw_hud(frame: np.ndarray, header: RolloutHeader, step: RolloutStep, frame_
     cv2.line(frame, (0, 48), (w, 48), (80, 90, 100), 1)
 
     # Row 1: Left aligned map & tick metadata
-    row1_text = f"Map: {header.map_name} | Frame: {frame_idx} | Tick: {state.server_tick}"
+    row1_text = (
+        f'Map: {header.map_name} | Frame: {frame_idx} | Tick: {state.server_tick}'
+    )
     cv2.putText(
         frame,
         row1_text,
@@ -48,7 +52,7 @@ def draw_hud(frame: np.ndarray, header: RolloutHeader, step: RolloutStep, frame_
     )
 
     # Row 2: Left aligned full spatial telemetry
-    row2_text = f"Pos: X: {state.position.x:.1f} | Y: {state.position.y:.1f} | Z: {state.position.z:.1f}"
+    row2_text = f'Pos: X: {state.position.x:.1f} | Y: {state.position.y:.1f} | Z: {state.position.z:.1f}'
     cv2.putText(
         frame,
         row2_text,
@@ -67,14 +71,21 @@ def draw_hud(frame: np.ndarray, header: RolloutHeader, step: RolloutStep, frame_
 
     keys = [
         # WASD
-        (base_x + kw + gap, base_y, kw, kh, "W", act.key_forward),
-        (base_x, base_y + kh + gap, kw, kh, "A", act.key_left),
-        (base_x + kw + gap, base_y + kh + gap, kw, kh, "S", act.key_backward),
-        (base_x + (kw + gap) * 2, base_y + kh + gap, kw, kh, "D", act.key_right),
+        (base_x + kw + gap, base_y, kw, kh, 'W', act.key_forward),
+        (base_x, base_y + kh + gap, kw, kh, 'A', act.key_left),
+        (base_x + kw + gap, base_y + kh + gap, kw, kh, 'S', act.key_backward),
+        (base_x + (kw + gap) * 2, base_y + kh + gap, kw, kh, 'D', act.key_right),
         # Abilities
-        (base_x + (kw + gap) * 3.3, base_y, kw * 2.2, kh, "JUMP", act.key_jump),
-        (base_x + (kw + gap) * 3.3, base_y + kh + gap, kw * 2.2, kh, "DUCK", act.key_crouch),
-        (base_x + (kw + gap) * 5.7, base_y, kw * 1.5, kh, "USE", act.key_use),
+        (base_x + (kw + gap) * 3.3, base_y, kw * 2.2, kh, 'JUMP', act.key_jump),
+        (
+            base_x + (kw + gap) * 3.3,
+            base_y + kh + gap,
+            kw * 2.2,
+            kh,
+            'DUCK',
+            act.key_crouch,
+        ),
+        (base_x + (kw + gap) * 5.7, base_y, kw * 1.5, kh, 'USE', act.key_use),
     ]
 
     for kx, ky, bw, bh, label, active in keys:
@@ -83,8 +94,12 @@ def draw_hud(frame: np.ndarray, header: RolloutHeader, step: RolloutStep, frame_
         txt_color = (10, 20, 10) if active else (160, 170, 180)
         border_color = (120, 255, 140) if active else (60, 70, 80)
 
-        cv2.rectangle(frame, (int(kx), int(ky)), (int(kx + bw), int(ky + bh)), bg_color, -1)
-        cv2.rectangle(frame, (int(kx), int(ky)), (int(kx + bw), int(ky + bh)), border_color, 1)
+        cv2.rectangle(
+            frame, (int(kx), int(ky)), (int(kx + bw), int(ky + bh)), bg_color, -1
+        )
+        cv2.rectangle(
+            frame, (int(kx), int(ky)), (int(kx + bw), int(ky + bh)), border_color, 1
+        )
 
         l_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)[0]
         tx = kx + (bw - l_size[0]) / 2
@@ -108,15 +123,30 @@ def draw_hud(frame: np.ndarray, header: RolloutHeader, step: RolloutStep, frame_
     p_active = act.portal_primary
     p_bg = (255, 160, 30) if p_active else (40, 30, 25)  # BGR layout
     cv2.rectangle(frame, (mb_x, mb_y), (mb_x + mw, mb_y + mh), p_bg, -1)
-    cv2.rectangle(frame, (mb_x, mb_y), (mb_x + mw, mb_y + mh), (255, 200, 100) if p_active else (80, 60, 50), 1)
+    cv2.rectangle(
+        frame,
+        (mb_x, mb_y),
+        (mb_x + mw, mb_y + mh),
+        (255, 200, 100) if p_active else (80, 60, 50),
+        1,
+    )
     cv2.putText(
-        frame, "BLUE", (mb_x + 6, mb_y + 19), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA
+        frame,
+        'BLUE',
+        (mb_x + 6, mb_y + 19),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.4,
+        (255, 255, 255),
+        1,
+        cv2.LINE_AA,
     )
 
     # Secondary Portal (Orange)
     s_active = act.portal_secondary
     s_bg = (30, 110, 255) if s_active else (25, 30, 40)  # BGR layout
-    cv2.rectangle(frame, (mb_x + mw + gap, mb_y), (mb_x + (mw * 2) + gap, mb_y + mh), s_bg, -1)
+    cv2.rectangle(
+        frame, (mb_x + mw + gap, mb_y), (mb_x + (mw * 2) + gap, mb_y + mh), s_bg, -1
+    )
     cv2.rectangle(
         frame,
         (mb_x + mw + gap, mb_y),
@@ -126,7 +156,7 @@ def draw_hud(frame: np.ndarray, header: RolloutHeader, step: RolloutStep, frame_
     )
     cv2.putText(
         frame,
-        "ORANGE",
+        'ORANGE',
         (mb_x + mw + gap + 1, mb_y + 19),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.35,
@@ -143,8 +173,12 @@ def draw_hud(frame: np.ndarray, header: RolloutHeader, step: RolloutStep, frame_
     sq_cy = sq_y + sq_size // 2
 
     # Draw semi-transparent background box and clear crisp boundary
-    cv2.rectangle(frame, (sq_x, sq_y), (sq_x + sq_size, sq_y + sq_size), (20, 22, 26), -1)
-    cv2.rectangle(frame, (sq_x, sq_y), (sq_x + sq_size, sq_y + sq_size), (90, 100, 115), 1)
+    cv2.rectangle(
+        frame, (sq_x, sq_y), (sq_x + sq_size, sq_y + sq_size), (20, 22, 26), -1
+    )
+    cv2.rectangle(
+        frame, (sq_x, sq_y), (sq_x + sq_size, sq_y + sq_size), (90, 100, 115), 1
+    )
 
     # Origin inner crosshair demarcations
     cv2.line(frame, (sq_cx, sq_y + 5), (sq_cx, sq_y + sq_size - 5), (50, 55, 65), 1)
@@ -168,28 +202,28 @@ def draw_hud(frame: np.ndarray, header: RolloutHeader, step: RolloutStep, frame_
 def visualize(rollout_path: str):
     """Parses rollout file and drives live visualization via OpenCV window."""
     if not os.path.exists(rollout_path):
-        print(f"Error: Rollout file not found: {rollout_path}")
+        print(f'Error: Rollout file not found: {rollout_path}')
         return
 
-    print(f"Opening rollout file: {rollout_path}")
-    with open(rollout_path, "rb") as f:
+    print(f'Opening rollout file: {rollout_path}')
+    with open(rollout_path, 'rb') as f:
         # Read RolloutHeader
         size_data = f.read(4)
         if not size_data:
-            print("Error: Empty file.")
+            print('Error: Empty file.')
             return
 
-        size = struct.unpack("<I", size_data)[0]
+        size = struct.unpack('<I', size_data)[0]
         header = RolloutHeader()
         header.ParseFromString(f.read(size))
 
-        print("\n=== Rollout Metadata ===")
-        print(f"Map:        {header.map_name}")
-        print(f"Resolution: {header.shm_width}x{header.shm_height}")
-        print(f"Tickrate:   {header.tickrate:.1f} Hz")
-        print("========================\n")
+        print('\n=== Rollout Metadata ===')
+        print(f'Map:        {header.map_name}')
+        print(f'Resolution: {header.shm_width}x{header.shm_height}')
+        print(f'Tickrate:   {header.tickrate:.1f} Hz')
+        print('========================\n')
 
-        window_name = f"Rollout Visualizer: {os.path.basename(rollout_path)}"
+        window_name = f'Rollout Visualizer: {os.path.basename(rollout_path)}'
         cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
         # Scale display window up by 2x for premium high-visibility inspection
         cv2.resizeWindow(window_name, header.shm_width * 2, header.shm_height * 2)
@@ -202,11 +236,11 @@ def visualize(rollout_path: str):
         steps_cache = []
         stream_ended = False
 
-        print("Streaming video... Controls:")
-        print("  [Space]       : Pause / Resume playback")
-        print("  [Left / a / ,]: Step backward one frame")
-        print("  [Right / d /.]: Step forward one frame")
-        print("  [q / Esc]     : Quit visualizer")
+        print('Streaming video... Controls:')
+        print('  [Space]       : Pause / Resume playback')
+        print('  [Left / a / ,]: Step backward one frame')
+        print('  [Right / d /.]: Step forward one frame')
+        print('  [q / Esc]     : Quit visualizer')
 
         # Read buffer step loop
         while True:
@@ -216,11 +250,11 @@ def visualize(rollout_path: str):
                 if not size_data:
                     stream_ended = True
                     paused = True
-                    print("End of stream reached. Paused on final frame.")
+                    print('End of stream reached. Paused on final frame.')
                     if not steps_cache:
                         break
                 else:
-                    size = struct.unpack("<I", size_data)[0]
+                    size = struct.unpack('<I', size_data)[0]
                     step = RolloutStep()
                     step.ParseFromString(f.read(size))
                     steps_cache.append(step)
@@ -242,9 +276,13 @@ def visualize(rollout_path: str):
                     arr = arr.reshape((header.shm_height, header.shm_width, 3))
                     frame = arr[:, :, ::-1].copy()
                 else:
-                    frame = np.zeros((header.shm_height, header.shm_width, 3), dtype=np.uint8)
+                    frame = np.zeros(
+                        (header.shm_height, header.shm_width, 3), dtype=np.uint8
+                    )
             else:
-                frame = np.zeros((header.shm_height, header.shm_width, 3), dtype=np.uint8)
+                frame = np.zeros(
+                    (header.shm_height, header.shm_width, 3), dtype=np.uint8
+                )
 
             # Draw overlay HUD using current_idx + 1 as human readable frame index
             draw_hud(frame, header, step, current_idx + 1)
@@ -257,18 +295,28 @@ def visualize(rollout_path: str):
             # Mask out character keycode for basic ASCII matching
             char_code = key & 0xFF
 
-            if char_code == 27 or char_code == ord("q"):  # Esc or q
+            if char_code == 27 or char_code == ord('q'):  # Esc or q
                 break
-            elif char_code == ord(" "):  # Spacebar toggles pause
+            elif char_code == ord(' '):  # Spacebar toggles pause
                 paused = not paused
-                print("Playback Paused" if paused else "Playback Resumed")
+                print('Playback Paused' if paused else 'Playback Resumed')
             # Step Backward: Left arrow keycode (65361 / 0xFF51) or 'a' or ','
-            elif key == 65361 or key == 0x250000 or char_code == ord("a") or char_code == ord(","):
+            elif (
+                key == 65361
+                or key == 0x250000
+                or char_code == ord('a')
+                or char_code == ord(',')
+            ):
                 paused = True
                 if current_idx > 0:
                     current_idx -= 1
             # Step Forward: Right arrow keycode (65363 / 0xFF53) or 'd' or '.'
-            elif key == 65363 or key == 0x270000 or char_code == ord("d") or char_code == ord("."):
+            elif (
+                key == 65363
+                or key == 0x270000
+                or char_code == ord('d')
+                or char_code == ord('.')
+            ):
                 paused = True
                 if current_idx < len(steps_cache) - 1:
                     current_idx += 1
@@ -276,7 +324,7 @@ def visualize(rollout_path: str):
                     # Attempt to read next frame from disk on-demand
                     size_data = f.read(4)
                     if size_data:
-                        size = struct.unpack("<I", size_data)[0]
+                        size = struct.unpack('<I', size_data)[0]
                         nxt_step = RolloutStep()
                         nxt_step.ParseFromString(f.read(size))
                         steps_cache.append(nxt_step)
@@ -285,12 +333,12 @@ def visualize(rollout_path: str):
                         stream_ended = True
 
         cv2.destroyAllWindows()
-        print("Visualizer closed successfully.")
+        print('Visualizer closed successfully.')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print("Usage: python py/visualize_rollout.py <path_to_rollout_file>")
+        print('Usage: python py/visualize_rollout.py <path_to_rollout_file>')
         sys.exit(1)
 
     visualize(sys.argv[1])

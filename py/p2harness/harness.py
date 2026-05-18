@@ -14,7 +14,7 @@ class P2Harness:
     Wraps all RPCs and provides a high-performance Thread+Queue based AgentLoop.
     """
 
-    def __init__(self, address: str = "localhost:50051"):
+    def __init__(self, address: str = 'localhost:50051'):
         self.address = address
         self.channel = grpc.insecure_channel(self.address)
         self.stub = harness_pb2_grpc.Portal2HarnessStub(self.channel)
@@ -29,7 +29,7 @@ class P2Harness:
         self._stop_event = None
 
     def handshake(
-        self, client_version: str = "P2Harness Python", client_id: str = "p2harness"
+        self, client_version: str = 'P2Harness Python', client_id: str = 'p2harness'
     ) -> harness_pb2.HandshakeResponse:
         """Perform InitialHandshake and map the shared memory framebuffer if available."""
         req = harness_pb2.HandshakeRequest(
@@ -47,12 +47,12 @@ class P2Harness:
                     self.shm.close()
                 # Server tells us the SHM name; fall back to legacy name for old builds
                 shm_name = (
-                    resp.shm_name if resp.shm_name else "portal2_harness_framebuffer"
+                    resp.shm_name if resp.shm_name else 'portal2_harness_framebuffer'
                 )
                 self.shm = shared_memory.SharedMemory(name=shm_name)
                 # Unregister so the python resource tracker doesn't complain about leaks
                 # TODO(absathe): kinda suspect, wonder if this should be done during cleanup
-                resource_tracker.unregister(self.shm._name, "shared_memory")
+                resource_tracker.unregister(self.shm._name, 'shared_memory')
             except FileNotFoundError:
                 print(
                     f"Warning: Server reported SHM size, but failed to open shared memory file '{shm_name}'."
@@ -69,7 +69,9 @@ class P2Harness:
         """Call Act RPC to send a synchronous action."""
         return self.stub.Act(action)
 
-    def execute_command(self, command: str, timeout: float | None = None) -> harness_pb2.CommandResponse:
+    def execute_command(
+        self, command: str, timeout: float | None = None
+    ) -> harness_pb2.CommandResponse:
         """Call ExecuteCommand RPC to run a server console command."""
         return self.stub.ExecuteCommand(
             harness_pb2.CommandRequest(command=command), timeout=timeout
@@ -78,7 +80,7 @@ class P2Harness:
     def render_demo(
         self,
         demo_path: str,
-        output_path: str = "",
+        output_path: str = '',
         capture_pixels: bool = True,
         timeout: float | None = None,
     ) -> harness_pb2.RenderDemoResponse:
@@ -90,7 +92,7 @@ class P2Harness:
         )
         return self.stub.RenderDemo(req, timeout=timeout)
 
-    def reset(self, map_name: str = "") -> harness_pb2.ResetResponse:
+    def reset(self, map_name: str = '') -> harness_pb2.ResetResponse:
         """Call Reset RPC. Restart level or change map."""
         # Stop existing stream if any, as server will drop it on reset anyway
         self.stop_agent_loop()
@@ -121,7 +123,7 @@ class P2Harness:
                 self._response_queue.put(resp)
         except grpc.RpcError as e:
             if e.code() != grpc.StatusCode.CANCELLED:
-                print(f"AgentLoop RPC stream dropped: {e.code()} {e.details()}")
+                print(f'AgentLoop RPC stream dropped: {e.code()} {e.details()}')
             self._response_queue.put(e)
 
     def start_agent_loop(self):
@@ -153,7 +155,7 @@ class P2Harness:
         """
         if self._stream_thread is None or not self._stream_thread.is_alive():
             raise RuntimeError(
-                "AgentLoop stream is not running. Call start_agent_loop() first."
+                'AgentLoop stream is not running. Call start_agent_loop() first.'
             )
 
         # We must ensure the queue is empty before sending, just in case
@@ -168,13 +170,13 @@ class P2Harness:
                 raise resp
             return resp
         except queue.Empty:
-            raise TimeoutError("Timed out waiting for response from AgentLoop stream.")
+            raise TimeoutError('Timed out waiting for response from AgentLoop stream.')
 
     def get_shm_pixels(self) -> np.ndarray:
         """Read the RGB pixels from shared memory."""
         if self.shm is None or self.shm_width == 0 or self.shm_height == 0:
             raise RuntimeError(
-                "Shared memory not initialized. Did you call handshake() and did the server report SHM size?"
+                'Shared memory not initialized. Did you call handshake() and did the server report SHM size?'
             )
         frame = np.ndarray(
             (self.shm_height, self.shm_width, 3), dtype=np.uint8, buffer=self.shm.buf

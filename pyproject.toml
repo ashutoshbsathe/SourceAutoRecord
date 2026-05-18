@@ -14,6 +14,26 @@ environments = ["sys_platform == 'linux'"]
 # so we effectively exclude it with an impossible marker.
 override-dependencies = ["grpcio-tools; python_version < '3'"]
 
+[tool.ruff]
+# Select rules for Google-style docstrings and import sorting
+# D: pydocstyle (standard docstring checks)
+# I: isort (import sorting)
+select = ["E", "F", "D", "I"]
+
+[tool.ruff.lint.pydocstyle]
+# Explicitly use Google style for docstrings
+convention = "google"
+
+[tool.ruff.format]
+# Google style often favors single quotes for strings
+quote-style = "single"
+# Standard indentation (4 spaces) is used, but you can adjust if needed
+indent-style = "space"
+
+[tool.ruff.lint.isort]
+# Google style: one import per line is often preferred for modules
+force-single-line = true
+
 [project]
 name = "sourceautorecord"
 version = "0.1.0"

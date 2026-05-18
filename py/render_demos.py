@@ -37,44 +37,44 @@ from p2harness import P2Harness
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string(
-    "demo_path",
+    'demo_path',
     None,
-    "Path to a single .dem file or directory of .dem files to render.",
+    'Path to a single .dem file or directory of .dem files to render.',
 )
 flags.DEFINE_string(
-    "batch_dir",
+    'batch_dir',
     None,
-    "Directory containing .dem files for batch processing.",
+    'Directory containing .dem files for batch processing.',
 )
 flags.DEFINE_string(
-    "output_dir",
+    'output_dir',
     None,
-    "Directory to save output rollout files. Defaults to the input directory.",
+    'Directory to save output rollout files. Defaults to the input directory.',
 )
 flags.DEFINE_integer(
-    "num_instances",
+    'num_instances',
     4,
-    "Number of parallel game instances for batch mode.",
+    'Number of parallel game instances for batch mode.',
 )
 flags.DEFINE_boolean(
-    "pixels",
+    'pixels',
     True,
-    "Enable pixel capture during rendering.",
+    'Enable pixel capture during rendering.',
 )
 flags.DEFINE_string(
-    "ext",
-    ".rollout",
-    "Output file extension (e.g. .rollout or .rolloutf).",
+    'ext',
+    '.rollout',
+    'Output file extension (e.g. .rollout or .rolloutf).',
 )
 flags.DEFINE_float(
-    "timeout",
+    'timeout',
     3600.0,
-    "Safety timeout in seconds for a single demo rendering (default: 3600s / 1hr).",
+    'Safety timeout in seconds for a single demo rendering (default: 3600s / 1hr).',
 )
 flags.DEFINE_boolean(
-    "overwrite",
+    'overwrite',
     True,
-    "Overwrite existing rollout files.",
+    'Overwrite existing rollout files.',
 )
 
 
@@ -91,12 +91,12 @@ def render_demo(
 
     if os.path.exists(output_path):
         if not overwrite:
-            print(f"↳ Output path already exists, skipping: {output_path}")
+            print(f'↳ Output path already exists, skipping: {output_path}')
             return output_path
         try:
             os.remove(output_path)
         except OSError as e:
-            print(f"⚠ Warning: Failed to remove existing file {output_path}: {e}")
+            print(f'⚠ Warning: Failed to remove existing file {output_path}: {e}')
 
     try:
         resp = harness.render_demo(
@@ -106,21 +106,21 @@ def render_demo(
             timeout=FLAGS.timeout,
         )
         if not resp.success:
-            raise RuntimeError(f"RenderDemo RPC failed: {resp.error_message}")
+            raise RuntimeError(f'RenderDemo RPC failed: {resp.error_message}')
 
         print(
-            f"↳ Finished rendering: {resp.final_output_path} ({resp.total_bytes:,} bytes / {resp.recorded_ticks} ticks)"
+            f'↳ Finished rendering: {resp.final_output_path} ({resp.total_bytes:,} bytes / {resp.recorded_ticks} ticks)'
         )
         return resp.final_output_path
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
             print(
-                f"⚠ Warning: Demo rendering exceeded timeout ({FLAGS.timeout}s), stopping forcibly."
+                f'⚠ Warning: Demo rendering exceeded timeout ({FLAGS.timeout}s), stopping forcibly.'
             )
             try:
-                harness.execute_command("sar_harness_stop_rollout")
+                harness.execute_command('sar_harness_stop_rollout')
             except Exception as stop_err:
-                print(f"⚠ Warning: Failed to execute stop command: {stop_err}")
+                print(f'⚠ Warning: Failed to execute stop command: {stop_err}')
         else:
             raise
 
@@ -164,7 +164,7 @@ class HarnessWorker(threading.Thread):
                 os.makedirs(out_dir, exist_ok=True)
                 out_path = os.path.join(out_dir, base_name + self.ext)
                 time.sleep(random.randint(1, 10))
-                print(f"[Worker {self.worker_id}] Rendering: {demo_path}")
+                print(f'[Worker {self.worker_id}] Rendering: {demo_path}')
                 render_demo(
                     self.harness,
                     demo_path,
@@ -173,7 +173,7 @@ class HarnessWorker(threading.Thread):
                     capture_pixels=self.capture_pixels,
                 )
             except Exception as e:
-                print(f"[Worker {self.worker_id}] Error rendering {demo_path}: {e}")
+                print(f'[Worker {self.worker_id}] Error rendering {demo_path}: {e}')
             finally:
                 self.demo_queue.task_done()
 
@@ -190,41 +190,41 @@ def main(argv):
     for target in targets:
         if os.path.isdir(target):
             # If a directory is passed positionally, treat it as a batch folder
-            pattern = os.path.join(target, "*.dem")
+            pattern = os.path.join(target, '*.dem')
             demos_to_process.extend(sorted(glob.glob(pattern)))
         elif os.path.isfile(target):
             demos_to_process.append(target)
         else:
-            path = target if target.endswith(".dem") else f"{target}.dem"
+            path = target if target.endswith('.dem') else f'{target}.dem'
             if os.path.isfile(path):
                 demos_to_process.append(path)
             else:
-                print(f"Error: Demo file or directory not found: {target}")
+                print(f'Error: Demo file or directory not found: {target}')
                 sys.exit(1)
 
     # Check explicit batch_dir flag
     if FLAGS.batch_dir:
         if not os.path.isdir(FLAGS.batch_dir):
-            print(f"Error: Batch directory not found: {FLAGS.batch_dir}")
+            print(f'Error: Batch directory not found: {FLAGS.batch_dir}')
             sys.exit(1)
-        pattern = os.path.join(FLAGS.batch_dir, "*.dem")
+        pattern = os.path.join(FLAGS.batch_dir, '*.dem')
         demos_to_process.extend(sorted(glob.glob(pattern)))
 
     # Deduplicate while preserving input sequence order
     demos_to_process = list(dict.fromkeys(demos_to_process))
 
     if not demos_to_process:
-        print("Error: No demo files specified or found to process.\n")
-        print("Usage examples:")
-        print("  python py/render_demos.py path/to/demo.dem")
-        print("  python py/render_demos.py --batch_dir=path/to/demos --num_instances=4")
+        print('Error: No demo files specified or found to process.\n')
+        print('Usage examples:')
+        print('  python py/render_demos.py path/to/demo.dem')
+        print('  python py/render_demos.py --batch_dir=path/to/demos --num_instances=4')
         sys.exit(1)
 
-    print(f"Found {len(demos_to_process)} demo(s) to process.")
+    print(f'Found {len(demos_to_process)} demo(s) to process.')
 
     num_instances = min(FLAGS.num_instances, len(demos_to_process))
     capture_pixels = FLAGS.pixels
-    ext = FLAGS.ext if FLAGS.ext.startswith(".") else f".{FLAGS.ext}"
+    ext = FLAGS.ext if FLAGS.ext.startswith('.') else f'.{FLAGS.ext}'
 
     # Populate central demo queue
     demo_queue = queue.Queue()
@@ -234,7 +234,7 @@ def main(argv):
     instances = []
     harnesses = []
 
-    print(f"\nLaunching {num_instances} game instance(s)...")
+    print(f'\nLaunching {num_instances} game instance(s)...')
     try:
         for i in range(num_instances):
             inst = GameInstance(
@@ -251,18 +251,18 @@ def main(argv):
 
         # Base boot wait of 10.0s ideally as requested, plus staggered startup padding
         boot_wait = 10.0 + (num_instances - 1) * (DEFAULT_STAGGER_DELAY / 2)
-        print(f"Waiting {boot_wait:.1f}s for instance(s) to boot...")
+        print(f'Waiting {boot_wait:.1f}s for instance(s) to boot...')
         time.sleep(boot_wait)
 
-        print("Connecting to gRPC harnesses (with automatic retries)...")
+        print('Connecting to gRPC harnesses (with automatic retries)...')
         for i in range(num_instances):
-            harness = P2Harness(f"localhost:{50000 + i}")
+            harness = P2Harness(f'localhost:{50000 + i}')
             connected = False
             last_err = None
             for attempt in range(15):
                 try:
                     resp = harness.handshake()
-                    print(f"harness.handshake(): {resp}")
+                    print(f'harness.handshake(): {resp}')
                     harnesses.append(harness)
                     connected = True
                     break
@@ -271,14 +271,14 @@ def main(argv):
                     time.sleep(1.0)
             if not connected:
                 print(
-                    f"⚠ Warning: Instance {i} handshake failed after 15 attempts: {last_err}"
+                    f'⚠ Warning: Instance {i} handshake failed after 15 attempts: {last_err}'
                 )
 
         if not harnesses:
-            raise RuntimeError("Could not connect to any game instances.")
+            raise RuntimeError('Could not connect to any game instances.')
 
         print(
-            f"\nStarting batch rendering across {len(harnesses)} persistent harness worker(s)..."
+            f'\nStarting batch rendering across {len(harnesses)} persistent harness worker(s)...'
         )
         workers = []
         for i, harness in enumerate(harnesses):
@@ -297,10 +297,10 @@ def main(argv):
         # Block until all demos have been rendered
         demo_queue.join()
 
-        print("\n✔ All demos successfully processed!")
+        print('\n✔ All demos successfully processed!')
 
     finally:
-        print("\nShutting down game instances...")
+        print('\nShutting down game instances...')
         for h in harnesses:
             try:
                 h.close()
@@ -311,8 +311,8 @@ def main(argv):
                 inst.stop()
             except Exception:
                 pass
-        print("Done.")
+        print('Done.')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(main)
