@@ -162,6 +162,13 @@ def parse_hdem(path, max_ticks=None):
                             (val,) = struct.unpack_from("<B", payload, ppos)
                             val_str = "True" if val else "False"
                             ppos += 1
+                        elif ftype == 4:  # STRING
+                            # read until null byte
+                            start = ppos
+                            while ppos < len(payload) and payload[ppos] != 0:
+                                ppos += 1
+                            val_str = payload[start:ppos].decode("utf-8", errors="replace")
+                            ppos += 1  # consume null byte
                         elif ftype == 5:  # HANDLE
                             (val,) = struct.unpack_from("<I", payload, ppos)
                             if val == 0xFFFFFFFF:
