@@ -17,6 +17,16 @@ FIELD_TYPES = {
     8: 'COLOR',
 }
 
+SOLID_TYPES = {
+    0: 'SOLID_NONE',
+    1: 'SOLID_BSP',
+    2: 'SOLID_BBOX',
+    3: 'SOLID_OBB',
+    4: 'SOLID_SOLID_OBB_YAW',
+    5: 'SOLID_CUSTOM',
+    6: 'SOLID_VPHYSICS',
+}
+
 
 def read_cstring(f):
     res = bytearray()
@@ -189,7 +199,10 @@ def parse_hdem(path, max_ticks=None):
                             ppos += 4
                         elif ftype == 6:  # BYTE
                             (val,) = struct.unpack_from('<B', payload, ppos)
-                            val_str = f'{val}'
+                            if fname == 'm_nSolidType' and val in SOLID_TYPES:
+                                val_str = f'{val} ({SOLID_TYPES[val]})'
+                            else:
+                                val_str = f'{val}'
                             ppos += 1
                         elif ftype == 7:  # SHORT
                             (val,) = struct.unpack_from('<h', payload, ppos)

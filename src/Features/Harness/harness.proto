@@ -56,7 +56,35 @@ message EnvironmentMessage {
   string error_message = 3;
 }
 
-// --- Observation Messages ---
+message EntityField {
+  string name = 1;
+  oneof value {
+    float float_val = 2;
+    int32 int_val = 3;
+    Vector3 vec3_val = 4;
+    bool bool_val = 5;
+    string string_val = 6;
+    int32 handle_val = 7;
+  }
+}
+
+message EntityState {
+  int32 entity_index = 1;
+  int32 serial_number = 2;
+  string class_name = 3;
+  string target_name = 4;
+  Vector3 position = 5;
+  Vector3 angles = 6;
+  Vector3 velocity = 7;
+  repeated EntityField fields = 8;
+  bool deleted = 9;
+}
+
+message EntitySnapshot {
+  repeated EntityState entities = 1;
+  bool is_full_snapshot = 2;
+  int32 tick = 3;
+}
 
 message GameState {
   Vector3 position = 1;
@@ -65,6 +93,7 @@ message GameState {
   int32 health = 4;    // 0 if dead
   bool is_crouching = 5;
   int32 server_tick = 6;
+  EntitySnapshot entity_snapshot = 7;
 }
 
 // --- Action Messages ---

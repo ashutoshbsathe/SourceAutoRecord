@@ -49,6 +49,7 @@ class Harness : public Feature {
   CUserCmd lastDemoAction;
   class RolloutRecorder* rolloutRecorder = nullptr;
   class HdemRecorder* hdemRecorder = nullptr;
+  class EntitySnapshotter* entitySnapshotter = nullptr;
 
   Variable enabled;
   Variable instanceId;  // sar_harness_instance: integer N → port 50000+N, shm

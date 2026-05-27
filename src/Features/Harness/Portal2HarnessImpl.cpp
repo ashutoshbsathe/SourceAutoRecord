@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <string>
 
+#include "EntitySnapshotter.hpp"
 #include "Features/Demo/Demo.hpp"
 #include "Features/Demo/DemoParser.hpp"
 #include "Features/Session.hpp"
@@ -71,6 +72,114 @@ grpc::Status Portal2HarnessImpl::Observe(grpc::ServerContext* context,
   return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to observe state");
 }
 
+static void PopulateEntityStateProto(
+    portal2_harness::EntityState* protoState, const TrackedEntity& ent,
+    const std::vector<HdemFieldDef>& clsFields,
+    const std::vector<HdemFieldDef>& allFields,
+    const std::unordered_map<uint16_t, std::vector<uint8_t>>* lastFieldValues) {
+  protoState->set_entity_index(ent.entityIndex);
+  protoState->set_serial_number(ent.serialNumber);
+  protoState->set_class_name(ent.className);
+  protoState->set_target_name(ent.targetName);
+
+  protoState->mutable_position()->set_x(ent.position.x);
+  protoState->mutable_position()->set_y(ent.position.y);
+  protoState->mutable_position()->set_z(ent.position.z);
+
+  protoState->mutable_angles()->set_x(ent.angles.x);
+  protoState->mutable_angles()->set_y(ent.angles.y);
+  protoState->mutable_angles()->set_z(ent.angles.z);
+
+  protoState->mutable_velocity()->set_x(ent.velocity.x);
+  protoState->mutable_velocity()->set_y(ent.velocity.y);
+  protoState->mutable_velocity()->set_z(ent.velocity.z);
+
+  // Populate dynamic fields
+  for (const auto& fieldDef : clsFields) {
+    if (fieldDef.fieldId == HDEM_FIELD_ORIGIN ||
+        fieldDef.fieldId == HDEM_FIELD_ANGLES ||
+        fieldDef.fieldId == HDEM_FIELD_VELOCITY) {
+      continue;
+    }
+
+    auto itVal = ent.fieldValues.find(fieldDef.fieldId);
+    if (itVal == ent.fieldValues.end()) continue;
+
+    const auto& bytes = itVal->second;
+
+    if (lastFieldValues) {
+      auto itLast = lastFieldValues->find(fieldDef.fieldId);
+      if (itLast != lastFieldValues->end() && itLast->second == bytes) {
+        continue;
+      }
+    }
+
+    auto* fieldProto = protoState->add_fields();
+    fieldProto->set_name(fieldDef.name);
+
+    switch (fieldDef.type) {
+      case HDEM_FLOAT: {
+        float val = 0.0f;
+        if (bytes.size() >= sizeof(float))
+          std::memcpy(&val, bytes.data(), sizeof(float));
+        fieldProto->set_float_val(val);
+        break;
+      }
+      case HDEM_INT32: {
+        int32_t val = 0;
+        if (bytes.size() >= sizeof(int32_t))
+          std::memcpy(&val, bytes.data(), sizeof(int32_t));
+        fieldProto->set_int_val(val);
+        break;
+      }
+      case HDEM_VEC3: {
+        Vector val;
+        if (bytes.size() >= sizeof(Vector))
+          std::memcpy(&val, bytes.data(), sizeof(Vector));
+        fieldProto->mutable_vec3_val()->set_x(val.x);
+        fieldProto->mutable_vec3_val()->set_y(val.y);
+        fieldProto->mutable_vec3_val()->set_z(val.z);
+        break;
+      }
+      case HDEM_BOOL: {
+        bool val = false;
+        if (bytes.size() >= sizeof(bool))
+          std::memcpy(&val, bytes.data(), sizeof(bool));
+        fieldProto->set_bool_val(val);
+        break;
+      }
+      case HDEM_STRING: {
+        std::string val(reinterpret_cast<const char*>(bytes.data()),
+                        bytes.size());
+        fieldProto->set_string_val(val);
+        break;
+      }
+      case HDEM_HANDLE: {
+        int32_t val = 0;
+        if (bytes.size() >= sizeof(int32_t))
+          std::memcpy(&val, bytes.data(), sizeof(int32_t));
+        fieldProto->set_handle_val(val);
+        break;
+      }
+      case HDEM_BYTE: {
+        int32_t val = 0;
+        if (!bytes.empty()) val = bytes[0];
+        fieldProto->set_int_val(val);
+        break;
+      }
+      case HDEM_SHORT: {
+        int16_t val = 0;
+        if (bytes.size() >= sizeof(int16_t))
+          std::memcpy(&val, bytes.data(), sizeof(int16_t));
+        fieldProto->set_int_val(val);
+        break;
+      }
+      default:
+        break;
+    }
+  }
+}
+
 bool Portal2HarnessImpl::InternalObserve(portal2_harness::GameState* response) {
   if (!session->isRunning) return false;
 
@@ -125,6 +234,28 @@ bool Portal2HarnessImpl::InternalObserve(portal2_harness::GameState* response) {
   response->set_health(health);
   response->set_is_crouching(crouching);
   response->set_server_tick(serverTick);
+
+  if (harness && harness->entitySnapshotter) {
+    std::vector<TrackedEntity> currentEntities;
+    int currentTick;
+    harness->entitySnapshotter->GetSnapshot(currentEntities, currentTick);
+
+    auto* snapshotProto = response->mutable_entity_snapshot();
+    snapshotProto->set_is_full_snapshot(true);
+    snapshotProto->set_tick(currentTick);
+
+    const auto& classes = harness->entitySnapshotter->GetClasses();
+    const auto& allFields = harness->entitySnapshotter->GetFields();
+
+    for (const auto& ent : currentEntities) {
+      uint16_t classId = ent.classId;
+      if (classId >= classes.size()) continue;
+      const auto& cls = classes[classId];
+
+      auto* protoState = snapshotProto->add_entities();
+      PopulateEntityStateProto(protoState, ent, cls.fields, allFields, nullptr);
+    }
+  }
 
   return true;
 }
@@ -325,6 +456,19 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
                         "No session running");
   }
 
+  // Track the last sent state per entity: entityIndex -> LastSentState
+  struct LastSentState {
+    uint16_t serialNumber;
+    uint16_t classId;
+    std::unordered_map<uint16_t, std::vector<uint8_t>> fieldValues;
+    Vector position;
+    QAngle angles;
+    Vector velocity;
+  };
+  std::unordered_map<int, LastSentState> sessionLastState;
+  bool isFirstObservation = true;
+  int lastSentTick = -1;
+
   portal2_harness::AgentMessage req;
   while (stream->Read(&req)) {
     portal2_harness::EnvironmentMessage env_msg;
@@ -355,6 +499,136 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
                                 obs_status.error_message());
       stream->Write(env_msg);
       continue;
+    }
+
+    if (harness && harness->entitySnapshotter) {
+      std::vector<TrackedEntity> currentEntities;
+      int currentTick = 0;
+      harness->entitySnapshotter->GetSnapshot(currentEntities, currentTick);
+
+      auto* snapshotProto = env_msg.mutable_state()->mutable_entity_snapshot();
+      snapshotProto->Clear();
+      snapshotProto->set_tick(currentTick);
+
+      bool sendFull = isFirstObservation || (currentTick < lastSentTick);
+      snapshotProto->set_is_full_snapshot(sendFull);
+
+      const auto& classes = harness->entitySnapshotter->GetClasses();
+      const auto& allFields = harness->entitySnapshotter->GetFields();
+
+      std::unordered_map<int, uint16_t> currentSerials;
+      for (const auto& ent : currentEntities) {
+        currentSerials[ent.entityIndex] = ent.serialNumber;
+      }
+
+      if (sendFull) {
+        sessionLastState.clear();
+        for (const auto& ent : currentEntities) {
+          uint16_t classId = ent.classId;
+          if (classId >= classes.size()) continue;
+          const auto& cls = classes[classId];
+
+          auto* protoState = snapshotProto->add_entities();
+          PopulateEntityStateProto(protoState, ent, cls.fields, allFields,
+                                   nullptr);
+
+          LastSentState last;
+          last.serialNumber = ent.serialNumber;
+          last.classId = ent.classId;
+          last.fieldValues = ent.fieldValues;
+          last.position = ent.position;
+          last.angles = ent.angles;
+          last.velocity = ent.velocity;
+          sessionLastState[ent.entityIndex] = last;
+        }
+        isFirstObservation = false;
+      } else {
+        // Delta logic!
+        // 1. Detect deleted entities
+        for (auto it = sessionLastState.begin();
+             it != sessionLastState.end();) {
+          int idx = it->first;
+          uint16_t oldSerial = it->second.serialNumber;
+
+          auto itCurrent = currentSerials.find(idx);
+          bool stillExists = (itCurrent != currentSerials.end() &&
+                              itCurrent->second == oldSerial);
+
+          if (!stillExists) {
+            auto* protoState = snapshotProto->add_entities();
+            protoState->set_entity_index(idx);
+            protoState->set_serial_number(oldSerial);
+            protoState->set_deleted(true);
+
+            it = sessionLastState.erase(it);
+          } else {
+            ++it;
+          }
+        }
+
+        // 2. Detect new or changed entities
+        for (const auto& ent : currentEntities) {
+          uint16_t classId = ent.classId;
+          if (classId >= classes.size()) continue;
+          const auto& cls = classes[classId];
+
+          int idx = ent.entityIndex;
+          auto itLast = sessionLastState.find(idx);
+
+          bool isNew = (itLast == sessionLastState.end() ||
+                        itLast->second.serialNumber != ent.serialNumber);
+          bool isChanged = false;
+
+          if (!isNew) {
+            const auto& last = itLast->second;
+            if (last.position.x != ent.position.x ||
+                last.position.y != ent.position.y ||
+                last.position.z != ent.position.z ||
+                last.angles.x != ent.angles.x ||
+                last.angles.y != ent.angles.y ||
+                last.angles.z != ent.angles.z ||
+                last.velocity.x != ent.velocity.x ||
+                last.velocity.y != ent.velocity.y ||
+                last.velocity.z != ent.velocity.z) {
+              isChanged = true;
+            } else {
+              for (const auto& fieldDef : cls.fields) {
+                if (fieldDef.fieldId == HDEM_FIELD_ORIGIN ||
+                    fieldDef.fieldId == HDEM_FIELD_ANGLES ||
+                    fieldDef.fieldId == HDEM_FIELD_VELOCITY) {
+                  continue;
+                }
+                auto itVal = ent.fieldValues.find(fieldDef.fieldId);
+                auto itLastVal = last.fieldValues.find(fieldDef.fieldId);
+                if (itVal != ent.fieldValues.end()) {
+                  if (itLastVal == last.fieldValues.end() ||
+                      itLastVal->second != itVal->second) {
+                    isChanged = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+
+          if (isNew || isChanged) {
+            auto* protoState = snapshotProto->add_entities();
+            PopulateEntityStateProto(
+                protoState, ent, cls.fields, allFields,
+                isNew ? nullptr : &itLast->second.fieldValues);
+
+            LastSentState last;
+            last.serialNumber = ent.serialNumber;
+            last.classId = ent.classId;
+            last.fieldValues = ent.fieldValues;
+            last.position = ent.position;
+            last.angles = ent.angles;
+            last.velocity = ent.velocity;
+            sessionLastState[idx] = last;
+          }
+        }
+      }
+      lastSentTick = currentTick;
     }
 
     if (req.copy_pixels_to_shm()) {

@@ -4,6 +4,7 @@
 #include <climits>
 #include <string>
 
+#include "EntitySnapshotter.hpp"
 #include "Event.hpp"
 #include "Features/Demo/Demo.hpp"
 #include "Features/Demo/DemoParser.hpp"
@@ -140,6 +141,7 @@ Harness::Harness()
   this->hasLoaded = true;
   this->rolloutRecorder = new RolloutRecorder();
   this->hdemRecorder = new HdemRecorder();
+  this->entitySnapshotter = new EntitySnapshotter();
 }
 
 Harness::~Harness() {
@@ -154,6 +156,9 @@ Harness::~Harness() {
   this->StopServer();
   if (this->hdemRecorder) {
     delete this->hdemRecorder;
+  }
+  if (this->entitySnapshotter) {
+    delete this->entitySnapshotter;
   }
 }
 
@@ -225,8 +230,8 @@ void Harness::StopServer() {
 
 // SESSION_START: When a session begins with harness enabled, activate TasPlayer
 ON_EVENT(SESSION_START) {
-  if (harness && harness->hdemRecorder) {
-    harness->hdemRecorder->DiscoverEntities();
+  if (harness && harness->entitySnapshotter) {
+    harness->entitySnapshotter->DiscoverSchema();
   }
   if (!harness || !harness->IsEnabled() || harness->isRecordingRollout) return;
 
@@ -282,12 +287,12 @@ ON_EVENT(PRE_TICK) {
 
 // POST_TICK: Drive active sidecar recording stream tick-by-tick
 ON_EVENT(POST_TICK) {
-  // Ensure harness framework and sidecar recording module are present and
-  // active
-  if (!harness || !harness->hdemRecorder ||
-      !harness->hdemRecorder->IsActive()) {
-    return;
-  }
+  if (!harness || !harness->entitySnapshotter) return;
+
+  bool hdemActive = harness->hdemRecorder && harness->hdemRecorder->IsActive();
+  bool harnessEnabled = harness->IsEnabled();
+
+  if (!hdemActive && !harnessEnabled) return;
 
   // Ensure game engine structures are fully initialized
   if (!engine || !engine->hoststate || !server || !server->gpGlobals) {
@@ -300,7 +305,11 @@ ON_EVENT(POST_TICK) {
     return;
   }
 
-  harness->hdemRecorder->RecordTick(server->gpGlobals->tickcount);
+  harness->entitySnapshotter->Update();
+
+  if (hdemActive) {
+    harness->hdemRecorder->RecordTick(server->gpGlobals->tickcount);
+  }
 }
 
 // POST_TICK: Record rollout data during demo playback

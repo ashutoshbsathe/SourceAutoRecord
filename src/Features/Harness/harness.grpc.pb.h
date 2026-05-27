@@ -89,7 +89,8 @@ class Portal2Harness final {
       return std::unique_ptr< ::grpc::ClientAsyncReaderWriterInterface< ::portal2_harness::AgentMessage, ::portal2_harness::EnvironmentMessage>>(PrepareAsyncAgentLoopRaw(context, cq));
     }
     // First-class endpoint to render a demo file end-to-end.
-    // Initiates playback and blocks internally until rollout conversion concludes.
+    // Initiates playback and blocks internally until rollout conversion
+    // concludes.
     virtual ::grpc::Status RenderDemo(::grpc::ClientContext* context, const ::portal2_harness::RenderDemoRequest& request, ::portal2_harness::RenderDemoResponse* response) = 0;
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::RenderDemoResponse>> AsyncRenderDemo(::grpc::ClientContext* context, const ::portal2_harness::RenderDemoRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::portal2_harness::RenderDemoResponse>>(AsyncRenderDemoRaw(context, request, cq));
@@ -118,7 +119,8 @@ class Portal2Harness final {
       // Bidirectional stream for high-performance agent loop
       virtual void AgentLoop(::grpc::ClientContext* context, ::grpc::ClientBidiReactor< ::portal2_harness::AgentMessage,::portal2_harness::EnvironmentMessage>* reactor) = 0;
       // First-class endpoint to render a demo file end-to-end.
-      // Initiates playback and blocks internally until rollout conversion concludes.
+      // Initiates playback and blocks internally until rollout conversion
+      // concludes.
       virtual void RenderDemo(::grpc::ClientContext* context, const ::portal2_harness::RenderDemoRequest* request, ::portal2_harness::RenderDemoResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void RenderDemo(::grpc::ClientContext* context, const ::portal2_harness::RenderDemoRequest* request, ::portal2_harness::RenderDemoResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
@@ -265,7 +267,8 @@ class Portal2Harness final {
     // Bidirectional stream for high-performance agent loop
     virtual ::grpc::Status AgentLoop(::grpc::ServerContext* context, ::grpc::ServerReaderWriter< ::portal2_harness::EnvironmentMessage, ::portal2_harness::AgentMessage>* stream);
     // First-class endpoint to render a demo file end-to-end.
-    // Initiates playback and blocks internally until rollout conversion concludes.
+    // Initiates playback and blocks internally until rollout conversion
+    // concludes.
     virtual ::grpc::Status RenderDemo(::grpc::ServerContext* context, const ::portal2_harness::RenderDemoRequest* request, ::portal2_harness::RenderDemoResponse* response);
   };
   template <class BaseClass>

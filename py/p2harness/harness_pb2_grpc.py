@@ -104,7 +104,8 @@ class Portal2HarnessServicer(object):
 
     def RenderDemo(self, request, context):
         """First-class endpoint to render a demo file end-to-end.
-        Initiates playback and blocks internally until rollout conversion concludes.
+        Initiates playback and blocks internally until rollout conversion
+        concludes.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
