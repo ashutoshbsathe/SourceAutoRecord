@@ -238,14 +238,14 @@ bool Portal2HarnessImpl::InternalObserve(portal2_harness::GameState* response) {
   if (harness && harness->entitySnapshotter) {
     std::vector<TrackedEntity> currentEntities;
     int currentTick;
-    harness->entitySnapshotter->GetSnapshot(currentEntities, currentTick);
+    std::vector<HdemClassDef> classes;
+    std::vector<HdemFieldDef> allFields;
+    harness->entitySnapshotter->GetSnapshotAndSchema(
+        currentEntities, currentTick, classes, allFields);
 
     auto* snapshotProto = response->mutable_entity_snapshot();
     snapshotProto->set_is_full_snapshot(true);
     snapshotProto->set_tick(currentTick);
-
-    const auto& classes = harness->entitySnapshotter->GetClasses();
-    const auto& allFields = harness->entitySnapshotter->GetFields();
 
     for (const auto& ent : currentEntities) {
       uint16_t classId = ent.classId;
@@ -504,7 +504,10 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
     if (harness && harness->entitySnapshotter) {
       std::vector<TrackedEntity> currentEntities;
       int currentTick = 0;
-      harness->entitySnapshotter->GetSnapshot(currentEntities, currentTick);
+      std::vector<HdemClassDef> classes;
+      std::vector<HdemFieldDef> allFields;
+      harness->entitySnapshotter->GetSnapshotAndSchema(
+          currentEntities, currentTick, classes, allFields);
 
       auto* snapshotProto = env_msg.mutable_state()->mutable_entity_snapshot();
       snapshotProto->Clear();
@@ -512,9 +515,6 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
 
       bool sendFull = isFirstObservation || (currentTick < lastSentTick);
       snapshotProto->set_is_full_snapshot(sendFull);
-
-      const auto& classes = harness->entitySnapshotter->GetClasses();
-      const auto& allFields = harness->entitySnapshotter->GetFields();
 
       std::unordered_map<int, uint16_t> currentSerials;
       for (const auto& ent : currentEntities) {

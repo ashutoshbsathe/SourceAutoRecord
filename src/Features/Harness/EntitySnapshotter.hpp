@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "Entity.hpp"
 #include "HdemFormat.hpp"
 #include "Utils/SDK.hpp"
 
@@ -66,6 +67,9 @@ class EntitySnapshotter {
 
   // Thread-safe state retrieval
   void GetSnapshot(std::vector<TrackedEntity>& outEntities, int& outTick);
+  void GetSnapshotAndSchema(std::vector<TrackedEntity>& outEntities,
+                            int& outTick, std::vector<HdemClassDef>& outClasses,
+                            std::vector<HdemFieldDef>& outFields);
 
   // Schema accessors
   const std::vector<HdemClassDef>& GetClasses() const { return classes; }
@@ -76,6 +80,8 @@ class EntitySnapshotter {
   uint16_t GetOrAddClass(const std::string& className);
   uint16_t GetOrAddField(const std::string& fieldName, HdemFieldType type);
   void RegisterClassSchema(const std::string& className);
+  void DiscoverSendTableFields(const std::string& className,
+                               struct SendTable* table);
 
   std::mutex mutex;
   int currentTick = -1;
@@ -87,4 +93,16 @@ class EntitySnapshotter {
   std::unordered_map<std::string, uint16_t> classNameToId;
   std::unordered_map<std::string, uint16_t> fieldNameToId;
   bool schemaDiscovered = false;
+
+  struct ResolvedField {
+    uint16_t fieldId;
+    size_t offset;
+    EntField::Type type;
+    size_t size;
+  };
+  struct ResolvedClass {
+    bool resolved = false;
+    std::vector<ResolvedField> fields;
+  };
+  std::vector<ResolvedClass> resolvedClasses;
 };

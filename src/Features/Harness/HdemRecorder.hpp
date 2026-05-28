@@ -38,4 +38,5 @@ class HdemRecorder {
 
   size_t totalBytes = 0;
   size_t totalTicks = 0;
+  int lastRecordedTick = -1;
 };

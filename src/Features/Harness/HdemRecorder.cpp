@@ -80,6 +80,7 @@ bool HdemRecorder::Start(const std::string& path, const std::string& mapName,
 
   lastEntityState.clear();
   lastEntitySerial.clear();
+  lastRecordedTick = -1;
 
   if (harness && harness->entitySnapshotter) {
     harness->entitySnapshotter->DiscoverSchema();
@@ -120,6 +121,9 @@ void HdemRecorder::RecordTick(int tickNumber) {
   if (!isActive || !headerWritten || !server || !harness ||
       !harness->entitySnapshotter)
     return;
+
+  if (tickNumber == lastRecordedTick) return;
+  lastRecordedTick = tickNumber;
 
   std::vector<TrackedEntity> currentEntities;
   int currentTick;
