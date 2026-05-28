@@ -18,6 +18,8 @@ bool RolloutRecorder::Start(const std::string& path, const std::string& mapName,
                             float tickrate, bool capturePixels) {
   if (this->isActive) this->Stop();
 
+  this->hasLastAngles = false;
+
   this->file.open(path, std::ios::binary | std::ios::out);
   if (!this->file.is_open()) return false;
 
@@ -97,10 +99,28 @@ void RolloutRecorder::MapUserCmdToAction(const CUserCmd& cmd,
   req->set_portal_primary(cmd.buttons & IN_ATTACK);
   req->set_portal_secondary(cmd.buttons & IN_ATTACK2);
 
-  // Scale mousedx/y. Source raw mouse delta is roughly in pixels.
-  // For ActionRequest, we usually expect a [-1, 1] range representing a
-  // "normalized" move, but many agents use raw degrees. We'll pass them as is
-  // for now.
-  req->set_mouse_dx(static_cast<float>(cmd.mousedx));
-  req->set_mouse_dy(static_cast<float>(cmd.mousedy));
+  // Reconstruct relative look deltas if raw mouse inputs are zero (e.g. in human demo playback)
+  float dx = static_cast<float>(cmd.mousedx);
+  float dy = static_cast<float>(cmd.mousedy);
+
+  if (dx == 0.0f && dy == 0.0f) {
+    if (this->hasLastAngles) {
+      float yaw_diff = this->lastAngles.y - cmd.viewangles.y;
+      float pitch_diff = cmd.viewangles.x - this->lastAngles.x;
+
+      while (yaw_diff < -180.0f) yaw_diff += 360.0f;
+      while (yaw_diff > 180.0f) yaw_diff -= 360.0f;
+      while (pitch_diff < -180.0f) pitch_diff += 360.0f;
+      while (pitch_diff > 180.0f) pitch_diff -= 360.0f;
+
+      dx = yaw_diff;
+      dy = pitch_diff;
+    }
+  }
+
+  this->lastAngles = cmd.viewangles;
+  this->hasLastAngles = true;
+
+  req->set_mouse_dx(dx);
+  req->set_mouse_dy(dy);
 }

@@ -1,234 +1,93 @@
 import sys
 import os
-import struct
 import argparse
-
-HDEM_MAGIC = 0x4D454448
-
-FIELD_TYPES = {
-    0: 'FLOAT',
-    1: 'INT32',
-    2: 'VEC3',
-    3: 'BOOL',
-    4: 'STRING',
-    5: 'HANDLE',
-    6: 'BYTE',
-    7: 'SHORT',
-    8: 'COLOR',
-}
-
-SOLID_TYPES = {
-    0: 'SOLID_NONE',
-    1: 'SOLID_BSP',
-    2: 'SOLID_BBOX',
-    3: 'SOLID_OBB',
-    4: 'SOLID_SOLID_OBB_YAW',
-    5: 'SOLID_CUSTOM',
-    6: 'SOLID_VPHYSICS',
-}
-
-
-def read_cstring(f):
-    res = bytearray()
-    while True:
-        b = f.read(1)
-        if not b or b == b'\x00':
-            break
-        res.extend(b)
-    return res.decode('utf-8', errors='replace')
-
+from hdem_reader import HdemReader, FIELD_TYPES, SOLID_TYPES
 
 def parse_hdem(path, max_ticks=None):
-    filesize = os.path.getsize(path)
-    with open(path, 'rb') as f:
-        magic, version, flags = struct.unpack('<IHH', f.read(8))
-        if magic != HDEM_MAGIC:
-            print(f'Error: Invalid magic 0x{magic:08X} (expected 0x{HDEM_MAGIC:08X})')
-            return
+    try:
+        reader = HdemReader(path)
+    except Exception as e:
+        print(f"Error opening/parsing HDEM file: {e}")
+        return
 
-        map_name = read_cstring(f)
-        tickrate, timestamp = struct.unpack('<fQ', f.read(12))
-        sar_version = read_cstring(f)
-        game_dir = read_cstring(f)
+    print('=' * 70)
+    print(f'HDEM FILE HEADER: {path}')
+    print('=' * 70)
+    print(f'Version:      {reader.version}')
+    print(f'Map Name:     {reader.map_name}')
+    print(f'Tickrate:     {reader.tickrate:.2f}')
+    print(f'Timestamp:    {reader.timestamp}')
+    print(f'SAR Version:  {reader.sar_version}')
+    print(f'Game Dir:     {reader.game_dir}')
+    print(f'Schema Offset:{reader.schema_offset}')
+    print('-' * 70)
 
-        (schema_offset,) = struct.unpack('<Q', f.read(8))
+    print(f'Classes ({len(reader.classes)}):')
+    for cid, cname in sorted(reader.classes.items()):
+        print(f'  [{cid:4d}] {cname}')
+    print('-' * 70)
 
-        print('=' * 70)
-        print(f'HDEM FILE HEADER: {path}')
-        print('=' * 70)
-        print(f'Version:      {version}')
-        print(f'Map Name:     {map_name}')
-        print(f'Tickrate:     {tickrate:.2f}')
-        print(f'Timestamp:    {timestamp}')
-        print(f'SAR Version:  {sar_version}')
-        print(f'Game Dir:     {game_dir}')
-        print(f'Schema Offset:{schema_offset}')
-        print('-' * 70)
+    print(f'Fields ({len(reader.fields)}):')
+    for fid, (fname, ftype) in sorted(reader.fields.items()):
+        tstr = FIELD_TYPES.get(ftype, f'UNKNOWN({ftype})')
+        print(f'  [{fid:4d}] {fname} ({tstr})')
+    print('=' * 70)
 
-        # Save tick frames start position
-        ticks_start_pos = f.tell()
+    ticks_read = 0
+    # Read tick sequentially using the reader
+    while True:
+        tick_res = reader.read_next_tick()
+        if tick_res is None:
+            break
+        
+        tick_number, entities = tick_res
+        
+        dump_this_tick = (
+            max_ticks is None or max_ticks <= 0 or ticks_read < max_ticks
+        )
+        
+        # Calculate how many entities actually changed/were written this tick
+        # Wait, the reader reconstructs the state, but we want to know what changed.
+        # However, for dump purposes, we can just print the active entities reconstructed.
+        if dump_this_tick:
+            print(f'Tick {tick_number} | Reconstructed Entities: {len(entities)}')
+            for ent_idx, ent in sorted(entities.items()):
+                print(f"  ├─ Entity [{ent_idx:4d}] (Serial: {ent['serial_number']:5d}) Class: {ent['class_name']} Target: {ent['target_name']}")
+                # Print origin/angles/velocity if present
+                print(f"  │   ├─ position: ({ent['position'][0]:.2f}, {ent['position'][1]:.2f}, {ent['position'][2]:.2f})")
+                print(f"  │   ├─ angles: ({ent['angles'][0]:.2f}, {ent['angles'][1]:.2f}, {ent['angles'][2]:.2f})")
+                print(f"  │   ├─ velocity: ({ent['velocity'][0]:.2f}, {ent['velocity'][1]:.2f}, {ent['velocity'][2]:.2f})")
+                for fname, (ftype, fval) in sorted(ent['fields'].items()):
+                    val_str = ""
+                    if ftype == 2: # VEC3
+                        val_str = f"({fval[0]:.2f}, {fval[1]:.2f}, {fval[2]:.2f})"
+                    elif ftype == 6 and fname == 'm_nSolidType' and fval in SOLID_TYPES:
+                        val_str = f"{fval} ({SOLID_TYPES[fval]})"
+                    else:
+                        val_str = str(fval)
+                    print(f'  │   ├─ {fname}: {val_str}')
+        elif ticks_read == max_ticks:
+            print(f'\n... Omitting full entity trees for remaining frames (exceeded --ticks {max_ticks}) ...')
+            print('Pass --ticks 0 to dump all frames.')
+            break
 
-        if schema_offset == 0 or schema_offset >= filesize:
-            print(
-                f'Error: Trailing schema offset ({schema_offset}) is invalid or unfinalized.'
-            )
-            print(
-                'This indicates the recording session is either still active or was not cleanly stopped.'
-            )
-            return
+        ticks_read += 1
 
-        # Load trailing schema tables
-        f.seek(schema_offset)
-        (num_classes,) = struct.unpack('<H', f.read(2))
-        classes = {}
-        for _ in range(num_classes):
-            (cid,) = struct.unpack('<H', f.read(2))
-            cname = read_cstring(f)
-            classes[cid] = cname
+    reader.close()
 
-        print(f'Classes ({num_classes}):')
-        for cid, cname in sorted(classes.items()):
-            print(f'  [{cid:4d}] {cname}')
-        print('-' * 70)
-
-        (num_fields,) = struct.unpack('<H', f.read(2))
-        fields = {}
-        for _ in range(num_fields):
-            (fid,) = struct.unpack('<H', f.read(2))
-            fname = read_cstring(f)
-            (ftype,) = struct.unpack('<B', f.read(1))
-            fields[fid] = (fname, ftype)
-
-        print(f'Fields ({num_fields}):')
-        for fid, (fname, ftype) in sorted(fields.items()):
-            tstr = FIELD_TYPES.get(ftype, f'UNKNOWN({ftype})')
-            print(f'  [{fid:4d}] {fname} ({tstr})')
-        print('=' * 70)
-
-        # Seek back to start of ticks
-        f.seek(ticks_start_pos)
-
-        ticks_read = 0
-        while f.tell() < schema_offset:
-            tb = f.read(10)
-            if len(tb) < 10:
-                break
-            tick_number, num_ents, frame_size = struct.unpack('<iHI', tb)
-
-            dump_this_tick = (
-                max_ticks is None or max_ticks <= 0 or ticks_read < max_ticks
-            )
-            if dump_this_tick:
-                print(
-                    f'Tick {tick_number} | Entities Changed: {num_ents} | Payload Size: {frame_size} bytes'
-                )
-            elif ticks_read == max_ticks:
-                print(
-                    f'\n... Omitting full entity trees for remaining frames (exceeded --ticks {max_ticks}) ...'
-                )
-                print('Pass --ticks 0 to dump all frames.')
-
-            payload = f.read(frame_size)
-            if len(payload) < frame_size:
-                print('Warning: Unexpected EOF in tick payload')
-                break
-
-            if dump_this_tick and num_ents > 0:
-                ppos = 0
-                for _ in range(num_ents):
-                    ent_idx, serial, cid, eflags, num_f = struct.unpack_from(
-                        '<HHHBB', payload, ppos
-                    )
-                    ppos += 8
-                    cname = classes.get(cid, 'UNKNOWN')
-
-                    flag_strs = []
-                    if eflags & 1:
-                        flag_strs.append('ALIVE')
-                    if eflags & 2:
-                        flag_strs.append('DORMANT')
-                    if eflags & 4:
-                        flag_strs.append('DELETED')
-                    if eflags & 8:
-                        flag_strs.append('FULL_SNAP')
-                    fstr = '|'.join(flag_strs)
-
-                    print(
-                        f'  ├─ Entity [{ent_idx:4d}] (Serial: {serial:5d}) Class: {cname} Flags: {fstr}'
-                    )
-
-                    for _ in range(num_f):
-                        (fid,) = struct.unpack_from('<H', payload, ppos)
-                        ppos += 2
-                        fname, ftype = fields.get(fid, ('UNKNOWN', 0))
-
-                        val_str = ''
-                        if ftype == 0:  # FLOAT
-                            (val,) = struct.unpack_from('<f', payload, ppos)
-                            val_str = f'{val:.4f}'
-                            ppos += 4
-                        elif ftype == 1:  # INT32
-                            (val,) = struct.unpack_from('<i', payload, ppos)
-                            val_str = f'{val}'
-                            ppos += 4
-                        elif ftype == 2:  # VEC3
-                            vx, vy, vz = struct.unpack_from('<fff', payload, ppos)
-                            val_str = f'({vx:.2f}, {vy:.2f}, {vz:.2f})'
-                            ppos += 12
-                        elif ftype == 3:  # BOOL
-                            (val,) = struct.unpack_from('<B', payload, ppos)
-                            val_str = 'True' if val else 'False'
-                            ppos += 1
-                        elif ftype == 4:  # STRING
-                            # read until null byte
-                            start = ppos
-                            while ppos < len(payload) and payload[ppos] != 0:
-                                ppos += 1
-                            val_str = payload[start:ppos].decode(
-                                'utf-8', errors='replace'
-                            )
-                            ppos += 1  # consume null byte
-                        elif ftype == 5:  # HANDLE
-                            (val,) = struct.unpack_from('<I', payload, ppos)
-                            if val == 0xFFFFFFFF:
-                                val_str = 'INVALID'
-                            else:
-                                h_idx = val & 0x7FF
-                                h_ser = val >> 16
-                                val_str = f'Handle[idx={h_idx}, serial={h_ser}] (raw: 0x{val:08X})'
-                            ppos += 4
-                        elif ftype == 6:  # BYTE
-                            (val,) = struct.unpack_from('<B', payload, ppos)
-                            if fname == 'm_nSolidType' and val in SOLID_TYPES:
-                                val_str = f'{val} ({SOLID_TYPES[val]})'
-                            else:
-                                val_str = f'{val}'
-                            ppos += 1
-                        elif ftype == 7:  # SHORT
-                            (val,) = struct.unpack_from('<h', payload, ppos)
-                            val_str = f'{val}'
-                            ppos += 2
-                        elif ftype == 8:  # COLOR
-                            r, g, b, a = struct.unpack_from('<BBBB', payload, ppos)
-                            val_str = f'rgba({r},{g},{b},{a})'
-                            ppos += 4
-                        else:
-                            val_str = f'UNSUPPORTED_TYPE({ftype})'
-
-                        print(f'  │   ├─ {fname}: {val_str}')
-
-            ticks_read += 1
-
-        # Parse final Footer
-        f.seek(filesize - 12)
-        total_ticks, total_ents, checksum = struct.unpack('<III', f.read(12))
-        print('=' * 70)
-        print('FOOTER')
-        print('=' * 70)
-        print(f'Total Ticks:     {total_ticks}')
-        print(f'Total Entities:  {total_ents}')
-        print(f'Checksum:        0x{checksum:08X}')
-
+    # Read final footer if file size permits
+    try:
+        with open(path, 'rb') as f:
+            f.seek(os.path.getsize(path) - 12)
+            total_ticks, total_ents, checksum = struct.unpack('<III', f.read(12))
+            print('=' * 70)
+            print('FOOTER')
+            print('=' * 70)
+            print(f'Total Ticks:     {total_ticks}')
+            print(f'Total Entities:  {total_ents}')
+            print(f'Checksum:        0x{checksum:08X}')
+    except Exception:
+        pass
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Dump .hdem sidecar file contents.')

@@ -14,6 +14,7 @@
 #include "Modules/FileSystem.hpp"
 #include "Offsets.hpp"
 #include "SAR.hpp"
+#include "Features/Harness/Harness.hpp"
 #include "Server.hpp"
 #include "Utils.hpp"
 
@@ -116,7 +117,11 @@ void EngineDemoPlayer::HandlePlaybackFix() {
 		}
 	} else if (state == 3) {
 		if (tick % 2 != g_demoStart % 2) {
-			engine->SendToCommandBuffer("sv_alternateticks 1", 0);
+			if (!harness || !harness->isRecordingRollout) {
+				engine->SendToCommandBuffer("sv_alternateticks 1", 0);
+			} else {
+				engine->SendToCommandBuffer("sv_alternateticks 0", 0);
+			}
 			console->Print("Successful start\n");
 			Event::Trigger<Event::DEMO_START>({});
 			state = 0;

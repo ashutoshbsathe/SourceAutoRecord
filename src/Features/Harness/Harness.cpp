@@ -13,6 +13,7 @@
 #include "Features/Tas/TasPlayer.hpp"
 #include "Features/Tas/TasScript.hpp"
 #include "HdemRecorder.hpp"
+#include "HdemReader.hpp"
 #include "Modules/Client.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
@@ -141,6 +142,7 @@ Harness::Harness()
   this->hasLoaded = true;
   this->rolloutRecorder = new RolloutRecorder();
   this->hdemRecorder = new HdemRecorder();
+  this->hdemReader = nullptr;
   this->entitySnapshotter = new EntitySnapshotter();
 }
 
@@ -156,6 +158,9 @@ Harness::~Harness() {
   this->StopServer();
   if (this->hdemRecorder) {
     delete this->hdemRecorder;
+  }
+  if (this->hdemReader) {
+    delete this->hdemReader;
   }
   if (this->entitySnapshotter) {
     delete this->entitySnapshotter;
@@ -325,6 +330,12 @@ ON_EVENT(POST_TICK) {
   portal2_harness::GameState state;
   Portal2HarnessImpl impl;
   if (impl.InternalObserve(&state)) {
+    if (harness->hdemReader && harness->hdemReader->IsOpen()) {
+      int curTick = state.server_tick();
+      harness->hdemReader->AdvanceToTick(curTick);
+      harness->hdemReader->GetSnapshot(state.mutable_entity_snapshot(), curTick);
+    }
+
     portal2_harness::ActionRequest action;
     harness->rolloutRecorder->MapUserCmdToAction(harness->lastDemoAction,
                                                  &action);
@@ -376,12 +387,18 @@ CON_COMMAND(
     size_t ticks = harness->rolloutRecorder->recordedTicks;
     size_t bytes = harness->rolloutRecorder->totalBytes;
     harness->rolloutRecorder->Stop();
+    if (harness->hdemReader) {
+      harness->hdemReader->Close();
+      delete harness->hdemReader;
+      harness->hdemReader = nullptr;
+    }
     {
       std::lock_guard<std::mutex> lock(harness->recordingMutex);
       harness->isRecordingRollout = false;
       harness->wasPlayingDemo = false;
       harness->recordingCV.notify_all();
     }
+    sv_alternateticks.SetValue(1);
     console->Print(
         "Harness: Stopped recording. Total: %zu ticks (%zu bytes).\n", ticks,
         bytes);
@@ -396,12 +413,18 @@ ON_EVENT(DEMO_STOP) {
     size_t ticks = harness->rolloutRecorder->recordedTicks;
     size_t bytes = harness->rolloutRecorder->totalBytes;
     harness->rolloutRecorder->Stop();
+    if (harness->hdemReader) {
+      harness->hdemReader->Close();
+      delete harness->hdemReader;
+      harness->hdemReader = nullptr;
+    }
     {
       std::lock_guard<std::mutex> lock(harness->recordingMutex);
       harness->isRecordingRollout = false;
       harness->wasPlayingDemo = false;
       harness->recordingCV.notify_all();
     }
+    sv_alternateticks.SetValue(1);
     console->Print(
         "Harness: Demo playback finished. Stopped recording. Total: %zu ticks "
         "(%zu bytes).\n",
@@ -428,9 +451,12 @@ CON_COMMAND_F_COMPLETION(
   if (!Utils::EndsWith(demoPath, ".dem")) demoPath += ".dem";
   if (!Utils::EndsWith(outputPath, ".rollout")) outputPath += ".rollout";
 
-  // Ensure absolute path in the game directory if it's just a filename
-  if (outputPath.find('/') == std::string::npos &&
-      outputPath.find('\\') == std::string::npos) {
+  // Ensure absolute path in the game directory if it is relative
+  bool isAbsolute = (outputPath.size() >= 1 && outputPath[0] == '/');
+#ifdef _WIN32
+  if (outputPath.size() >= 2 && outputPath[1] == ':') isAbsolute = true;
+#endif
+  if (!isAbsolute) {
     outputPath = std::string(engine->GetGameDirectory()) + "/" + outputPath;
   }
 
@@ -457,6 +483,23 @@ CON_COMMAND_F_COMPLETION(
     }
   }
 
+  if (harness->hdemReader) {
+    delete harness->hdemReader;
+    harness->hdemReader = nullptr;
+  }
+
+  std::string hdemPath = fullPath.substr(0, fullPath.size() - 4) + ".hdem";
+  if (std::filesystem::exists(hdemPath)) {
+    harness->hdemReader = new HdemReader();
+    if (!harness->hdemReader->Open(hdemPath)) {
+      console->Warning("Harness: Failed to open sidecar .hdem file: %s\n", hdemPath.c_str());
+      delete harness->hdemReader;
+      harness->hdemReader = nullptr;
+    } else {
+      console->Print("Harness: Opened sidecar .hdem file for rollout overlay: %s\n", hdemPath.c_str());
+    }
+  }
+
   int sw = 854;
   int sh = 480;
   if (engine && engine->GetScreenSize) {
@@ -466,6 +509,10 @@ CON_COMMAND_F_COMPLETION(
   if (!harness->rolloutRecorder->Start(outputPath, targetMapName, shmName, sw,
                                        sh, 1.0f / engine->GetIPT(),
                                        capturePixels)) {
+    if (harness->hdemReader) {
+      delete harness->hdemReader;
+      harness->hdemReader = nullptr;
+    }
     return console->Warning(
         "Harness: Failed to open rollout file for writing!\n");
   }
@@ -475,6 +522,8 @@ CON_COMMAND_F_COMPLETION(
     harness->isRecordingRollout = true;
     harness->wasPlayingDemo = false;
   }
+
+  sv_alternateticks.SetValue(0);
 
   // Execute playdemo
   std::string cmd =

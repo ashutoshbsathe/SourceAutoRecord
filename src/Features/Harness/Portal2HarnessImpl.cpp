@@ -4,6 +4,7 @@
 #include <string>
 
 #include "EntitySnapshotter.hpp"
+#include "HdemReader.hpp"
 #include "Features/Demo/Demo.hpp"
 #include "Features/Demo/DemoParser.hpp"
 #include "Features/Session.hpp"
@@ -681,9 +682,12 @@ grpc::Status Portal2HarnessImpl::RenderDemo(
   else if (!Utils::EndsWith(outputPath, ".rollout"))
     outputPath += ".rollout";
 
-  // Ensure absolute path in the game directory if it's just a filename
-  if (outputPath.find('/') == std::string::npos &&
-      outputPath.find('\\') == std::string::npos) {
+  // Ensure absolute path in the game directory if it is relative
+  bool isAbsolute = (outputPath.size() >= 1 && outputPath[0] == '/');
+#ifdef _WIN32
+  if (outputPath.size() >= 2 && outputPath[1] == ':') isAbsolute = true;
+#endif
+  if (!isAbsolute) {
     outputPath = std::string(engine->GetGameDirectory()) + "/" + outputPath;
   }
 
@@ -728,6 +732,23 @@ grpc::Status Portal2HarnessImpl::RenderDemo(
       harness->tickCV.notify_all();
     }
 
+    if (harness->hdemReader) {
+      delete harness->hdemReader;
+      harness->hdemReader = nullptr;
+    }
+
+    std::string hdemPath = fullPath.substr(0, fullPath.size() - 4) + ".hdem";
+    if (std::filesystem::exists(hdemPath)) {
+      harness->hdemReader = new HdemReader();
+      if (!harness->hdemReader->Open(hdemPath)) {
+        console->Warning("Harness: Failed to open sidecar .hdem file: %s\n", hdemPath.c_str());
+        delete harness->hdemReader;
+        harness->hdemReader = nullptr;
+      } else {
+        console->Print("Harness: Opened sidecar .hdem file for rollout overlay: %s\n", hdemPath.c_str());
+      }
+    }
+
     int sw = 854;
     int sh = 480;
     if (engine && engine->GetScreenSize) {
@@ -737,6 +758,10 @@ grpc::Status Portal2HarnessImpl::RenderDemo(
     if (!harness->rolloutRecorder->Start(outputPath, targetMapName, shmName, sw,
                                          sh, 1.0f / engine->GetIPT(),
                                          capturePixels)) {
+      if (harness->hdemReader) {
+        delete harness->hdemReader;
+        harness->hdemReader = nullptr;
+      }
       console->Warning("Harness: Failed to open rollout file for writing!\n");
       setupDone.store(true);
       return;
@@ -747,6 +772,8 @@ grpc::Status Portal2HarnessImpl::RenderDemo(
       harness->isRecordingRollout = true;
       harness->wasPlayingDemo = false;
     }
+
+    sv_alternateticks.SetValue(0);
 
     std::string cmd =
         "sar_disable_challenge_stats_hud -1; hideconsole; playdemo \"" +
@@ -787,6 +814,7 @@ grpc::Status Portal2HarnessImpl::RenderDemo(
           harness->wasPlayingDemo = false;
           harness->recordingCV.notify_all();
         }
+        sv_alternateticks.SetValue(1);
       }
     });
     return grpc::Status::CANCELLED;
