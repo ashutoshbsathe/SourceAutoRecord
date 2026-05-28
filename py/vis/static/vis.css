@@ -1,0 +1,261 @@
+/* ============================================================
+   Rollout Visualizer — Dark Theme
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: #0b0d12;
+    color: #b8c8e0;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    overflow: hidden;
+    height: 100vh;
+}
+
+/* --- Control bar --- */
+.control-bar {
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    background: #10131a;
+    border-bottom: 1px solid #1e2435;
+    height: 44px;
+    flex-shrink: 0;
+}
+
+.ctrl-btn {
+    background: #1a1f2e;
+    border: 1px solid #2a3048;
+    color: #90aad0;
+    border-radius: 5px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.ctrl-btn:hover {
+    background: #252d42;
+    color: #c8e0ff;
+}
+
+.ctrl-btn.playing {
+    color: #ffa040;
+    border-color: #5a3010;
+}
+
+.seek-slider {
+    flex: 1;
+    height: 4px;
+    accent-color: #4080ff;
+    cursor: pointer;
+}
+
+.tick-label {
+    font-family: monospace;
+    font-size: 12px;
+    color: #6080a0;
+    min-width: 120px;
+}
+
+.meta-label {
+    font-size: 11px;
+    color: #485870;
+    white-space: nowrap;
+}
+
+/* --- Main container --- */
+.main-container {
+    display: flex;
+    flex-direction: row;
+    height: calc(100vh - 44px);
+    width: 100%;
+    overflow: hidden;
+}
+
+/* --- Game panel: canvas on top, field panel below --- */
+.game-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #080a0f;
+    flex-shrink: 0;
+    border-right: 1px solid #1e2435;
+}
+
+#game-canvas {
+    display: block;
+    image-rendering: pixelated;
+}
+
+/* --- Entity panel (right side) --- */
+.entity-panel {
+    height: 100%;
+    background: #0d1018;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Entity grid: 35 columns layout --- */
+#entity-grid {
+    display: grid;
+    grid-template-columns: repeat(35, 24px);
+    gap: 2px;
+    padding: 6px;
+    flex-grow: 1;
+    overflow: auto;
+    align-content: start;
+}
+
+.entity-cell {
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    cursor: default;
+    position: relative;
+    border: 1px solid transparent;
+    transition: background-color 350ms ease-out, border-color 0.1s;
+    overflow: hidden;
+}
+
+/* Flash: add class → CSS immediately sets red, then transition eases back */
+.entity-cell.flash {
+    background-color: #cc2222 !important;
+    transition: background-color 0ms;
+    /* instant to red */
+}
+
+.entity-cell:hover {
+    border-color: #5080e0 !important;
+    z-index: 10;
+}
+
+/* Family base colors */
+.fam-player {
+    background: #0b2410;
+    border-color: #152e18;
+}
+
+.fam-portal {
+    background: #08142a;
+    border-color: #122040;
+}
+
+.fam-physics {
+    background: #201800;
+    border-color: #302200;
+}
+
+.fam-static {
+    background: #0e0f12;
+    border-color: #141518;
+}
+
+.fam-default {
+    background: #141820;
+    border-color: #1c2030;
+}
+
+/* Remove-flash transition: restore base smoothly */
+.entity-cell:not(.flash) {
+    transition: background-color 350ms ease-out;
+}
+
+.cell-label {
+    position: absolute;
+    bottom: 1px;
+    left: 2px;
+    font-size: 5.5px;
+    color: #404c60;
+    pointer-events: none;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 22px;
+}
+
+.cell-rank {
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    font-size: 5px;
+    color: #303840;
+    pointer-events: none;
+    line-height: 1;
+}
+
+/* --- Field detail panel (below game frame) --- */
+#field-panel {
+    flex-grow: 1;
+    overflow-y: auto;
+    background: #0a0c12;
+    border-top: 1px solid #1e2435;
+    padding: 0;
+}
+
+.fp-empty {
+    padding: 10px;
+    color: #304050;
+    font-size: 11px;
+    font-style: italic;
+}
+
+.fp-header {
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6090e0;
+    background: #0f1320;
+    border-bottom: 1px solid #1a2030;
+    position: sticky;
+    top: 0;
+}
+
+.fp-header .fp-sub {
+    font-size: 10px;
+    color: #405060;
+    font-weight: 400;
+    margin-left: 6px;
+}
+
+.field-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 10px;
+    border-bottom: 1px solid #10141c;
+    font-size: 11px;
+    animation: fieldFlash 0.4s ease-out;
+}
+
+@keyframes fieldFlash {
+    0% {
+        background: #441010;
+    }
+
+    100% {
+        background: transparent;
+    }
+}
+
+.field-name {
+    color: #7090b0;
+    font-family: monospace;
+}
+
+.field-val {
+    color: #d0e8ff;
+    font-family: monospace;
+    text-align: right;
+    max-width: 55%;
+    word-break: break-all;
+}

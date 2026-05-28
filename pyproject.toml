@@ -56,4 +56,7 @@ dependencies = [
     "msgpack>=1.0.0",
     "tensorboardX>=2.6.0",
     "coolname>=5.0.0",
+    "nicegui>=2.0.0",
+    "pillow>=10.0.0",
+    "fastapi>=0.136.3",
 ]
