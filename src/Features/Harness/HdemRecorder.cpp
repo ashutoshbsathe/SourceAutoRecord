@@ -78,8 +78,10 @@ bool HdemRecorder::Start(const std::string& path, const std::string& mapName,
   totalBytes = 0;
   totalTicks = 0;
 
+  lastSeenVersion.assign(Offsets::NUM_ENT_ENTRIES, 0);
+  lastSeenSerial.assign(Offsets::NUM_ENT_ENTRIES, 0);
   lastEntityState.clear();
-  lastEntitySerial.clear();
+  lastEntityState.resize(Offsets::NUM_ENT_ENTRIES);
   lastRecordedTick = -1;
 
   if (harness && harness->entitySnapshotter) {
@@ -99,7 +101,12 @@ void HdemRecorder::Stop() {
 
   // Write footer
   WritePOD(file, static_cast<uint32_t>(totalTicks));
-  WritePOD(file, static_cast<uint32_t>(lastEntitySerial.size()));
+  
+  uint32_t activeCount = 0;
+  for (auto s : lastSeenSerial) {
+    if (s != 0) activeCount++;
+  }
+  WritePOD(file, activeCount);
   WritePOD(file, uint32_t(0));  // Checksum
 
   // Backfill real schema offset into header
@@ -125,28 +132,17 @@ void HdemRecorder::RecordTick(int tickNumber) {
   if (tickNumber == lastRecordedTick) return;
   lastRecordedTick = tickNumber;
 
-  std::vector<TrackedEntity> currentEntities;
-  int currentTick;
-  harness->entitySnapshotter->GetSnapshot(currentEntities, currentTick);
-
   tickBuffer.clear();
   uint16_t numEntitiesWritten = 0;
 
-  std::unordered_map<int, uint16_t> currentSerials;
-  for (const auto& ent : currentEntities) {
-    currentSerials[ent.entityIndex] = ent.serialNumber;
-  }
+  for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
+    const auto& slot = harness->entitySnapshotter->GetSlot(i);
+    uint16_t oldSerial = lastSeenSerial[i];
+    bool wasSeen = (oldSerial != 0);
+    bool isAlive = slot.alive;
 
-  // Detect and write records for deleted entities
-  for (auto it = lastEntitySerial.begin(); it != lastEntitySerial.end();) {
-    int i = it->first;
-    uint16_t oldSerial = it->second;
-
-    auto itCurrent = currentSerials.find(i);
-    bool stillExists =
-        (itCurrent != currentSerials.end() && itCurrent->second == oldSerial);
-
-    if (!stillExists) {
+    // 1. Detect and write records for deleted/reused entities
+    if (wasSeen && (!isAlive || slot.serial != oldSerial)) {
       AppendToBuffer(tickBuffer, static_cast<uint16_t>(i));
       AppendToBuffer(tickBuffer, oldSerial);
       AppendToBuffer(tickBuffer, uint16_t(0));  // classId
@@ -155,116 +151,80 @@ void HdemRecorder::RecordTick(int tickNumber) {
 
       numEntitiesWritten++;
 
-      lastEntityState.erase(i);
-      it = lastEntitySerial.erase(it);
-    } else {
-      ++it;
-    }
-  }
-
-  const auto& classes = harness->entitySnapshotter->GetClasses();
-
-  for (const auto& ent : currentEntities) {
-    uint16_t classId = ent.classId;
-    if (classId >= classes.size()) continue;
-    const auto& cls = classes[classId];
-
-    static std::vector<uint8_t> currentRawState;
-    currentRawState.clear();
-
-    for (const auto& field : cls.fields) {
-      auto itVal = ent.fieldValues.find(field.fieldId);
-      if (itVal != ent.fieldValues.end()) {
-        currentRawState.insert(currentRawState.end(), itVal->second.begin(),
-                               itVal->second.end());
-      } else {
-        size_t fsize = HdemFieldSize(field.type);
-        currentRawState.insert(currentRawState.end(), fsize, 0);
-      }
+      lastSeenSerial[i] = 0;
+      lastSeenVersion[i] = 0;
+      lastEntityState[i].clear();
+      wasSeen = false;
     }
 
-    uint16_t serialNum = ent.serialNumber;
-    bool isNewOrModified = false;
-    bool isFullSnapshot = false;
+    // 2. Detect and write records for new/modified entities
+    if (isAlive) {
+      uint32_t currentVersion = slot.changeVersion;
+      if (!wasSeen || currentVersion != lastSeenVersion[i]) {
+        bool isFullSnapshot = !wasSeen;
 
-    int i = ent.entityIndex;
-    auto itLastState = lastEntityState.find(i);
-    auto itLastSerial = lastEntitySerial.find(i);
+        AppendToBuffer(tickBuffer, static_cast<uint16_t>(i));
+        AppendToBuffer(tickBuffer, slot.serial);
+        AppendToBuffer(tickBuffer, slot.classId);
 
-    if (itLastState == lastEntityState.end() ||
-        itLastSerial == lastEntitySerial.end() ||
-        itLastSerial->second != serialNum) {
-      isNewOrModified = true;
-      isFullSnapshot = true;
-    } else {
-      if (currentRawState != itLastState->second) {
-        isNewOrModified = true;
-      }
-    }
+        uint8_t flags = HDEM_ENT_ALIVE;
+        if (isFullSnapshot) flags |= HDEM_ENT_FULL_SNAPSHOT;
+        AppendToBuffer(tickBuffer, flags);
 
-    if (!isNewOrModified) continue;
+        size_t numFieldsOffset = tickBuffer.size();
+        AppendToBuffer(tickBuffer, uint8_t(0));
 
-    AppendToBuffer(tickBuffer, static_cast<uint16_t>(i));
-    AppendToBuffer(tickBuffer, serialNum);
-    AppendToBuffer(tickBuffer, classId);
+        uint8_t fieldsWritten = 0;
+        const auto& layout = harness->entitySnapshotter->GetClassLayout(slot.classId);
 
-    uint8_t flags = HDEM_ENT_ALIVE;
-    if (isFullSnapshot) flags |= HDEM_ENT_FULL_SNAPSHOT;
-    AppendToBuffer(tickBuffer, flags);
-
-    size_t numFieldsOffset = tickBuffer.size();
-    AppendToBuffer(tickBuffer, uint8_t(0));
-
-    uint8_t fieldsWritten = 0;
-    size_t byteOffset = 0;
-
-    for (const auto& field : cls.fields) {
-      size_t fsize = HdemFieldSize(field.type);
-      bool writeField = isFullSnapshot;
-
-      if (!isFullSnapshot) {
-        if (byteOffset + fsize <= itLastState->second.size() &&
-            byteOffset + fsize <= currentRawState.size()) {
-          if (std::memcmp(&currentRawState[byteOffset],
-                          &itLastState->second[byteOffset], fsize) != 0) {
-            writeField = true;
-          }
-        } else {
-          writeField = true;
+        if (isFullSnapshot) {
+          lastEntityState[i].assign(slot.fieldBufSize, 0);
         }
+
+        const uint8_t* currentBuf = slot.fieldBuf.get();
+
+        for (const auto& fs : layout.fields) {
+          bool writeField = isFullSnapshot;
+
+          if (!isFullSnapshot) {
+            if (std::memcmp(currentBuf + fs.dstOffset,
+                            lastEntityState[i].data() + fs.dstOffset,
+                            fs.size) != 0) {
+              writeField = true;
+            }
+          }
+
+          if (writeField) {
+            AppendToBuffer(tickBuffer, fs.fieldId);
+            const uint8_t* src = currentBuf + fs.dstOffset;
+            tickBuffer.insert(tickBuffer.end(), src, src + fs.size);
+
+            std::memcpy(lastEntityState[i].data() + fs.dstOffset, src, fs.size);
+            fieldsWritten++;
+          }
+        }
+
+        if (isFullSnapshot) {
+          // Write classname
+          AppendToBuffer(tickBuffer, static_cast<uint16_t>(HDEM_FIELD_CLASSNAME));
+          tickBuffer.insert(tickBuffer.end(), slot.className.c_str(),
+                            slot.className.c_str() + slot.className.size() + 1);
+          fieldsWritten++;
+
+          // Write targetname
+          AppendToBuffer(tickBuffer, static_cast<uint16_t>(HDEM_FIELD_NAME));
+          tickBuffer.insert(tickBuffer.end(), slot.targetName.c_str(),
+                            slot.targetName.c_str() + slot.targetName.size() + 1);
+          fieldsWritten++;
+        }
+
+        tickBuffer[numFieldsOffset] = fieldsWritten;
+
+        lastSeenSerial[i] = slot.serial;
+        lastSeenVersion[i] = currentVersion;
+        numEntitiesWritten++;
       }
-
-      if (writeField && byteOffset + fsize <= currentRawState.size()) {
-        AppendToBuffer(tickBuffer, field.fieldId);
-        tickBuffer.insert(tickBuffer.end(), &currentRawState[byteOffset],
-                          &currentRawState[byteOffset] + fsize);
-        fieldsWritten++;
-      }
-
-      byteOffset += fsize;
     }
-
-    if (isFullSnapshot) {
-      // Write classname
-      AppendToBuffer(tickBuffer, static_cast<uint16_t>(HDEM_FIELD_CLASSNAME));
-      const std::string& cname = ent.className;
-      tickBuffer.insert(tickBuffer.end(), cname.c_str(),
-                        cname.c_str() + cname.size() + 1);
-      fieldsWritten++;
-
-      // Write targetname
-      AppendToBuffer(tickBuffer, static_cast<uint16_t>(HDEM_FIELD_NAME));
-      const std::string& tname = ent.targetName;
-      tickBuffer.insert(tickBuffer.end(), tname.c_str(),
-                        tname.c_str() + tname.size() + 1);
-      fieldsWritten++;
-    }
-
-    tickBuffer[numFieldsOffset] = fieldsWritten;
-
-    lastEntityState[i] = currentRawState;
-    lastEntitySerial[i] = serialNum;
-    numEntitiesWritten++;
   }
 
   uint32_t frameByteSize = static_cast<uint32_t>(tickBuffer.size());

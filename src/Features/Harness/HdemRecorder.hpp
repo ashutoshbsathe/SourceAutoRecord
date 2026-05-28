@@ -28,10 +28,10 @@ class HdemRecorder {
   bool isActive = false;
   bool headerWritten = false;
 
-  // Delta tracking: entityIndex -> last written field values (raw bytes)
-  std::unordered_map<int, std::vector<uint8_t>> lastEntityState;
-  // Track which entity serials existed last tick
-  std::unordered_map<int, int> lastEntitySerial;
+  // Delta tracking arrays, sized dynamically to Offsets::NUM_ENT_ENTRIES
+  std::vector<uint32_t> lastSeenVersion;
+  std::vector<uint16_t> lastSeenSerial;
+  std::vector<std::vector<uint8_t>> lastEntityState;
 
   // Reused per-tick buffer to eliminate dynamic allocation overhead
   std::vector<uint8_t> tickBuffer;

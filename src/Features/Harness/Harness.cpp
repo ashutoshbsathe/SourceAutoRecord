@@ -330,12 +330,6 @@ ON_EVENT(POST_TICK) {
   portal2_harness::GameState state;
   Portal2HarnessImpl impl;
   if (impl.InternalObserve(&state)) {
-    if (harness->hdemReader && harness->hdemReader->IsOpen()) {
-      int curTick = state.server_tick();
-      harness->hdemReader->AdvanceToTick(curTick);
-      harness->hdemReader->GetSnapshot(state.mutable_entity_snapshot(), curTick);
-    }
-
     portal2_harness::ActionRequest action;
     harness->rolloutRecorder->MapUserCmdToAction(harness->lastDemoAction,
                                                  &action);
