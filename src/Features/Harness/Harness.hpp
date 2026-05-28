@@ -102,10 +102,23 @@ class Portal2HarnessImpl final
       portal2_harness::RenderDemoResponse* response) override;
 
   bool InternalObserve(portal2_harness::GameState* response);
+  void ResetObserveState();
 
  private:
   bool playerDied = false;
   HarnessShm shm;
+
+  struct LastSentState {
+    uint16_t serialNumber;
+    uint16_t classId;
+    std::unordered_map<uint16_t, std::vector<uint8_t>> fieldValues;
+    Vector position;
+    QAngle angles;
+    Vector velocity;
+  };
+  std::unordered_map<int, LastSentState> observeLastState;
+  bool observeIsFirst = true;
+  int observeLastTick = -1;
 };
 
 extern Command sar_harness_playdemo;

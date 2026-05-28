@@ -186,6 +186,19 @@ DETOUR(EngineDemoRecorder::SetSignonState, int state) {
 			if (!strcmp(var->m_pszString, var->m_pszDefaultValue)) continue;
 			RecordInitialVal(var->m_pszName, var->m_pszString);
 		}
+
+		// Restart hdem sidecar for the new map segment
+		if (harness && harness->harnessRecord.GetBool() && harness->hdemRecorder
+		    && engine->demorecorder->isRecordingDemo) {
+			if (harness->hdemRecorder->IsActive()) harness->hdemRecorder->Stop();
+			std::string baseName = engine->demorecorder->currentDemo;
+			if (!baseName.empty()) {
+				std::string path = std::string(engine->GetGameDirectory()) + "/" + baseName + ".hdem";
+				float tr = engine->GetIPT() > 0 ? (1.0f / engine->GetIPT()) : 60.0f;
+				harness->hdemRecorder->Start(path, engine->GetCurrentMapName(), tr);
+				console->Print("Harness: Restarted sidecar recording to %s\n", path.c_str());
+			}
+		}
 	}
 
 	return result;

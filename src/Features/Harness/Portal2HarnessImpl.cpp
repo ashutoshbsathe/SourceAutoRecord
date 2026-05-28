@@ -184,42 +184,17 @@ static void PopulateEntityStateProto(
 bool Portal2HarnessImpl::InternalObserve(portal2_harness::GameState* response) {
   if (!session->isRunning) return false;
 
-  void* player = nullptr;
-  bool isDemo = engine->demoplayer->IsPlaying();
-
-  if (isDemo) {
-    player = client->GetPlayer(1);
-  } else {
-    player = server->GetPlayer(1);
-  }
-
+  void* player = server->GetPlayer(1);
   if (!player) return false;
 
-  Vector position;
-  Vector velocity;
-  QAngle angles = engine->GetAngles(0);
-  int health = 100;
-  bool crouching = false;
-  int serverTick = 0;
+  ServerEnt* pl = (ServerEnt*)player;
+  Vector position  = pl->abs_origin();
+  Vector velocity  = pl->abs_velocity();
+  QAngle angles    = engine->GetAngles(0);
+  int health       = pl->field<int>("m_iHealth");
+  bool crouching   = pl->ducked();
+  int serverTick   = server->gpGlobals->tickcount;
 
-  if (isDemo) {
-    ClientEnt* cl = (ClientEnt*)player;
-    position = cl->abs_origin();
-    velocity = cl->abs_velocity();
-    crouching = cl->ducked();
-    serverTick = engine->GetTick();
-    // Health isn't easily available on client without more work, 100 is fine
-    // for demos
-  } else {
-    ServerEnt* pl = (ServerEnt*)player;
-    position = pl->abs_origin();
-    velocity = pl->abs_velocity();
-    health = pl->field<int>("m_iHealth");
-    crouching = pl->ducked();
-    serverTick = server->gpGlobals->tickcount;
-  }
-
-  // Fill response
   response->mutable_position()->set_x(position.x);
   response->mutable_position()->set_y(position.y);
   response->mutable_position()->set_z(position.z);
@@ -245,20 +220,123 @@ bool Portal2HarnessImpl::InternalObserve(portal2_harness::GameState* response) {
         currentEntities, currentTick, classes, allFields);
 
     auto* snapshotProto = response->mutable_entity_snapshot();
-    snapshotProto->set_is_full_snapshot(true);
     snapshotProto->set_tick(currentTick);
 
-    for (const auto& ent : currentEntities) {
-      uint16_t classId = ent.classId;
-      if (classId >= classes.size()) continue;
-      const auto& cls = classes[classId];
+    bool sendFull = observeIsFirst || (currentTick < observeLastTick);
+    snapshotProto->set_is_full_snapshot(sendFull);
 
-      auto* protoState = snapshotProto->add_entities();
-      PopulateEntityStateProto(protoState, ent, cls.fields, allFields, nullptr);
+    std::unordered_map<int, uint16_t> currentSerials;
+    for (const auto& ent : currentEntities)
+      currentSerials[ent.entityIndex] = ent.serialNumber;
+
+    if (sendFull) {
+      observeLastState.clear();
+      for (const auto& ent : currentEntities) {
+        uint16_t classId = ent.classId;
+        if (classId >= classes.size()) continue;
+        const auto& cls = classes[classId];
+
+        auto* protoState = snapshotProto->add_entities();
+        PopulateEntityStateProto(protoState, ent, cls.fields, allFields, nullptr);
+
+        LastSentState last;
+        last.serialNumber = ent.serialNumber;
+        last.classId      = ent.classId;
+        last.fieldValues  = ent.fieldValues;
+        last.position     = ent.position;
+        last.angles       = ent.angles;
+        last.velocity     = ent.velocity;
+        observeLastState[ent.entityIndex] = last;
+      }
+      observeIsFirst = false;
+    } else {
+      // Deleted entities
+      for (auto it = observeLastState.begin(); it != observeLastState.end();) {
+        int idx = it->first;
+        uint16_t oldSerial = it->second.serialNumber;
+        auto itCur = currentSerials.find(idx);
+        bool stillExists = (itCur != currentSerials.end() &&
+                            itCur->second == oldSerial);
+        if (!stillExists) {
+          auto* protoState = snapshotProto->add_entities();
+          protoState->set_entity_index(idx);
+          protoState->set_serial_number(oldSerial);
+          protoState->set_deleted(true);
+          it = observeLastState.erase(it);
+        } else {
+          ++it;
+        }
+      }
+
+      // New or changed entities
+      for (const auto& ent : currentEntities) {
+        uint16_t classId = ent.classId;
+        if (classId >= classes.size()) continue;
+        const auto& cls = classes[classId];
+
+        int idx = ent.entityIndex;
+        auto itLast = observeLastState.find(idx);
+
+        bool isNew = (itLast == observeLastState.end() ||
+                      itLast->second.serialNumber != ent.serialNumber);
+        bool isChanged = false;
+
+        if (!isNew) {
+          const auto& last = itLast->second;
+          if (last.position.x != ent.position.x ||
+              last.position.y != ent.position.y ||
+              last.position.z != ent.position.z ||
+              last.angles.x   != ent.angles.x   ||
+              last.angles.y   != ent.angles.y   ||
+              last.angles.z   != ent.angles.z   ||
+              last.velocity.x != ent.velocity.x ||
+              last.velocity.y != ent.velocity.y ||
+              last.velocity.z != ent.velocity.z) {
+            isChanged = true;
+          } else {
+            for (const auto& fieldDef : cls.fields) {
+              if (fieldDef.fieldId == HDEM_FIELD_ORIGIN ||
+                  fieldDef.fieldId == HDEM_FIELD_ANGLES ||
+                  fieldDef.fieldId == HDEM_FIELD_VELOCITY) continue;
+              auto itVal     = ent.fieldValues.find(fieldDef.fieldId);
+              auto itLastVal = last.fieldValues.find(fieldDef.fieldId);
+              if (itVal != ent.fieldValues.end()) {
+                if (itLastVal == last.fieldValues.end() ||
+                    itLastVal->second != itVal->second) {
+                  isChanged = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        if (isNew || isChanged) {
+          auto* protoState = snapshotProto->add_entities();
+          PopulateEntityStateProto(protoState, ent, cls.fields, allFields,
+                                   isNew ? nullptr : &itLast->second.fieldValues);
+
+          LastSentState last;
+          last.serialNumber = ent.serialNumber;
+          last.classId      = ent.classId;
+          last.fieldValues  = ent.fieldValues;
+          last.position     = ent.position;
+          last.angles       = ent.angles;
+          last.velocity     = ent.velocity;
+          observeLastState[idx] = last;
+        }
+      }
     }
+    observeLastTick = currentTick;
   }
 
   return true;
+}
+
+void Portal2HarnessImpl::ResetObserveState() {
+  observeLastState.clear();
+  observeIsFirst = true;
+  observeLastTick = -1;
 }
 
 grpc::Status Portal2HarnessImpl::Act(
@@ -418,30 +496,10 @@ grpc::Status Portal2HarnessImpl::Reset(
   }
 
   console->Print("Harness: Reset complete, harness control re-established\n");
+  this->ResetObserveState();
 
   // Get initial observation
-  portal2_harness::GameState* state = response->mutable_initial_state();
-
-  void* player = server->GetPlayer(1);
-  if (player) {
-    ServerEnt* pl = (ServerEnt*)player;
-    Vector position = pl->abs_origin();
-    Vector velocity = pl->abs_velocity();
-    QAngle angles = engine->GetAngles(0);
-
-    state->mutable_position()->set_x(position.x);
-    state->mutable_position()->set_y(position.y);
-    state->mutable_position()->set_z(position.z);
-    state->mutable_velocity()->set_x(velocity.x);
-    state->mutable_velocity()->set_y(velocity.y);
-    state->mutable_velocity()->set_z(velocity.z);
-    state->mutable_camera()->set_x(angles.x);
-    state->mutable_camera()->set_y(angles.y);
-    state->mutable_camera()->set_z(angles.z);
-    state->set_health(pl->field<int>("m_iHealth"));
-    state->set_is_crouching(pl->ducked());
-    state->set_server_tick(server->gpGlobals->tickcount);
-  }
+  this->InternalObserve(response->mutable_initial_state());
 
   response->set_success(true);
   return grpc::Status::OK;
@@ -457,18 +515,8 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
                         "No session running");
   }
 
-  // Track the last sent state per entity: entityIndex -> LastSentState
-  struct LastSentState {
-    uint16_t serialNumber;
-    uint16_t classId;
-    std::unordered_map<uint16_t, std::vector<uint8_t>> fieldValues;
-    Vector position;
-    QAngle angles;
-    Vector velocity;
-  };
-  std::unordered_map<int, LastSentState> sessionLastState;
-  bool isFirstObservation = true;
-  int lastSentTick = -1;
+  // Force a full entity snapshot on the first observation of this stream.
+  this->ResetObserveState();
 
   portal2_harness::AgentMessage req;
   while (stream->Read(&req)) {
@@ -493,143 +541,11 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
     portal2_harness::Empty empty_req;
     grpc::Status obs_status =
         this->Observe(context, &empty_req, env_msg.mutable_state());
-
     if (!obs_status.ok()) {
       env_msg.set_success(false);
-      env_msg.set_error_message("Observe failed: " +
-                                obs_status.error_message());
+      env_msg.set_error_message("Observe failed: " + obs_status.error_message());
       stream->Write(env_msg);
       continue;
-    }
-
-    if (harness && harness->entitySnapshotter) {
-      std::vector<TrackedEntity> currentEntities;
-      int currentTick = 0;
-      std::vector<HdemClassDef> classes;
-      std::vector<HdemFieldDef> allFields;
-      harness->entitySnapshotter->GetSnapshotAndSchema(
-          currentEntities, currentTick, classes, allFields);
-
-      auto* snapshotProto = env_msg.mutable_state()->mutable_entity_snapshot();
-      snapshotProto->Clear();
-      snapshotProto->set_tick(currentTick);
-
-      bool sendFull = isFirstObservation || (currentTick < lastSentTick);
-      snapshotProto->set_is_full_snapshot(sendFull);
-
-      std::unordered_map<int, uint16_t> currentSerials;
-      for (const auto& ent : currentEntities) {
-        currentSerials[ent.entityIndex] = ent.serialNumber;
-      }
-
-      if (sendFull) {
-        sessionLastState.clear();
-        for (const auto& ent : currentEntities) {
-          uint16_t classId = ent.classId;
-          if (classId >= classes.size()) continue;
-          const auto& cls = classes[classId];
-
-          auto* protoState = snapshotProto->add_entities();
-          PopulateEntityStateProto(protoState, ent, cls.fields, allFields,
-                                   nullptr);
-
-          LastSentState last;
-          last.serialNumber = ent.serialNumber;
-          last.classId = ent.classId;
-          last.fieldValues = ent.fieldValues;
-          last.position = ent.position;
-          last.angles = ent.angles;
-          last.velocity = ent.velocity;
-          sessionLastState[ent.entityIndex] = last;
-        }
-        isFirstObservation = false;
-      } else {
-        // Delta logic!
-        // 1. Detect deleted entities
-        for (auto it = sessionLastState.begin();
-             it != sessionLastState.end();) {
-          int idx = it->first;
-          uint16_t oldSerial = it->second.serialNumber;
-
-          auto itCurrent = currentSerials.find(idx);
-          bool stillExists = (itCurrent != currentSerials.end() &&
-                              itCurrent->second == oldSerial);
-
-          if (!stillExists) {
-            auto* protoState = snapshotProto->add_entities();
-            protoState->set_entity_index(idx);
-            protoState->set_serial_number(oldSerial);
-            protoState->set_deleted(true);
-
-            it = sessionLastState.erase(it);
-          } else {
-            ++it;
-          }
-        }
-
-        // 2. Detect new or changed entities
-        for (const auto& ent : currentEntities) {
-          uint16_t classId = ent.classId;
-          if (classId >= classes.size()) continue;
-          const auto& cls = classes[classId];
-
-          int idx = ent.entityIndex;
-          auto itLast = sessionLastState.find(idx);
-
-          bool isNew = (itLast == sessionLastState.end() ||
-                        itLast->second.serialNumber != ent.serialNumber);
-          bool isChanged = false;
-
-          if (!isNew) {
-            const auto& last = itLast->second;
-            if (last.position.x != ent.position.x ||
-                last.position.y != ent.position.y ||
-                last.position.z != ent.position.z ||
-                last.angles.x != ent.angles.x ||
-                last.angles.y != ent.angles.y ||
-                last.angles.z != ent.angles.z ||
-                last.velocity.x != ent.velocity.x ||
-                last.velocity.y != ent.velocity.y ||
-                last.velocity.z != ent.velocity.z) {
-              isChanged = true;
-            } else {
-              for (const auto& fieldDef : cls.fields) {
-                if (fieldDef.fieldId == HDEM_FIELD_ORIGIN ||
-                    fieldDef.fieldId == HDEM_FIELD_ANGLES ||
-                    fieldDef.fieldId == HDEM_FIELD_VELOCITY) {
-                  continue;
-                }
-                auto itVal = ent.fieldValues.find(fieldDef.fieldId);
-                auto itLastVal = last.fieldValues.find(fieldDef.fieldId);
-                if (itVal != ent.fieldValues.end()) {
-                  if (itLastVal == last.fieldValues.end() ||
-                      itLastVal->second != itVal->second) {
-                    isChanged = true;
-                    break;
-                  }
-                }
-              }
-            }
-          }
-
-          if (isNew || isChanged) {
-            auto* protoState = snapshotProto->add_entities();
-            PopulateEntityStateProto(
-                protoState, ent, cls.fields, allFields,
-                isNew ? nullptr : &itLast->second.fieldValues);
-
-            LastSentState last;
-            last.serialNumber = ent.serialNumber;
-            last.classId = ent.classId;
-            last.fieldValues = ent.fieldValues;
-            last.position = ent.position;
-            last.angles = ent.angles;
-            last.velocity = ent.velocity;
-            sessionLastState[idx] = last;
-          }
-        }
-      }
-      lastSentTick = currentTick;
     }
 
     if (req.copy_pixels_to_shm()) {
