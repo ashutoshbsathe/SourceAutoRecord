@@ -27,6 +27,14 @@ Variable sar_pp_hud_y("sar_pp_hud_y", "5", "y pos of portal placement hud.\n", 0
 Variable sar_pp_hud_opacity("sar_pp_hud_opacity", "100", 0, 255, "Opacity of portal previews.\n", 0);
 Variable sar_pp_hud_font("sar_pp_hud_font", "0", 0, "Change font of portal placement hud.\n");
 
+// A5: the master harness-annotation cvar (defined in HarnessAnnotate.cpp) also
+// drives an always-on crosshair portal-landing indicator, reusing this feature's
+// TraceFirePortal compute + world preview below (green=valid, red=invalid). We
+// OR it into the gates here rather than puppeteering sar_pp_hud, so the preview
+// rides on sar_harness_annotate without forcing sv_cheats (which sar_pp_hud
+// requires) and can tint green instead of portal-color.
+extern Variable sar_harness_annotate;
+
 bool g_hasPortalGun;
 bool g_canPlaceBlue;
 bool g_canPlaceOrange;
@@ -96,7 +104,7 @@ bool PortalPlacementHud::GetCurrentSize(int &xSize, int &ySize) {
 ON_EVENT(PRE_TICK) {
 	// update portal placement info
 	// Will fizzle partner portals in coop
-	if (sv_cheats.GetBool() && sar_pp_hud.GetBool() && event.simulating) {
+	if (((sv_cheats.GetBool() && sar_pp_hud.GetBool()) || sar_harness_annotate.GetBool()) && event.simulating) {
 		void *player = server->GetPlayer(GET_SLOT() + 1);
 
 		if (player == nullptr || (int)player == -1)
@@ -144,11 +152,14 @@ ON_EVENT(PRE_TICK) {
 }
 
 ON_EVENT(RENDER) {
-	if (sv_cheats.GetBool() && sar_pp_hud.GetBool()) {
+	bool ppHud = sv_cheats.GetBool() && sar_pp_hud.GetBool();
+	bool aim = sar_harness_annotate.GetBool();
+	if (ppHud || aim) {
 		// Draw the shits in world
 
 		auto blue =   SARUTIL_Portal_Color(1, 0);
 		auto orange = SARUTIL_Portal_Color(2, 0);
+		auto green =  Color(  0, 255,   0, 255);
 		auto red =    Color(255,   0,   0, 255);
 
 		auto drawPortal = [&](Color portalColor, TracePortalPlacementInfo_t info) {
@@ -182,7 +193,11 @@ ON_EVENT(RENDER) {
 			}
 		};
 
-		if (sar_pp_hud_show_blue.GetBool()) drawPortal(blue, g_bluePlacementInfo);
-		if (sar_pp_hud_show_orange.GetBool()) drawPortal(orange, g_orangePlacementInfo);
+		if (ppHud && sar_pp_hud_show_blue.GetBool()) drawPortal(blue, g_bluePlacementInfo);
+		if (ppHud && sar_pp_hud_show_orange.GetBool()) drawPortal(orange, g_orangePlacementInfo);
+		// A5 aim indicator: drawPortal swaps to red on an invalid result, so
+		// green here means the crosshair portal would land validly. Gate on
+		// g_hasPortalGun, else stale info draws a stray disc at the origin.
+		if (aim && g_hasPortalGun) drawPortal(green, g_bluePlacementInfo);
 	}
 }
