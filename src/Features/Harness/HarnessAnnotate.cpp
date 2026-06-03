@@ -29,9 +29,9 @@ ON_EVENT(RENDER) {
       continue;
 
     auto se = SE(ent);
-    OverlayRender::addBoxMesh(
-        se->abs_origin(), se->collision().OBBMins(), se->collision().OBBMaxs(),
-        se->abs_angles(), RenderCallback::none,
-        RenderCallback::constant({255, 215, 0}, /*nodepth*/ true));
+    OverlayRender::addBoxMesh(se->abs_origin(), se->collision().OBBMins(),
+                              se->collision().OBBMaxs(), se->abs_angles(),
+                              RenderCallback::constant({255, 215, 0, 51}),
+                              RenderCallback::constant({255, 215, 0}));
   }
 }
