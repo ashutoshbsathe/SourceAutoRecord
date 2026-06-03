@@ -94,8 +94,9 @@ Enables egocentric observation and *may* reduce per-tick cost. **Do not assume a
 ### B1 — Visibility predicate + egocentric annotation
 - **Goal:** a reusable "is this entity visible to the player" test, applied to annotation.
 - **Files:** new `src/Features/Harness/HarnessVisibility.{hpp,cpp}`; `HarnessAnnotate.cpp`.
-- **Steps:** `IsVisible(entityOrigin, eyePos, viewAngles, fov, aspect)` = frustum test (cheap dot-product math) **then** one `Engine::Trace(eye → entityOrigin, MASK_OPAQUE, passEnt=player)` LoS check. Add cvar `sar_harness_annotate_los`; when set, annotate only visible entities (and switch boxes to depth-tested instead of `nodepth`).
-- **Verify (user):** with the cvar on, only entities you can actually see are boxed.
+- **Steps:** `IsVisible(entityOrigin, eyePos, viewAngles, fov, aspect)` = frustum test (cheap dot-product math) **then** one `Engine::Trace(eye → entityOrigin, MASK_OPAQUE, passEnt=player)` LoS check. Add cvar `sar_harness_annotate_los`; when set, annotate only visible entities. (Boxes are already depth-tested as of A1.)
+- **Note — this is also the real fix for the A3 mark-label depth problem.** A Set-of-Marks number is a flat world-space text quad, so *neither* depth flag is clean on its own: depth-tested (`no_depth=false`, what A3 ships) gets **sliced** by a wall the label sits against; on-top (`no_depth=true`) **x-rays** every mark through walls (tried, looked awful). There is no good middle ground at the depth-flag layer. The fix is *this* predicate: when LOS filtering is on, **cull marks (and boxes) for occluded entities entirely** rather than relying on depth — apply `IsVisible` to the label too, not just the box. That removes both the slicing and the x-ray in one move.
+- **Verify (user):** with the cvar on, only entities you can actually see are boxed *and* labelled.
 - **~Size:** ~70 LOC. **Deps:** A2.
 
 ### B2 — (Optional, measured) LOS filter on the harness-observe telemetry path

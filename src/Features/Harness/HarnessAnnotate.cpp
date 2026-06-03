@@ -5,6 +5,7 @@
 #include "Event.hpp"
 #include "Features/EntityList.hpp"
 #include "Features/OverlayRender.hpp"
+#include "MarkTable.hpp"
 #include "Modules/Server.hpp"
 #include "Offsets.hpp"
 #include "Variable.hpp"
@@ -12,6 +13,9 @@
 Variable sar_harness_annotate(
     "sar_harness_annotate", "0", 0, 1,
     "Draw wireframe annotation boxes around harness puzzle entities.\n");
+
+// x_height of the mark label. Single digits, so keep it legible; tune freely.
+static constexpr float kMarkHeight = 6.0f;
 
 // A2: the puzzle-relevant classnames we annotate, plus the player's own avatar.
 static const std::unordered_set<std::string> kAnnotatedClasses = {
@@ -66,9 +70,26 @@ ON_EVENT(RENDER) {
     if (!className || !kAnnotatedClasses.count(className)) continue;
 
     auto se = SE(ent);
-    OverlayRender::addBoxMesh(se->abs_origin(), se->collision().OBBMins(),
-                              se->collision().OBBMaxs(), se->abs_angles(),
+    Vector origin = se->abs_origin();
+    Vector mins = se->collision().OBBMins();
+    Vector maxs = se->collision().OBBMaxs();
+    QAngle angles = se->abs_angles();
+
+    OverlayRender::addBoxMesh(origin, mins, maxs, angles,
                               RenderCallback::constant({255, 215, 0, 5}),
                               RenderCallback::constant({255, 215, 0}));
+
+    // Stable Set-of-Marks label, sitting just above the box top. Depth-tested
+    // (no_depth=false) to match the boxes. Neither depth flag is clean for a
+    // flat world-space text quad: depth-tested gets sliced by a wall the label
+    // sits against, on-top x-rays every mark through walls (worse). The real
+    // fix is the Track B (B1) LOS predicate -- cull marks for occluded entities
+    // entirely; see B1's note.
+    int mark =
+        markTable.GetMark(i, static_cast<uint16_t>(info->m_SerialNumber));
+    OverlayRender::addText(origin + Vector{0, 0, maxs.z}, std::to_string(mark),
+                           kMarkHeight, /*visibility_scale*/ true,
+                           /*no_depth*/ false, OverlayRender::TextAlign::BOTTOM,
+                           {255, 255, 255});
   }
 }
