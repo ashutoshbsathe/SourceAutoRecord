@@ -52,7 +52,6 @@ class Harness : public Feature {
   class HdemReader* hdemReader = nullptr;
   class EntitySnapshotter* entitySnapshotter = nullptr;
 
-
   Variable enabled;
   Variable instanceId;  // sar_harness_instance: integer N → port 50000+N, shm
                         // suffix _N
@@ -104,15 +103,15 @@ class Portal2HarnessImpl final
   bool InternalObserve(portal2_harness::GameState* response);
   void ResetObserveState();
 
-  private:
-   bool playerDied = false;
-   HarnessShm shm;
+ private:
+  bool playerDied = false;
+  HarnessShm shm;
 
-   std::vector<uint32_t> observeLastVersion;
-   std::vector<uint16_t> observeLastSerial;
-   std::vector<std::vector<uint8_t>> observeLastState;
-   bool observeIsFirst = true;
-   int observeLastTick = -1;
- };
+  std::vector<uint32_t> observeLastVersion;
+  std::vector<uint16_t> observeLastSerial;
+  std::vector<std::vector<uint8_t>> observeLastState;
+  bool observeIsFirst = true;
+  int observeLastTick = -1;
+};
 
 extern Command sar_harness_playdemo;

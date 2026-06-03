@@ -3,11 +3,12 @@ import os
 import argparse
 from hdem_reader import HdemReader, FIELD_TYPES, SOLID_TYPES
 
+
 def parse_hdem(path, max_ticks=None):
     try:
         reader = HdemReader(path)
     except Exception as e:
-        print(f"Error opening/parsing HDEM file: {e}")
+        print(f'Error opening/parsing HDEM file: {e}')
         return
 
     print('=' * 70)
@@ -39,35 +40,43 @@ def parse_hdem(path, max_ticks=None):
         tick_res = reader.read_next_tick()
         if tick_res is None:
             break
-        
+
         tick_number, entities = tick_res
-        
-        dump_this_tick = (
-            max_ticks is None or max_ticks <= 0 or ticks_read < max_ticks
-        )
-        
+
+        dump_this_tick = max_ticks is None or max_ticks <= 0 or ticks_read < max_ticks
+
         # Calculate how many entities actually changed/were written this tick
         # Wait, the reader reconstructs the state, but we want to know what changed.
         # However, for dump purposes, we can just print the active entities reconstructed.
         if dump_this_tick:
             print(f'Tick {tick_number} | Reconstructed Entities: {len(entities)}')
             for ent_idx, ent in sorted(entities.items()):
-                print(f"  ├─ Entity [{ent_idx:4d}] (Serial: {ent['serial_number']:5d}) Class: {ent['class_name']} Target: {ent['target_name']}")
+                print(
+                    f'  ├─ Entity [{ent_idx:4d}] (Serial: {ent["serial_number"]:5d}) Class: {ent["class_name"]} Target: {ent["target_name"]}'
+                )
                 # Print origin/angles/velocity if present
-                print(f"  │   ├─ position: ({ent['position'][0]:.2f}, {ent['position'][1]:.2f}, {ent['position'][2]:.2f})")
-                print(f"  │   ├─ angles: ({ent['angles'][0]:.2f}, {ent['angles'][1]:.2f}, {ent['angles'][2]:.2f})")
-                print(f"  │   ├─ velocity: ({ent['velocity'][0]:.2f}, {ent['velocity'][1]:.2f}, {ent['velocity'][2]:.2f})")
+                print(
+                    f'  │   ├─ position: ({ent["position"][0]:.2f}, {ent["position"][1]:.2f}, {ent["position"][2]:.2f})'
+                )
+                print(
+                    f'  │   ├─ angles: ({ent["angles"][0]:.2f}, {ent["angles"][1]:.2f}, {ent["angles"][2]:.2f})'
+                )
+                print(
+                    f'  │   ├─ velocity: ({ent["velocity"][0]:.2f}, {ent["velocity"][1]:.2f}, {ent["velocity"][2]:.2f})'
+                )
                 for fname, (ftype, fval) in sorted(ent['fields'].items()):
-                    val_str = ""
-                    if ftype == 2: # VEC3
-                        val_str = f"({fval[0]:.2f}, {fval[1]:.2f}, {fval[2]:.2f})"
+                    val_str = ''
+                    if ftype == 2:  # VEC3
+                        val_str = f'({fval[0]:.2f}, {fval[1]:.2f}, {fval[2]:.2f})'
                     elif ftype == 6 and fname == 'm_nSolidType' and fval in SOLID_TYPES:
-                        val_str = f"{fval} ({SOLID_TYPES[fval]})"
+                        val_str = f'{fval} ({SOLID_TYPES[fval]})'
                     else:
                         val_str = str(fval)
                     print(f'  │   ├─ {fname}: {val_str}')
         elif ticks_read == max_ticks:
-            print(f'\n... Omitting full entity trees for remaining frames (exceeded --ticks {max_ticks}) ...')
+            print(
+                f'\n... Omitting full entity trees for remaining frames (exceeded --ticks {max_ticks}) ...'
+            )
             print('Pass --ticks 0 to dump all frames.')
             break
 
@@ -88,6 +97,7 @@ def parse_hdem(path, max_ticks=None):
             print(f'Checksum:        0x{checksum:08X}')
     except Exception:
         pass
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Dump .hdem sidecar file contents.')

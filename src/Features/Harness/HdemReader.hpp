@@ -1,8 +1,9 @@
 #pragma once
 #include <fstream>
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
+
 #include "HdemFormat.hpp"
 #include "harness.pb.h"
 
@@ -18,7 +19,7 @@ struct HdemReaderClassDef {
 };
 
 class HdemReader {
-public:
+ public:
   HdemReader();
   ~HdemReader();
 
@@ -36,7 +37,7 @@ public:
   const std::string& GetMapName() const { return mapName; }
   float GetTickrate() const { return tickrate; }
 
-private:
+ private:
   bool ReadNextFrame();
   std::string ReadString();
 

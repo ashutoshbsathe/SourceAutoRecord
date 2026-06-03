@@ -21,10 +21,10 @@ from p2harness.harness_pb2 import RolloutHeader, RolloutStep
 
 
 def load(path: str):
-    frames_raw = []       # raw RGB bytes or None per tick
-    all_tick_dicts = []   # intermediate dicts, converted to JSON after sorting
+    frames_raw = []  # raw RGB bytes or None per tick
+    all_tick_dicts = []  # intermediate dicts, converted to JSON after sorting
 
-    entity_registry = {}   # idx -> class_name (first seen)
+    entity_registry = {}  # idx -> class_name (first seen)
     update_counter = Counter()
     prev_state: dict[int, dict] = {}  # idx -> {field: value} from last tick
 
@@ -38,10 +38,10 @@ def load(path: str):
         w, h = header.shm_width, header.shm_height
 
         meta = {
-            'map':         header.map_name,
-            'tickrate':    header.tickrate,
-            'width':       w,
-            'height':      h,
+            'map': header.map_name,
+            'tickrate': header.tickrate,
+            'width': w,
+            'height': h,
         }
 
         while True:
@@ -59,15 +59,14 @@ def load(path: str):
 
     # Sort entity registry by update count descending
     sorted_entities = sorted(
-        entity_registry.items(),
-        key=lambda kv: -update_counter[kv[0]]
+        entity_registry.items(), key=lambda kv: -update_counter[kv[0]]
     )
     meta['entities'] = [
         {
-            'idx':           idx,
-            'class_name':    cls,
+            'idx': idx,
+            'class_name': cls,
             'total_updates': update_counter[idx],
-            'rank':          rank + 1,
+            'rank': rank + 1,
         }
         for rank, (idx, cls) in enumerate(sorted_entities)
     ]
@@ -80,9 +79,10 @@ def load(path: str):
     return meta, frames_raw, ticks_json, (w, h)
 
 
-def _extract_tick(step, entity_registry: dict, update_counter: Counter,
-                  prev_state: dict) -> dict:
-    act   = step.action
+def _extract_tick(
+    step, entity_registry: dict, update_counter: Counter, prev_state: dict
+) -> dict:
+    act = step.action
     state = step.state
 
     entities = []
@@ -110,19 +110,19 @@ def _extract_tick(step, entity_registry: dict, update_counter: Counter,
 
     return {
         'tick': state.server_tick,
-        'pos':  {'x': state.position.x, 'y': state.position.y, 'z': state.position.z},
+        'pos': {'x': state.position.x, 'y': state.position.y, 'z': state.position.z},
         'action': {
-            'forward':          act.key_forward,
-            'backward':         act.key_backward,
-            'left':             act.key_left,
-            'right':            act.key_right,
-            'jump':             act.key_jump,
-            'crouch':           act.key_crouch,
-            'use':              act.key_use,
-            'portal_primary':   act.portal_primary,
+            'forward': act.key_forward,
+            'backward': act.key_backward,
+            'left': act.key_left,
+            'right': act.key_right,
+            'jump': act.key_jump,
+            'crouch': act.key_crouch,
+            'use': act.key_use,
+            'portal_primary': act.portal_primary,
             'portal_secondary': act.portal_secondary,
-            'mouse_dx':         act.mouse_dx,
-            'mouse_dy':         act.mouse_dy,
+            'mouse_dx': act.mouse_dx,
+            'mouse_dy': act.mouse_dy,
         },
         'entities': entities,
     }

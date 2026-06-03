@@ -99,7 +99,8 @@ void RolloutRecorder::MapUserCmdToAction(const CUserCmd& cmd,
   req->set_portal_primary(cmd.buttons & IN_ATTACK);
   req->set_portal_secondary(cmd.buttons & IN_ATTACK2);
 
-  // Reconstruct relative look deltas if raw mouse inputs are zero (e.g. in human demo playback)
+  // Reconstruct relative look deltas if raw mouse inputs are zero (e.g. in
+  // human demo playback)
   float dx = static_cast<float>(cmd.mousedx);
   float dy = static_cast<float>(cmd.mousedy);
 

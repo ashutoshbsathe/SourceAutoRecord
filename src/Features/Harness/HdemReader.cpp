@@ -1,12 +1,12 @@
 #include "HdemReader.hpp"
+
 #include <cstring>
+
 #include "EntitySnapshotter.hpp"
 
 HdemReader::HdemReader() {}
 
-HdemReader::~HdemReader() {
-  Close();
-}
+HdemReader::~HdemReader() { Close(); }
 
 bool HdemReader::Open(const std::string& path) {
   file.open(path, std::ios::binary | std::ios::in);
@@ -285,7 +285,8 @@ bool HdemReader::AdvanceToTick(int targetTick) {
   return true;
 }
 
-void HdemReader::GetSnapshot(portal2_harness::EntitySnapshot* outSnapshot, int tick) {
+void HdemReader::GetSnapshot(portal2_harness::EntitySnapshot* outSnapshot,
+                             int tick) {
   outSnapshot->Clear();
   outSnapshot->set_tick(tick);
   outSnapshot->set_is_full_snapshot(true);

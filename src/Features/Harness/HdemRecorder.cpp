@@ -101,7 +101,7 @@ void HdemRecorder::Stop() {
 
   // Write footer
   WritePOD(file, static_cast<uint32_t>(totalTicks));
-  
+
   uint32_t activeCount = 0;
   for (auto s : lastSeenSerial) {
     if (s != 0) activeCount++;
@@ -175,7 +175,8 @@ void HdemRecorder::RecordTick(int tickNumber) {
         AppendToBuffer(tickBuffer, uint8_t(0));
 
         uint8_t fieldsWritten = 0;
-        const auto& layout = harness->entitySnapshotter->GetClassLayout(slot.classId);
+        const auto& layout =
+            harness->entitySnapshotter->GetClassLayout(slot.classId);
 
         if (isFullSnapshot) {
           lastEntityState[i].assign(slot.fieldBufSize, 0);
@@ -206,15 +207,17 @@ void HdemRecorder::RecordTick(int tickNumber) {
 
         if (isFullSnapshot) {
           // Write classname
-          AppendToBuffer(tickBuffer, static_cast<uint16_t>(HDEM_FIELD_CLASSNAME));
+          AppendToBuffer(tickBuffer,
+                         static_cast<uint16_t>(HDEM_FIELD_CLASSNAME));
           tickBuffer.insert(tickBuffer.end(), slot.className.c_str(),
                             slot.className.c_str() + slot.className.size() + 1);
           fieldsWritten++;
 
           // Write targetname
           AppendToBuffer(tickBuffer, static_cast<uint16_t>(HDEM_FIELD_NAME));
-          tickBuffer.insert(tickBuffer.end(), slot.targetName.c_str(),
-                            slot.targetName.c_str() + slot.targetName.size() + 1);
+          tickBuffer.insert(
+              tickBuffer.end(), slot.targetName.c_str(),
+              slot.targetName.c_str() + slot.targetName.size() + 1);
           fieldsWritten++;
         }
 

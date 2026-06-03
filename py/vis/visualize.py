@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from nicegui import app, ui
 
 # Resolve paths before any relative imports
-VIS_DIR    = Path(__file__).parent
+VIS_DIR = Path(__file__).parent
 STATIC_DIR = VIS_DIR / 'static'
 
 sys.path.insert(0, str(VIS_DIR.parent))  # so p2harness is importable
@@ -67,15 +67,17 @@ def main():
 
         # Top control bar
         with ui.row().classes('control-bar'):
-            ui.html('''
+            ui.html("""
                 <button class="ctrl-btn" id="btn-reset">⏮</button>
                 <button class="ctrl-btn" id="btn-play">▶</button>
                 <button class="ctrl-btn" id="btn-prev">&lt;</button>
                 <input  class="seek-slider" id="seek-slider" type="range" min="0" value="0">
                 <button class="ctrl-btn" id="btn-next">&gt;</button>
                 <span   class="tick-label" id="tick-label">Tick 0</span>
-            ''')
-            ui.label(f'{meta["map"]}  ·  {meta["total_ticks"]} ticks @ {meta["tickrate"]:.0f} Hz').classes('meta-label')
+            """)
+            ui.label(
+                f'{meta["map"]}  ·  {meta["total_ticks"]} ticks @ {meta["tickrate"]:.0f} Hz'
+            ).classes('meta-label')
 
         # Main container: game panel (fixed width) + entity panel (flex-grow)
         ui.html(f'''

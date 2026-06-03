@@ -12,8 +12,8 @@
 #include "Features/Tas/TasController.hpp"
 #include "Features/Tas/TasPlayer.hpp"
 #include "Features/Tas/TasScript.hpp"
-#include "HdemRecorder.hpp"
 #include "HdemReader.hpp"
+#include "HdemRecorder.hpp"
 #include "Modules/Client.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
@@ -486,11 +486,14 @@ CON_COMMAND_F_COMPLETION(
   if (std::filesystem::exists(hdemPath)) {
     harness->hdemReader = new HdemReader();
     if (!harness->hdemReader->Open(hdemPath)) {
-      console->Warning("Harness: Failed to open sidecar .hdem file: %s\n", hdemPath.c_str());
+      console->Warning("Harness: Failed to open sidecar .hdem file: %s\n",
+                       hdemPath.c_str());
       delete harness->hdemReader;
       harness->hdemReader = nullptr;
     } else {
-      console->Print("Harness: Opened sidecar .hdem file for rollout overlay: %s\n", hdemPath.c_str());
+      console->Print(
+          "Harness: Opened sidecar .hdem file for rollout overlay: %s\n",
+          hdemPath.c_str());
     }
   }
 
