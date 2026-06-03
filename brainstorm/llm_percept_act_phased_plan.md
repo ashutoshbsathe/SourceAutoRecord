@@ -32,9 +32,24 @@ Pure client-side rendering via `OverlayRender`. Independent of the harness/gRPC/
 ### A2 — Box around all puzzle classnames
 - **Goal:** extend A1 to the full target set.
 - **Files:** `HarnessAnnotate.cpp`.
-- **Steps:** define a `static const` classname set: `prop_portal`, `prop_weighted_cube`, `prop_monster_box`, `prop_button`, `func_weight_button`, `prop_testchamber_door`, `env_portal_laser`, `prop_laser_catcher`, `prop_laser_relay`, `point_laser_target`, plus the player. Draw a box for any entity whose classname is in the set.
+- **Steps:** define a `static const` classname set, drawing a box for any entity whose classname is in it. Two groups:
+  - **Core puzzle objects (design doc v1):** `prop_portal`, `prop_weighted_cube`, `prop_monster_box`, `prop_button` (pedestal push button), `func_weight_button`, the floor-button family (`prop_floor_button` big red 1500kg button, `prop_under_floor_button`, `prop_floor_cube_button`, `prop_floor_ball_button`), `prop_testchamber_door`, `env_portal_laser`, `prop_laser_catcher`, `prop_laser_relay`, `point_laser_target`, plus the player.
+  - **Hazards + brush-trigger volumes (added at A2, final keep/drop decided at the A5 checkpoint):** `npc_portal_turret_floor` (turret), `trigger_portal_cleanser` (emancipation grill / fizzler — already snapshot-tracked at `EntitySnapshotter.cpp:93`), `trigger_catapult` (faith plate), `prop_tractor_beam` (excursion funnel emitter).
+- **Note — invisible trigger volumes:** the fizzler / faith-plate / funnel classes are brush triggers; their OBB reads as a slab spanning the volume (boxing invisible playspace is *useful*, not a bug). Confirm `m_Collision` OBB actually populates for brush ents via a snapshot dump — physics props are the happy path.
 - **Verify (user):** all puzzle elements in a chamber get boxes.
-- **~Size:** ~30 LOC. **Deps:** A1.
+- **~Size:** ~45 LOC. **Deps:** A1.
+
+> **A2 status — complete for classname-matchable elements.** The classname-set mechanism boxes every puzzle element that is a *discrete entity with a stable engine classname*. What remains (below) is a categorically different matching problem, deliberately parked for the checkpoint — so **A2 is done, not partial**.
+
+#### What A2 taught us — the element taxonomy
+Building A2 against real chambers surfaced that Portal puzzle elements split into two kinds. Only the first fits A2's classname-set mechanism:
+
+1. **Discrete objects — stable engine classname, often a clean state flag.** Cubes, the button family (pedestal `prop_button`, weight `func_weight_button`, floor `prop_floor_button`/variants), doors, turrets, lasers/catchers/relays/target. Identification is guaranteed by `server->GetEntityClassName`. **This is what A2 boxes.**
+2. **Chamber-mutating geometry — no stable classname; identified by map convention or animation/IO state.** Needs a *different matching mechanism*; **deferred to the A5 checkpoint** and tuned against the user's actual chamber set:
+   - **Folding panels / stairs** (arm-mounted flip panels). Discovered via `sar_ent_info` (aim crosshair → prints class/name/model). Real example: a `func_brush` named `robo_rampa_03_panel`, solid type 6 (`SOLID_VPHYSICS`). Its OBB *would* box correctly, **but** the class is `func_brush` (generic: glass, clips, cover, scenery), so it cannot go in the classname set without flooding the view — same trap as `prop_dynamic`. The only discriminator is the **targetname** (`*panel*`), which is per-mapper convention, not an engine guarantee: a substring filter catches maps that name panels `*panel*` and silently misses `flip_`/`stairs`/`angled_`/unnamed ones. → would need an opt-in **targetname-pattern filter** (a second match path), seeded + tuned at the checkpoint.
+   - **Gels** (propulsion=orange, repulsion=blue, conversion=white) and **light bridges** — paint/projector **surfaces**, not box-able entities at all. Different approach entirely (read the paint map / projector volume), stage TBD.
+
+   *Decision recorded:* defer all of category 2 to the checkpoint rather than bolt a fragile, map-specific heuristic into A2.
 
 ### A3 — Stable mark numbers (Set-of-Marks labels)
 - **Goal:** each boxed entity gets a persistent number label `①②③…`.

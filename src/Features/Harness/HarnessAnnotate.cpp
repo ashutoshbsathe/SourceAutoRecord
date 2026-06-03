@@ -1,4 +1,5 @@
-#include <cstring>
+#include <string>
+#include <unordered_set>
 
 #include "Entity.hpp"
 #include "Event.hpp"
@@ -12,9 +13,46 @@ Variable sar_harness_annotate(
     "sar_harness_annotate", "0", 0, 1,
     "Draw wireframe annotation boxes around harness puzzle entities.\n");
 
-// A1: prove the annotation pipeline by boxing every prop_weighted_cube.
-// Iterates the server entity list directly (independent of any harness
-// session), matching the loop in EntitySnapshotter::Update.
+// A2: the puzzle-relevant classnames we annotate, plus the player's own avatar.
+static const std::unordered_set<std::string> kAnnotatedClasses = {
+    // Core puzzle objects (design doc v1 set).
+    "prop_portal",
+    "prop_weighted_cube",
+    "prop_monster_box",
+    "prop_button",  // pedestal push button (CPortalButton)
+    "func_weight_button",
+    // Floor / weighted buttons -- the big red pedestal button and its variants.
+    "prop_floor_button",        // big red 1500kg floor button
+    "prop_under_floor_button",  // flush floor-button variant
+    "prop_floor_cube_button",   // cube-only floor button
+    "prop_floor_ball_button",   // ball-only floor button
+    "prop_testchamber_door",
+    "env_portal_laser",
+    "prop_laser_catcher",
+    "prop_laser_relay",
+    "point_laser_target",
+    "player",
+    // Hazards + brush-trigger volumes (added at A2; final keep/drop decided at
+    // the A5 checkpoint). Trigger volumes are invisible playspace -- their OBB
+    // reads as a slab, not a tight object box. That's expected and useful.
+    // Confirm m_Collision OBB populates for brush ents via a snapshot dump.
+    "npc_portal_turret_floor",  // turret
+    "trigger_portal_cleanser",  // emancipation grill / fizzler
+    "trigger_catapult",         // faith plate
+    "prop_tractor_beam",        // excursion funnel emitter
+    // TODO(checkpoint): "chamber-mutating geometry" needs a different match
+    // mechanism than this classname set, so it is deferred to the A5
+    // checkpoint:
+    //   - folding panels / stairs: a func_brush identified by targetname
+    //     (e.g. "*_panel"), not classname -- needs a targetname-pattern filter,
+    //     since func_brush is generic (glass, clips, scenery).
+    //   - gels (orange/blue/white) + light bridges: paint/projector *surfaces*,
+    //     not box-able entities at all.
+};
+
+// Box every entity whose classname is in kAnnotatedClasses. Iterates the server
+// entity list directly (independent of any harness session), matching the loop
+// in EntitySnapshotter::Update.
 ON_EVENT(RENDER) {
   if (!sar_harness_annotate.GetBool()) return;
   if (!server || !entityList) return;
@@ -25,13 +63,12 @@ ON_EVENT(RENDER) {
 
     auto ent = info->m_pEntity;
     const char* className = server->GetEntityClassName(ent);
-    if (!className || std::strcmp(className, "prop_weighted_cube") != 0)
-      continue;
+    if (!className || !kAnnotatedClasses.count(className)) continue;
 
     auto se = SE(ent);
     OverlayRender::addBoxMesh(se->abs_origin(), se->collision().OBBMins(),
                               se->collision().OBBMaxs(), se->abs_angles(),
-                              RenderCallback::constant({255, 215, 0, 51}),
+                              RenderCallback::constant({255, 215, 0, 5}),
                               RenderCallback::constant({255, 215, 0}));
   }
 }
