@@ -72,3 +72,10 @@ Game state (position, velocity, camera, health, plus a delta-compressed `EntityS
 
 - C++: C++17, Google clang-format (`.clang-format`), formatted via `format.sh` (only Harness sources — never the generated `*.pb.cpp`/`*.grpc.pb.*`).
 - Design notes for non-trivial Harness/RL work are kept as markdown in `brainstorm/`; read the relevant one before changing entity snapshotting, hdem, or the rollout visualizer.
+
+## LLM percept/act harness (annotated-env reasoning eval)
+
+A frozen-LLM ReAct eval on annotated chambers, designed in `brainstorm/llm_percept_act_grammar.md` + `llm_percept_act_phased_plan.md` (Track A in-engine annotation A1–A5 is built; `HarnessAnnotate.cpp`).
+
+- **v0 element scope = stock Portal 2 Puzzle Maker (PeTI) elements** an average researcher can place out of the box — see `brainstorm/puzzlemaker_elements.md`. Custom/BEEmod/Hammer elements (e.g. Sendificate) are **P1**, out of v0.
+- Per-class **status fields** (button pressed / door open / catcher powered / turret alive) are mapped via the `sar_harness_dump_fields` recon command; protocol + results in `brainstorm/status_field_recon.md`.
