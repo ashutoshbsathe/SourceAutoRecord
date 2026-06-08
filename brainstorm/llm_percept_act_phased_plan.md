@@ -200,6 +200,17 @@ Thin client over the now-complete SAR functionality.
 
 ---
 
+## Status fields (recon-driven) — feeds C7 / Track D
+
+The §4 grammar gives the agent verbs; the **status fields** give it state ("is the button pressed, the catcher lit, the door open"). These come from the `sar_harness_dump_fields` recon sweep — protocol + live results in [status_field_recon.md](status_field_recon.md). Two findings from the first chamber (`sp_a2_triple_laser`) reshape the work here:
+
+1. **Snapshotter registration gap.** Most status fields are *datamap-only* (`m_bPowered`, `m_nCubeType`, `m_toggle_state`, …); the snapshotter's field *discovery* is SendTable-only, so it never records them today — even though its *read* path could. Before status reaches gRPC telemetry (the C7 / D1 entity-state path), the snapshotter needs a small **curated per-class status registration**, *not* full datamap discovery. Mechanism + scope in [phase4_sendtable_discovery.md](phase4_sendtable_discovery.md).
+2. **Catcher/relay power lives on a child `point_laser_target`, not the prop.** The status resolver must associate catcher/relay → its target (parent or proximity).
+
+→ Net new work item, slots before C7 / D1: **"register curated datamap status fields in the snapshotter."** It only blocks the *status* portion of telemetry, not the macro executor — so it can land in parallel with C2–C6, after the recon table is filled across the chamber set.
+
+---
+
 ## Dependency summary
 
 ```

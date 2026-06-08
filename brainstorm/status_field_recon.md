@@ -90,24 +90,41 @@ One row per class you actually use. `Status field` = the field that flipped;
 
 | Class | How flipped | Status field | net/dm | Meaning | Notes |
 |---|---|---|---|---|---|
-| `prop_floor_button` | stood on it | `m_bButtonState` | net | `1`=pressed, `0`=not | int |
-| `prop_button` (pedestal) | | | | | |
-| `func_weight_button` | | | | | |
-| `prop_under_floor_button` | | | | | |
-| `prop_floor_cube_button` | | | | | |
-| `prop_floor_ball_button` | | | | | |
-| `prop_testchamber_door` | | | | | |
-| `prop_portal` | | | | | (m_hLinkedPortal, m_bActivated, m_bIsPortal2) |
-| `prop_laser_catcher` | | | | | |
-| `prop_laser_relay` | | | | | |
-| `point_laser_target` | | | | | |
-| `env_portal_laser` (emitter) | | | | | likely static |
-| `npc_portal_turret_floor` | | | | | |
-| `prop_weighted_cube` | static (read) | `m_nCubeType` | | | 0=std, 2=reflective? confirm |
-| `prop_monster_box` | static (read) | | | | cube variant |
-| `trigger_portal_cleanser` (fizzler) | | | | | likely static |
-| `trigger_catapult` (faith plate) | static (read) | | | | launch vector config |
-| `prop_tractor_beam` (funnel) | | | | | direction |
+| `prop_floor_button` | stood on it | `m_bButtonState` | net | `1`=pressed, `0`=not | int — pre-filled, **verify** in a button chamber (absent in C1) |
+| `prop_button` (pedestal) | — | — | — | — | ⏳ absent in C1 — need `Press` transition |
+| `func_weight_button` | — | — | — | — | ⏳ absent in C1 |
+| `prop_under_floor_button` | — | — | — | — | ⏳ absent in C1 |
+| `prop_floor_cube_button` | — | — | — | — | ⏳ absent in C1 |
+| `prop_floor_ball_button` | — | — | — | — | ⏳ absent in C1 |
+| `prop_testchamber_door` | not opened | **unknown** | — | only `m_lifeState`/`m_iHealth` exposed at rest | ⏳ present in C1 but never opened — need an `Open` diff; expect `m_toggle_state` `[dm]` |
+| `prop_portal` | fired a pair | `m_bActivated` / `m_hLinkedPortal` / `m_bIsPortal2` | net | activated `1`=placed; linked `0xFFFFFFFF`=unlinked else handle of partner; `m_bIsPortal2` `0`=blue/primary `1`=orange | ✅ C1 — also `m_bOldActivatedState` `[net]` |
+| `prop_laser_catcher` | beam in/out | *(none on prop)* → child `point_laser_target.m_bPowered` | dm | catcher lit ⇔ its target powered | ✅ C1 — prop itself only has lifeState/health; **power lives on a child target** |
+| `prop_laser_relay` | — | *(expected: child target, like catcher)* | — | — | ⏳ absent in C1 — confirm same `point_laser_target` pattern |
+| `point_laser_target` | beam hit | `m_bPowered` | dm | `true`=beam striking | ✅ C1 — flips with the beam; **the real sensor behind catcher/relay** |
+| `env_portal_laser` (emitter + beam segs) | toggled beam | `m_bLaserOn` | net | `true`=emitting | ✅ C1 — redirected beams spawn **new** `env_portal_laser` ents (segments) |
+| `npc_portal_turret_floor` | — | — | — | — | ⏳ absent in C1 — need a knock-over / `SelfDestruct` diff (expect `m_lifeState`/`m_bTipped`) |
+| `prop_weighted_cube` | static (read) | `m_nCubeType` (type); `m_bActivated` (?) | dm | `m_nCubeType` `2`=reflective (confirmed, laser map); `m_bActivated` `false` at rest — candidate "beam passing through", unconfirmed | ✅ type; ⏳ confirm `0`=standard on a non-laser cube + `m_bActivated` meaning |
+| `prop_monster_box` | static (read) | — | — | — | ⏳ absent in C1 |
+| `trigger_portal_cleanser` (fizzler) | static (read) | `m_bDisabled` | net | `false`=fizzler active/on | ✅ C1 — also `m_toggle_state` `[dm]`; `m_bDisabled true`=off |
+| `trigger_catapult` (faith plate) | static (read) | — | — | launch vector config | ⏳ absent in C1 |
+| `prop_tractor_beam` (funnel) | — | — | — | direction | ⏳ absent in C1 |
+
+---
+
+## Findings so far
+
+### Chamber 1 — `sp_a2_triple_laser` (condump000)
+
+Covered outright: **portals, laser emitters, catchers + their targets, fizzler, reflective cube.** Buttons, door open-state, relay, turret, faith plate, funnel, monster box are **not present / not transitioned** — see the ⏳ rows.
+
+Two findings shape the status resolver:
+
+1. **Catcher/relay power is not on the prop — it's on a child `point_laser_target`.** `prop_laser_catcher` exposes only `m_lifeState`/`m_iHealth`; the powered bool (`m_bPowered`) lives on a *separate* `point_laser_target` that flips `false→true` when the beam connects (C1 had 3 catchers + 3 targets, targets tracked the beams). The resolver must **associate each catcher/relay with its target** (by parent or proximity). *Open design question.*
+
+2. **Most status fields are datamap-only `[dm]`, so the SendTable-only snapshotter currently misses them.**
+   - `[net]` (snapshotter sees today): portal `m_bActivated`/`m_hLinkedPortal`/`m_bIsPortal2`/`m_bOldActivatedState`, emitter `m_bLaserOn`, fizzler `m_bDisabled`.
+   - `[dm]` (snapshotter blind today): cube `m_nCubeType`/`m_bActivated`, target `m_bPowered`, fizzler `m_toggle_state`, and (expected) door open-state.
+   - **→ before these are observable over gRPC, the snapshotter must *register* them.** Subtlety worth pinning down: the *read* path (`EntField::getServerOffset`, used in `Update()` and by this recon command) already resolves datamap **and** SendTable — a registered datamap field reads fine. The gap is *discovery*: Phase 4 ([phase4_sendtable_discovery.md](phase4_sendtable_discovery.md)) builds each class's field set by walking **SendTables only**, so datamap-only fields are never registered. The fix is **not** full datamap discovery (the [post-mortem](phase4_fixing_slowness_and_crashes.md) warns against that scope) but a small **curated per-class status set** seeded from this very table — register exactly the `[dm]` fields above, let `getServerOffset` read them. Follow-up scoped in [phase4_sendtable_discovery.md](phase4_sendtable_discovery.md).
 
 ---
 

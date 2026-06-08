@@ -141,3 +141,23 @@ With the field cap of 64 and ~600 entities, worst case is 600 × 64 = 38,400 fie
 ### Manual Verification
 - Compare field counts: Phase 3 had ~9-12 fields per class. Phase 4 should have ~20-60.
 - Check `.hdem` file size stays reasonable (should be somewhat larger but delta encoding keeps it bounded)
+
+---
+
+## Follow-up: datamap-only status fields are not discovered here (recon, 2026-06)
+
+The status-field recon ([status_field_recon.md](status_field_recon.md)) ran `sar_harness_dump_fields` across real chambers and found that **several key puzzle status fields are datamap-only**, so the Phase 4 SendTable walk never registers them:
+
+| Field | Class(es) | tag |
+|---|---|---|
+| `m_nCubeType`, `m_bActivated` | `prop_weighted_cube` | `[dm]` |
+| `m_bPowered` | `point_laser_target` (the sensor behind catcher/relay) | `[dm]` |
+| `m_toggle_state` | `trigger_portal_cleanser`, (expected) `prop_testchamber_door` | `[dm]` |
+
+Networked status fields (portal `m_bActivated`/`m_hLinkedPortal`/`m_bIsPortal2`, emitter `m_bLaserOn`, fizzler `m_bDisabled`) **are** found by the SendTable walk and need nothing extra.
+
+**Why they're missed:** discovery (this doc) walks `SendTable`s only; the *read* path (`EntField::getServerOffset` in `Update()`) already resolves datamap **and** SendTable. So the fix is purely at registration time — and per this doc's own "do ONE thing" lesson it must stay surgical:
+
+> **Do not** add a symmetric full-datamap walk — datamaps are huge; that's exactly the over-discovery the field cap exists to bound. **Do** register a small **curated per-class status set** — the handful of `[dm]` fields the recon table identifies — and let `getServerOffset` read them. The recon output *is* that curated list.
+
+Caveat for whatever consumes these: catcher/relay power is **not** on the prop — it lives on a child `point_laser_target`. The resolver must associate catcher/relay → target (parent or proximity). Detail in the recon doc.
