@@ -278,5 +278,8 @@ __pycache__/
 # Linux build config
 config.mk
 
+# Local environment overrides (STEAM_ROOT etc.); see .env.example
+.env
+
 src/Version.hpp
 copy.bat
