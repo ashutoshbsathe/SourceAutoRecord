@@ -9,6 +9,12 @@ out of v0.
 Why: keeps chambers reproducible by anyone with retail Portal 2, and bounds the
 set of entity classes the annotation overlay + status resolver must support.
 
+This list is the *what*; the *why* and the cross-layer scope decision (deep-narrow
+vs wide-shallow, and how scope differs across annotation / observation / `.hdem` /
+rollout) live in [fixed_ontology_scope.md](fixed_ontology_scope.md). That decision
+extends this scope **down into the data layer** (snapshotter / hdem / rollout), which
+is currently still generic.
+
 The annotation set (`kClassColors` in `src/Features/Harness/HarnessAnnotate.cpp`)
 and the status resolver (see [status_field_recon.md](status_field_recon.md))
 should cover **category A** below. Classnames marked `?` are best-guess —
