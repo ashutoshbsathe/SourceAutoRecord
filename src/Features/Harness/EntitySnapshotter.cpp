@@ -78,6 +78,7 @@ void EntitySnapshotter::DiscoverSchema() {
       {HDEM_FIELD_SOLIDTYPE, "m_nSolidType", HDEM_BYTE},
       {HDEM_FIELD_MINS, "m_vecMins", HDEM_VEC3},
       {HDEM_FIELD_MAXS, "m_vecMaxs", HDEM_VEC3},
+      {HDEM_FIELD_DISABLED, "m_bDisabled", HDEM_BOOL},
   };
 
   allFields.resize(sizeof(wellKnownFields) / sizeof(wellKnownFields[0]));
@@ -123,6 +124,10 @@ void EntitySnapshotter::DiscoverSchema() {
     }
   }
 
+  // The SendTable walk only sees networked props; several puzzle status fields
+  // are datamap-only, so patch them in by hand (see status_field_recon.md).
+  RegisterCuratedStatusFields();
+
   schemaDiscovered = true;
 }
 
@@ -139,6 +144,48 @@ void EntitySnapshotter::RegisterClassSchema(const std::string& className) {
     cls.fields.push_back(allFields[HDEM_FIELD_SOLIDTYPE]);
     cls.fields.push_back(allFields[HDEM_FIELD_MINS]);
     cls.fields.push_back(allFields[HDEM_FIELD_MAXS]);
+  }
+}
+
+// Curated datamap-only ([dm]) status fields the SendTable walk never registers
+// (it sees networked props only). The read path EntField::getServerOffset
+// resolves datamaps, so registration is the only gap. Seeded from the
+// status-field recon (brainstorm/status_field_recon.md); keep this list small.
+namespace {
+struct CuratedStatusField {
+  const char* className;
+  const char* fieldName;
+  HdemFieldType type;
+};
+
+const CuratedStatusField kCuratedStatusFields[] = {
+    {"prop_weighted_cube", "m_nCubeType",
+     HDEM_INT32},  // 0=standard, 2=reflective
+    {"prop_weighted_cube", "m_bActivated", HDEM_BOOL},  // pressing a button
+    {"point_laser_target", "m_bPowered", HDEM_BOOL},    // catcher/relay sensor
+    {"trigger_catapult", "m_bDisabled",
+     HDEM_BOOL},  // faith plate: false=active
+};
+}  // namespace
+
+void EntitySnapshotter::RegisterCuratedStatusFields() {
+  for (const auto& curated : kCuratedStatusFields) {
+    // Ensure the class carries the universal fields even if it was absent from
+    // the first map (schema discovery runs once per process).
+    RegisterClassSchema(curated.className);
+    auto& cls = classes[GetOrAddClass(curated.className)];
+
+    bool present = false;
+    for (const auto& f : cls.fields) {
+      if (f.name == curated.fieldName) {
+        present = true;
+        break;
+      }
+    }
+    if (present) continue;
+
+    uint16_t fid = GetOrAddField(curated.fieldName, curated.type);
+    cls.fields.push_back(allFields[fid]);
   }
 }
 

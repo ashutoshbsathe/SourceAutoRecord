@@ -31,6 +31,7 @@ enum HdemWellKnownField : uint16_t {
   HDEM_FIELD_SOLIDTYPE = 13,
   HDEM_FIELD_MINS = 14,
   HDEM_FIELD_MAXS = 15,
+  HDEM_FIELD_DISABLED = 16,
 };
 
 struct HdemFieldDef {
@@ -105,6 +106,7 @@ class EntitySnapshotter {
   uint16_t GetOrAddClass(const std::string& className);
   uint16_t GetOrAddField(const std::string& fieldName, HdemFieldType type);
   void RegisterClassSchema(const std::string& className);
+  void RegisterCuratedStatusFields();
   void DiscoverSendTableFields(const std::string& className,
                                struct SendTable* table);
   void InitSlot(int index, CEntInfo* info, void* entity);
