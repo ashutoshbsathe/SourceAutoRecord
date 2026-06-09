@@ -23,7 +23,8 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 - ✅ **Annotation (Track A, A1–A5):** colored boxes + Set-of-Marks labels + portal reticle, in-engine.
 - ✅ **Recon mechanism:** every category-A status encoding understood. Schema locked in `status_field_recon.md`.
 - ✅ **Scope:** decided — full stock-PeTI surface set is the v0 target, **phased after first light**.
-- 🔜 **Next:** Phase 1 — status into the snapshotter (the observation rework). Unblocked.
+- ✅ **Phase 1a — status into the snapshotter:** curated `[dm]` fields (cube type/activated, laser-target powered, faith-plate disabled) now flow over gRPC. Verified in-engine.
+- 🔜 **Next:** Phase 1 cont. — `1c` faith-plate name filter, then `1b` catcher/relay → `point_laser_target` association.
 - ⏳ **Needed from user:** the first-light chamber (simple cube→button→door, no portals).
 
 ---
@@ -31,7 +32,7 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 ## Milestones
 
 - [x] **M0 — Lock the ontology.** Annotation built; recon mechanism done; status schema + scope locked.
-- [ ] **M1 — Status-aware percept** (Phase 1): curated category-A status flows over gRPC.
+- [ ] **M1 — Status-aware percept** (Phase 1): curated category-A status flows over gRPC. *(1a ✅; 1b/1c remaining)*
 - [ ] **M2 — ⭐ FIRST LIGHT:** frozen VLM solves one cube→button→door chamber (no portals). The perception-vs-reasoning signal.
 - [ ] **M3 — Ramp complexity:** add portals → lasers → panels; grow the chamber suite into difficulty tiers.
 - [ ] **M4 — Public benchmark:** multi-model eval (Claude/Gemini/GPT-class), scoring, reproducible packaging.
@@ -43,7 +44,7 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 
 **To first light (M2):**
 1. **Phase 1 — status into the snapshotter** *(the observation rework)*
-   - `1a` register curated per-class status (the `[dm]` fields the SendTable walk drops)
+   - ✅ `1a` register curated per-class status (the `[dm]` fields the SendTable walk drops) — *done, verified in-engine*
    - `1b` catcher/relay → child `point_laser_target` association
    - `1c` faith-plate name filter (avoid safety-net flood)
 2. **First-light macro executor** — `C1` proto, `C2` look_at, `C4` go_to, `C6` pick_up/release/wait, `C7` mark-in-telemetry, `C8` keepalive. **Skip `C3` shoot_portal + `C5` nav-probe** (chamber 1 has no portals).
