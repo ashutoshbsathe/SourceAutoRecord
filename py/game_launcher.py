@@ -4,8 +4,19 @@ import signal
 import subprocess
 import time
 
+from dotenv import load_dotenv
+
+# Steam paths. The game library may live on a secondary drive -- set STEAM_ROOT
+# in .env (see .env.example), mirroring install.sh. The Steam *runtime* stays in
+# the standard client install (~/.steam/root). Order: real env > .env > default.
+_ENV_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'
+)
+load_dotenv(_ENV_PATH)
+STEAM_ROOT = os.environ.get('STEAM_ROOT', '~/.steam/root')
+
 DEFAULT_STEAM_RUNTIME_SH = '~/.steam/root/ubuntu12_32/steam-runtime/run.sh'
-DEFAULT_PORTAL2_SH = '~/.steam/root/steamapps/common/Portal 2/portal2.sh'
+DEFAULT_PORTAL2_SH = f'{STEAM_ROOT}/steamapps/common/Portal 2/portal2.sh'
 
 DEFAULT_GAMESCOPE_ARGS = [
     '-w',
