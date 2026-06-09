@@ -75,6 +75,8 @@ Game state (position, velocity, camera, health, plus a delta-compressed `EntityS
 
 ## LLM percept/act harness (annotated-env reasoning eval)
 
+> **Start with [`brainstorm/ROADMAP.md`](brainstorm/ROADMAP.md)** — the single source of truth for project state, milestones, and design decisions; it indexes every other `brainstorm/` doc. Read it before any harness/RL/percept work.
+
 A frozen-LLM ReAct eval on annotated chambers, designed in `brainstorm/llm_percept_act_grammar.md` + `llm_percept_act_phased_plan.md` (Track A in-engine annotation A1–A5 is built; `HarnessAnnotate.cpp`).
 
 - **v0 element scope = stock Portal 2 Puzzle Maker (PeTI) elements** an average researcher can place out of the box — see `brainstorm/puzzlemaker_elements.md`. Custom/BEEmod/Hammer elements (e.g. Sendificate) are **P1**, out of v0.
