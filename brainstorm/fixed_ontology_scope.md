@@ -136,6 +136,29 @@ set decide — not a policy knob.**
 2. **arxiv 1611.10319 citation — RESOLVED (2026-06-08): verified.** Scope and headline
    results confirmed against the paper; captured in the Precedent section above. Safe to
    cite externally.
+3. **v0 element scope — EXPANDED (2026-06-09): the full stock-PeTI surface set is the v0
+   *target*, but phased *after* first light.** Category B (flip panels, gels, light
+   bridges) is no longer P1 — it's in v0. The line that matters is **mechanism, not
+   in/out**, and it splits B into two families:
+   - **Animation-state family — flip panels + pedestal button + door.** One mechanism:
+     read the entity's animation state (`m_nSequence`) + a targetname-pattern matcher for
+     panels (`func_brush` / `ramp_*` / `*_panel`). Building the panel reader is the same
+     reader that finally cracks the door. Panels look **server-animated** (boot log shows
+     server `makeramp_*` sequence events) → likely server-readable; the door is
+     **client-animated / logic-gated** (confirmed: it opens visually but every server
+     field stays static) → its open-state likely lives on the controlling relay or
+     client-side, not the door prop.
+   - **Surface family — gels + light bridges.** Genuinely separate sensors (paint-map
+     read; projector/volume read), **no synergy** with the animation family. Worth doing,
+     but their own phase, off the first-light critical path.
+
+   *Rationale for expand-but-sequence:* the full surface set is needed for a *broad*
+   benchmark; **first light needs only one simple cube→button→door chamber**, so target =
+   everything, order = first light first. (The "more elements → more robust detection"
+   intuition holds *within* the animation family — one consolidated reader beats
+   per-element special-casing — but not across to gels/bridges, which are independent.)
+   Sequence: Phase 1 status rework → first light → Phase 2 animation family (panels+door)
+   → Phase 3 surface family (gels, bridges).
 
 ## See also
 

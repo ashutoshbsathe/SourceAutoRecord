@@ -43,8 +43,14 @@ confirm via the recon dump.
 
 These matter to the agent but don't map to a clean discrete entity + OBB, so they
 need a different mechanism (read paint/projector volumes; targetname-pattern
-match for brush geometry). This is the phased plan's "category 2" taxonomy —
-deferred past v0 MVP.
+match for brush geometry). This is the phased plan's "category 2" taxonomy.
+
+> **Scope update (2026-06-09): category B is now part of the v0 *target*, sequenced
+> *after* first light** (see [fixed_ontology_scope.md](fixed_ontology_scope.md)
+> decision 3). It splits by **mechanism**: flip panels/stairs join the
+> **animation-state family** (read `m_nSequence` + a targetname matcher — the same
+> reader that cracks the door); gels + light bridges are the **surface family**
+> (paint-map / projector reads), an independent phase. None of B gates first light.
 
 | PeTI element | Underlying | Approach (TBD) |
 |---|---|---|

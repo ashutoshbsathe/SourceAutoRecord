@@ -58,6 +58,8 @@ Building A2 against real chambers surfaced that Portal puzzle elements split int
 - **Verify (user):** each box shows a stable number that doesn't flicker/renumber as the camera moves.
 - **~Size:** ~60 LOC. **Deps:** A2.
 
+> **A3 revision (2026-06-09) — canonical mark numbering, not first-sight.** First-sight assignment is observation-order- and session-dependent, so it's fragile across `save`/`load` (load may reshuffle serials / fire a session reset) and across re-runs. Replace it with **deterministic numbering = a pure function of current world state**: each frame, gather the category-A entities, sort by a **stable key** (**spawn `entity_index`** primary; rounded spawn-origin as tiebreak for dropper-spawned cubes), number `1..N`. Marks then become invariant to observation history, save/load, *and* re-runs — which also makes frame↔telemetry agreement (C7) and the logged transcripts reproducible (a benchmark requirement). Small change to `MarkTable.cpp`; strictly better than first-sight, no save/load special-casing anywhere. (Motivated by the save/load-undo design — grammar doc §4.)
+
 ### A4 — Color-by-class
 - **Goal:** legible color coding so the user can read the chamber at a glance.
 - **Files:** `HarnessAnnotate.cpp`.
@@ -140,6 +142,7 @@ After the grammar is locked. All macros run server-side on the main thread (wher
 - **Goal:** walk to a target on the current platform without walking off it.
 - **Files:** `Portal2HarnessImpl.cpp`.
 - **Steps:** loop: face target (yaw only), set forward move, advance a few ticks, re-check distance; stop on within-threshold, `CheckStuck`, or edge-guard (a short down-trace ahead returns no floor). Return `{reached, stuck, final_dist}`.
+- **Local-only (2026-06-09):** real `CUserCmd` simulation, plus **light obstacle-stepping** (yaw-nudge ±N° when a short wall-trace ahead is blocked) — but **no global routing**: a major blocker just returns `blocked`, which is reasoning signal. If an **open portal mouth** is in the straight path, **halt + report `blocked_by_portal`** rather than walking through (portals are physically walk-through; halt-vs-traverse is checkpoint-deferred — see grammar doc §4). This is the *local* half of the local/global split; the model owns global routing.
 - **Verify:** `go_to mark=button` walks to the button on a flat chamber and stops; won't walk into a pit.
 - **~Size:** ~100 LOC. **Deps:** C2.
 
@@ -169,6 +172,13 @@ After the grammar is locked. All macros run server-side on the main thread (wher
 - **Steps:** set gRPC keepalive + large/disabled max-connection-age on server and client so long pauses survive proxies/sockets (none configured today — `Harness.cpp:171-199`).
 - **Verify:** submit a macro, idle 5+ min, response still arrives.
 - **~Size:** ~30 LOC. **Deps:** C1.
+
+### C9 — Save/load anchors (`anchor` / `restore`)
+- **Goal:** checkpoint and revert full game state — undo a bad move, and the substrate for tree-search-over-moves.
+- **Files:** `Portal2HarnessImpl.cpp` (ExecuteMacro), issuing engine `save <slot>` / `load <slot>` via the `Engine` module concommand path.
+- **Steps:** **reuse Source's `save`/`load`; do NOT build a custom state-restore** (capture is easy, restore — velocities, grab constraints, portal links — is the tar pit). Model-chosen named slots (grammar shape locked at the checkpoint). Cost ~100s of ms — free in turn-based eval, would *not* be in a tight RL loop. Marks stay stable across restore by construction (A3 canonical-numbering revision).
+- **Verify:** `anchor a`; pick up a cube + fire a portal pair; make a move; `restore a` → cube still held, both portals back at the same spots, marks unchanged.
+- **~Size:** ~40 LOC. **Deps:** C1; the save/load recon checks (status_field_recon.md).
 
 ---
 
@@ -216,7 +226,7 @@ The §4 grammar gives the agent verbs; the **status fields** give it state ("is 
 ```
 A1→A2→A3→A4   A1→A5→(A6?)        ← Track A (hand-viewable)  ░ CHECKPOINT ░
 A2→B1→(B2?)                       ← Track B (optional/measured)
-[checkpoint]→C1→C2→{C3, C4→{C5,C6}}   C1→C8   A3+C1→C7   ← Track C (C++ macros)
+[checkpoint]→C1→C2→{C3, C4→{C5,C6}}   C1→{C8,C9}   A3+C1→C7   ← Track C (C++ macros)
 C7→D1→D2→D3(+C2..C6,C8)→D4         ← Track D (Python, last)
 ```
 

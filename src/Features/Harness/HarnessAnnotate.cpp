@@ -135,7 +135,8 @@ static const char* kStatusCandidates[] = {
     "m_bPowered",         "m_bIsPowered", "m_bEnabled",
     "m_bDisabled",                                      // laser/catcher
     "m_toggle_state",     "m_bOpen",      "m_bLocked",  // door
-    "m_nCubeType",                                      // cube
+    "m_nSequence",  // door/panel open-state is anim-driven, not a bool
+    "m_nCubeType",  // cube
     "m_lifeState",        "m_iHealth",    "m_bTipped",
     "m_bSelfDestructing",                                 // turret
     "m_bButtonDown",      "m_bPressed",   "m_bTouching",  // buttons
@@ -257,7 +258,10 @@ CON_COMMAND(sar_harness_dump_fields,
     console->Print("recon baseline cleared.\n");
     return;
   }
-  if (!server || !entityList) return;
+  if (!server || !entityList) {
+    console->Print("recon: no server/entity list yet — load a map first.\n");
+    return;
+  }
 
   bool diff = args.ArgC() == 2 && !std::strcmp(args[1], "diff");
   if (diff && g_reconBaseline.empty()) {
@@ -310,5 +314,10 @@ CON_COMMAND(sar_harness_dump_fields,
   }
 
   g_reconBaseline.swap(current);
-  if (diff) console->Print("recon diff: %d field(s) changed.\n", changes);
+  if (diff)
+    console->Print("recon diff: %d field(s) changed.\n", changes);
+  else
+    console->Print(
+        "recon dump: %d status field(s) across the matched puzzle entities.\n",
+        (int)g_reconBaseline.size());
 }
