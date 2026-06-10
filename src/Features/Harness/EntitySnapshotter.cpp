@@ -149,8 +149,7 @@ void EntitySnapshotter::RegisterClassSchema(const std::string& className) {
 
 // Curated datamap-only ([dm]) status fields the SendTable walk never registers
 // (it sees networked props only). The read path EntField::getServerOffset
-// resolves datamaps, so registration is the only gap. Seeded from the
-// status-field recon (brainstorm/status_field_recon.md); keep this list small.
+// resolves datamaps, so registration is the only gap. Keep this list small.
 namespace {
 struct CuratedStatusField {
   const char* className;

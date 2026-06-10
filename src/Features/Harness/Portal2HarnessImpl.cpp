@@ -10,6 +10,7 @@
 #include "Features/Tas/TasPlayer.hpp"
 #include "Features/Tas/TasScript.hpp"
 #include "Harness.hpp"
+#include "HarnessThread.hpp"
 #include "HdemReader.hpp"
 #include "Modules/Client.hpp"
 #include "Modules/Console.hpp"
@@ -423,32 +424,19 @@ grpc::Status Portal2HarnessImpl::Act(
   if (request->portal_primary()) buttons[FireBlue] = true;
   if (request->portal_secondary()) buttons[FireOrange] = true;
 
-  // Set the number of ticks we want to advance
-  harness->ticksRemaining = numTicks;
-
-  // Dispatch framebulk update and tick advancing to the main thread
+  // Set the framebulk as its own closure -- FIFO ensures it runs before the
+  // AdvanceTick burst below, so inputs are in place first. FetchInputs always
+  // returns framebulk[0] (the "before" entry for any tick > 0).
   Scheduler::OnMainThread([=]() {
-    // Update the first framebulk (index 0) with our harness inputs.
-    // FetchInputs binary-searches framebulks and always returns this one
-    // (it's the "before" entry for any tick > 0).
     TasFramebulk& fb = tasPlayer->playbackInfo.slots[0].framebulks[0];
     fb.moveAnalog = {moveX, moveY, 0};
     fb.viewAnalog = {viewX, viewY, 0};
     for (int i = 0; i < TAS_CONTROLLER_INPUT_COUNT; i++) {
       fb.buttonStates[i] = buttons[i];
     }
-
-    // Advance the requested number of ticks
-    for (int i = 0; i < numTicks; i++) {
-      engine->AdvanceTick();
-    }
   });
 
-  // Wait for all ticks to execute (signaled from PRE_TICK handler)
-  {
-    std::unique_lock<std::mutex> lock(harness->tickMutex);
-    harness->tickCV.wait(lock, []() { return harness->ticksRemaining <= 0; });
-  }
+  AdvanceTicksBlocking(numTicks);
 
   response->set_success(true);
   return grpc::Status::OK;
@@ -473,11 +461,7 @@ grpc::Status Portal2HarnessImpl::ExecuteCommand(
 
   // Advance a tick so the command takes effect
   if (harness->harnessControlActive) {
-    harness->ticksRemaining = 1;
-    Scheduler::OnMainThread([]() { engine->AdvanceTick(); });
-
-    std::unique_lock<std::mutex> lock(harness->tickMutex);
-    harness->tickCV.wait(lock, []() { return harness->ticksRemaining <= 0; });
+    AdvanceTicksBlocking(1);
   }
 
   response->set_success(true);
@@ -591,8 +575,7 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
     if (req.copy_pixels_to_shm()) {
       if (shm.GetBuffer() != MAP_FAILED && shm.GetSize() > 0 &&
           g_harness_videomode && *g_harness_videomode) {
-        std::atomic<bool> pixelsRead{false};
-        Scheduler::OnMainThread([&]() {
+        bool ok = RunOnMainThreadSync(context, [&]() {
           int sw = 854;
           int sh = 480;
           if (engine && engine->GetScreenSize) {
@@ -602,13 +585,8 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
               *g_harness_videomode, Offsets::ReadScreenPixels)(
               *g_harness_videomode, 0, 0, sw, sh, shm.GetBuffer(),
               2 /* IMAGE_FORMAT_RGB888 */);
-          pixelsRead.store(true);
         });
-
-        while (!pixelsRead.load()) {
-          if (context->IsCancelled()) return grpc::Status::CANCELLED;
-          std::this_thread::sleep_for(std::chrono::microseconds(100));
-        }
+        if (!ok) return grpc::Status::CANCELLED;
       }
     }
 

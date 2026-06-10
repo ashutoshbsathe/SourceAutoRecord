@@ -1,3 +1,5 @@
+#include "HarnessAnnotate.hpp"
+
 #include <cstdio>
 #include <cstring>
 #include <functional>
@@ -26,11 +28,11 @@ Variable sar_harness_annotate(
 // x_height of the mark label. Single digits, so keep it legible; tune freely.
 static constexpr float kMarkHeight = 6.0f;
 
-// A2/A4: classname -> annotation color. Membership here is also the "do we
-// annotate it?" test (one lookup gives both). Portals are special-cased at
-// runtime to blue/orange via m_bIsPortal2; their entry is just the base color.
+// classname -> annotation color. Membership here is also the "do we annotate
+// it?" test (one lookup gives both). Portals are special-cased at runtime to
+// blue/orange via m_bIsPortal2; their entry is just the base color.
 static const std::unordered_map<std::string, Color> kClassColors = {
-    // Core puzzle objects (design doc v1 set).
+    // Core puzzle objects.
     {"prop_portal", {64, 160, 255}},        // blue primary; orange if Portal2
     {"prop_weighted_cube", {255, 215, 0}},  // gold
     {"prop_monster_box", {255, 215, 0}},    // gold (cube variant)
@@ -47,23 +49,22 @@ static const std::unordered_map<std::string, Color> kClassColors = {
     {"prop_laser_relay", {255, 40, 40}},         // red - laser chain
     {"point_laser_target", {255, 0, 255}},       // magenta - the goal surface
     {"player", {0, 255, 255}},                   // cyan
-    // Hazards + brush-trigger volumes (added at A2; keep/drop at A5 checkpoint;
-    // colors here are provisional, tune at the checkpoint). Trigger volumes are
+    // Hazards + brush-trigger volumes (provisional colors). Trigger volumes are
     // invisible playspace -- their OBB reads as a slab, not a tight object box.
-    // Confirm m_Collision OBB populates for brush ents via a snapshot dump.
     {"npc_portal_turret_floor", {180, 60, 220}},  // turret - violet
     {"trigger_portal_cleanser", {0, 210, 160}},   // fizzler - teal
     {"trigger_catapult", {255, 105, 180}},        // faith plate - pink
     {"prop_tractor_beam", {180, 255, 60}},        // funnel - lime
-    // TODO(checkpoint): "chamber-mutating geometry" needs a different match
-    // mechanism than this classname map, so it is deferred to the A5
-    // checkpoint:
-    //   - folding panels / stairs: a func_brush identified by targetname
-    //     (e.g. "*_panel"), not classname -- needs a targetname-pattern filter,
-    //     since func_brush is generic (glass, clips, scenery).
-    //   - gels (orange/blue/white) + light bridges: paint/projector *surfaces*,
-    //     not box-able entities at all.
+    // Not handled here, since classname alone can't match them: folding
+    // panels/stairs (func_brush keyed by targetname) and gels/light bridges
+    // (paint surfaces, not box-able entities).
 };
+
+// Single source of truth for "do we annotate/mark this class?" -- MarkTable
+// consults this so the marked set matches the annotated set drawn below.
+bool IsHarnessMarkedClass(const char* className) {
+  return className && kClassColors.find(className) != kClassColors.end();
+}
 
 // Box + label every entity whose classname is in kClassColors, colored by
 // class. Iterates the server entity list directly (independent of any harness
@@ -71,6 +72,9 @@ static const std::unordered_map<std::string, Color> kClassColors = {
 ON_EVENT(RENDER) {
   if (!sar_harness_annotate.GetBool()) return;
   if (!server || !entityList) return;
+
+  // Recompute marks before reading them so labels match what Observe reports.
+  markTable.RebuildFromWorld();
 
   for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
     auto info = entityList->GetEntityInfoByIndex(i);
@@ -100,12 +104,10 @@ ON_EVENT(RENDER) {
         RenderCallback::constant({color.r, color.g, color.b, 5}),
         RenderCallback::constant(color));
 
-    // Stable Set-of-Marks label, sitting just above the box top. Depth-tested
-    // (no_depth=false) to match the boxes. Neither depth flag is clean for a
-    // flat world-space text quad: depth-tested gets sliced by a wall the label
-    // sits against, on-top x-rays every mark through walls (worse). The real
-    // fix is the Track B (B1) LOS predicate -- cull marks for occluded entities
-    // entirely; see B1's note.
+    // Mark label, just above the box top, depth-tested to match the boxes.
+    // Neither depth flag is clean for a flat world-space quad: depth-tested
+    // gets sliced by a wall it sits against, on-top x-rays marks through walls.
+    // Real fix is an LOS predicate that culls marks for occluded entities.
     int mark =
         markTable.GetMark(i, static_cast<uint16_t>(info->m_SerialNumber));
     OverlayRender::addText(origin + Vector{0, 0, maxs.z}, std::to_string(mark),
@@ -116,16 +118,12 @@ ON_EVENT(RENDER) {
 }
 
 // ---------------------------------------------------------------------------
-// Recon: dump candidate "status" fields for puzzle entities.
-//
-// Throwaway diagnostic to find which engine field encodes each element's
-// status (button pressed / catcher powered / door open / turret alive) on the
-// user's real chambers, *before* the status resolver is written. Run it twice
-// -- once per state (e.g. before vs after pressing a button) -- and diff the
-// console output to see which field flipped. Reads via getServerOffset, which
-// resolves against BOTH the datamap and the SendTable, so datamap-only fields
-// (e.g. m_toggle_state on doors) show up even though the snapshotter, which
-// walks the SendTable only, would currently miss them.
+// Recon: dump candidate "status" fields for puzzle entities. Diagnostic to find
+// which engine field encodes each element's status (button pressed / door open
+// / ...). Run twice -- before vs after a state change -- and diff the output to
+// see which field flipped. Reads via getServerOffset, which resolves against
+// both the datamap and the SendTable, so datamap-only fields (e.g.
+// m_toggle_state on doors) show up even though the snapshotter would miss them.
 
 // Hand-picked likely status encodings across the puzzle classes. If the field
 // you need isn't here, the name-substring scan below should still surface it;
