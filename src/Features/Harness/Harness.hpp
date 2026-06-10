@@ -104,6 +104,15 @@ class Portal2HarnessImpl final
   void ResetObserveState();
 
  private:
+  // Copy the current (annotated) framebuffer into SHM on the engine main
+  // thread. Returns false only if the client cancelled the stream mid-read.
+  bool CopyPixelsToShm(grpc::ServerContext* context);
+
+  // Run one closed semantic verb. PR1: stub returning NOT_IMPLEMENTED; the real
+  // executor (MacroExecutor) lands in PR2.
+  void ExecuteMacro(const portal2_harness::MacroRequest* request,
+                    portal2_harness::MacroResult* result);
+
   bool playerDied = false;
   HarnessShm shm;
 

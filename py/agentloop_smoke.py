@@ -3,8 +3,8 @@
 Expensive -- it boots a real Portal 2 instance -- so run it by hand after any
 change to the harness to confirm the gRPC surface still works end to end. Each
 endpoint is a self-contained check that passes or fails on its own (handshake,
-Reset, Observe, Act, AgentLoop, pixels-over-shared-memory, ExecuteCommand); the
-process exits non-zero if any fail. Observations and a few captured framebuffers
+Reset, Observe, Act, AgentLoop, macro dispatch, pixels-over-shared-memory,
+ExecuteCommand); the process exits non-zero if any fail. Observations and a few captured framebuffers
 are written under --out so you can eyeball them.
 
 Usage:
@@ -148,6 +148,37 @@ def check_agentloop(ctx):
     return f'{n} steps, ticks {ticks[0]} -> {ticks[-1]}, first snapshot full'
 
 
+def check_macro(ctx):
+    """A macro AgentMessage round-trips: the server returns a MacroResult and a
+    fresh percept on env.state. PR1 ships a dispatch stub, so any verb comes back
+    NOT_IMPLEMENTED; later PRs return SUCCESS/STUCK/etc. This checks the wire
+    contract (result rides back, percept refreshes), not the verb semantics -- so
+    it survives PR2+. The mark<->on-screen-label match stays a manual visual check."""
+    ctx.harness.start_agent_loop()
+    try:
+        env = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(verb='go_to', mark=1),
+            ),
+            timeout=30.0,
+        )
+    finally:
+        ctx.harness.stop_agent_loop()
+    require(env.success, f'macro step failed at RPC level: {env.error_message}')
+    require(env.HasField('macro_result'), 'no macro_result on the macro response')
+    require(env.macro_result.result_code, 'macro_result.result_code is empty')
+    require(env.HasField('state'), 'macro response carried no state percept')
+    require(env.state.server_tick >= 0, f'bad server_tick: {env.state.server_tick}')
+    ctx.observations.append(gamestate_dict(env.state, 'macro.go_to'))
+    # Soft signal on the mark plumbing (non-asserting: 0 is expected when
+    # sar_harness_annotate is off, since MarkTable is only built by the annotate
+    # render handler). The first stream step is a full snapshot, so this is total.
+    ents = env.state.entity_snapshot.entities
+    marked = sum(1 for e in ents if e.mark > 0)
+    mr = env.macro_result
+    return f'go_to ok={mr.ok} {mr.result_code!r}; mark>0 on {marked}/{len(ents)}'
+
+
 def check_pixels(ctx):
     """copy_pixels_to_shm fills shared memory with a non-blank frame that changes."""
     require(ctx.harness.shm is not None, 'no shared memory mapped (no video mode?)')
@@ -188,6 +219,7 @@ CHECKS = [
     ('observe', check_observe),
     ('act', check_act),
     ('agentloop', check_agentloop),
+    ('macro', check_macro),
     ('pixels', check_pixels),
     ('execute_command', check_execute_command),
 ]

@@ -72,6 +72,7 @@ Game state (position, velocity, camera, health, plus a delta-compressed `EntityS
 
 - C++: C++17, Google clang-format (`.clang-format`), formatted via `format.sh` (only Harness sources — never the generated `*.pb.cpp`/`*.grpc.pb.*`).
 - Design notes for non-trivial Harness/RL work are kept as markdown in `brainstorm/`; read the relevant one before changing entity snapshotting, hdem, or the rollout visualizer.
+- **Harness smoke test:** every PR that changes the gRPC surface (proto messages, RPCs, or telemetry fields) adds/updates a self-contained check in `py/agentloop_smoke.py` — the by-hand end-to-end gate (it boots a real game; run after the change). Behaviour that can't be asserted in-process (e.g. the `mark`↔on-screen-label match) stays a documented manual visual check.
 
 ## LLM percept/act harness (annotated-env reasoning eval)
 

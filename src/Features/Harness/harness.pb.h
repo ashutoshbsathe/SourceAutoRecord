@@ -106,6 +106,14 @@ class HandshakeResponse;
 struct HandshakeResponseDefaultTypeInternal;
 extern HandshakeResponseDefaultTypeInternal _HandshakeResponse_default_instance_;
 extern const ::google::protobuf::internal::ClassDataFull HandshakeResponse_class_data_;
+class MacroRequest;
+struct MacroRequestDefaultTypeInternal;
+extern MacroRequestDefaultTypeInternal _MacroRequest_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull MacroRequest_class_data_;
+class MacroResult;
+struct MacroResultDefaultTypeInternal;
+extern MacroResultDefaultTypeInternal _MacroResult_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull MacroResult_class_data_;
 class RenderDemoRequest;
 struct RenderDemoRequestDefaultTypeInternal;
 extern RenderDemoRequestDefaultTypeInternal _RenderDemoRequest_default_instance_;
@@ -417,7 +425,7 @@ class RolloutHeader final : public ::google::protobuf::Message
     return *reinterpret_cast<const RolloutHeader*>(
         &_RolloutHeader_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 15;
+  static constexpr int kIndexInFileMessages = 17;
   friend void swap(RolloutHeader& a, RolloutHeader& b) { a.Swap(&b); }
   inline void Swap(RolloutHeader* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -666,7 +674,7 @@ class ResetRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const ResetRequest*>(
         &_ResetRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 11;
+  static constexpr int kIndexInFileMessages = 13;
   friend void swap(ResetRequest& a, ResetRequest& b) { a.Swap(&b); }
   inline void Swap(ResetRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -862,7 +870,7 @@ class RenderDemoResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const RenderDemoResponse*>(
         &_RenderDemoResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 19;
+  static constexpr int kIndexInFileMessages = 21;
   friend void swap(RenderDemoResponse& a, RenderDemoResponse& b) { a.Swap(&b); }
   inline void Swap(RenderDemoResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1111,7 +1119,7 @@ class RenderDemoRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const RenderDemoRequest*>(
         &_RenderDemoRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 18;
+  static constexpr int kIndexInFileMessages = 20;
   friend void swap(RenderDemoRequest& a, RenderDemoRequest& b) { a.Swap(&b); }
   inline void Swap(RenderDemoRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1281,6 +1289,528 @@ class RenderDemoRequest final : public ::google::protobuf::Message
 extern const ::google::protobuf::internal::ClassDataFull RenderDemoRequest_class_data_;
 // -------------------------------------------------------------------
 
+class MacroResult final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:portal2_harness.MacroResult) */ {
+ public:
+  inline MacroResult() : MacroResult(nullptr) {}
+  ~MacroResult() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(MacroResult* PROTOBUF_NONNULL msg, std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(MacroResult));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR MacroResult(::google::protobuf::internal::ConstantInitialized);
+
+  inline MacroResult(const MacroResult& from) : MacroResult(nullptr, from) {}
+  inline MacroResult(MacroResult&& from) noexcept
+      : MacroResult(nullptr, ::std::move(from)) {}
+  inline MacroResult& operator=(const MacroResult& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline MacroResult& operator=(MacroResult&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const MacroResult& default_instance() {
+    return *reinterpret_cast<const MacroResult*>(
+        &_MacroResult_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 4;
+  friend void swap(MacroResult& a, MacroResult& b) { a.Swap(&b); }
+  inline void Swap(MacroResult* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(MacroResult* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  MacroResult* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<MacroResult>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const MacroResult& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const MacroResult& from) { MacroResult::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(MacroResult* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "portal2_harness.MacroResult"; }
+
+ protected:
+  explicit MacroResult(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  MacroResult(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const MacroResult& from);
+  MacroResult(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, MacroResult&& from) noexcept
+      : MacroResult(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kResultCodeFieldNumber = 2,
+    kDetailFieldNumber = 3,
+    kOkFieldNumber = 1,
+    kReachedFieldNumber = 4,
+    kFinalDistFieldNumber = 5,
+    kMovedDistFieldNumber = 6,
+  };
+  // string result_code = 2;
+  void clear_result_code() ;
+  const ::std::string& result_code() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_result_code(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_result_code();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_result_code();
+  void set_allocated_result_code(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_result_code() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_result_code(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_result_code();
+
+  public:
+  // string detail = 3;
+  void clear_detail() ;
+  const ::std::string& detail() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_detail(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_detail();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_detail();
+  void set_allocated_detail(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_detail() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_detail(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_detail();
+
+  public:
+  // bool ok = 1;
+  void clear_ok() ;
+  bool ok() const;
+  void set_ok(bool value);
+
+  private:
+  bool _internal_ok() const;
+  void _internal_set_ok(bool value);
+
+  public:
+  // bool reached = 4;
+  void clear_reached() ;
+  bool reached() const;
+  void set_reached(bool value);
+
+  private:
+  bool _internal_reached() const;
+  void _internal_set_reached(bool value);
+
+  public:
+  // float final_dist = 5;
+  void clear_final_dist() ;
+  float final_dist() const;
+  void set_final_dist(float value);
+
+  private:
+  float _internal_final_dist() const;
+  void _internal_set_final_dist(float value);
+
+  public:
+  // float moved_dist = 6;
+  void clear_moved_dist() ;
+  float moved_dist() const;
+  void set_moved_dist(float value);
+
+  private:
+  float _internal_moved_dist() const;
+  void _internal_set_moved_dist(float value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:portal2_harness.MacroResult)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<3, 6,
+                                   0, 53,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const MacroResult& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::internal::ArenaStringPtr result_code_;
+    ::google::protobuf::internal::ArenaStringPtr detail_;
+    bool ok_;
+    bool reached_;
+    float final_dist_;
+    float moved_dist_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_harness_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull MacroResult_class_data_;
+// -------------------------------------------------------------------
+
+class MacroRequest final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:portal2_harness.MacroRequest) */ {
+ public:
+  inline MacroRequest() : MacroRequest(nullptr) {}
+  ~MacroRequest() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(MacroRequest* PROTOBUF_NONNULL msg, std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(MacroRequest));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR MacroRequest(::google::protobuf::internal::ConstantInitialized);
+
+  inline MacroRequest(const MacroRequest& from) : MacroRequest(nullptr, from) {}
+  inline MacroRequest(MacroRequest&& from) noexcept
+      : MacroRequest(nullptr, ::std::move(from)) {}
+  inline MacroRequest& operator=(const MacroRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline MacroRequest& operator=(MacroRequest&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const MacroRequest& default_instance() {
+    return *reinterpret_cast<const MacroRequest*>(
+        &_MacroRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 3;
+  friend void swap(MacroRequest& a, MacroRequest& b) { a.Swap(&b); }
+  inline void Swap(MacroRequest* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(MacroRequest* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  MacroRequest* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<MacroRequest>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const MacroRequest& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const MacroRequest& from) { MacroRequest::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(MacroRequest* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "portal2_harness.MacroRequest"; }
+
+ protected:
+  explicit MacroRequest(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  MacroRequest(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const MacroRequest& from);
+  MacroRequest(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, MacroRequest&& from) noexcept
+      : MacroRequest(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kVerbFieldNumber = 1,
+    kDirFieldNumber = 4,
+    kMarkFieldNumber = 2,
+    kTicksFieldNumber = 3,
+    kYawFieldNumber = 5,
+    kPitchFieldNumber = 6,
+  };
+  // string verb = 1;
+  void clear_verb() ;
+  const ::std::string& verb() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_verb(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_verb();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_verb();
+  void set_allocated_verb(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_verb() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_verb(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_verb();
+
+  public:
+  // string dir = 4;
+  void clear_dir() ;
+  const ::std::string& dir() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_dir(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_dir();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_dir();
+  void set_allocated_dir(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_dir() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_dir(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_dir();
+
+  public:
+  // int32 mark = 2;
+  void clear_mark() ;
+  ::int32_t mark() const;
+  void set_mark(::int32_t value);
+
+  private:
+  ::int32_t _internal_mark() const;
+  void _internal_set_mark(::int32_t value);
+
+  public:
+  // int32 ticks = 3;
+  void clear_ticks() ;
+  ::int32_t ticks() const;
+  void set_ticks(::int32_t value);
+
+  private:
+  ::int32_t _internal_ticks() const;
+  void _internal_set_ticks(::int32_t value);
+
+  public:
+  // int32 yaw = 5;
+  void clear_yaw() ;
+  ::int32_t yaw() const;
+  void set_yaw(::int32_t value);
+
+  private:
+  ::int32_t _internal_yaw() const;
+  void _internal_set_yaw(::int32_t value);
+
+  public:
+  // int32 pitch = 6;
+  void clear_pitch() ;
+  ::int32_t pitch() const;
+  void set_pitch(::int32_t value);
+
+  private:
+  ::int32_t _internal_pitch() const;
+  void _internal_set_pitch(::int32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:portal2_harness.MacroRequest)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<3, 6,
+                                   0, 44,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const MacroRequest& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::internal::ArenaStringPtr verb_;
+    ::google::protobuf::internal::ArenaStringPtr dir_;
+    ::int32_t mark_;
+    ::int32_t ticks_;
+    ::int32_t yaw_;
+    ::int32_t pitch_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_harness_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull MacroRequest_class_data_;
+// -------------------------------------------------------------------
+
 class HandshakeResponse final : public ::google::protobuf::Message
 /* @@protoc_insertion_point(class_definition:portal2_harness.HandshakeResponse) */ {
  public:
@@ -1336,7 +1866,7 @@ class HandshakeResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const HandshakeResponse*>(
         &_HandshakeResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 14;
+  static constexpr int kIndexInFileMessages = 16;
   friend void swap(HandshakeResponse& a, HandshakeResponse& b) { a.Swap(&b); }
   inline void Swap(HandshakeResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1602,7 +2132,7 @@ class HandshakeRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const HandshakeRequest*>(
         &_HandshakeRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 13;
+  static constexpr int kIndexInFileMessages = 15;
   friend void swap(HandshakeRequest& a, HandshakeRequest& b) { a.Swap(&b); }
   inline void Swap(HandshakeRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1814,7 +2344,7 @@ class Empty final : public ::google::protobuf::internal::ZeroFieldsBase
     return *reinterpret_cast<const Empty*>(
         &_Empty_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 17;
+  static constexpr int kIndexInFileMessages = 19;
   friend void swap(Empty& a, Empty& b) { a.Swap(&b); }
   inline void Swap(Empty* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1961,7 +2491,7 @@ class CommandResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const CommandResponse*>(
         &_CommandResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 10;
+  static constexpr int kIndexInFileMessages = 12;
   friend void swap(CommandResponse& a, CommandResponse& b) { a.Swap(&b); }
   inline void Swap(CommandResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2169,7 +2699,7 @@ class CommandRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const CommandRequest*>(
         &_CommandRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 9;
+  static constexpr int kIndexInFileMessages = 11;
   friend void swap(CommandRequest& a, CommandRequest& b) { a.Swap(&b); }
   inline void Swap(CommandRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2365,7 +2895,7 @@ class ActionResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const ActionResponse*>(
         &_ActionResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 8;
+  static constexpr int kIndexInFileMessages = 10;
   friend void swap(ActionResponse& a, ActionResponse& b) { a.Swap(&b); }
   inline void Swap(ActionResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2573,7 +3103,7 @@ class ActionRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const ActionRequest*>(
         &_ActionRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 7;
+  static constexpr int kIndexInFileMessages = 9;
   friend void swap(ActionRequest& a, ActionRequest& b) { a.Swap(&b); }
   inline void Swap(ActionRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2929,7 +3459,7 @@ class EntityField final : public ::google::protobuf::Message
     kHandleVal = 7,
     VALUE_NOT_SET = 0,
   };
-  static constexpr int kIndexInFileMessages = 3;
+  static constexpr int kIndexInFileMessages = 5;
   friend void swap(EntityField& a, EntityField& b) { a.Swap(&b); }
   inline void Swap(EntityField* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -3320,6 +3850,7 @@ class AgentMessage final : public ::google::protobuf::Message
   // accessors -------------------------------------------------------
   enum : int {
     kActionFieldNumber = 1,
+    kMacroFieldNumber = 3,
     kCopyPixelsToShmFieldNumber = 2,
   };
   // .portal2_harness.ActionRequest action = 1;
@@ -3337,6 +3868,21 @@ class AgentMessage final : public ::google::protobuf::Message
   ::portal2_harness::ActionRequest* PROTOBUF_NONNULL _internal_mutable_action();
 
   public:
+  // .portal2_harness.MacroRequest macro = 3;
+  bool has_macro() const;
+  void clear_macro() ;
+  const ::portal2_harness::MacroRequest& macro() const;
+  [[nodiscard]] ::portal2_harness::MacroRequest* PROTOBUF_NULLABLE release_macro();
+  ::portal2_harness::MacroRequest* PROTOBUF_NONNULL mutable_macro();
+  void set_allocated_macro(::portal2_harness::MacroRequest* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_macro(::portal2_harness::MacroRequest* PROTOBUF_NULLABLE value);
+  ::portal2_harness::MacroRequest* PROTOBUF_NULLABLE unsafe_arena_release_macro();
+
+  private:
+  const ::portal2_harness::MacroRequest& _internal_macro() const;
+  ::portal2_harness::MacroRequest* PROTOBUF_NONNULL _internal_mutable_macro();
+
+  public:
   // bool copy_pixels_to_shm = 2;
   void clear_copy_pixels_to_shm() ;
   bool copy_pixels_to_shm() const;
@@ -3351,8 +3897,8 @@ class AgentMessage final : public ::google::protobuf::Message
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<1, 2,
-                                   1, 0,
+  static const ::google::protobuf::internal::TcParseTable<2, 3,
+                                   2, 0,
                                    2>
       _table_;
 
@@ -3374,6 +3920,7 @@ class AgentMessage final : public ::google::protobuf::Message
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
     ::portal2_harness::ActionRequest* PROTOBUF_NULLABLE action_;
+    ::portal2_harness::MacroRequest* PROTOBUF_NULLABLE macro_;
     bool copy_pixels_to_shm_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
@@ -3439,7 +3986,7 @@ class EntityState final : public ::google::protobuf::Message
     return *reinterpret_cast<const EntityState*>(
         &_EntityState_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 4;
+  static constexpr int kIndexInFileMessages = 6;
   friend void swap(EntityState& a, EntityState& b) { a.Swap(&b); }
   inline void Swap(EntityState* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -3536,6 +4083,7 @@ class EntityState final : public ::google::protobuf::Message
     kEntityIndexFieldNumber = 1,
     kSerialNumberFieldNumber = 2,
     kDeletedFieldNumber = 9,
+    kMarkFieldNumber = 10,
   };
   // repeated .portal2_harness.EntityField fields = 8;
   int fields_size() const;
@@ -3659,11 +4207,21 @@ class EntityState final : public ::google::protobuf::Message
   void _internal_set_deleted(bool value);
 
   public:
+  // int32 mark = 10;
+  void clear_mark() ;
+  ::int32_t mark() const;
+  void set_mark(::int32_t value);
+
+  private:
+  ::int32_t _internal_mark() const;
+  void _internal_set_mark(::int32_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:portal2_harness.EntityState)
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<4, 9,
+  static const ::google::protobuf::internal::TcParseTable<4, 10,
                                    4, 65,
                                    2>
       _table_;
@@ -3694,6 +4252,7 @@ class EntityState final : public ::google::protobuf::Message
     ::int32_t entity_index_;
     ::int32_t serial_number_;
     bool deleted_;
+    ::int32_t mark_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -3758,7 +4317,7 @@ class EntitySnapshot final : public ::google::protobuf::Message
     return *reinterpret_cast<const EntitySnapshot*>(
         &_EntitySnapshot_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 5;
+  static constexpr int kIndexInFileMessages = 7;
   friend void swap(EntitySnapshot& a, EntitySnapshot& b) { a.Swap(&b); }
   inline void Swap(EntitySnapshot* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -3980,7 +4539,7 @@ class GameState final : public ::google::protobuf::Message
     return *reinterpret_cast<const GameState*>(
         &_GameState_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 6;
+  static constexpr int kIndexInFileMessages = 8;
   friend void swap(GameState& a, GameState& b) { a.Swap(&b); }
   inline void Swap(GameState* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -4263,7 +4822,7 @@ class RolloutStep final : public ::google::protobuf::Message
     return *reinterpret_cast<const RolloutStep*>(
         &_RolloutStep_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 16;
+  static constexpr int kIndexInFileMessages = 18;
   friend void swap(RolloutStep& a, RolloutStep& b) { a.Swap(&b); }
   inline void Swap(RolloutStep* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -4493,7 +5052,7 @@ class ResetResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const ResetResponse*>(
         &_ResetResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 12;
+  static constexpr int kIndexInFileMessages = 14;
   friend void swap(ResetResponse& a, ResetResponse& b) { a.Swap(&b); }
   inline void Swap(ResetResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -4808,6 +5367,7 @@ class EnvironmentMessage final : public ::google::protobuf::Message
   enum : int {
     kErrorMessageFieldNumber = 3,
     kStateFieldNumber = 1,
+    kMacroResultFieldNumber = 4,
     kSuccessFieldNumber = 2,
   };
   // string error_message = 3;
@@ -4840,6 +5400,21 @@ class EnvironmentMessage final : public ::google::protobuf::Message
   ::portal2_harness::GameState* PROTOBUF_NONNULL _internal_mutable_state();
 
   public:
+  // .portal2_harness.MacroResult macro_result = 4;
+  bool has_macro_result() const;
+  void clear_macro_result() ;
+  const ::portal2_harness::MacroResult& macro_result() const;
+  [[nodiscard]] ::portal2_harness::MacroResult* PROTOBUF_NULLABLE release_macro_result();
+  ::portal2_harness::MacroResult* PROTOBUF_NONNULL mutable_macro_result();
+  void set_allocated_macro_result(::portal2_harness::MacroResult* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_macro_result(::portal2_harness::MacroResult* PROTOBUF_NULLABLE value);
+  ::portal2_harness::MacroResult* PROTOBUF_NULLABLE unsafe_arena_release_macro_result();
+
+  private:
+  const ::portal2_harness::MacroResult& _internal_macro_result() const;
+  ::portal2_harness::MacroResult* PROTOBUF_NONNULL _internal_mutable_macro_result();
+
+  public:
   // bool success = 2;
   void clear_success() ;
   bool success() const;
@@ -4854,8 +5429,8 @@ class EnvironmentMessage final : public ::google::protobuf::Message
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<2, 3,
-                                   1, 56,
+  static const ::google::protobuf::internal::TcParseTable<2, 4,
+                                   2, 56,
                                    2>
       _table_;
 
@@ -4878,6 +5453,7 @@ class EnvironmentMessage final : public ::google::protobuf::Message
     ::google::protobuf::internal::CachedSize _cached_size_;
     ::google::protobuf::internal::ArenaStringPtr error_message_;
     ::portal2_harness::GameState* PROTOBUF_NULLABLE state_;
+    ::portal2_harness::MacroResult* PROTOBUF_NULLABLE macro_result_;
     bool success_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
@@ -5081,7 +5657,7 @@ inline void AgentMessage::set_allocated_action(::portal2_harness::ActionRequest*
 inline void AgentMessage::clear_copy_pixels_to_shm() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.copy_pixels_to_shm_ = false;
-  _impl_._has_bits_[0] &= ~0x00000002u;
+  _impl_._has_bits_[0] &= ~0x00000004u;
 }
 inline bool AgentMessage::copy_pixels_to_shm() const {
   // @@protoc_insertion_point(field_get:portal2_harness.AgentMessage.copy_pixels_to_shm)
@@ -5089,7 +5665,7 @@ inline bool AgentMessage::copy_pixels_to_shm() const {
 }
 inline void AgentMessage::set_copy_pixels_to_shm(bool value) {
   _internal_set_copy_pixels_to_shm(value);
-  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_._has_bits_[0] |= 0x00000004u;
   // @@protoc_insertion_point(field_set:portal2_harness.AgentMessage.copy_pixels_to_shm)
 }
 inline bool AgentMessage::_internal_copy_pixels_to_shm() const {
@@ -5099,6 +5675,104 @@ inline bool AgentMessage::_internal_copy_pixels_to_shm() const {
 inline void AgentMessage::_internal_set_copy_pixels_to_shm(bool value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.copy_pixels_to_shm_ = value;
+}
+
+// .portal2_harness.MacroRequest macro = 3;
+inline bool AgentMessage::has_macro() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.macro_ != nullptr);
+  return value;
+}
+inline void AgentMessage::clear_macro() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.macro_ != nullptr) _impl_.macro_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline const ::portal2_harness::MacroRequest& AgentMessage::_internal_macro() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  const ::portal2_harness::MacroRequest* p = _impl_.macro_;
+  return p != nullptr ? *p : reinterpret_cast<const ::portal2_harness::MacroRequest&>(::portal2_harness::_MacroRequest_default_instance_);
+}
+inline const ::portal2_harness::MacroRequest& AgentMessage::macro() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.AgentMessage.macro)
+  return _internal_macro();
+}
+inline void AgentMessage::unsafe_arena_set_allocated_macro(
+    ::portal2_harness::MacroRequest* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (GetArena() == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.macro_);
+  }
+  _impl_.macro_ = reinterpret_cast<::portal2_harness::MacroRequest*>(value);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:portal2_harness.AgentMessage.macro)
+}
+inline ::portal2_harness::MacroRequest* PROTOBUF_NULLABLE AgentMessage::release_macro() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  ::portal2_harness::MacroRequest* released = _impl_.macro_;
+  _impl_.macro_ = nullptr;
+  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
+    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
+    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    if (GetArena() == nullptr) {
+      delete old;
+    }
+  } else {
+    if (GetArena() != nullptr) {
+      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    }
+  }
+  return released;
+}
+inline ::portal2_harness::MacroRequest* PROTOBUF_NULLABLE AgentMessage::unsafe_arena_release_macro() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.AgentMessage.macro)
+
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  ::portal2_harness::MacroRequest* temp = _impl_.macro_;
+  _impl_.macro_ = nullptr;
+  return temp;
+}
+inline ::portal2_harness::MacroRequest* PROTOBUF_NONNULL AgentMessage::_internal_mutable_macro() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.macro_ == nullptr) {
+    auto* p = ::google::protobuf::Message::DefaultConstruct<::portal2_harness::MacroRequest>(GetArena());
+    _impl_.macro_ = reinterpret_cast<::portal2_harness::MacroRequest*>(p);
+  }
+  return _impl_.macro_;
+}
+inline ::portal2_harness::MacroRequest* PROTOBUF_NONNULL AgentMessage::mutable_macro()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  _impl_._has_bits_[0] |= 0x00000002u;
+  ::portal2_harness::MacroRequest* _msg = _internal_mutable_macro();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.AgentMessage.macro)
+  return _msg;
+}
+inline void AgentMessage::set_allocated_macro(::portal2_harness::MacroRequest* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (message_arena == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.macro_);
+  }
+
+  if (value != nullptr) {
+    ::google::protobuf::Arena* submessage_arena = value->GetArena();
+    if (message_arena != submessage_arena) {
+      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+
+  _impl_.macro_ = reinterpret_cast<::portal2_harness::MacroRequest*>(value);
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.AgentMessage.macro)
 }
 
 // -------------------------------------------------------------------
@@ -5207,7 +5881,7 @@ inline void EnvironmentMessage::set_allocated_state(::portal2_harness::GameState
 inline void EnvironmentMessage::clear_success() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.success_ = false;
-  _impl_._has_bits_[0] &= ~0x00000004u;
+  _impl_._has_bits_[0] &= ~0x00000008u;
 }
 inline bool EnvironmentMessage::success() const {
   // @@protoc_insertion_point(field_get:portal2_harness.EnvironmentMessage.success)
@@ -5215,7 +5889,7 @@ inline bool EnvironmentMessage::success() const {
 }
 inline void EnvironmentMessage::set_success(bool value) {
   _internal_set_success(value);
-  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_._has_bits_[0] |= 0x00000008u;
   // @@protoc_insertion_point(field_set:portal2_harness.EnvironmentMessage.success)
 }
 inline bool EnvironmentMessage::_internal_success() const {
@@ -5290,6 +5964,564 @@ inline void EnvironmentMessage::set_allocated_error_message(::std::string* PROTO
     _impl_.error_message_.Set("", GetArena());
   }
   // @@protoc_insertion_point(field_set_allocated:portal2_harness.EnvironmentMessage.error_message)
+}
+
+// .portal2_harness.MacroResult macro_result = 4;
+inline bool EnvironmentMessage::has_macro_result() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000004u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.macro_result_ != nullptr);
+  return value;
+}
+inline void EnvironmentMessage::clear_macro_result() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.macro_result_ != nullptr) _impl_.macro_result_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000004u;
+}
+inline const ::portal2_harness::MacroResult& EnvironmentMessage::_internal_macro_result() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  const ::portal2_harness::MacroResult* p = _impl_.macro_result_;
+  return p != nullptr ? *p : reinterpret_cast<const ::portal2_harness::MacroResult&>(::portal2_harness::_MacroResult_default_instance_);
+}
+inline const ::portal2_harness::MacroResult& EnvironmentMessage::macro_result() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.EnvironmentMessage.macro_result)
+  return _internal_macro_result();
+}
+inline void EnvironmentMessage::unsafe_arena_set_allocated_macro_result(
+    ::portal2_harness::MacroResult* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (GetArena() == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.macro_result_);
+  }
+  _impl_.macro_result_ = reinterpret_cast<::portal2_harness::MacroResult*>(value);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000004u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:portal2_harness.EnvironmentMessage.macro_result)
+}
+inline ::portal2_harness::MacroResult* PROTOBUF_NULLABLE EnvironmentMessage::release_macro_result() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+
+  _impl_._has_bits_[0] &= ~0x00000004u;
+  ::portal2_harness::MacroResult* released = _impl_.macro_result_;
+  _impl_.macro_result_ = nullptr;
+  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
+    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
+    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    if (GetArena() == nullptr) {
+      delete old;
+    }
+  } else {
+    if (GetArena() != nullptr) {
+      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    }
+  }
+  return released;
+}
+inline ::portal2_harness::MacroResult* PROTOBUF_NULLABLE EnvironmentMessage::unsafe_arena_release_macro_result() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.EnvironmentMessage.macro_result)
+
+  _impl_._has_bits_[0] &= ~0x00000004u;
+  ::portal2_harness::MacroResult* temp = _impl_.macro_result_;
+  _impl_.macro_result_ = nullptr;
+  return temp;
+}
+inline ::portal2_harness::MacroResult* PROTOBUF_NONNULL EnvironmentMessage::_internal_mutable_macro_result() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.macro_result_ == nullptr) {
+    auto* p = ::google::protobuf::Message::DefaultConstruct<::portal2_harness::MacroResult>(GetArena());
+    _impl_.macro_result_ = reinterpret_cast<::portal2_harness::MacroResult*>(p);
+  }
+  return _impl_.macro_result_;
+}
+inline ::portal2_harness::MacroResult* PROTOBUF_NONNULL EnvironmentMessage::mutable_macro_result()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  _impl_._has_bits_[0] |= 0x00000004u;
+  ::portal2_harness::MacroResult* _msg = _internal_mutable_macro_result();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.EnvironmentMessage.macro_result)
+  return _msg;
+}
+inline void EnvironmentMessage::set_allocated_macro_result(::portal2_harness::MacroResult* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (message_arena == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.macro_result_);
+  }
+
+  if (value != nullptr) {
+    ::google::protobuf::Arena* submessage_arena = value->GetArena();
+    if (message_arena != submessage_arena) {
+      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000004u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004u;
+  }
+
+  _impl_.macro_result_ = reinterpret_cast<::portal2_harness::MacroResult*>(value);
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.EnvironmentMessage.macro_result)
+}
+
+// -------------------------------------------------------------------
+
+// MacroRequest
+
+// string verb = 1;
+inline void MacroRequest::clear_verb() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.verb_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline const ::std::string& MacroRequest::verb() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.verb)
+  return _internal_verb();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MacroRequest::set_verb(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.verb_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.verb)
+}
+inline ::std::string* PROTOBUF_NONNULL MacroRequest::mutable_verb()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_verb();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.MacroRequest.verb)
+  return _s;
+}
+inline const ::std::string& MacroRequest::_internal_verb() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.verb_.Get();
+}
+inline void MacroRequest::_internal_set_verb(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.verb_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MacroRequest::_internal_mutable_verb() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001u;
+  return _impl_.verb_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MacroRequest::release_verb() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.MacroRequest.verb)
+  if ((_impl_._has_bits_[0] & 0x00000001u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  auto* released = _impl_.verb_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.verb_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MacroRequest::set_allocated_verb(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  _impl_.verb_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.verb_.IsDefault()) {
+    _impl_.verb_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.MacroRequest.verb)
+}
+
+// int32 mark = 2;
+inline void MacroRequest::clear_mark() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.mark_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000004u;
+}
+inline ::int32_t MacroRequest::mark() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.mark)
+  return _internal_mark();
+}
+inline void MacroRequest::set_mark(::int32_t value) {
+  _internal_set_mark(value);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.mark)
+}
+inline ::int32_t MacroRequest::_internal_mark() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.mark_;
+}
+inline void MacroRequest::_internal_set_mark(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.mark_ = value;
+}
+
+// int32 ticks = 3;
+inline void MacroRequest::clear_ticks() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.ticks_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000008u;
+}
+inline ::int32_t MacroRequest::ticks() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.ticks)
+  return _internal_ticks();
+}
+inline void MacroRequest::set_ticks(::int32_t value) {
+  _internal_set_ticks(value);
+  _impl_._has_bits_[0] |= 0x00000008u;
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.ticks)
+}
+inline ::int32_t MacroRequest::_internal_ticks() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.ticks_;
+}
+inline void MacroRequest::_internal_set_ticks(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.ticks_ = value;
+}
+
+// string dir = 4;
+inline void MacroRequest::clear_dir() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.dir_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline const ::std::string& MacroRequest::dir() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.dir)
+  return _internal_dir();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MacroRequest::set_dir(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.dir_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.dir)
+}
+inline ::std::string* PROTOBUF_NONNULL MacroRequest::mutable_dir()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_dir();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.MacroRequest.dir)
+  return _s;
+}
+inline const ::std::string& MacroRequest::_internal_dir() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.dir_.Get();
+}
+inline void MacroRequest::_internal_set_dir(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.dir_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MacroRequest::_internal_mutable_dir() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  return _impl_.dir_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MacroRequest::release_dir() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.MacroRequest.dir)
+  if ((_impl_._has_bits_[0] & 0x00000002u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  auto* released = _impl_.dir_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.dir_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MacroRequest::set_allocated_dir(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+  _impl_.dir_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.dir_.IsDefault()) {
+    _impl_.dir_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.MacroRequest.dir)
+}
+
+// int32 yaw = 5;
+inline void MacroRequest::clear_yaw() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.yaw_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000010u;
+}
+inline ::int32_t MacroRequest::yaw() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.yaw)
+  return _internal_yaw();
+}
+inline void MacroRequest::set_yaw(::int32_t value) {
+  _internal_set_yaw(value);
+  _impl_._has_bits_[0] |= 0x00000010u;
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.yaw)
+}
+inline ::int32_t MacroRequest::_internal_yaw() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.yaw_;
+}
+inline void MacroRequest::_internal_set_yaw(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.yaw_ = value;
+}
+
+// int32 pitch = 6;
+inline void MacroRequest::clear_pitch() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.pitch_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000020u;
+}
+inline ::int32_t MacroRequest::pitch() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.pitch)
+  return _internal_pitch();
+}
+inline void MacroRequest::set_pitch(::int32_t value) {
+  _internal_set_pitch(value);
+  _impl_._has_bits_[0] |= 0x00000020u;
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.pitch)
+}
+inline ::int32_t MacroRequest::_internal_pitch() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.pitch_;
+}
+inline void MacroRequest::_internal_set_pitch(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.pitch_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// MacroResult
+
+// bool ok = 1;
+inline void MacroResult::clear_ok() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.ok_ = false;
+  _impl_._has_bits_[0] &= ~0x00000004u;
+}
+inline bool MacroResult::ok() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroResult.ok)
+  return _internal_ok();
+}
+inline void MacroResult::set_ok(bool value) {
+  _internal_set_ok(value);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroResult.ok)
+}
+inline bool MacroResult::_internal_ok() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.ok_;
+}
+inline void MacroResult::_internal_set_ok(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.ok_ = value;
+}
+
+// string result_code = 2;
+inline void MacroResult::clear_result_code() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.result_code_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline const ::std::string& MacroResult::result_code() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroResult.result_code)
+  return _internal_result_code();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MacroResult::set_result_code(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.result_code_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroResult.result_code)
+}
+inline ::std::string* PROTOBUF_NONNULL MacroResult::mutable_result_code()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_result_code();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.MacroResult.result_code)
+  return _s;
+}
+inline const ::std::string& MacroResult::_internal_result_code() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.result_code_.Get();
+}
+inline void MacroResult::_internal_set_result_code(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.result_code_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MacroResult::_internal_mutable_result_code() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001u;
+  return _impl_.result_code_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MacroResult::release_result_code() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.MacroResult.result_code)
+  if ((_impl_._has_bits_[0] & 0x00000001u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  auto* released = _impl_.result_code_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.result_code_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MacroResult::set_allocated_result_code(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  _impl_.result_code_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.result_code_.IsDefault()) {
+    _impl_.result_code_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.MacroResult.result_code)
+}
+
+// string detail = 3;
+inline void MacroResult::clear_detail() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.detail_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline const ::std::string& MacroResult::detail() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroResult.detail)
+  return _internal_detail();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MacroResult::set_detail(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.detail_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroResult.detail)
+}
+inline ::std::string* PROTOBUF_NONNULL MacroResult::mutable_detail()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_detail();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.MacroResult.detail)
+  return _s;
+}
+inline const ::std::string& MacroResult::_internal_detail() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.detail_.Get();
+}
+inline void MacroResult::_internal_set_detail(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.detail_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MacroResult::_internal_mutable_detail() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  return _impl_.detail_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MacroResult::release_detail() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.MacroResult.detail)
+  if ((_impl_._has_bits_[0] & 0x00000002u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  auto* released = _impl_.detail_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.detail_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MacroResult::set_allocated_detail(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+  _impl_.detail_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.detail_.IsDefault()) {
+    _impl_.detail_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.MacroResult.detail)
+}
+
+// bool reached = 4;
+inline void MacroResult::clear_reached() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.reached_ = false;
+  _impl_._has_bits_[0] &= ~0x00000008u;
+}
+inline bool MacroResult::reached() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroResult.reached)
+  return _internal_reached();
+}
+inline void MacroResult::set_reached(bool value) {
+  _internal_set_reached(value);
+  _impl_._has_bits_[0] |= 0x00000008u;
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroResult.reached)
+}
+inline bool MacroResult::_internal_reached() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.reached_;
+}
+inline void MacroResult::_internal_set_reached(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.reached_ = value;
+}
+
+// float final_dist = 5;
+inline void MacroResult::clear_final_dist() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.final_dist_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000010u;
+}
+inline float MacroResult::final_dist() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroResult.final_dist)
+  return _internal_final_dist();
+}
+inline void MacroResult::set_final_dist(float value) {
+  _internal_set_final_dist(value);
+  _impl_._has_bits_[0] |= 0x00000010u;
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroResult.final_dist)
+}
+inline float MacroResult::_internal_final_dist() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.final_dist_;
+}
+inline void MacroResult::_internal_set_final_dist(float value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.final_dist_ = value;
+}
+
+// float moved_dist = 6;
+inline void MacroResult::clear_moved_dist() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.moved_dist_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000020u;
+}
+inline float MacroResult::moved_dist() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroResult.moved_dist)
+  return _internal_moved_dist();
+}
+inline void MacroResult::set_moved_dist(float value) {
+  _internal_set_moved_dist(value);
+  _impl_._has_bits_[0] |= 0x00000020u;
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroResult.moved_dist)
+}
+inline float MacroResult::_internal_moved_dist() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.moved_dist_;
+}
+inline void MacroResult::_internal_set_moved_dist(float value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.moved_dist_ = value;
 }
 
 // -------------------------------------------------------------------
@@ -6216,6 +7448,30 @@ inline bool EntityState::_internal_deleted() const {
 inline void EntityState::_internal_set_deleted(bool value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.deleted_ = value;
+}
+
+// int32 mark = 10;
+inline void EntityState::clear_mark() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.mark_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000100u;
+}
+inline ::int32_t EntityState::mark() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.EntityState.mark)
+  return _internal_mark();
+}
+inline void EntityState::set_mark(::int32_t value) {
+  _internal_set_mark(value);
+  _impl_._has_bits_[0] |= 0x00000100u;
+  // @@protoc_insertion_point(field_set:portal2_harness.EntityState.mark)
+}
+inline ::int32_t EntityState::_internal_mark() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.mark_;
+}
+inline void EntityState::_internal_set_mark(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.mark_ = value;
 }
 
 // -------------------------------------------------------------------

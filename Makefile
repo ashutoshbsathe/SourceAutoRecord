@@ -44,13 +44,17 @@ src/Features/Harness/%.grpc.pb.cpp src/Features/Harness/%.grpc.pb.h: src/Feature
 PROTO_SRC=src/Features/Harness/harness.proto
 
 # Python proto generation - outputs to py/p2harness
+# Use the pinned /opt protoc (same as proto_cpp), NOT the bare system protoc:
+# a system protoc newer than the pinned `protobuf` runtime stamps the gencode
+# version ahead of the runtime, which makes `import harness_pb2` raise a
+# VersionError. Pinning here keeps `make proto` deterministic regardless of PATH.
 py/p2harness/harness_pb2.py: $(PROTO_SRC)
 	@mkdir -p py/p2harness
-	protoc -I=src/Features/Harness --python_out=py/p2harness $<
+	/opt/p2-grpc32/bin/protoc -I=src/Features/Harness --python_out=py/p2harness $<
 
 py/p2harness/harness_pb2_grpc.py: $(PROTO_SRC)
 	@mkdir -p py/p2harness
-	protoc -I=src/Features/Harness --grpc_python_out=py/p2harness --plugin=protoc-gen-grpc_python=/opt/p2-grpc32/bin/grpc_python_plugin $<
+	/opt/p2-grpc32/bin/protoc -I=src/Features/Harness --grpc_python_out=py/p2harness --plugin=protoc-gen-grpc_python=/opt/p2-grpc32/bin/grpc_python_plugin $<
 	sed -i 's/^import harness_pb2 as harness__pb2/from . import harness_pb2 as harness__pb2/' $@
 
 # Convenience targets

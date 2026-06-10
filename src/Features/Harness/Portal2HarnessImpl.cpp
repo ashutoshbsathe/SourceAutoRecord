@@ -12,6 +12,7 @@
 #include "Harness.hpp"
 #include "HarnessThread.hpp"
 #include "HdemReader.hpp"
+#include "MarkTable.hpp"
 #include "Modules/Client.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
@@ -97,6 +98,12 @@ static void PopulateEntityStateProto(
   protoState->set_serial_number(slot.serial);
   protoState->set_class_name(slot.className);
   protoState->set_target_name(slot.targetName);
+  // Frame<->telemetry bridge: the same integer drawn on the annotated frame.
+  // 0 if this class isn't marked -- and, by design for v0, 0 for ALL entities
+  // while sar_harness_annotate is off, since MarkTable is (re)built only by the
+  // annotate RENDER handler (HarnessAnnotate.cpp). The eval runs with annotate
+  // on, so marks are live; reads here are mutex-guarded (MarkTable.cpp).
+  protoState->set_mark(markTable.GetMark(entityIndex, slot.serial));
 
   const uint8_t* currentBuf = slot.fieldBuf.get();
 
@@ -524,8 +531,47 @@ grpc::Status Portal2HarnessImpl::Reset(
   // Get initial observation
   this->InternalObserve(response->mutable_initial_state());
 
+  // Copy the post-reset (annotated) framebuffer to SHM so the driver's step-0
+  // percept has an image -- without this the first frame is stale/blank, since
+  // the per-step copy is otherwise only triggered from AgentLoop.
+  this->CopyPixelsToShm(context);
+
   response->set_success(true);
   return grpc::Status::OK;
+}
+
+// Copy the current (annotated) framebuffer into SHM on the engine main thread,
+// reusing the engine's ReadScreenPixels path. Returns false only if the client
+// cancelled the stream mid-read; a missing/zero SHM or videomode is a no-op
+// (returns true -- not an error).
+bool Portal2HarnessImpl::CopyPixelsToShm(grpc::ServerContext* context) {
+  if (shm.GetBuffer() == MAP_FAILED || shm.GetSize() == 0 ||
+      !g_harness_videomode || !*g_harness_videomode) {
+    return true;
+  }
+  return RunOnMainThreadSync(context, [&]() {
+    int sw = 854;
+    int sh = 480;
+    if (engine && engine->GetScreenSize) {
+      engine->GetScreenSize(nullptr, sw, sh);
+    }
+    Memory::VMT<void(__rescall*)(void*, int, int, int, int, void*, int)>(
+        *g_harness_videomode, Offsets::ReadScreenPixels)(
+        *g_harness_videomode, 0, 0, sw, sh, shm.GetBuffer(),
+        2 /* IMAGE_FORMAT_RGB888 */);
+  });
+}
+
+// PR1 stub: the real macro executor (MacroExecutor) lands in PR2. Until then
+// every verb reports NOT_IMPLEMENTED so the wire format + dispatch can be
+// exercised end-to-end.
+void Portal2HarnessImpl::ExecuteMacro(
+    const portal2_harness::MacroRequest* request,
+    portal2_harness::MacroResult* result) {
+  result->set_ok(false);
+  result->set_result_code("NOT_IMPLEMENTED");
+  result->set_detail("verb '" + request->verb() +
+                     "' not implemented (PR1 stub)");
 }
 
 // docs/Portal2HarnessImpl.cpp:AgentLoop>
@@ -546,19 +592,26 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
     portal2_harness::EnvironmentMessage env_msg;
     env_msg.set_success(true);
 
-    portal2_harness::ActionResponse action_resp;
-    grpc::Status act_status = this->Act(context, &req.action(), &action_resp);
+    if (req.has_macro()) {
+      // Macro path: run one closed semantic verb. The refreshed percept still
+      // rides on the Observe below, shared with the action path.
+      this->ExecuteMacro(&req.macro(), env_msg.mutable_macro_result());
+    } else {
+      // Raw framebulk path (existing RL behavior).
+      portal2_harness::ActionResponse action_resp;
+      grpc::Status act_status = this->Act(context, &req.action(), &action_resp);
 
-    if (!act_status.ok()) {
-      env_msg.set_success(false);
-      env_msg.set_error_message("Act failed: " + act_status.error_message());
-      stream->Write(env_msg);
-      continue;
-    } else if (!action_resp.success()) {
-      env_msg.set_success(false);
-      env_msg.set_error_message(action_resp.error_message());
-      stream->Write(env_msg);
-      continue;
+      if (!act_status.ok()) {
+        env_msg.set_success(false);
+        env_msg.set_error_message("Act failed: " + act_status.error_message());
+        stream->Write(env_msg);
+        continue;
+      } else if (!action_resp.success()) {
+        env_msg.set_success(false);
+        env_msg.set_error_message(action_resp.error_message());
+        stream->Write(env_msg);
+        continue;
+      }
     }
 
     portal2_harness::Empty empty_req;
@@ -572,22 +625,10 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
       continue;
     }
 
+    // Refresh the visual percept when requested (the model sets this once per
+    // step). Shared by the action and macro branches.
     if (req.copy_pixels_to_shm()) {
-      if (shm.GetBuffer() != MAP_FAILED && shm.GetSize() > 0 &&
-          g_harness_videomode && *g_harness_videomode) {
-        bool ok = RunOnMainThreadSync(context, [&]() {
-          int sw = 854;
-          int sh = 480;
-          if (engine && engine->GetScreenSize) {
-            engine->GetScreenSize(nullptr, sw, sh);
-          }
-          Memory::VMT<void(__rescall*)(void*, int, int, int, int, void*, int)>(
-              *g_harness_videomode, Offsets::ReadScreenPixels)(
-              *g_harness_videomode, 0, 0, sw, sh, shm.GetBuffer(),
-              2 /* IMAGE_FORMAT_RGB888 */);
-        });
-        if (!ok) return grpc::Status::CANCELLED;
-      }
+      if (!this->CopyPixelsToShm(context)) return grpc::Status::CANCELLED;
     }
 
     stream->Write(env_msg);

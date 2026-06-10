@@ -48,12 +48,48 @@ message AgentMessage {
   // leave this false. For visual RL, consider requesting pixels every
   // N ticks (e.g. every 4-10 ticks) rather than every tick.
   bool copy_pixels_to_shm = 2;
+
+  // One closed semantic verb (defined below). When present (has_macro()),
+  // the server runs the macro executor instead of the raw `action` framebulk
+  // path -- no oneof, so the existing `action` path is untouched.
+  MacroRequest macro = 3;
 }
 
 message EnvironmentMessage {
   GameState state = 1;
   bool success = 2;
   string error_message = 3;
+
+  // Set only on macro steps: the structured outcome of the verb. The refreshed
+  // percept rides on `state` above (AgentLoop already calls Observe).
+  MacroResult macro_result = 4;
+}
+
+// --- Macro Messages ---
+// Closed semantic verbs for the LLM percept/act harness. One verb per step.
+// See brainstorm/macro_executor_impl_plan.md and llm_percept_act_grammar.md.
+
+message MacroRequest {
+  string verb =
+      1;  // aim_at|look|go_to|move|pick_up_cube|release_cube|press|interact|wait|done
+  int32 mark = 2;   // anchored verbs: target mark (0 = unset)
+  int32 ticks = 3;  // wait() AND move(): hold duration in ticks
+  string dir = 4;   // move(): forward|back|left|right (relative to facing)
+  int32 yaw = 5;    // look(): signed degrees, lexer-snapped to 15
+  int32 pitch =
+      6;  // look(): signed degrees, lexer-snapped to 15, engine-clamped
+  // P1 (portals/nav): string color; Vector3 point; string direction;
+}
+
+message MacroResult {
+  bool ok = 1;
+  string result_code =
+      2;  // SUCCESS|STUCK|BLOCKED|UNREACHABLE|BAD_MARK|EDGE|WALL|COMPLETED|NOT_IMPLEMENTED|...
+  string detail = 3;
+  bool reached = 4;      // go_to
+  float final_dist = 5;  // go_to
+  float moved_dist =
+      6;  // move (so the model calibrates ticks->distance from feedback)
 }
 
 message EntityField {
@@ -78,6 +114,8 @@ message EntityState {
   Vector3 velocity = 7;
   repeated EntityField fields = 8;
   bool deleted = 9;
+  int32 mark =
+      10;  // canonical MarkTable mark (0 = unmarked); frame<->telemetry bridge
 }
 
 message EntitySnapshot {
