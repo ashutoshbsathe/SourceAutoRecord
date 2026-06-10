@@ -70,11 +70,14 @@ bool IsHarnessMarkedClass(const char* className) {
 // class. Iterates the server entity list directly (independent of any harness
 // session), matching the loop in EntitySnapshotter::Update.
 ON_EVENT(RENDER) {
+  // Marks are a property of the world, not the overlay: rebuild every frame so
+  // EntityState.mark telemetry and macro mark-resolution stay correct even with
+  // the visual overlay off. Self-guards on server/entityList; cheap (one
+  // entity-list walk). Only the drawing below is gated on the cvar.
+  markTable.RebuildFromWorld();
+
   if (!sar_harness_annotate.GetBool()) return;
   if (!server || !entityList) return;
-
-  // Recompute marks before reading them so labels match what Observe reports.
-  markTable.RebuildFromWorld();
 
   for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
     auto info = entityList->GetEntityInfoByIndex(i);

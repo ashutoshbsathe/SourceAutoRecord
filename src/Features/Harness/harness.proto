@@ -83,13 +83,15 @@ message MacroRequest {
 
 message MacroResult {
   bool ok = 1;
-  string result_code =
-      2;  // SUCCESS|STUCK|BLOCKED|UNREACHABLE|BAD_MARK|EDGE|WALL|COMPLETED|NOT_IMPLEMENTED|...
+  string result_code = 2;  // SUCCESS|DONE|NOT_READY|BAD_MARK|NO_PLAYER|CANCELLED|NOT_IMPLEMENTED|
+                           // (later) STUCK|BLOCKED|UNREACHABLE|EDGE|WALL|...
   string detail = 3;
   bool reached = 4;      // go_to
   float final_dist = 5;  // go_to
   float moved_dist =
       6;  // move (so the model calibrates ticks->distance from feedback)
+  float aim_pitch = 7;  // aim_at/look: the view pitch the verb commanded (deg)
+  float aim_yaw = 8;    // aim_at/look: the view yaw the verb commanded (deg)
 }
 
 message EntityField {

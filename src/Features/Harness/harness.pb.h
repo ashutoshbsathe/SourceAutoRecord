@@ -1438,6 +1438,8 @@ class MacroResult final : public ::google::protobuf::Message
     kReachedFieldNumber = 4,
     kFinalDistFieldNumber = 5,
     kMovedDistFieldNumber = 6,
+    kAimPitchFieldNumber = 7,
+    kAimYawFieldNumber = 8,
   };
   // string result_code = 2;
   void clear_result_code() ;
@@ -1509,12 +1511,32 @@ class MacroResult final : public ::google::protobuf::Message
   void _internal_set_moved_dist(float value);
 
   public:
+  // float aim_pitch = 7;
+  void clear_aim_pitch() ;
+  float aim_pitch() const;
+  void set_aim_pitch(float value);
+
+  private:
+  float _internal_aim_pitch() const;
+  void _internal_set_aim_pitch(float value);
+
+  public:
+  // float aim_yaw = 8;
+  void clear_aim_yaw() ;
+  float aim_yaw() const;
+  void set_aim_yaw(float value);
+
+  private:
+  float _internal_aim_yaw() const;
+  void _internal_set_aim_yaw(float value);
+
+  public:
   // @@protoc_insertion_point(class_scope:portal2_harness.MacroResult)
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<3, 6,
-                                   0, 53,
+  static const ::google::protobuf::internal::TcParseTable<3, 8,
+                                   0, 61,
                                    2>
       _table_;
 
@@ -1541,6 +1563,8 @@ class MacroResult final : public ::google::protobuf::Message
     bool reached_;
     float final_dist_;
     float moved_dist_;
+    float aim_pitch_;
+    float aim_yaw_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -6522,6 +6546,54 @@ inline float MacroResult::_internal_moved_dist() const {
 inline void MacroResult::_internal_set_moved_dist(float value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.moved_dist_ = value;
+}
+
+// float aim_pitch = 7;
+inline void MacroResult::clear_aim_pitch() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.aim_pitch_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000040u;
+}
+inline float MacroResult::aim_pitch() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroResult.aim_pitch)
+  return _internal_aim_pitch();
+}
+inline void MacroResult::set_aim_pitch(float value) {
+  _internal_set_aim_pitch(value);
+  _impl_._has_bits_[0] |= 0x00000040u;
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroResult.aim_pitch)
+}
+inline float MacroResult::_internal_aim_pitch() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.aim_pitch_;
+}
+inline void MacroResult::_internal_set_aim_pitch(float value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.aim_pitch_ = value;
+}
+
+// float aim_yaw = 8;
+inline void MacroResult::clear_aim_yaw() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.aim_yaw_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000080u;
+}
+inline float MacroResult::aim_yaw() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroResult.aim_yaw)
+  return _internal_aim_yaw();
+}
+inline void MacroResult::set_aim_yaw(float value) {
+  _internal_set_aim_yaw(value);
+  _impl_._has_bits_[0] |= 0x00000080u;
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroResult.aim_yaw)
+}
+inline float MacroResult::_internal_aim_yaw() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.aim_yaw_;
+}
+inline void MacroResult::_internal_set_aim_yaw(float value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.aim_yaw_ = value;
 }
 
 // -------------------------------------------------------------------

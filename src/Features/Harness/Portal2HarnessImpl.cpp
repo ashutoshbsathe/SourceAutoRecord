@@ -12,6 +12,7 @@
 #include "Harness.hpp"
 #include "HarnessThread.hpp"
 #include "HdemReader.hpp"
+#include "MacroExecutor.hpp"
 #include "MarkTable.hpp"
 #include "Modules/Client.hpp"
 #include "Modules/Console.hpp"
@@ -99,10 +100,9 @@ static void PopulateEntityStateProto(
   protoState->set_class_name(slot.className);
   protoState->set_target_name(slot.targetName);
   // Frame<->telemetry bridge: the same integer drawn on the annotated frame.
-  // 0 if this class isn't marked -- and, by design for v0, 0 for ALL entities
-  // while sar_harness_annotate is off, since MarkTable is (re)built only by the
-  // annotate RENDER handler (HarnessAnnotate.cpp). The eval runs with annotate
-  // on, so marks are live; reads here are mutex-guarded (MarkTable.cpp).
+  // 0 if this class isn't marked. MarkTable is rebuilt every RENDER frame
+  // (HarnessAnnotate.cpp) independent of the visual overlay cvar, so marks are
+  // live whether or not sar_harness_annotate is on; reads are mutex-guarded.
   protoState->set_mark(markTable.GetMark(entityIndex, slot.serial));
 
   const uint8_t* currentBuf = slot.fieldBuf.get();
@@ -562,16 +562,14 @@ bool Portal2HarnessImpl::CopyPixelsToShm(grpc::ServerContext* context) {
   });
 }
 
-// PR1 stub: the real macro executor (MacroExecutor) lands in PR2. Until then
-// every verb reports NOT_IMPLEMENTED so the wire format + dispatch can be
-// exercised end-to-end.
+// Delegate one closed semantic verb to the executor (PR2+). The executor owns
+// the gRPC-thread loop and dispatches every engine read/write to the main
+// thread; unimplemented verbs come back NOT_IMPLEMENTED.
 void Portal2HarnessImpl::ExecuteMacro(
-    const portal2_harness::MacroRequest* request,
+    grpc::ServerContext* context, const portal2_harness::MacroRequest* request,
     portal2_harness::MacroResult* result) {
-  result->set_ok(false);
-  result->set_result_code("NOT_IMPLEMENTED");
-  result->set_detail("verb '" + request->verb() +
-                     "' not implemented (PR1 stub)");
+  MacroExecutor executor(context);
+  *result = executor.Execute(*request);
 }
 
 // docs/Portal2HarnessImpl.cpp:AgentLoop>
@@ -595,7 +593,7 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
     if (req.has_macro()) {
       // Macro path: run one closed semantic verb. The refreshed percept still
       // rides on the Observe below, shared with the action path.
-      this->ExecuteMacro(&req.macro(), env_msg.mutable_macro_result());
+      this->ExecuteMacro(context, &req.macro(), env_msg.mutable_macro_result());
     } else {
       // Raw framebulk path (existing RL behavior).
       portal2_harness::ActionResponse action_resp;

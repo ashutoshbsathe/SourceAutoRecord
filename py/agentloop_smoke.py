@@ -148,35 +148,89 @@ def check_agentloop(ctx):
     return f'{n} steps, ticks {ticks[0]} -> {ticks[-1]}, first snapshot full'
 
 
+def _norm_deg(d):
+    """Wrap an angle (delta) into [-180, 180]."""
+    return (d + 180.0) % 360.0 - 180.0
+
+
 def check_macro(ctx):
-    """A macro AgentMessage round-trips: the server returns a MacroResult and a
-    fresh percept on env.state. PR1 ships a dispatch stub, so any verb comes back
-    NOT_IMPLEMENTED; later PRs return SUCCESS/STUCK/etc. This checks the wire
-    contract (result rides back, percept refreshes), not the verb semantics -- so
-    it survives PR2+. The mark<->on-screen-label match stays a manual visual check."""
+    """Macro executor + the aim spike (PR2). aim_at points the view at a mark;
+    the verb reports the angle it *commanded* (MacroResult.aim_yaw) and the
+    refreshed percept carries the *actual* post-tick view (state.camera). They
+    agree iff SetAngles survived the TAS per-tick view re-apply -- the
+    load-bearing assumption for every later verb.
+
+    Asserting commanded-yaw == actual-yaw is exact and immune to eye height and
+    OBB-centre-vs-origin (the verb already aimed at the OBB centre). We pick the
+    mark needing the biggest turn and require that turn be large, so a clobbered
+    or ignored SetAngles can't pass by the camera already facing the mark. The
+    mark<->on-screen-label match stays a manual visual check."""
     ctx.harness.start_agent_loop()
     try:
+        # First stream step is a full snapshot; a no-op wait fetches it + the
+        # pre-aim view cheaply.
         env = ctx.harness.step_agent_loop(
             harness_pb2.AgentMessage(
-                macro=harness_pb2.MacroRequest(verb='go_to', mark=1),
+                macro=harness_pb2.MacroRequest(verb='wait', ticks=1)
+            ),
+            timeout=30.0,
+        )
+        require(env.HasField('macro_result'), 'no macro_result on wait (stale sar.so?)')
+        require(env.macro_result.ok, f'wait failed: {env.macro_result.result_code}')
+        pre_yaw = env.state.camera.y
+        px, py = env.state.position.x, env.state.position.y
+
+        # Pick the marked entity that demands the biggest turn (and is far enough
+        # horizontally that its bearing is stable). This origin-based bearing is
+        # only for *selection*; the pass/fail assertion uses the verb's own
+        # commanded yaw, so OBB-centre-vs-origin never enters the verdict.
+        best, best_turn = None, -1.0
+        for e in env.state.entity_snapshot.entities:
+            if e.mark <= 0:
+                continue
+            dx, dy = e.position.x - px, e.position.y - py
+            if math.hypot(dx, dy) <= 64:
+                continue
+            turn = abs(_norm_deg(math.degrees(math.atan2(dy, dx)) - pre_yaw))
+            if turn > best_turn:
+                best, best_turn = e, turn
+        require(best is not None, 'no marked entity with usable horizontal offset')
+        require(
+            best_turn > 20.0,
+            f'no marked entity needs a >20 deg turn (max {best_turn:.1f}); '
+            f'aim spike would be inconclusive',
+        )
+
+        env = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(verb='aim_at', mark=best.mark)
             ),
             timeout=30.0,
         )
     finally:
         ctx.harness.stop_agent_loop()
-    require(env.success, f'macro step failed at RPC level: {env.error_message}')
-    require(env.HasField('macro_result'), 'no macro_result on the macro response')
-    require(env.macro_result.result_code, 'macro_result.result_code is empty')
-    require(env.HasField('state'), 'macro response carried no state percept')
-    require(env.state.server_tick >= 0, f'bad server_tick: {env.state.server_tick}')
-    ctx.observations.append(gamestate_dict(env.state, 'macro.go_to'))
-    # Soft signal on the mark plumbing (non-asserting: 0 is expected when
-    # sar_harness_annotate is off, since MarkTable is only built by the annotate
-    # render handler). The first stream step is a full snapshot, so this is total.
-    ents = env.state.entity_snapshot.entities
-    marked = sum(1 for e in ents if e.mark > 0)
+
+    require(env.success, f'aim_at step failed at RPC level: {env.error_message}')
+    require(env.HasField('macro_result'), 'no macro_result on aim_at')
     mr = env.macro_result
-    return f'go_to ok={mr.ok} {mr.result_code!r}; mark>0 on {marked}/{len(ents)}'
+    require(
+        mr.ok and mr.result_code == 'SUCCESS',
+        f'aim_at not SUCCESS: {mr.result_code} ({mr.detail})',
+    )
+
+    # SetAngles survived iff the actual post-tick view == the commanded one.
+    yaw_err = abs(_norm_deg(env.state.camera.y - mr.aim_yaw))
+    ctx.observations.append(gamestate_dict(env.state, f'macro.aim_at[{best.mark}]'))
+    require(
+        yaw_err < 3.0,
+        f'aim_at mark={best.mark}: camera yaw {env.state.camera.y:.1f} != '
+        f'commanded {mr.aim_yaw:.1f} (err {yaw_err:.1f} deg, turn was '
+        f'{best_turn:.0f}) -- SetAngles did NOT survive the tick',
+    )
+    return (
+        f'aim_at mark={best.mark}: turned {best_turn:.0f} deg, '
+        f'camera==commanded within {yaw_err:.2f} deg -- SetAngles survives'
+    )
 
 
 def check_pixels(ctx):
