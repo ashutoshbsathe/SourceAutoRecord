@@ -19,7 +19,7 @@
     ],
     "health": 100,
     "is_crouching": false,
-    "entities": 604,
+    "entities": 607,
     "is_full_snapshot": true
   },
   {
@@ -65,12 +65,12 @@
     ],
     "health": 100,
     "is_crouching": false,
-    "entities": 604,
+    "entities": 607,
     "is_full_snapshot": true
   },
   {
     "label": "agentloop[1]",
-    "server_tick": 368,
+    "server_tick": 367,
     "position": [
       6.267129421234131,
       -1414.7017822265625,
@@ -83,7 +83,7 @@
     ],
     "camera": [
       0.0,
-      48.0,
+      51.0,
       0.0
     ],
     "health": 100,
@@ -93,7 +93,7 @@
   },
   {
     "label": "agentloop[2]",
-    "server_tick": 372,
+    "server_tick": 371,
     "position": [
       11.2271146774292,
       -1403.3262939453125,
@@ -106,7 +106,7 @@
     ],
     "camera": [
       0.0,
-      36.0,
+      39.0,
       0.0
     ],
     "health": 100,
@@ -116,7 +116,7 @@
   },
   {
     "label": "agentloop[3]",
-    "server_tick": 376,
+    "server_tick": 375,
     "position": [
       17.86466407775879,
       -1392.3961181640625,
@@ -129,7 +129,7 @@
     ],
     "camera": [
       0.0,
-      24.0,
+      27.0,
       0.0
     ],
     "health": 100,
@@ -139,7 +139,7 @@
   },
   {
     "label": "agentloop[4]",
-    "server_tick": 380,
+    "server_tick": 379,
     "position": [
       26.333065032958984,
       -1382.3779296875,
@@ -152,7 +152,7 @@
     ],
     "camera": [
       0.0,
-      12.0,
+      15.0,
       0.0
     ],
     "health": 100,
@@ -162,7 +162,7 @@
   },
   {
     "label": "agentloop[5]",
-    "server_tick": 384,
+    "server_tick": 383,
     "position": [
       36.59124755859375,
       -1373.7711181640625,
@@ -175,7 +175,7 @@
     ],
     "camera": [
       0.0,
-      0.0,
+      3.0,
       0.0
     ],
     "health": 100,
@@ -185,7 +185,7 @@
   },
   {
     "label": "agentloop[6]",
-    "server_tick": 388,
+    "server_tick": 387,
     "position": [
       48.42414474487305,
       -1367.0487060546875,
@@ -198,7 +198,7 @@
     ],
     "camera": [
       0.0,
-      -12.0,
+      -9.0,
       0.0
     ],
     "health": 100,
@@ -208,7 +208,7 @@
   },
   {
     "label": "agentloop[7]",
-    "server_tick": 392,
+    "server_tick": 391,
     "position": [
       61.4715690612793,
       -1362.612548828125,
@@ -221,7 +221,7 @@
     ],
     "camera": [
       0.0,
-      -24.0,
+      -21.0,
       0.0
     ],
     "health": 100,
@@ -231,7 +231,7 @@
   },
   {
     "label": "agentloop[8]",
-    "server_tick": 396,
+    "server_tick": 395,
     "position": [
       75.26219177246094,
       -1360.76123046875,
@@ -244,7 +244,7 @@
     ],
     "camera": [
       0.0,
-      -36.0,
+      -33.0,
       0.0
     ],
     "health": 100,
@@ -254,7 +254,7 @@
   },
   {
     "label": "agentloop[9]",
-    "server_tick": 400,
+    "server_tick": 399,
     "position": [
       89.24990844726562,
       -1361.668212890625,
@@ -267,7 +267,7 @@
     ],
     "camera": [
       0.0,
-      -48.0,
+      -45.0,
       0.0
     ],
     "health": 100,
