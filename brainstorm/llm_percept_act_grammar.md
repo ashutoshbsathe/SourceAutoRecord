@@ -73,17 +73,24 @@ Three coupled channels, all derived from one frozen game state:
 
 The verbs map onto the *semantic affordances of a Portal chamber* — the vocabulary a human uses to describe a solution. The LLM emits one JSON action per step; the harness executes it (advancing the frozen sim), then returns the new percept + a structured result.
 
-| Verb | Args | Executes as | Returns |
-|---|---|---|---|
-| `look_at` | `target` (mark / point / direction) | `SetAngles(VectorAngles(target − eye))` | new view |
-| `go_to` | `target` (mark / point) | straight march on current platform + edge-safety (§5) | `{reached, stuck, final_dist}` |
-| `go_to_edge` | `direction` (compass / relative) | raycast platform probe + march (§5.2) | `{reached, edge_type: void\|lower\|wall, dist}` |
-| `shoot_portal` | `color`, `target` (mark face / point) | aim → `TraceFirePortal` validate → fire | `{placed, result: SUCCESS\|INVALID_SURFACE\|CANT_FIT\|OVERLAP\|FIZZLED, final_pos}` |
-| `pick_up_cube` | `target` (mark) | face target, `key_use` edge | `{holding, held_mark}` |
-| `release_cube` | — | `key_use` edge | `{holding:false}` |
-| `press` / `interact` | `target` (mark) | `go_to` within reach + `key_use` | `{ok}` |
-| `wait` | `ticks` | advance N ticks, no input (let physics/lasers settle) | new state |
-| `done` | — | end episode (env checks success) | `{success}` |
+The verbs come in **two tiers, both closed/validated/engine-executed at the same mid-altitude** (the model picks intent + coarse params; the engine executes reliably, so a failure is reasoning, not motor):
+
+- **Anchored** (the target is a known entity): `aim_at`, `go_to`, `shoot_portal`, `pick_up_cube`, `press` — reference a `mark`.
+- **Exploratory** (no known target — for active perception / repositioning): `look`, `move`. These give the model free spatial agency *without* charging it the per-tick aiming/motor tax (that's what `Act()` raw keys would do, and what we avoid). They are the enablers of the egocentric observability arm (§6) — that mode is unsolvable without them — and are coarse-discretized so the model stays at the *reasoning* altitude ("look further right"), never the *aiming* altitude ("47.3°"). Precise aim is never hand-done; `aim_at(mark)` / `shoot_portal(mark)` compute it.
+
+| Verb | Tier | Args | Executes as | Returns |
+|---|---|---|---|---|
+| `aim_at` | anchored | `target` (mark / point / direction) | `SetAngles(VectorAngles(target − eye))` | new view |
+| `look` | exploratory | `yaw`, `pitch` (signed degrees, snapped to 15°) | `SetAngles(current + Δ)`, pitch-clamped | new view (+ newly-visible marks in egocentric mode) |
+| `go_to` | anchored | `target` (mark / point) | straight march on current platform + edge-safety (§5) | `{reached, stuck, final_dist}` |
+| `move` | exploratory | `dir` (forward/back/left/right, rel. to facing), `ticks` | hold the move key for `ticks`, with edge/wall guard | `{moved_dist, stop_reason: COMPLETED\|EDGE\|WALL\|STUCK}` |
+| `go_to_edge` | anchored | `direction` (compass / relative) | raycast platform probe + march (§5.2) | `{reached, edge_type: void\|lower\|wall, dist}` |
+| `shoot_portal` | anchored | `color`, `target` (mark face / point) | aim → `TraceFirePortal` validate → fire | `{placed, result: SUCCESS\|INVALID_SURFACE\|CANT_FIT\|OVERLAP\|FIZZLED, final_pos}` |
+| `pick_up_cube` | anchored | `target` (mark) | face target, `key_use` edge | `{holding, held_mark}` |
+| `release_cube` | — | — | `key_use` edge | `{holding:false}` |
+| `press` / `interact` | anchored | `target` (mark) | `go_to` within reach + `key_use` | `{ok}` |
+| `wait` | — | `ticks` | advance N ticks, no input (let physics/lasers settle) | new state |
+| `done` | — | — | end episode (env checks success) | `{success}` |
 
 Design notes:
 
@@ -91,7 +98,8 @@ Design notes:
 - **Macros are blocking.** Each verb runs a closed loop for up to `max_ticks` then returns. The LLM operates at the macro timescale (seconds of thought), never at 66 Hz. Simpler than interruptible and fine for an eval.
 - **Cube grab is already wired.** `key_use → IN_USE` exists end-to-end (`harness.proto:113`, `Portal2HarnessImpl.cpp:414`, `TasController`). `pick_up_cube`/`release_cube` are just `key_use` edges; no new RPC. **No engine "is-held" signal** — the LLM remembers what mark it grabbed (SOTA models track this trivially). The only thing a signal would add is disambiguating *identical* cubes if the agent loses track; descoped for v1.
 - **Reflective cube** = `prop_weighted_cube` with `m_nCubeType==2` (auto-discovered field), not a separate classname.
-- **Locomotion is engine-simulated, drawn at the local/global line (decided 2026-06-09).** `go_to`/`look_at` inject real `CUserCmd` and advance ticks — **no snap/teleport** (an earlier "snap-move to remove flakiness" idea was rejected: it trades fidelity and invites "you cheated the movement"). The engine owns *local* locomotion (real physics + **minor** obstacle-stepping around small props); the **model** owns *global* routing (which marks, which portals, what order). A locomotion failure is therefore an engine bug to fix, never charged to the model — that is what keeps the reasoning-vs-actuation split clean. The engine deliberately does **not** globally pathfind, and does **not** auto-route a march *through* a portal.
+- **Exploratory `look` / `move` are coarse, reliable, and percept-refreshing — not raw `Act()` (added 2026-06-10).** `look(yaw, pitch)` takes signed degree deltas snapped to 15° (24 yaw slices/360°; pitch clamped to engine limits, clamp reported) and re-aims via `SetAngles`. `move(dir, ticks)` holds a move key (forward/back/left/right, **relative to facing**; strafes keep the camera fixed) for `ticks` ticks with the same edge/wall guard as `go_to`, returning `moved_dist` + a `stop_reason` so the model **calibrates duration from feedback** (no client-side speed/distance math — `ticks` is the unit, matching `wait` and the raw `num_ticks`). The distinction from `Act()`: `Act()` is 66 Hz, per-tick, relative-mouse, no edge-safety, no percept refresh (the motor-tax altitude we avoid); these are turn-based, discretized, edge-safe, and refresh the annotated percept — so a failure is still "looked/walked the wrong way" (reasoning), never "couldn't execute it" (actuation). They keep the local/global line; they just widen the model's role from *global routing* to *global routing + coarse steering*, both reasoning-level. **Deliberately not built:** a free `look_around()` 360° panorama (it would collapse active perception back into global observability, defeating the egocentric study — the model scans with explicit `look` steps instead).
+- **Locomotion is engine-simulated, drawn at the local/global line (decided 2026-06-09).** `go_to`/`aim_at` inject real `CUserCmd` and advance ticks — **no snap/teleport** (an earlier "snap-move to remove flakiness" idea was rejected: it trades fidelity and invites "you cheated the movement"). The engine owns *local* locomotion (real physics + **minor** obstacle-stepping around small props); the **model** owns *global* routing (which marks, which portals, what order). A locomotion failure is therefore an engine bug to fix, never charged to the model — that is what keeps the reasoning-vs-actuation split clean. The engine deliberately does **not** globally pathfind, and does **not** auto-route a march *through* a portal.
   - **↳ checkpoint-deferred:** what `go_to` does when an *open portal mouth* lies in the straight path — **halt + report `blocked_by_portal`** vs **allow physical traversal**. This is a real fork (portals are physically walk-through, so a naive forward march *can* teleport the player through one), not a no-op. Flagged here; decided at the grammar checkpoint, after recon.
 - **Save/load anchors (checkpoint-deferred).** Reuse Source's engine `save`/`load` concommands — battle-tested mid-puzzle quicksave that already captures portals, held cube, and physics state — as an **undo / anchor** mechanism. We do **not** roll our own state-restore: capture is easy (the snapshotter does it) but *restore* (velocities, grab constraints, portal links) is the tar pit. Turn-based eval makes the ~100s-of-ms cost free, and it gifts tree-search-over-moves later. The grammar shape — likely **model-chosen named slots** (`anchor <name>` / `restore <name>`) so the model picks its own checkpoints — is a grammar-only decision, deferred to the checkpoint. Recon must verify `load` preserves a held cube + placed portals (see status_field_recon.md).
 
@@ -111,7 +119,7 @@ Example trace (a "portal across a gap to a button" chamber):
 // percept: frame shows ① blue-portal-surface (far wall), ② button, ③ cube; gap east
 {"action":"go_to_edge","direction":"E"}              // → {reached:true, edge_type:"void", dist:3.1}
 {"action":"shoot_portal","color":"blue","target":{"mark":1}}   // → {placed:true, result:"SUCCESS"}
-{"action":"look_at","target":{"direction":"down"}}            // floor at my feet is portalable
+{"action":"aim_at","target":{"direction":"down"}}             // floor at my feet is portalable
 {"action":"shoot_portal","color":"orange","target":{"point":"under_self"}} // → SUCCESS
 {"action":"go_to","target":{"mark":2}}               // walk into orange → exit blue across gap
 {"action":"pick_up_cube","target":{"mark":3}}        // → {holding:true, held_mark:3}
@@ -154,7 +162,7 @@ Output = a **nav compass** per bearing: `{bearing, walkable_dist, terminator, be
 Build global-list first (nearly free; data already on the wire), add an egocentric filter as an opt-in:
 
 - **Global** — every puzzle entity is marked + listed. Trivial perception, cleanest *pure-reasoning* isolation. Risk: leaks info a player wouldn't have (e.g. a button in an unseen room).
-- **Egocentric / in-frame** — frustum test (pure math from eye + angles + FOV) + one `TraceRay` LoS check per candidate; only visible entities get marks/telemetry. Matches "no global list," forces active perception (`look_at`/`go_to_edge` to discover). More research-honest, harder.
+- **Egocentric / in-frame** — frustum test (pure math from eye + angles + FOV) + one `TraceRay` LoS check per candidate; only visible entities get marks/telemetry. Matches "no global list," forces active perception (`look`/`move`/`go_to_edge` to discover). More research-honest, harder.
 
 A `sar_harness_obs_mode` cvar flips it; same annotation/telemetry path, different filter. Lets us A/B whether perception is even a factor.
 
@@ -188,7 +196,7 @@ A `sar_harness_obs_mode` cvar flips it; same annotation/telemetry path, differen
 ## 9. Phased plan (quick diagnostic first)
 
 - **Phase 0 — MVP: first visual+symbolic eval on the simplest chamber.** This already answers "is reasoning the bottleneck?"
-  - *C++:* extend the `AgentLoop` message with a `macro` oneof + `MacroResult`; macro executor for `look_at` (SetAngles), `shoot_portal` (aim → `TraceFirePortal`, both target modes), `go_to` (straight march + edge guard), `press`/`interact`, `wait`; the `OverlayRender` annotation Feature (boxes + Set-of-Marks labels from snapshot OBB); configurable `max_think_seconds` + gRPC keepalive.
+  - *C++:* extend the `AgentLoop` message with a `macro` oneof + `MacroResult`; macro executor for `aim_at` (SetAngles), `look` (relative SetAngles), `move` (timed march), `shoot_portal` (aim → `TraceFirePortal`, both target modes), `go_to` (straight march + edge guard), `press`/`interact`, `wait`; the `OverlayRender` annotation Feature (boxes + Set-of-Marks labels from snapshot OBB); configurable `max_think_seconds` + gRPC keepalive.
   - *Python:* `EntitySnapshot` parser + mark mapping; the macro **validator/lexer** (§8.1); LLM ReAct driver; percept formatter (annotated frame + player/entity telemetry); transcript logger.
 - **Phase 1 — crude nav:** raycast platform-edge probe + `go_to_edge` + nav-compass telemetry + nav arrows drawn on the frame. (For chambers where edge awareness matters.)
 - **Phase 2 — richer verbs + state:** `pick_up_cube`/`release_cube` (held-object signal, §10), laser/relay/catcher field-name verification + their `m_bPowered`/`m_bEnabled` state surfaced in telemetry and mark coloring.
@@ -291,13 +299,20 @@ Exactly §4, restricted to the no-portal/no-laser set. One JSON action per step;
 
 | Verb | Args | Result |
 |---|---|---|
-| `look_at` | `target:{mark}` | new view |
+| `aim_at` | `target:{mark}` | new view |
+| `look` | `yaw`, `pitch` (15° steps) | new view |
 | `go_to` | `target:{mark}` | `{reached, stuck, final_dist}` |
+| `move` | `dir`, `ticks` | `{moved_dist, stop_reason}` |
 | `pick_up_cube` | `target:{mark}` | `{holding, held_mark}` |
 | `release_cube` | — | `{holding:false}` |
 | `press` / `interact` | `target:{mark}` | `{ok}` |
 | `wait` | `ticks` | new state |
 | `done` | — | `{success}` |
+
+`look`/`move` are present but **not required** to solve chamber 1 under global
+observability (every mark is visible, so the anchored verbs suffice). They are
+included so the grammar is complete and so the egocentric A/B (§6) is runnable
+without a grammar change; they become load-bearing there and in portal chambers.
 
 **Out of scope (chamber 1):** `shoot_portal` (C3), `go_to_edge` + nav-compass (C5).
 Every macro is blocking, expands to many engine ticks server-side, and returns its
@@ -327,7 +342,7 @@ criterion" made concrete.
 - **C1 (proto):** a macro request + `MacroResult` (a `macro` oneof on `AgentLoop`
   or an `ExecuteMacro` RPC) carrying `{action, target{mark}, ticks}` → per-verb
   result fields above; add **`mark`** to `EntityState` (C7). `make proto` + rebuild.
-- **C2/C4/C6 (executor, C++):** `look_at`, `go_to` (straight march + edge guard),
+- **C2/C4/C6 (executor, C++):** `aim_at`, `look`, `go_to` (straight march + edge guard), `move`,
   `pick_up_cube`/`release_cube`, `press`/`interact`, `wait`, `done`. Skip C3/C5.
 - **D1–D4 (Python):** `EntitySnapshot` → percept JSON (11.2) + mark mapping; macro
   validator/lexer (§8.1); ReAct driver + transcript logger; run on the chamber.

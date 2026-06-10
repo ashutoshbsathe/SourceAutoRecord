@@ -115,6 +115,12 @@ Enables egocentric observation and *may* reduce per-tick cost. **Do not assume a
 
 ## Track C — Macro grammar (C++ executor)
 
+> **→ Detailed, code-grounded build plan: [`macro_executor_impl_plan.md`](macro_executor_impl_plan.md)** (PR0–PR7
+> to first light, with exact file:line insertion points). The C1–C9 entries below are the index; that doc is the
+> authority for *how* to build the executor, and it differs in two places worth noting: it adds a **PR0 infra
+> refactor** (extract `AdvanceTicksBlocking` + `RunOnMainThreadSync` + `MarkTable::GetEntityFromMark`) before C1,
+> and it folds **C7 (mark-in-telemetry) into the C1 proto PR**.
+
 After the grammar is locked. All macros run server-side on the main thread (where `Act()` dispatches ticks), using the trace/aim/portal primitives. Reuses the `MarkTable` from A3 to resolve `mark → entity`.
 
 ### C1 — Proto: macro message + result, routed to a stub
@@ -124,12 +130,12 @@ After the grammar is locked. All macros run server-side on the main thread (wher
 - **Verify:** a hand-crafted macro request round-trips and returns the stub result.
 - **~Size:** ~80 LOC + proto. **Deps:** checkpoint.
 
-### C2 — `look_at`
-- **Goal:** aim the camera at a target.
+### C2 — `aim_at` (+ `look`)
+- **Goal:** aim the camera at a target (`aim_at`, anchored) or by a coarse relative delta (`look`, exploratory).
 - **Files:** `Portal2HarnessImpl.cpp` (ExecuteMacro).
-- **Steps:** resolve target (mark→entity origin via `MarkTable`; or world point; or named direction). Compute `QAngle = Math::VectorAngles(target - eyePos)`; `engine->SetAngles(slot, ang)` (`Engine.cpp:139`); advance the configured ticks; return new view angles.
-- **Verify:** macro aims the crosshair at the named entity.
-- **~Size:** ~50 LOC. **Deps:** C1.
+- **Steps:** `aim_at` — resolve target (mark→entity origin via `MarkTable`; or world point; or named direction). Compute `QAngle = Math::VectorAngles(target - eyePos)`; `engine->SetAngles(slot, ang)` (`Engine.cpp:139`); advance the configured ticks; return new view angles. `look(yaw, pitch)` — same SetAngles path with `current + Δ` (15°-snapped, pitch-clamped). *(Renamed `look_at`→`aim_at`; `look` is the free look-around — grammar §4.)*
+- **Verify:** `aim_at` aims at the named entity; `look yaw=30` rotates 30°.
+- **~Size:** ~65 LOC. **Deps:** C1.
 
 ### C3 — `shoot_portal` (both target modes)
 - **Goal:** place a portal at a mark-face or a free point, with validation.
@@ -138,10 +144,10 @@ After the grammar is locked. All macros run server-side on the main thread (wher
 - **Verify:** `shoot_portal blue mark=N` lands a blue portal on N's face; targeting black surface returns `INVALID_SURFACE` without firing.
 - **~Size:** ~80 LOC. **Deps:** C2.
 
-### C4 — `go_to` (straight march + edge guard)
-- **Goal:** walk to a target on the current platform without walking off it.
+### C4 — `go_to` (+ `move`) — shared march
+- **Goal:** walk to a target without walking off the platform (`go_to`, anchored); free directional move for a chosen number of ticks (`move`, exploratory). Same march loop + edge/wall guard; see `macro_executor_impl_plan.md` PR3.
 - **Files:** `Portal2HarnessImpl.cpp`.
-- **Steps:** loop: face target (yaw only), set forward move, advance a few ticks, re-check distance; stop on within-threshold, `CheckStuck`, or edge-guard (a short down-trace ahead returns no floor). Return `{reached, stuck, final_dist}`.
+- **Steps:** loop: face target (yaw only), set forward move, advance a few ticks, re-check distance; stop on within-threshold, `CheckStuck`, or edge-guard (a short down-trace ahead returns no floor). Return `{reached, stuck, final_dist}`. `move(dir, ticks)` reuses the loop: hold the `dir` move-key (relative to facing) for `ticks`, same guard, return `{moved_dist, stop_reason}`.
 - **Local-only (2026-06-09):** real `CUserCmd` simulation, plus **light obstacle-stepping** (yaw-nudge ±N° when a short wall-trace ahead is blocked) — but **no global routing**: a major blocker just returns `blocked`, which is reasoning signal. If an **open portal mouth** is in the straight path, **halt + report `blocked_by_portal`** rather than walking through (portals are physically walk-through; halt-vs-traverse is checkpoint-deferred — see grammar doc §4). This is the *local* half of the local/global split; the model owns global routing.
 - **Verify:** `go_to mark=button` walks to the button on a flat chamber and stops; won't walk into a pit.
 - **~Size:** ~100 LOC. **Deps:** C2.
