@@ -3,8 +3,9 @@
 Expensive -- it boots a real Portal 2 instance -- so run it by hand after any
 change to the harness to confirm the gRPC surface still works end to end. Each
 endpoint is a self-contained check that passes or fails on its own (handshake,
-Reset, Observe, Act, AgentLoop, macro dispatch, pixels-over-shared-memory,
-ExecuteCommand); the process exits non-zero if any fail. Observations and a few captured framebuffers
+Reset, Observe, Act, AgentLoop, macro verbs (aim_at/move/go_to),
+pixels-over-shared-memory, ExecuteCommand); the process exits non-zero if any
+fail. Observations and a few captured framebuffers
 are written under --out so you can eyeball them.
 
 Usage:
@@ -233,6 +234,100 @@ def check_macro(ctx):
     )
 
 
+def check_move(ctx):
+    """move drives the player: forward for N ticks either advances (moved_dist)
+    or legitimately stops at a wall/edge (the guard fired) -- both are correct,
+    so this is map-independent."""
+    ctx.harness.start_agent_loop()
+    try:
+        env = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(verb='move', dir='forward', ticks=20)
+            ),
+            timeout=30.0,
+        )
+    finally:
+        ctx.harness.stop_agent_loop()
+    require(env.success, f'move step RPC failed: {env.error_message}')
+    require(env.HasField('macro_result'), 'no macro_result on move')
+    mr = env.macro_result
+    require(
+        mr.result_code in ('COMPLETED', 'WALL', 'EDGE', 'STUCK'),
+        f'unexpected move result_code {mr.result_code!r}',
+    )
+    # Pass if it advanced, or the verb correctly aborted (guard/stuck). A
+    # COMPLETED with ~no movement is the broken case and must fail. (Whether a
+    # WALL/EDGE/STUCK *should* have fired here is locomotion quality -- covered
+    # by check_go_to's progress assertion, not this wiring check.)
+    require(
+        mr.moved_dist > 1.0 or mr.result_code in ('WALL', 'EDGE', 'STUCK'),
+        f'move forward ran but neither advanced nor aborted '
+        f'(moved {mr.moved_dist:.1f}, {mr.result_code})',
+    )
+    return f'move forward 20t -> moved {mr.moved_dist:.0f}u ({mr.result_code})'
+
+
+def check_go_to(ctx):
+    """go_to walks toward the farthest mark and must make real progress (or
+    reach it). An immediate BLOCKED/STUCK with no headway is treated as a
+    FAILURE -- it usually means the guard false-fired on open ground or the
+    march is broken (the regression this check exists to catch). Needs a chamber
+    where the farthest mark is roughly walk-reachable; the first-light
+    cube->button->door chamber qualifies."""
+    ctx.harness.start_agent_loop()
+    try:
+        env = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(verb='wait', ticks=1)
+            ),
+            timeout=30.0,
+        )
+        px, py = env.state.position.x, env.state.position.y
+        best, best_d = None, -1.0
+        for e in env.state.entity_snapshot.entities:
+            if e.mark <= 0:
+                continue
+            d = math.hypot(e.position.x - px, e.position.y - py)
+            if d > best_d:
+                best, best_d = e, d
+        require(best is not None, 'no marked entity to go_to')
+        require(best_d > 64, f'farthest mark too close to test go_to ({best_d:.0f}u)')
+
+        env = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(verb='go_to', mark=best.mark)
+            ),
+            timeout=90.0,  # go_to may run up to kGoToMaxTicks (400) ticks
+        )
+    finally:
+        ctx.harness.stop_agent_loop()
+    require(env.success, f'go_to step RPC failed: {env.error_message}')
+    mr = env.macro_result
+    require(
+        mr.result_code in ('SUCCESS', 'STUCK', 'BLOCKED', 'UNREACHABLE'),
+        f'unexpected go_to result_code {mr.result_code!r}',
+    )
+    ctx.observations.append(gamestate_dict(env.state, f'macro.go_to[{best.mark}]'))
+    # Measure progress client-side as the player's actual closing distance to the
+    # target, both to the entity ORIGIN -- so best_d and final_d are commensurable
+    # (no server-OBB-centre vs client-origin mismatch). Require real headway, not
+    # just a stop-reason: an immediate BLOCKED/STUCK with ~0 progress is the
+    # false-firing-guard / broken-march bug. A partial march that then blocks
+    # (progress>16) is fine, so this stays robust on non-flat chambers.
+    fpx, fpy = env.state.position.x, env.state.position.y
+    final_d = math.hypot(best.position.x - fpx, best.position.y - fpy)
+    require(
+        mr.reached or best_d - final_d > 16.0,
+        f'go_to made no progress toward mark={best.mark}: '
+        f'{best_d:.0f}->{final_d:.0f}u away (code={mr.result_code}) -- '
+        f'guard false-fire, broken march, or target not walk-reachable here?',
+    )
+    return (
+        f'go_to mark={best.mark}: {best_d:.0f}->{final_d:.0f}u away, '
+        f'reached={mr.reached} ({mr.result_code})'
+    )
+
+
 def check_pixels(ctx):
     """copy_pixels_to_shm fills shared memory with a non-blank frame that changes."""
     require(ctx.harness.shm is not None, 'no shared memory mapped (no video mode?)')
@@ -274,6 +369,8 @@ CHECKS = [
     ('act', check_act),
     ('agentloop', check_agentloop),
     ('macro', check_macro),
+    ('move', check_move),
+    ('go_to', check_go_to),
     ('pixels', check_pixels),
     ('execute_command', check_execute_command),
 ]

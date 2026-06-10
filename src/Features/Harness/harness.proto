@@ -83,8 +83,9 @@ message MacroRequest {
 
 message MacroResult {
   bool ok = 1;
-  string result_code = 2;  // SUCCESS|DONE|NOT_READY|BAD_MARK|NO_PLAYER|CANCELLED|NOT_IMPLEMENTED|
-                           // (later) STUCK|BLOCKED|UNREACHABLE|EDGE|WALL|...
+  string result_code =
+      2;  // SUCCESS|DONE|NOT_READY|BAD_MARK|NO_PLAYER|CANCELLED|NOT_IMPLEMENTED|
+          // (later) STUCK|BLOCKED|UNREACHABLE|EDGE|WALL|...
   string detail = 3;
   bool reached = 4;      // go_to
   float final_dist = 5;  // go_to
