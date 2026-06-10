@@ -201,3 +201,148 @@ A `sar_harness_obs_mode` cvar flips it; same annotation/telemetry path, differen
 - **Overlay-in-SHM** — high-confidence from the hook location (overlays draw inside the captured view) but **verify against an actual captured frame** early.
 - **Long-pause networking** — add gRPC keepalive before relying on multi-minute think times.
 - **The accessibility mod** — confirmed Discord-distributed, no public source. Nothing to mine; `OverlayRender` already covers the visual-annotation capability (the laser-latch / funnel-assist parts were gameplay nudges, out of scope).
+
+---
+
+## 11. First-light contract (chamber 1)
+
+The **frozen interface** for the first end-to-end run: a hand-authored
+**cube → button → door** chamber, **no portals, no lasers**. This section is the
+concrete chamber-1 instantiation of §3 (percept) and §4 (act) — it exists so the
+three pieces built in parallel (the chamber, the C++ macro executor, the Python
+driver) aim at one fixed boundary instead of co-evolving. Per ROADMAP, element
+breadth is decoration here: cube+button+door alone is PSPACE-complete (Demaine
+2018), so the difficulty ladder rides this minimal set.
+
+**Status side is already done for first light:** cube fields via Phase 1a
+(`m_nCubeType`, `m_bActivated`); buttons are networked (`prop_floor_button.m_bButtonState`,
+pedestal `prop_button.m_nSequence`); the door open-state has no reliable server
+field and stays **percept-absent** (read it from the frame — success is exit-based,
+not door-field-based; see `status_field_recon.md` C5).
+
+### 11.1 Canonical solve (the thing that must work)
+
+A weighted floor button held down by the cube, opening the exit door:
+
+```jsonc
+{"action":"go_to","target":{"mark":1}}        // to the cube      → {reached:true, stuck:false, final_dist:2.1}
+{"action":"pick_up_cube","target":{"mark":1}} // grab it          → {holding:true, held_mark:1}
+{"action":"go_to","target":{"mark":2}}        // to the button    → {reached:true, ...}
+{"action":"release_cube"}                       // drop on button   → {holding:false}
+{"action":"wait","ticks":66}                    // settle + door opens (button.pressed→true, cube.on_button→true)
+{"action":"go_to","target":{"mark":3}}        // through the open door toward the exit
+{"action":"done"}                               // → {success: player within success_radius of exit}
+```
+
+~7 macros optimal. (`press`/`interact` is the player-pressed alternative if the
+chamber uses a *pedestal* button instead of a weighted floor button — see 11.6.)
+
+### 11.2 Percept schema (frozen — the genuinely-new part)
+
+Three channels per §3, all from one frozen `GameState`. The **annotated frame** is
+the SHM image at handshake `shm_width × shm_height` (boxes + Set-of-Marks labels per
+`HarnessAnnotate.cpp`). The **structured percept** the driver (D1) emits to the model:
+
+```jsonc
+{
+  "tick": 4193,
+  "player": {
+    "pos": [128.0, -64.0, 64.0],        // world coords (only frame exposed)
+    "eye_angles": [0.0, 90.0, 0.0],     // pitch, yaw, roll (GameState.camera)
+    "velocity": [0.0, 0.0, 0.0],
+    "health": 100,
+    "crouching": false,
+    "holding": null                      // mark of carried cube — tracked from pick_up_cube's
+                                         // held_mark result, NOT an engine field (§4, §10)
+  },
+  "marks": [
+    {"mark": 1, "class": "prop_weighted_cube", "name": "box",
+     "pos": [256.0,-64.0,64.0], "dist": 128.0, "bearing": 0.0,
+     "state": {"cube_type": "standard", "on_button": false}},   // m_nCubeType, m_bActivated
+    {"mark": 2, "class": "prop_floor_button", "name": "button_1",
+     "pos": [256.0,192.0,64.0], "dist": 262.0, "bearing": 76.0,
+     "state": {"pressed": false}},                               // m_bButtonState
+    {"mark": 3, "class": "prop_testchamber_door", "name": "exit_door",
+     "pos": [256.0,384.0,64.0], "dist": 451.0, "bearing": 84.0,
+     "state": {"open": null}}                                    // no field — read from frame
+  ],
+  "exit": {"pos": [256.0, 448.0, 64.0]}  // success target (see 11.4)
+}
+```
+
+Rules that pin it:
+- **`mark`** is the linchpin (§3). It must agree byte-for-byte between the drawn
+  label and this list. Carry the mark in the entity telemetry (C7 mark-in-telemetry)
+  rather than re-deriving it in Python, so frame ↔ list can't diverge. `mark` is a
+  pure fn of `(entity_index, serial)` via `MarkTable` — save/load-invariant.
+- **`state`** is a *class-projected, semantic* view of raw fields, not the raw dump:
+  `cube_type` ∈ {standard, reflective} (`m_nCubeType` 0/2); `on_button` (`m_bActivated`);
+  floor-button `pressed` (`m_bButtonState`); pedestal-button `pressed` (`m_nSequence==3`);
+  door `open` = `null` (percept-absent; visual only).
+- **`pos` is world coords** (the only frame exposed). `dist`/`bearing` are Python-side
+  player-relative conveniences derived from world coords — not new engine data.
+- **Observability = global** for chamber 1 (every category-A entity marked/listed;
+  §6). Egocentric/LOS filtering is deferred.
+
+### 11.3 Action schema (chamber-1 verb subset)
+
+Exactly §4, restricted to the no-portal/no-laser set. One JSON action per step;
+`target` is `{"mark": N}` (mark-only for chamber 1).
+
+| Verb | Args | Result |
+|---|---|---|
+| `look_at` | `target:{mark}` | new view |
+| `go_to` | `target:{mark}` | `{reached, stuck, final_dist}` |
+| `pick_up_cube` | `target:{mark}` | `{holding, held_mark}` |
+| `release_cube` | — | `{holding:false}` |
+| `press` / `interact` | `target:{mark}` | `{ok}` |
+| `wait` | `ticks` | new state |
+| `done` | — | `{success}` |
+
+**Out of scope (chamber 1):** `shoot_portal` (C3), `go_to_edge` + nav-compass (C5).
+Every macro is blocking, expands to many engine ticks server-side, and returns its
+`MacroResult` **plus** a refreshed percept (frame re-annotated once, after settle —
+pixels copied to SHM on that final observation, not per tick).
+
+### 11.4 Success & termination (the one real gap)
+
+**The harness exposes no chamber-complete / exit-trigger signal today** —
+`EnvironmentMessage.success` is RPC-call status only. So success is defined by
+**proximity to a known exit**, reusing the env's existing rule:
+
+- **success** ⇔ player center within `success_radius` of `exit.pos`
+  (default **100 u**, matching `rl_challenge_env._check_terminated`).
+- Episode **ends** on: success after any macro (auto), **or** `done()` (success iff
+  proximity holds at that moment), **or** **macro-step budget** exhausted → failure.
+- **Budget is in *macros*, not ticks** (default **~25** for chamber 1; the env's
+  `max_steps=256` is a *tick* budget — different unit, don't conflate).
+
+→ Because there's no native signal, **the chamber must expose its exit as a known
+location** (an `info_target`/`target_name` the harness reads, or a hardcoded
+per-chamber coord). This is the §8.4 "per-chamber target position + success
+criterion" made concrete.
+
+### 11.5 What this contract freezes to build
+
+- **C1 (proto):** a macro request + `MacroResult` (a `macro` oneof on `AgentLoop`
+  or an `ExecuteMacro` RPC) carrying `{action, target{mark}, ticks}` → per-verb
+  result fields above; add **`mark`** to `EntityState` (C7). `make proto` + rebuild.
+- **C2/C4/C6 (executor, C++):** `look_at`, `go_to` (straight march + edge guard),
+  `pick_up_cube`/`release_cube`, `press`/`interact`, `wait`, `done`. Skip C3/C5.
+- **D1–D4 (Python):** `EntitySnapshot` → percept JSON (11.2) + mark mapping; macro
+  validator/lexer (§8.1); ReAct driver + transcript logger; run on the chamber.
+- **Status:** nothing more needed (1a ✅ + networked buttons; door percept-absent).
+
+### 11.6 Open decisions for the chamber author (pin these when designing it)
+
+1. **Button mechanism** — weighted **floor** button (cube-on-button; uses
+   `pick_up_cube`/`release_cube`; matches "cube→button→door") **[recommended]**, vs a
+   **pedestal** `prop_button` the player triggers with `press`. Determines the macro path.
+2. **Exit** — place a known exit target (`target_name` or give the world coord) and a
+   `success_radius`; there is no native completion signal to fall back on.
+3. **Door state is visual-only** — confirm that's acceptable for first light (it is,
+   since success is exit-proximity).
+4. **One cube** — held-state is tracked from `held_mark`; trivial for a single cube,
+   ambiguous only with multiple identical cubes (descoped, §10).
+5. **Macro-step budget** — confirm the default (~25) or set per chamber.
+6. **Observability = global** — confirm (egocentric is a later A/B, §6).

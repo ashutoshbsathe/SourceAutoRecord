@@ -24,7 +24,7 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 - ✅ **Recon mechanism:** every category-A status encoding understood. Schema locked in `status_field_recon.md`.
 - ✅ **Scope:** decided — full stock-PeTI surface set is the v0 target, **phased after first light**.
 - ✅ **Phase 1a — status into the snapshotter:** curated `[dm]` fields (cube type/activated, laser-target powered, faith-plate disabled) now flow over gRPC. Verified in-engine.
-- 🔜 **Next:** Phase 1 cont. — `1c` faith-plate name filter, then `1b` catcher/relay → `point_laser_target` association.
+- 🔜 **Next (critical path to first light):** macro executor (`C`) + ReAct driver (`D`) + the cube→button→door chamber. Status side is **done** for first light; `1b`/`1c` deferred (see decisions log). First step: lock the first-light **contract** — percept schema ↔ macro set ↔ success criterion.
 - ⏳ **Needed from user:** the first-light chamber (simple cube→button→door, no portals).
 
 ---
@@ -43,10 +43,10 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 ## Phase plan — critical path
 
 **To first light (M2):**
-1. **Phase 1 — status into the snapshotter** *(the observation rework)*
+1. **Phase 1 — status into the snapshotter** *(the observation rework)* — **effectively done for first light**: `1a` ✅ + buttons are networked (SendTable already captures them); door deferred but non-blocking (visual + trigger-based success).
    - ✅ `1a` register curated per-class status (the `[dm]` fields the SendTable walk drops) — *done, verified in-engine*
-   - `1b` catcher/relay → child `point_laser_target` association
-   - `1c` faith-plate name filter (avoid safety-net flood)
+   - `1b` catcher/relay → child `point_laser_target` association — **deferred → M3** (laser-only; not on the first-light path)
+   - `1c` faith-plate name filter (avoid safety-net flood) — **deferred → ~M4** (stock-chamber hygiene; a hand-designed chamber has no safety-net flood to filter)
 2. **First-light macro executor** — `C1` proto, `C2` look_at, `C4` go_to, `C6` pick_up/release/wait, `C7` mark-in-telemetry, `C8` keepalive. **Skip `C3` shoot_portal + `C5` nav-probe** (chamber 1 has no portals).
 3. **Python ReAct driver** — `D1` entity parser, `D2` macro validator, `D3` driver + transcript logger, `D4` run on the chamber.
 
@@ -69,6 +69,7 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 | 2026-06-09 | Portal-traversal during `go_to` — *checkpoint-deferred* | `llm_percept_act_grammar.md` §4 |
 | 2026-06-09 | **Canonical mark numbering** (pure fn of world state, save/load-invariant) | `llm_percept_act_phased_plan.md` A3 |
 | 2026-06-09 | **Category-A status schema locked** (bool vs `m_nSequence` vs child-target); door deferred | `status_field_recon.md` |
+| 2026-06-09 | **First-light-first; element breadth is decoration for the core science** | Demaine: cube+button+door alone is PSPACE-complete → the reasoning-difficulty ladder needs no new elements. So `1b` (lasers) → M3, `1c` (safety-net filter) deferred (~M4 stock-chamber hygiene; a hand-designed chamber sidesteps the flood). First light is the de-risking gateway; in every VP/headcount scenario the *result* is the currency and breadth is downstream. Next = macro executor (C) + ReAct driver (D) + chamber. |
 | — | **Eval only, no training**; **visual+symbolic always**; **macros C++-side** | `llm_percept_act_grammar.md` §8 |
 
 ---
