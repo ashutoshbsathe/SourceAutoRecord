@@ -7,6 +7,15 @@ import numpy as np
 from . import harness_pb2
 from . import harness_pb2_grpc
 
+# Verbs whose server-side march can run hundreds of ticks need a client timeout
+# well above the AgentLoop default; every other verb resolves quickly.
+_SLOW_VERBS = frozenset({'go_to', 'interact', 'move'})
+
+
+def macro_timeout(verb: str) -> float:
+    """A client timeout comfortably above a verb's server-side tick budget."""
+    return 120.0 if verb in _SLOW_VERBS else 30.0
+
 
 class P2Harness:
     """
@@ -171,6 +180,28 @@ class P2Harness:
             return resp
         except queue.Empty:
             raise TimeoutError('Timed out waiting for response from AgentLoop stream.')
+
+    def step_macro(
+        self,
+        macro_req: harness_pb2.MacroRequest,
+        copy_pixels: bool = False,
+        timeout: float | None = None,
+    ) -> tuple[harness_pb2.MacroResult, harness_pb2.GameState]:
+        """Send one closed-verb macro; return its (MacroResult, refreshed GameState).
+
+        Wraps the AgentLoop stream (start_agent_loop() must be running). The macro
+        blocks server-side for as many engine ticks as the verb needs, so the
+        timeout defaults to a generous per-verb budget (marches need the most);
+        pass an explicit timeout to override. copy_pixels refreshes the SHM
+        framebuffer on the macro's final observation, for the visual percept.
+        """
+        if timeout is None:
+            timeout = macro_timeout(macro_req.verb)
+        env = self.step_agent_loop(
+            harness_pb2.AgentMessage(macro=macro_req, copy_pixels_to_shm=copy_pixels),
+            timeout=timeout,
+        )
+        return env.macro_result, env.state
 
     def get_shm_pixels(self) -> np.ndarray:
         """Read the RGB pixels from shared memory."""

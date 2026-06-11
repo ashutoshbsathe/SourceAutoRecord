@@ -3,8 +3,8 @@
 Expensive -- it boots a real Portal 2 instance -- so run it by hand after any
 change to the harness to confirm the gRPC surface still works end to end. Each
 endpoint is a self-contained check that passes or fails on its own (handshake,
-Reset, Observe, Act, AgentLoop, macro verbs (aim_at/move/go_to), the
-cube->button->door solve (pick_up/release), pixels-over-shared-memory,
+Reset, Observe, Act, AgentLoop, macro verbs (aim_at/move/go_to), the Python
+client (percept parse + local validation + step_macro), pixels-over-shared-memory,
 ExecuteCommand); the process exits non-zero if any fail. Observations and a few
 captured framebuffers are written under --out so you can eyeball them.
 
@@ -36,12 +36,9 @@ from game_launcher import (
     get_instance_specific_args,
 )
 from p2harness import harness_pb2
+from p2harness import macro_grammar
+from p2harness.entities import WorldView
 from p2harness.harness import P2Harness
-
-# Grab retry: a dropper cube keeps falling for a while after the map reload, so
-# wait SOLVE_SETTLE_TICKS for it to settle and re-try the grab up to N times.
-SOLVE_SETTLE_TICKS = 50
-SOLVE_GRAB_RETRIES = 3
 
 
 class CheckError(Exception):
@@ -61,7 +58,6 @@ class Context:
         self.harness = harness
         self.args = args
         self.out_dir = out_dir
-        self.current_map = ''  # set from the handshake; used by full-reload resets
         self.observations = []  # records dumped to observations.json
 
 
@@ -92,37 +88,10 @@ def action(num_ticks, mouse_dx=3.0):
     )
 
 
-def field_value(f):
-    """Read the populated arm of an EntityField's value oneof."""
-    which = f.WhichOneof('value')
-    return getattr(f, which) if which else None
-
-
-def fmt_pos(p):
-    """Compact (x,y,z) string for a Vector3-like position."""
-    return f'({p.x:.0f},{p.y:.0f},{p.z:.0f})'
-
-
-def macro_arg(m):
-    """Short label for a MacroRequest's salient argument, for step logging."""
-    if m.mark:
-        return f'mark={m.mark}'
-    if m.dir:
-        return f'{m.dir} {m.ticks}t'
-    if m.ticks:
-        return f'{m.ticks}t'
-    return ''
-
-
-def reset_to_spawn(ctx, full_reload=False):
+def reset_to_spawn(ctx):
     """Reload the map so a movement-dependent check starts from a known spawn --
-    prior checks leave the player displaced, which derails go_to/pick_up.
-
-    full_reload forces a `map` reload (re-fires OnMapSpawn, so an auto-dropper
-    re-drops its cube) instead of the faster soft restart_level, which does not.
-    """
-    map_name = ctx.args.map or (ctx.current_map if full_reload else '')
-    resp = ctx.harness.reset(map_name=map_name)
+    prior checks leave the player displaced, which derails go_to/move."""
+    resp = ctx.harness.reset(map_name=ctx.args.map)
     require(resp.success, f'reset failed: {resp.error_message}')
 
 
@@ -369,105 +338,46 @@ def check_go_to(ctx):
     )
 
 
-def check_solve(ctx):
-    """The cube->button->door solve as a hardcoded macro list: grab the cube,
-    carry it to the button, drop it, and confirm the button powers (the cube's
-    m_bActivated flips true). Exercises pick_up + release end to end. Resets first
-    (prior checks displace the player) and prints every step for debugging. Skips
-    cleanly on a map without a cube+button."""
-    reset_to_spawn(ctx, full_reload=True)  # full reload so an auto-dropper re-drops
+def check_client(ctx):
+    """The Python macro client end to end: merge the streamed percept into
+    marked-entity dicts (WorldView), validate an action locally against that
+    percept (macro_grammar), then send the validated macro via step_macro and get
+    its structured result back. Resets first for a clean spawn."""
+    reset_to_spawn(ctx)
     ctx.harness.start_agent_loop()
     try:
-        env = ctx.harness.step_agent_loop(
-            harness_pb2.AgentMessage(
-                macro=harness_pb2.MacroRequest(verb='wait', ticks=1)
-            ),
-            timeout=30.0,
+        world = WorldView()
+        # The first stream step is a full snapshot; later ones are deltas that
+        # WorldView merges. A no-op wait fetches it.
+        _, state = ctx.harness.step_macro(
+            harness_pb2.MacroRequest(verb='wait', ticks=1)
         )
-        # Dump all marks for debugging.
-        marks = [e for e in env.state.entity_snapshot.entities if e.mark > 0]
-        print(f'    spawn={fmt_pos(env.state.position)}; marked entities:')
-        for e in sorted(marks, key=lambda e: e.mark):
-            name = f' "{e.target_name}"' if e.target_name else ''
-            print(f'      [{e.mark}] {e.class_name:<22} {fmt_pos(e.position)}{name}')
-        button_e = next((e for e in marks if 'button' in e.class_name.lower()), None)
+        marks = world.observe(state)
+        require(marks, 'percept parsed no marked entities')
+        keys = {'mark', 'class', 'name', 'pos', 'dist', 'bearing', 'state'}
+        bad = next((m for m in marks if not keys <= set(m)), None)
+        require(bad is None, f'percept dict missing fields: {bad}')
 
-        # Track every cube across the (delta) stream: a dropper cube appears/falls
-        # mid-episode with its own stable mark, so we re-pick the LOWEST (grounded)
-        # cube each grab attempt instead of locking onto the held one up high.
-        cubes = {}  # mark -> latest position
+        # Local validation: a present mark passes; an absent one is rejected as a
+        # structured string with no gRPC round-trip.
+        target = marks[0]['mark']
+        good = macro_grammar.validate({'verb': 'aim_at', 'mark': target}, marks)
+        require(
+            isinstance(good, harness_pb2.MacroRequest), f'good aim_at rejected: {good}'
+        )
+        reject = macro_grammar.validate({'verb': 'aim_at', 'mark': 999999}, marks)
+        require(isinstance(reject, str), 'validate accepted an absent mark')
 
-        def note_cubes(state):
-            for e in state.entity_snapshot.entities:
-                if e.mark > 0 and e.class_name.lower() == 'prop_weighted_cube':
-                    cubes[e.mark] = e.position
-
-        note_cubes(env.state)
-        if button_e is None or not cubes:
-            return 'skipped: no cube+button on this map'
-        button = button_e.mark
-
-        results = []
-        last_env = env
-
-        def do(m, tgt=0):
-            """Run one macro: step, track cubes, log the step, record result."""
-            nonlocal last_env
-            last_env = ctx.harness.step_agent_loop(
-                harness_pb2.AgentMessage(macro=m),
-                timeout=90.0 if m.verb == 'go_to' else 30.0,
-            )
-            require(last_env.HasField('macro_result'), f'no macro_result on {m.verb}')
-            note_cubes(last_env.state)
-            mr = last_env.macro_result
-            results.append((m.verb, mr.result_code, mr.detail))
-            cube_s = f'cube[{tgt}]={fmt_pos(cubes[tgt])}' if tgt in cubes else 'cube=-'
-            print(
-                f'    {m.verb:<9} {macro_arg(m):<11} {mr.result_code:<11} '
-                f'player={fmt_pos(last_env.state.position)} {cube_s}  {mr.detail}'
-            )
-            return mr
-
-        # Grab with retry: settle, re-pick the lowest cube (the dropper's may only
-        # appear/land after we enter), (re)approach, grab.
-        cube = min(cubes, key=lambda mk: cubes[mk].z)
-        for _ in range(SOLVE_GRAB_RETRIES):
-            do(harness_pb2.MacroRequest(verb='wait', ticks=SOLVE_SETTLE_TICKS), cube)
-            cube = min(cubes, key=lambda mk: cubes[mk].z)  # re-pick after settling
-            do(harness_pb2.MacroRequest(verb='go_to', mark=cube), cube)
-            grab = do(harness_pb2.MacroRequest(verb='pick_up', mark=cube), cube)
-            if grab.result_code == 'SUCCESS':
-                break
-
-        # Carry it to the button, step on, drop at feet, let the door open.
-        do(harness_pb2.MacroRequest(verb='go_to', mark=button), cube)
-        do(harness_pb2.MacroRequest(verb='move', dir='forward', ticks=12), cube)
-        do(harness_pb2.MacroRequest(verb='release'), cube)
-        do(harness_pb2.MacroRequest(verb='wait', ticks=66), cube)
-
-        ctx.observations.append(gamestate_dict(last_env.state, 'macro.solve'))
-        activated = None
-        for e in last_env.state.entity_snapshot.entities:
-            if e.mark == cube:
-                activated = {f.name: field_value(f) for f in e.fields}.get(
-                    'm_bActivated'
-                )
-        print(f'    cube[{cube}].m_bActivated={activated}')
+        # Send the validated macro; the structured result must come back.
+        mr, _ = ctx.harness.step_macro(good)
+        require(mr.result_code, 'step_macro returned an empty macro_result')
     finally:
         ctx.harness.stop_agent_loop()
-
-    grabs = [r for r in results if r[0] == 'pick_up']
-    grabbed = any(c == 'SUCCESS' for _, c, _ in grabs)
-    require(
-        grabbed,
-        f'pick_up failed after {len(grabs)} tries: {grabs[-1][1]} ({grabs[-1][2]})',
+    classes = sorted({m['class'] for m in marks})
+    return (
+        f'{len(marks)} marks parsed; validate accept+reject + step_macro '
+        f'({mr.result_code}) ok; classes={classes}'
     )
-    trail = ', '.join(f'{v}:{c}' for v, c, _ in results)
-    require(
-        activated,
-        f'cube not on button after solve (m_bActivated={activated}) -- {trail}',
-    )
-    return f'solved in {len(grabs)} grab attempt(s); cube on button'
 
 
 def check_pixels(ctx):
@@ -513,7 +423,7 @@ CHECKS = [
     ('macro', check_macro),
     ('move', check_move),
     ('go_to', check_go_to),
-    ('solve', check_solve),
+    ('client', check_client),
     ('pixels', check_pixels),
     ('execute_command', check_execute_command),
 ]
@@ -597,7 +507,6 @@ def main():
         print(f'  handshake ok: {hs.shm_width}x{hs.shm_height} shm, map={hs.map_name}')
 
         ctx = Context(harness, args, args.out)
-        ctx.current_map = hs.map_name  # for full-reload resets (re-fire OnMapSpawn)
         failures = run_checks(ctx)
 
         with open(os.path.join(args.out, 'observations.json'), 'w') as f:

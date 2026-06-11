@@ -1,7 +1,7 @@
 [
   {
     "label": "reset.initial_state",
-    "server_tick": 350,
+    "server_tick": 360,
     "position": [
       192.0,
       -96.0,
@@ -24,7 +24,7 @@
   },
   {
     "label": "observe",
-    "server_tick": 350,
+    "server_tick": 360,
     "position": [
       192.0,
       -96.0,
@@ -47,7 +47,7 @@
   },
   {
     "label": "agentloop[0]",
-    "server_tick": 358,
+    "server_tick": 368,
     "position": [
       193.25975036621094,
       -87.60086059570312,
@@ -70,7 +70,7 @@
   },
   {
     "label": "agentloop[1]",
-    "server_tick": 363,
+    "server_tick": 373,
     "position": [
       198.26707458496094,
       -70.70182037353516,
@@ -88,12 +88,12 @@
     ],
     "health": 100,
     "is_crouching": false,
-    "entities": 4,
+    "entities": 2,
     "is_full_snapshot": false
   },
   {
     "label": "agentloop[2]",
-    "server_tick": 367,
+    "server_tick": 377,
     "position": [
       203.22706604003906,
       -59.3262939453125,
@@ -116,7 +116,7 @@
   },
   {
     "label": "agentloop[3]",
-    "server_tick": 371,
+    "server_tick": 381,
     "position": [
       209.86460876464844,
       -48.39617156982422,
@@ -134,12 +134,12 @@
     ],
     "health": 100,
     "is_crouching": false,
-    "entities": 2,
+    "entities": 3,
     "is_full_snapshot": false
   },
   {
     "label": "agentloop[4]",
-    "server_tick": 375,
+    "server_tick": 385,
     "position": [
       217.59559631347656,
       -38.378089904785156,
@@ -157,12 +157,12 @@
     ],
     "health": 100,
     "is_crouching": false,
-    "entities": 2,
+    "entities": 3,
     "is_full_snapshot": false
   },
   {
     "label": "agentloop[5]",
-    "server_tick": 379,
+    "server_tick": 389,
     "position": [
       220.36077880859375,
       -28.81140899658203,
@@ -185,7 +185,7 @@
   },
   {
     "label": "agentloop[6]",
-    "server_tick": 383,
+    "server_tick": 393,
     "position": [
       220.39703369140625,
       -19.282848358154297,
@@ -203,12 +203,12 @@
     ],
     "health": 100,
     "is_crouching": false,
-    "entities": 3,
+    "entities": 4,
     "is_full_snapshot": false
   },
   {
     "label": "agentloop[7]",
-    "server_tick": 387,
+    "server_tick": 397,
     "position": [
       220.16700744628906,
       -10.360563278198242,
@@ -226,12 +226,12 @@
     ],
     "health": 100,
     "is_crouching": false,
-    "entities": 4,
+    "entities": 3,
     "is_full_snapshot": false
   },
   {
     "label": "agentloop[8]",
-    "server_tick": 391,
+    "server_tick": 401,
     "position": [
       220.09988403320312,
       -2.6616435050964355,
@@ -254,7 +254,7 @@
   },
   {
     "label": "agentloop[9]",
-    "server_tick": 395,
+    "server_tick": 405,
     "position": [
       220.02920532226562,
       3.0920021533966064,
@@ -272,25 +272,25 @@
     ],
     "health": 100,
     "is_crouching": false,
-    "entities": 3,
+    "entities": 2,
     "is_full_snapshot": false
   },
   {
-    "label": "macro.aim_at[11]",
-    "server_tick": 409,
+    "label": "macro.aim_at[12]",
+    "server_tick": 419,
     "position": [
-      216.89715576171875,
-      1.0304667949676514,
-      0.03125
+      217.0146942138672,
+      0.053246498107910156,
+      0.06260818243026733
     ],
     "velocity": [
-      -36.542903900146484,
-      -50.68754577636719,
-      0.0
+      -34.76166915893555,
+      -65.5364761352539,
+      -43.237831115722656
     ],
     "camera": [
-      -26.979639053344727,
-      102.23395538330078,
+      -26.94586944580078,
+      102.22904205322266,
       0.0
     ],
     "health": 100,
@@ -299,11 +299,11 @@
     "is_full_snapshot": false
   },
   {
-    "label": "macro.go_to[7]",
-    "server_tick": 516,
+    "label": "macro.go_to[4]",
+    "server_tick": 410,
     "position": [
-      16.03125,
-      16.03125,
+      144.03125,
+      -47.45243835449219,
       0.03125
     ],
     "velocity": [
@@ -313,12 +313,12 @@
     ],
     "camera": [
       0.0,
-      -142.96632385253906,
+      125.14656829833984,
       0.0
     ],
     "health": 100,
     "is_crouching": false,
-    "entities": 19,
+    "entities": 8,
     "is_full_snapshot": false
   }
 ]
