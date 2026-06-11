@@ -2,8 +2,9 @@
 
 **Status (2026-06-11):** PR0–PR4 **built and validated against a live game**; Gate 2 passed — `testchamber_000`
 (an auto-dropper cube→button→door chamber) solved by hand through the real executor via `py/macro_repl.py`.
-**PR5 (entity parser + grammar + macro send) and PR6 (gRPC keepalive) have since landed; PR7 (ReAct driver)
-remains.** Read **§As-built carry-forward** below before PR7 — the
+**PR5 (entity parser + grammar + macro send) and PR6 (gRPC keepalive) have since landed; PR7 (the frozen-VLM
+ReAct agent) remains — now split into 7a/7b/7c, with Gemini 3.5 Flash as the model (see §PR7).** Read
+**§As-built carry-forward** below before PR7 — the
 build diverged from this plan in a few load-bearing ways. The rest is the *detailed, code-grounded* build order for the
 C++ macro executor + Python driver — the concrete version of Track C / Track D in
 [`llm_percept_act_phased_plan.md`](llm_percept_act_phased_plan.md). Where this disagrees with the sketch
@@ -17,7 +18,8 @@ plus the exploratory pair `look` / `move` (folded into PR2/PR3 — cheap, and re
 though not to *solve* chamber 1 under global observability). **`shoot_portal` + nav-compass + save/load anchors
 are explicitly post-first-light** (§Follow-on).
 
-Each section: **Goal · Files · Changes (concrete) · Verify · Size · Deps · maps-to**. Eight PRs, PR0→PR7.
+Each section: **Goal · Files · Changes (concrete) · Verify · Size · Deps · maps-to**. Eight PRs, PR0→PR7
+(PR7 split into 7a/7b/7c — see §PR7).
 
 ---
 
@@ -306,35 +308,112 @@ Verified by reading the code — these pin every design choice below.
 
 ---
 
-## PR7 — ReAct driver + transcript logger (D3) + run on chamber (D4) → ⭐ FIRST LIGHT
+## PR7 — frozen-VLM ReAct agent on a chamber-solve session → ⭐ FIRST LIGHT (7a → 7b → 7c)
 
-- **Goal:** the eval loop; first perception-vs-reasoning signal.
-- **Files:** new `py/llm_eval/driver.py`.
-- **Changes:** each step: read annotated frame from SHM + format player/entity telemetry → multimodal prompt →
-  LLM (`max_think_seconds`) → `validate` (D2) → `step_macro` → record `MacroResult` → repeat until `done`/success
-  (exit-proximity, grammar §11.4) or macro-step budget (~25). Log the full transcript (actions, results, frames,
-  success, step count) — **that transcript is the deliverable.**
-- **Also lands here** (detail → §Other first-light needs): **system prompt + tool schema** (from D2's single
-  source); **multimodal LLM client at `temperature=0`**; **invalid-output re-prompt loop with a retry cap**;
-  **per-chamber config** (`map_name`/`exit_pos`/`success_radius`/budget — the inputs you still owe); ensure
-  **`sar_harness_annotate 1`** is set; **check mark legibility** at the percept resolution.
-- **🚦 Gate 1 (before this PR): overlay-in-SHM verification** — capture one annotated frame from SHM and confirm
-  boxes+marks are present. If not, fix the capture/annotation path first; the visual channel depends on it.
-- **🚦 Gate 2 (before wiring the LLM): scripted canonical-solve dry run** — run the §11.1 sequence as a hardcoded
-  macro list through the real executor + success check. Must solve. Then swap in the LLM.
-- **Verify:** point at the cube→button→door chamber; run a frozen LLM; read the transcript.
-- **Size:** ~200 LOC. **Deps:** PR5, PR2-PR4, PR6, user's chamber. **maps-to:** D3 + D4.
+PR7 is split into three small PRs. The driver, the REPL (`macro_repl.py`), and the smoke test all sit on **one
+shared chamber-solve session**, so the human-driven and model-driven loops share a core — only the *action source*
+differs (typed stdin vs the model). The model is **Gemini 3.5 Flash**.
+
+**Decisions pinned (apply across 7a–7c):**
+
+- **Model = `gemini-3.5-flash`**, chosen for best-in-class multimodality — the perception channel won't be the
+  bottleneck, so a failure reads as reasoning, not "couldn't see the marks" (the *fairer eval*). ~$1/session with
+  caching; free tier for early iteration (the daily request cap, not cost, is the real limit — a paid key removes
+  it and still totals ~$300 over a full dev cycle). The action source is abstracted (one callable) so swapping in
+  Opus/GPT for a cross-check on headline runs is a config change, not a rewrite.
+- **Stateful single session** (`client.chats.create`), full history kept. The chat API is stateless, so a naive
+  resend is quadratic in steps; keeping one byte-stable session triggers **implicit context caching** (the repeat
+  bills at ~0.1×). On the free tier only rate/quota grows, not a bill. A **bounded last-K-frames window** is a
+  backstop, added only if rate limits bite — not pre-built.
+- **Send a bounded context to the model, serialize everything to disk losslessly** — two separate concerns. This
+  is why the cost shape and the trajectory format are decoupled.
+- **No `temperature`** — Gemini 3.5 Flash controls depth via `thinking_level`; temp-0 reproducibility isn't
+  available (also gone on Opus 4.8). Transcripts are best-effort deterministic.
+- **The "box" (verb extraction) = structured output**, not prose parsing: a `response_schema` derived from
+  `macro_grammar.tool_schema()` (single source — already built, with `verb_signatures()` for the prompt) plus a
+  `reasoning` field. `validate()` stays the semantic gate (mark exists / grabbable / held-state); a rejection is
+  re-prompted *in-session*, capped.
+- **The action source is an `agent`** — a callable `next_action(observation) -> action`. A *scripted agent* (7b)
+  replays a verb list; the *Gemini agent* (7c) calls the model. This is the only seam; no class hierarchy. (The
+  session is action-agnostic, so a raw-input agent is a future drop-in.)
+- **Serialization = a single binary `.trajectory` per run** — a Python-only protobuf mirroring `.rollout`: an
+  `LlmTrajectoryHeader` + length-delimited `LlmStep`s, with **frames embedded as PNG bytes (no loose files)** and
+  every field captured (reasoning, raw model response, action, `MacroResult`, marks, token usage). `--dump-json`
+  is an optional text lens; the binary stays primary.
+
+### PR7a — chamber-solve session core + REPL on top
+
+- **Goal:** factor the launch/handshake/reset/step/observe loop shared by the REPL, smoke test, and future driver
+  into one action-agnostic session.
+- **Files:** new `py/testchamber_session.py`; rewrite `py/macro_repl.py`.
+- **Changes:**
+  - `TestChamberSession` — wraps `P2Harness` + `WorldView` + held-mark + current map. `reset(map=None)` (full
+    reload + prime), `step(macro, capture_frame=False) -> Observation`, `observe(capture_frame=False)`, `close()`.
+    Owns held-state updates (`pick_up`/`release` SUCCESS) and the `copy_pixels` toggle. `step` is shaped to take a
+    raw `ActionRequest` later without a rename — nothing in the type names is macro-specific.
+  - `Observation` — `result`, `marks`, `state`, `frame` (ndarray|None), `held_mark`, `player`, `tick`.
+  - `reached_exit(state, exit_pos, radius)` and `launch_or_attach(...)` helpers (dedups the boot/teardown
+    boilerplate copy-pasted across `macro_repl.py` and `agentloop_smoke.py`).
+  - `macro_repl.py` → thin stdin loop over the session; **fix the Python-3 `except (A, B)` syntax bug** at the two
+    `except` sites ([macro_repl.py:173](../py/macro_repl.py#L173), [:214](../py/macro_repl.py#L214)) — currently a
+    SyntaxError, so the file can't import.
+- **Verify:** `macro_repl.py --attach < success.txt` still solves the canonical chamber. Pure refactor + bugfix.
+- **Size:** ~180 LOC. **Deps:** PR4/PR5.
+
+### PR7b — binary `.trajectory` format + ReAct loop + scripted agent
+
+- **Goal:** the full loop + lossless serialization, exercised by a free deterministic agent (the canonical solve),
+  before any API spend. This is the scripted-canonical-solve gate, productized.
+- **Files:** new `py/llm_eval/trajectory.proto`, `py/llm_eval/trajectory_io.py`, `py/llm_eval/driver.py`;
+  `--record FILE` on `macro_repl.py`.
+- **Changes:**
+  - `trajectory.proto` (**Python-only** — never crosses gRPC, so NOT in `harness.proto`): `LlmTrajectoryHeader`
+    (map, exit_pos, success_radius, model_id, system prompt, grammar version) + `LlmStep` (step index, `frame_png`
+    bytes, marks, `reasoning`, raw model response, the action, `MacroResult`, held_mark, token usage). Compile to a
+    Python stub (extend `make proto_py`); exclude the generated stub from `format.sh`.
+  - `trajectory_io.py`: `TrajectoryWriter` (length-delimited append) + `read_trajectory`.
+  - `driver.py`: `run_trajectory(session, agent, chamber_cfg, writer, max_steps, max_retries)` — set
+    `sar_harness_annotate 1`; `reset`; prime; loop `action = agent(obs)` → `validate(action, obs.marks,
+    session.held_mark)` → on error string record+re-ask (capped); on `MacroRequest` `step(capture_frame=True)`,
+    write the step; stop on `done` or `reached_exit`.
+  - The **scripted agent**: a callable replaying a verb list (parsed from a transcript like `success.txt`).
+  - `macro_repl.py --record FILE` writes the same `.trajectory`, so the REPL gets the binary artifact too.
+- **Verify:** the scripted canonical solve runs through the real driver, `reached_exit` true, and a complete
+  `.trajectory` (frames embedded, every field) is produced — zero API spend. The harness + serialization are now
+  confound-free, so any later model failure is cleanly perception/reasoning.
+- **Size:** ~220 LOC + proto. **Deps:** PR7a.
+
+### PR7c — Gemini 3.5 Flash agent → ⭐ FIRST LIGHT
+
+- **Goal:** swap the scripted agent for the frozen VLM; the first perception-vs-reasoning signal.
+- **Files:** new `py/llm_eval/gemini_agent.py`; wire into `driver.py`. Adds `google-genai`; loads `GEMINI_API_KEY`
+  from the repo `.env`.
+- **Changes:**
+  - `GeminiAgent` — one `client.chats.create(model="gemini-3.5-flash", config=...)` per trajectory,
+    `thinking_level=HIGH`, system instruction from `verb_signatures()` + task + percept-format. `next_action(obs)`
+    sends `[frame_png, percept_text]`, extracts the action via structured output (`response_schema` from
+    `tool_schema()` + `reasoning`), and captures the thinking trace + raw response + token usage. A `validate()`
+    rejection is re-sent in the same chat (cap retries).
+  - Per-chamber config (`map`, `exit_pos`, `success_radius`, step budget) — a tiny dict the driver loads.
+  - Confirm at the top of this PR against current `google-genai` docs: structured-output ↔ `thinking_level` ↔
+    `chats` composition; inline image part; how the thinking trace surfaces. The only SDK unknown — and 7b is built
+    so it can't block the harness.
+- **🚦 Gate 1 (before running the model):** eyeball the embedded step-0 annotated frame for boxes+marks. If the
+  overlay isn't in the captured frame, fix the capture/annotation path first — the visual channel depends on it.
+  (Gate 2 is PR7b's scripted solve.)
+- **Verify:** point at the cube→button→door chamber, run the frozen VLM, read the `.trajectory`.
+- **Size:** ~150 LOC. **Deps:** PR7b + your chamber config. **maps-to:** D3 + D4.
 
 ---
 
 ## Dependency graph
 
 ```
-PR0 ─► PR1 ─► PR2 ─► PR3 ─► PR4 ─► PR5 ─► PR7  ★ first light
-                 └► PR6 (any time after PR1) ───────┘
+PR0 ─► PR1 ─► PR2 ─► PR3 ─► PR4 ─► PR5 ─► PR7a ─► PR7b ─► PR7c  ★ first light
+                 └► PR6 (any time after PR1) ──────────────────┘
 ```
-PRs 0-4 are **C++ only** (SAR-first, per the repo rule); 5+7 are Python; 6 is infra. Everything 0-4 is
-demonstrable **manually from a script** before any LLM exists.
+PRs 0-4 are **C++ only** (SAR-first, per the repo rule); 5 and 7a-7c are Python; 6 is infra. Everything 0-4 and
+the 7a/7b scripted path is demonstrable **without any LLM** — only 7c calls the model.
 
 ## Cross-cutting decisions (pin once, apply everywhere)
 
@@ -377,12 +456,13 @@ These are *not* verbs and easy to forget, but first light fails without them. Ea
 - **Invalid-output re-prompt loop with a cap.** Model emits non-JSON / unknown verb / unresolved mark → validator
   rejects locally (no game step) → re-prompt with the structured error → **cap retries** (e.g. 3) so a model that
   can't produce valid output fails the episode instead of looping forever. → PR7.
-- **System prompt + tool schema.** Generated from the single-source `macro_grammar` (PR5), plus a task/percept-format
-  system prompt. For a *frozen-model* eval, prompt quality is a first-class variable — budget real authoring/iteration
-  time. → PR7.
-- **Multimodal LLM client, `temperature=0`.** Image+text call (Anthropic/Gemini/OpenAI), `max_think_seconds`,
-  frame encoding. **temp 0** so transcripts are reproducible (with canonical marks from PR0 + deterministic frozen
-  execution → same model+chamber ⇒ same transcript). → PR7.
+- **System prompt + tool schema.** Both single-sourced from `macro_grammar` (PR5): `tool_schema()` →
+  `response_schema`, `verb_signatures()` → the prompt's verb list. Built; only the task/percept-format system
+  prompt remains to author. For a *frozen-model* eval, prompt quality is a first-class variable. → PR7c.
+- **Gemini 3.5 Flash client.** Stateful `client.chats.create` (implicit caching), `thinking_level=HIGH`, image+text
+  turn, structured output via `response_schema` for the verb, thinking trace + raw response captured. **No
+  `temperature`** (Gemini uses `thinking_level`; temp-0 reproducibility isn't available, so transcripts are
+  best-effort deterministic). `GEMINI_API_KEY` from the repo `.env`. → PR7c.
 - **Per-chamber config** (`map_name`, `exit_pos`, `success_radius`, macro-step budget): a tiny dict/YAML the driver
   loads. The *only* inputs you still owe (map + exit) live here. → PR7.
 
@@ -390,7 +470,7 @@ These are *not* verbs and easy to forget, but first light fails without them. Ea
 - **Scripted canonical-solve dry run.** Run the §11.1 cube→button→door sequence as a *hardcoded* macro list through
   the real executor + success check, **before** wiring the LLM. If the script solves, the executor + success path
   are sound, so any later LLM failure is cleanly reasoning/perception — not an executor bug. This is the single
-  best confound-remover. → between PR4 and PR7 (it's PR4's verify, elevated to a gate).
+  best confound-remover. → PR7b (the scripted agent path, before 7c wires the model).
 
 ## Pre-flight checklist (resolve before/inside the relevant PR)
 
