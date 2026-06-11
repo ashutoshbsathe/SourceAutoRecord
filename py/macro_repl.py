@@ -1,9 +1,8 @@
 """Interactive macro REPL: type closed-verb commands and drive the frozen game.
 
 A human-driven front-end to the macro executor -- the manual analogue of the
-eventual LLM ReAct driver, and a fast way to find a solve sequence by hand
-instead of hardcoding one. Launches its own instance (or --attach), then takes
-commands:
+eval driver, and a fast way to find a solve sequence by hand instead of
+hardcoding one. Launches its own instance (or --attach), then takes commands:
 
     go_to 12          walk to mark 12
     pick_up 12        grab it
@@ -33,23 +32,16 @@ launched instance is torn down on exit.
 import argparse
 import os
 import sys
-import time
 
 try:
     import readline  # noqa: F401 -- importing it gives input() up-arrow history
 except ImportError:  # pragma: no cover -- not present on every platform
     readline = None
 
-import grpc
-from game_launcher import DEFAULT_GAME_ARGS
-from game_launcher import DEFAULT_GAMESCOPE_ARGS
-from game_launcher import GameInstance
-from game_launcher import get_instance_specific_args
 from p2harness import harness_pb2
-from p2harness.harness import P2Harness
+from testchamber_session import TestChamberSession
+from testchamber_session import launch_or_attach
 
-# Verbs whose march can run many ticks need a generous per-step timeout.
-SLOW_VERBS = {'go_to', 'interact'}
 VERBS = {
     'aim_at',
     'look',
@@ -78,8 +70,8 @@ HISTFILE = os.path.expanduser('~/.macro_repl_history')
 
 
 def fmt_pos(p):
-    """Compact (x,y,z) string for a Vector3-like position."""
-    return f'({p.x:.0f},{p.y:.0f},{p.z:.0f})'
+    """Compact (x,y,z) string for an (x, y, z) sequence."""
+    return f'({p[0]:.0f},{p[1]:.0f},{p[2]:.0f})'
 
 
 def build_macro(verb, args):
@@ -102,26 +94,14 @@ def build_macro(verb, args):
     return m
 
 
-def dump_marks(state):
+def dump_marks(obs):
     """Print every marked entity (mark, class, position, name)."""
-    rows = sorted(
-        (e for e in state.entity_snapshot.entities if e.mark > 0),
-        key=lambda e: e.mark,
-    )
-    if not rows:
+    if not obs.marks:
         print('  (no marked entities)')
         return
-    for e in rows:
-        name = f' "{e.target_name}"' if e.target_name else ''
-        print(f'  [{e.mark:>2}] {e.class_name:<22} {fmt_pos(e.position)}{name}')
-
-
-def send(harness, macro):
-    """Send one macro and return its EnvironmentMessage."""
-    timeout = 90.0 if macro.verb in SLOW_VERBS else 30.0
-    return harness.step_agent_loop(
-        harness_pb2.AgentMessage(macro=macro), timeout=timeout
-    )
+    for m in obs.marks:
+        name = f' "{m["name"]}"' if m['name'] else ''
+        print(f'  [{m["mark"]:>2}] {m["class"]:<22} {fmt_pos(m["pos"])}{name}')
 
 
 def write_transcript(path, map_name, steps):
@@ -137,34 +117,27 @@ def write_transcript(path, map_name, steps):
             f.write(f'{line:<22} # {result}\n')
 
 
-def report(macro, env):
+def report(macro, obs):
     """Print the macro result plus the player and (if anchored) the mark's pos."""
-    mr = env.macro_result
+    mr = obs.result
     extra = ''
     if macro.mark:
-        for e in env.state.entity_snapshot.entities:
-            if e.mark == macro.mark:
-                extra = f' mark{macro.mark}={fmt_pos(e.position)}'
+        for m in obs.marks:
+            if m['mark'] == macro.mark:
+                extra = f' mark{macro.mark}={fmt_pos(m["pos"])}'
                 break
-    print(
-        f'  {mr.result_code:<13} {mr.detail}'
-        f'   player={fmt_pos(env.state.position)}{extra}'
-    )
+    print(f'  {mr.result_code:<13} {mr.detail}   player={fmt_pos(obs.player)}{extra}')
 
 
-def run_repl(harness, current_map):
-    """The interactive command loop (the agent-loop stream must be started)."""
+def run_repl(session):
+    """The interactive command loop (the session must already be primed)."""
     if readline is not None:
         try:
             readline.read_history_file(HISTFILE)
         except OSError:
             pass
     transcript = []  # (command, result) per state-changing step, for `save`
-
-    # Prime the stream so the first observe is a full snapshot.
-    env = send(harness, harness_pb2.MacroRequest(verb='wait', ticks=1))
-    if env.macro_result.result_code == 'NOT_READY':
-        print('  (harness not ready -- still warming up? give it a moment)')
+    obs = session.last
 
     try:
         while True:
@@ -185,25 +158,23 @@ def run_repl(harness, current_map):
                 print(HELP)
                 continue
             if cmd == 'obs':
-                dump_marks(env.state)
+                dump_marks(obs)
                 continue
             if cmd == 'save':
                 path = rest[0] if rest else 'macro_repl.transcript'
-                write_transcript(path, current_map, transcript)
+                write_transcript(path, session.current_map, transcript)
                 print(f'  saved {len(transcript)} steps to {path}')
                 continue
             if cmd == 'reset':
-                target = rest[0] if rest else current_map
-                resp = harness.reset(map_name=target)
-                if not resp.success:
-                    print(f'  reset failed: {resp.error_message}')
+                target = rest[0] if rest else session.current_map
+                try:
+                    obs = session.reset(target)
+                except Exception as e:  # noqa: BLE001 -- REPL: surface, don't crash
+                    print(f'  reset failed: {type(e).__name__}: {e}')
                     continue
-                current_map = target
-                harness.start_agent_loop()
-                env = send(harness, harness_pb2.MacroRequest(verb='wait', ticks=1))
-                print(f'  reset ({current_map}).')
-                transcript.append((line, f'-> {current_map}'))
-                dump_marks(env.state)
+                print(f'  reset ({session.current_map}).')
+                transcript.append((line, f'-> {session.current_map}'))
+                dump_marks(obs)
                 continue
             if cmd not in VERBS:
                 print(f'  ? unknown command "{cmd}" (try help)')
@@ -215,12 +186,12 @@ def run_repl(harness, current_map):
                 print(f'  ? bad args for {cmd} (try help)')
                 continue
             try:
-                env = send(harness, macro)
+                obs = session.step(macro)
             except Exception as e:  # noqa: BLE001 -- REPL: surface, don't crash
                 print(f'  ! send failed: {type(e).__name__}: {e}')
                 continue
-            report(macro, env)
-            mr = env.macro_result
+            report(macro, obs)
+            mr = obs.result
             transcript.append((line, f'{mr.result_code} {mr.detail}'.strip()))
     finally:
         if readline is not None:
@@ -228,27 +199,6 @@ def run_repl(harness, current_map):
                 readline.write_history_file(HISTFILE)
             except OSError:
                 pass
-
-
-def wait_for_handshake(harness, instance, timeout):
-    """Retry the handshake until the server answers, or the game dies / times out."""
-    deadline = time.monotonic() + timeout
-    attempt = 0
-    while True:
-        try:
-            return harness.handshake()
-        except grpc.RpcError as e:
-            if instance is not None and not instance.is_alive():
-                raise RuntimeError(
-                    f'game process died during boot; see {instance.log_file_path}'
-                ) from e
-            if time.monotonic() >= deadline:
-                raise RuntimeError(
-                    f'no harness at {harness.address} after {timeout:.0f}s'
-                ) from e
-            attempt += 1
-            print(f'  waiting for harness... (attempt {attempt})')
-            time.sleep(min(3.0, 1.0 + 0.5 * attempt))
 
 
 def main():
@@ -266,43 +216,39 @@ def main():
     parser.add_argument('--timeout', type=float, default=180.0, help='boot wait (s)')
     args = parser.parse_args()
 
-    address = f'localhost:{50000 + args.instance}'
-    instance = None
     try:
-        if not args.attach:
-            print(f'launching game instance {args.instance} ...')
-            instance = GameInstance(
-                instance_id=args.instance,
-                gamescope_args=DEFAULT_GAMESCOPE_ARGS.copy(),
-                game_args=DEFAULT_GAME_ARGS.copy()
-                + get_instance_specific_args(args.instance),
-            )
-            instance.start()
+        harness, game, booted_map = launch_or_attach(
+            args.instance, args.attach, args.timeout
+        )
+    except Exception as e:  # noqa: BLE001 -- boot failures are fatal, just report
+        print(f'fatal: {e}')
+        return 1
 
-        harness = P2Harness(address=address)
-        try:
-            hs = wait_for_handshake(harness, instance, args.timeout)
-        except RuntimeError as e:
-            print(f'fatal: {e}')
-            return 1
-        current_map = args.map or hs.map_name
-        if args.map and args.map != hs.map_name:
+    try:
+        session = TestChamberSession(harness, booted_map)
+        if args.map and args.map != booted_map:
             print(f'loading map {args.map} ...')
-            resp = harness.reset(map_name=args.map)
-            if not resp.success:
-                print(f'  load failed ({resp.error_message}); staying on {hs.map_name}')
-                current_map = hs.map_name
-        print(f'attached {address}  map={current_map or "<none>"}  -- type "help"')
-        harness.start_agent_loop()
+            try:
+                obs = session.reset(args.map)
+            except Exception as e:  # noqa: BLE001 -- fall back to the booted map
+                print(f'  load failed ({e}); staying on {booted_map}')
+                obs = session.prime()
+        else:
+            obs = session.prime()
+        print(
+            f'attached {harness.address}  map={session.current_map or "<none>"}'
+            '  -- type "help"'
+        )
+        if obs.result.result_code == 'NOT_READY':
+            print('  (harness not ready -- still warming up? give it a moment)')
         try:
-            run_repl(harness, current_map)
+            run_repl(session)
         finally:
-            harness.stop_agent_loop()
-            harness.close()
+            session.close()
     finally:
-        if instance is not None:
+        if game is not None:
             print('tearing down game instance ...')
-            instance.stop()
+            game.stop()
     return 0
 
 

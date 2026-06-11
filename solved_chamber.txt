@@ -1,0 +1,103 @@
+# macro_repl transcript -- map testchamber_000
+move forward 20        # COMPLETED moved 49 units (COMPLETED)
+wait 20                # SUCCESS waited 20 ticks
+wait 40                # SUCCESS waited 40 ticks
+wait 50                # SUCCESS waited 50 ticks
+go_to 11               # SUCCESS dist=36 after march
+aim_at 11              # SUCCESS aim pitch=50.9 yaw=95.3
+pick_up 11             # SUCCESS grabbed mark 11 (dz=9 moved=12 dist=59)
+aim_at 7               # SUCCESS aim pitch=6.9 yaw=8.4
+go_to 7                # SUCCESS dist=10 after march
+move back 20           # COMPLETED moved 49 units (COMPLETED)
+move forward 10        # COMPLETED moved 2 units (COMPLETED)
+release 11             # SUCCESS released toward mark 11
+move back 20           # COMPLETED moved 49 units (COMPLETED)
+move right 20          # COMPLETED moved 58 units (COMPLETED)
+go_to 6                # BLOCKED go_to blocked by WALL
+move right 10          # COMPLETED moved 17 units (COMPLETED)
+go_to 6                # SUCCESS dist=19 after march
+aim_at 6               # SUCCESS aim pitch=3.1 yaw=109.9
+move forward 2         # COMPLETED moved 1 units (COMPLETED)
+move forward 2         # COMPLETED moved 4 units (COMPLETED)
+move forward 2         # COMPLETED moved 6 units (COMPLETED)
+look -90               # SUCCESS aim pitch=3.1 yaw=19.9
+look -90               # SUCCESS aim pitch=3.1 yaw=-70.1
+move back 2            # COMPLETED moved 5 units (COMPLETED)
+move back 2            # COMPLETED moved 6 units (COMPLETED)
+wait 5                 # SUCCESS waited 5 ticks
+
+# terminal output (ignore everything below this)
+
+~/HDD/MachineLearning/2026/SourceAutoRecord (yeeh*) » uv run python py/macro_repl.py --map testchamber_000                                                                   ashutosh@sathe-pc
+launching game instance 0 ...
+INFO:game_launcher:[Instance 0] Starting: gamescope -w 640 -h 480 -W 640 -H 480 -b -- /home/ashutosh/.steam/root/ubuntu12_32/steam-runtime/run.sh /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2.sh -game portal2 -nosteam -novid -vulkan -windowed -low -nomousegrab +engine_no_focus_sleep 0 +tv_port 47000 +hostport 48000 +clientport 49000 +sar_harness_instance 0 +sar_harness 1
+INFO:game_launcher:[Instance 0] PID: 110854
+  waiting for harness... (attempt 1)
+  waiting for harness... (attempt 2)
+  waiting for harness... (attempt 3)
+  waiting for harness... (attempt 4)
+  waiting for harness... (attempt 5)
+attached localhost:50000  map=testchamber_000  -- type "help"
+> move forward 20
+  COMPLETED     moved 49 units (COMPLETED)   player=(192,-47,0)
+> wait 20
+  SUCCESS       waited 20 ticks   player=(192,39,0)
+> wait 40
+  SUCCESS       waited 40 ticks   player=(192,41,0)
+> wait 50
+  SUCCESS       waited 50 ticks   player=(192,41,0)
+> go_to 11
+  SUCCESS       dist=36 after march   player=(121,637,0) mark11=(118,674,18)
+> look_at 11
+  ? unknown command "look_at" (try help)
+> aim_at 11
+  SUCCESS       aim pitch=50.9 yaw=95.3   player=(121,637,0) mark11=(118,674,18)
+> pick_up 11
+  SUCCESS       grabbed mark 11 (dz=9 moved=12 dist=59)   player=(121,637,0) mark11=(117,683,27)
+> aim_at 7
+  SUCCESS       aim pitch=6.9 yaw=8.4   player=(121,637,0) mark7=(576,704,8)
+> go_to 7
+  SUCCESS       dist=10 after march   player=(566,703,16) mark7=(576,704,8)
+> move back 20
+  COMPLETED     moved 49 units (COMPLETED)   player=(517,696,15)
+> move forward 10
+  COMPLETED     moved 2 units (COMPLETED)   player=(461,689,0)
+> release 11
+  SUCCESS       released toward mark 11   player=(516,697,15) mark11=(560,702,35)
+> move back 20
+  COMPLETED     moved 49 units (COMPLETED)   player=(468,690,0)
+> move right 20
+  COMPLETED     moved 58 units (COMPLETED)   player=(386,628,0)
+> go_to 6
+  BLOCKED       go_to blocked by WALL   player=(752,752,0) mark6=(832,808,64)
+> move right 10
+  COMPLETED     moved 17 units (COMPLETED)   player=(754,735,0)
+> go_to 6
+  SUCCESS       dist=19 after march   player=(838,790,1) mark6=(832,808,64)
+> look_at 6
+  ? unknown command "look_at" (try help)
+> aim_at 6
+  SUCCESS       aim pitch=3.1 yaw=109.9   player=(838,790,1) mark6=(832,808,64)
+> move forward 2
+  COMPLETED     moved 1 units (COMPLETED)   player=(838,791,1)
+> move forward 2
+  COMPLETED     moved 4 units (COMPLETED)   player=(835,798,1)
+> move forward 2
+  COMPLETED     moved 6 units (COMPLETED)   player=(832,809,1)
+> look -90
+  SUCCESS       aim pitch=3.1 yaw=19.9   player=(830,814,1)
+> look -90
+  SUCCESS       aim pitch=3.1 yaw=-70.1   player=(828,819,1)
+> move back 2
+  COMPLETED     moved 5 units (COMPLETED)   player=(824,828,1)
+> move back 2
+  COMPLETED     moved 6 units (COMPLETED)   player=(820,839,1)
+> wait 5
+wait  SUCCESS       waited 5 ticks   player=(815,854,1)
+> save solved_chamber.txt
+  saved 26 steps to solved_chamber.txt
+> 
+tearing down game instance ...
+INFO:game_launcher:[Instance 0] Stopping...
+WARNING:game_launcher:[Instance 0] SIGTERM timed out, sending SIGKILL.
+INFO:game_launcher:[Instance 0] Stopped.

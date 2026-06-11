@@ -352,12 +352,12 @@ differs (typed stdin vs the model). The model is **Gemini 3.5 Flash**.
     Owns held-state updates (`pick_up`/`release` SUCCESS) and the `copy_pixels` toggle. `step` is shaped to take a
     raw `ActionRequest` later without a rename — nothing in the type names is macro-specific.
   - `Observation` — `result`, `marks`, `state`, `frame` (ndarray|None), `held_mark`, `player`, `tick`.
-  - `reached_exit(state, exit_pos, radius)` and `launch_or_attach(...)` helpers (dedups the boot/teardown
-    boilerplate copy-pasted across `macro_repl.py` and `agentloop_smoke.py`).
-  - `macro_repl.py` → thin stdin loop over the session; **fix the Python-3 `except (A, B)` syntax bug** at the two
-    `except` sites ([macro_repl.py:173](../py/macro_repl.py#L173), [:214](../py/macro_repl.py#L214)) — currently a
-    SyntaxError, so the file can't import.
-- **Verify:** `macro_repl.py --attach < success.txt` still solves the canonical chamber. Pure refactor + bugfix.
+  - `launch_or_attach(...)` helper (dedups the boot/handshake boilerplate copy-pasted across `macro_repl.py` and
+    `agentloop_smoke.py`). The `reached_exit` success check lands in 7b, with the driver that uses it.
+  - `macro_repl.py` → thin stdin loop over the session; `build_macro`, the verb table, `dump_marks`/`report`,
+    `save`/`obs`/`reset`, and up-arrow history are all preserved. The old `send`/boot/handshake/reset boilerplate
+    moves into the session.
+- **Verify:** `macro_repl.py --attach < success.txt` still solves the canonical chamber. Pure refactor.
 - **Size:** ~180 LOC. **Deps:** PR4/PR5.
 
 ### PR7b — binary `.trajectory` format + ReAct loop + scripted agent
