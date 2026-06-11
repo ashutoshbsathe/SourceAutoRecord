@@ -15,7 +15,7 @@ from . import trajectory_pb2
 _SIZE = struct.Struct('<I')
 
 
-def _encode_png(frame):
+def encode_png(frame):
     """RGB frame -> PNG bytes (empty bytes if there is no frame)."""
     if frame is None:
         return b''
@@ -24,19 +24,23 @@ def _encode_png(frame):
 
 
 def make_step(
-    index, obs, macro, reasoning='', raw_response='', usage=None, terminal=''
+    index, obs, macro, result, reasoning='', raw_response='', usage=None, terminal=''
 ):
-    """Build a Step proto from one observation and the action that produced it."""
+    """Build a Step from the observation the agent acted on and what happened.
+
+    `obs` supplies the frame/percept/player the agent saw; `macro` is the action
+    it chose; `result` is that action's MacroResult.
+    """
     px, py, pz = obs.player
     step = trajectory_pb2.Step(
         index=index,
-        frame_png=_encode_png(obs.frame),
+        frame_png=encode_png(obs.frame),
         percept_json=json.dumps(obs.marks),
         player=trajectory_pb2.Vec3(x=px, y=py, z=pz),
         reasoning=reasoning,
         raw_response=raw_response,
         action=macro.SerializeToString(),
-        result=obs.result.SerializeToString(),
+        result=result.SerializeToString(),
         held_mark=obs.held_mark or 0,
         terminal=terminal,
     )

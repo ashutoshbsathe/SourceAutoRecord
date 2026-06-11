@@ -415,6 +415,24 @@ differs (typed stdin vs the model). The model is **Gemini 3.5 Flash**.
 - **Verify:** point at the cube→button→door chamber, run the frozen VLM, read the `.trajectory`.
 - **Size:** ~150 LOC. **Deps:** PR7b + your chamber config. **maps-to:** D3 + D4.
 
+**As-built (7c)** — implemented + offline-verified (mocked chat); the real run is the user's:
+
+- **Files:** `py/llm_eval/gemini_agent.py` (`GeminiAgent` + the `run_eval` loop + `AgentAction`) and the runner
+  `py/run_eval.py`. google-genai 2.8.0 in pyproject; `GEMINI_API_KEY` from `.env` (and `.env.example`). The SDK
+  matched the pseudocode (`ThinkingLevel.HIGH`; `response_schema` accepts the grammar's `tool_schema()` dict;
+  `Part.from_bytes`; `usage_metadata`).
+- **The "box" = JSON mode + `validate()` + in-session re-prompt** (capped). `response_schema` is best-effort
+  structure; `validate()` against the live percept is the real gate, so a partially-honored schema is harmless.
+- **The model is given the exit** (dist + bearing in the percept) — a tunable choice that keeps the eval about
+  navigation+reasoning rather than blind exit-finding. Drop the exit line from `_percept_text` to test the latter.
+- **Each Step records the observation the model SAW + its action + that action's result** (not the post-action
+  frame), so reasoning lines up with the frame it concerned. Outcome stamped on the last step.
+- **Cost shape (flagged, not optimized):** the stateful chat re-sends every prior frame each turn (quadratic) and
+  `thinking_level=HIGH` drives output tokens. Fine for a one-off first-light run; on the free tier a ~25-step run
+  can hit rate limits. Bounded frame window / lower thinking are the levers when scaling.
+- **Run:** `uv run python py/run_eval.py --map M --exit x,y,z --radius R` (needs a video-mode instance + the key).
+  Gate 1 (eyeball the step-0 annotated frame for boxes+marks) still applies before trusting a result.
+
 ---
 
 ## Dependency graph

@@ -265,6 +265,7 @@ def main():
                         next(counter),
                         obs,
                         macro,
+                        obs.result,
                         reasoning=line,
                         usage=mock_usage,
                         terminal='SOLVED' if solved else '',
