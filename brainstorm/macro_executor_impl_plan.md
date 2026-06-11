@@ -2,7 +2,8 @@
 
 **Status (2026-06-11):** PR0–PR4 **built and validated against a live game**; Gate 2 passed — `testchamber_000`
 (an auto-dropper cube→button→door chamber) solved by hand through the real executor via `py/macro_repl.py`.
-**PR5–PR7 (Python client + ReAct driver) remain.** Read **§As-built carry-forward** below before PR5–PR7 — the
+**PR5 (entity parser + grammar + macro send) and PR6 (gRPC keepalive) have since landed; PR7 (ReAct driver)
+remains.** Read **§As-built carry-forward** below before PR7 — the
 build diverged from this plan in a few load-bearing ways. The rest is the *detailed, code-grounded* build order for the
 C++ macro executor + Python driver — the concrete version of Track C / Track D in
 [`llm_percept_act_phased_plan.md`](llm_percept_act_phased_plan.md). Where this disagrees with the sketch
@@ -52,6 +53,12 @@ these before PR5–PR7:
 - **Gate 2 ✅** (was "between PR4 and PR7"): the canonical solve runs by hand. `agentloop_smoke.py::check_solve` is
   the automated version (presently red on cube *placement* on the plate — a solve-sequence tuning detail, not a
   verb bug; bake the hand-found sequence into it).
+- **PR6 (keepalive) landed client-driven, not symmetric.** The frozen world idles for minutes between macros while
+  the LLM thinks; the client (`harness.py` `_CHANNEL_OPTIONS`) pings to hold the stream open, the server
+  (`Harness.cpp`) only *tolerates* those pings (`MIN_RECV_PING_INTERVAL=10s`) and disables idle/age close — no
+  server-initiated pings, so no `too_many_pings` GOAWAY. Survival actually rests on the open AgentLoop stream being
+  an outstanding RPC the server never closes; the pings are warmth + dead-peer detection. **`max_think_seconds` was
+  NOT added** — it would be unused state here, so it moves to **PR7's driver**, where it bounds the real LLM call.
 
 ---
 
