@@ -1,6 +1,9 @@
 # Macro Executor — Code-Grounded PR Plan (to First Light)
 
-**Status:** implementation plan / ready to build. This is the *detailed, code-grounded* build order for the
+**Status (2026-06-11):** PR0–PR4 **built and validated against a live game**; Gate 2 passed — `testchamber_000`
+(an auto-dropper cube→button→door chamber) solved by hand through the real executor via `py/macro_repl.py`.
+**PR5–PR7 (Python client + ReAct driver) remain.** Read **§As-built carry-forward** below before PR5–PR7 — the
+build diverged from this plan in a few load-bearing ways. The rest is the *detailed, code-grounded* build order for the
 C++ macro executor + Python driver — the concrete version of Track C / Track D in
 [`llm_percept_act_phased_plan.md`](llm_percept_act_phased_plan.md). Where this disagrees with the sketch
 there, **this wins** for the executor; the phased plan stays the index. Decisions/altitude:
@@ -14,6 +17,41 @@ though not to *solve* chamber 1 under global observability). **`shoot_portal` + 
 are explicitly post-first-light** (§Follow-on).
 
 Each section: **Goal · Files · Changes (concrete) · Verify · Size · Deps · maps-to**. Eight PRs, PR0→PR7.
+
+---
+
+## As-built carry-forward (2026-06-11)
+
+PR0–PR4 are **done and validated end-to-end** (Gate 2: `testchamber_000`, an auto-dropper cube→button→door
+chamber, solved by hand via `py/macro_repl.py`). Where the build diverged from the PR sections below — read
+these before PR5–PR7:
+
+- **Stable marks (MarkTable, was PR0's dense 1..N).** Dense `1..N` numbering shifted whenever the dropper spawned
+  the cube mid-episode, so a mark-anchored verb would resolve to a *different* entity (a `pick_up 12` would chase
+  what was the button). Replaced with **persistent per-entity marks** — assign once on first sight, append new
+  entities, never renumber (the "stable identity hash" escape hatch PR0 anticipated). PR5's entity parser keys on
+  these. Determinism for transcripts holds because new entities are appended in sorted (index, origin) order.
+- **🔴 Reset must be a full `map` reload, not `restart_level`.** A PeTI dropper drops its cube via a **one-shot
+  `OnMapSpawn`**; the soft `restart_level` (what `Reset` with an empty `map_name` runs,
+  [Portal2HarnessImpl.cpp:514](src/Features/Harness/Portal2HarnessImpl.cpp#L514)) does **not** re-fire it, so the
+  cube stays stuck in the dispenser at spawn height (~z=430) and is ungrabbable. **Any reset on a dropper chamber
+  must pass the map name** (full reload). The clean fix for PR5/PR7 is a `full_reload` flag on `ResetRequest` so RL
+  keeps fast `restart_level` while the eval forces a reload. `py/macro_repl.py` and `agentloop_smoke.py` already
+  reset with the map name.
+- **`+use` must be held >1 tick.** A 1-tick programmatic `+use` press is lost to a tick-advance/release race
+  (exacerbated under `sv_alternateticks`), so `pick_up`/`release`/`interact` registered *nothing* (cube `moved=0`).
+  `PulseUse` now holds `+use` for `kUseHoldTicks=3`. Also empirically settled: `kGrabRange=80` (engine
+  `PLAYER_USE_RADIUS`), grab-confirm requires the object to actually move (`moved>kMinGrabMove`), `go_to` bleeds
+  walk velocity at the end so the player doesn't coast onto the cube, `pick_up` gates on a grabbable class
+  (cube/monster-box/turret), `release` auto-orients (look-down, or at a mark).
+- **Verb renames:** `pick_up_cube`/`release_cube` → **`pick_up`/`release`** (generic — works on any grabbable prop);
+  `press` folds into `interact`. The proto `verb` string and PR4/PR5/PR7 text should use the new names.
+- **`py/macro_repl.py` = a human-driven PR7.** Interactive REPL over the executor (stdin instead of an LLM): typed
+  verbs, `obs`/`reset [map]`/`save` (replayable transcript), up-arrow history. Its `build_macro` + verb table are a
+  working prototype of PR5's `macro_grammar` single source; its loop is the shape PR7's `D3` reuses.
+- **Gate 2 ✅** (was "between PR4 and PR7"): the canonical solve runs by hand. `agentloop_smoke.py::check_solve` is
+  the automated version (presently red on cube *placement* on the plate — a solve-sequence tuning detail, not a
+  verb bug; bake the hand-found sequence into it).
 
 ---
 

@@ -18,14 +18,15 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 
 ---
 
-## Current status — 2026-06-09
+## Current status — 2026-06-11
 
 - ✅ **Annotation (Track A, A1–A5):** colored boxes + Set-of-Marks labels + portal reticle, in-engine.
 - ✅ **Recon mechanism:** every category-A status encoding understood. Schema locked in `status_field_recon.md`.
 - ✅ **Scope:** decided — full stock-PeTI surface set is the v0 target, **phased after first light**.
 - ✅ **Phase 1a — status into the snapshotter:** curated `[dm]` fields (cube type/activated, laser-target powered, faith-plate disabled) now flow over gRPC. Verified in-engine.
-- 🔜 **Next (critical path to first light):** macro executor (`C`) + ReAct driver (`D`) + the cube→button→door chamber. Status side is **done** for first light; `1b`/`1c` deferred (see decisions log). First step: lock the first-light **contract** — percept schema ↔ macro set ↔ success criterion.
-- ⏳ **Needed from user:** the first-light chamber (simple cube→button→door, no portals).
+- ✅ **Macro executor (Track C, PR0–PR4):** all verbs built + validated against a live game — `aim_at`/`look`/`go_to`/`move`/`pick_up`/`release`/`interact`/`wait`/`done`. **Gate 2 passed: `testchamber_000` (an auto-dropper cube→button→door chamber) solved by hand through the real executor.** As-built deviations are in `macro_executor_impl_plan.md` §As-built carry-forward.
+- ✅ **First-light chamber + manual driver:** `testchamber_000` provided and solvable; `py/macro_repl.py` is the human-driven macro REPL (the manual analogue of the ReAct driver).
+- 🔜 **Next (critical path to first light):** the Python layer — `PR5` (entity parser + macro validator + `step_macro`), `PR6` (gRPC keepalive), then `PR7` ReAct driver (= ⭐ first light).
 
 ---
 
@@ -33,7 +34,7 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 
 - [x] **M0 — Lock the ontology.** Annotation built; recon mechanism done; status schema + scope locked.
 - [ ] **M1 — Status-aware percept** (Phase 1): curated category-A status flows over gRPC. *(1a ✅; 1b/1c remaining)*
-- [ ] **M2 — ⭐ FIRST LIGHT:** frozen VLM solves one cube→button→door chamber (no portals). The perception-vs-reasoning signal.
+- [ ] **M2 — ⭐ FIRST LIGHT:** frozen VLM solves one cube→button→door chamber (no portals). The perception-vs-reasoning signal. *(Executor + chamber + manual solve ✅; remaining: the LLM ReAct driver — PR5–PR7.)*
 - [ ] **M3 — Ramp complexity:** add portals → lasers → panels; grow the chamber suite into difficulty tiers.
 - [ ] **M4 — Public benchmark:** multi-model eval (Claude/Gemini/GPT-class), scoring, reproducible packaging.
 - [ ] **M5 — VP talk, with data:** the reasoning-gap-vs-locomotion-gap result.
@@ -47,8 +48,8 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
    - ✅ `1a` register curated per-class status (the `[dm]` fields the SendTable walk drops) — *done, verified in-engine*
    - `1b` catcher/relay → child `point_laser_target` association — **deferred → M3** (laser-only; not on the first-light path)
    - `1c` faith-plate name filter (avoid safety-net flood) — **deferred → ~M4** (stock-chamber hygiene; a hand-designed chamber has no safety-net flood to filter)
-2. **First-light macro executor** — `C1` proto, `C2` aim_at + look, `C4` go_to + move, `C6` pick_up/release/wait, `C7` mark-in-telemetry, `C8` keepalive. **Skip `C3` shoot_portal + `C5` nav-probe** (chamber 1 has no portals). *(Detailed PR plan: `macro_executor_impl_plan.md`.)*
-3. **Python ReAct driver** — `D1` entity parser, `D2` macro validator, `D3` driver + transcript logger, `D4` run on the chamber.
+2. **First-light macro executor — ✅ done (PR0–PR4), validated live + Gate 2 solved by hand.** `C1` proto, `C2` aim_at+look, `C4` go_to+move, `C6` pick_up/release/interact/wait, `C7` mark-in-telemetry. (`C8` keepalive = PR6, still open.) Skipped `C3`/`C5` (no portals). As-built deviations: stable per-entity marks (not dense 1..N), full-`map`-reload reset for droppers, `+use` held ≥3 ticks, grabbable-class gate + movement-based grab-confirm — see `macro_executor_impl_plan.md` §As-built carry-forward.
+3. **Python ReAct driver (PR5–PR7, remaining)** — `D1` entity parser, `D2` macro validator, `D3` driver + transcript logger, `D4` run on the chamber. (`py/macro_repl.py` is the human-driven prototype: `build_macro` ≈ D2, the loop ≈ D3.)
 
 **Widen (after first light), by mechanism family:**
 4. **Animation family** — `m_nSequence` state reader + flip-panel targetname matcher → brings panels **and** the door into the percept (one reader). Adds `C3` shoot_portal + `C5` nav-probe for portal chambers.
