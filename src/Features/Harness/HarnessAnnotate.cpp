@@ -48,7 +48,9 @@ static const std::unordered_map<std::string, Color> kClassColors = {
     {"prop_laser_catcher", {255, 40, 40}},       // red - laser chain
     {"prop_laser_relay", {255, 40, 40}},         // red - laser chain
     {"point_laser_target", {255, 0, 255}},       // magenta - the goal surface
-    {"player", {0, 255, 255}},                   // cyan
+    // The player is deliberately absent: it's the agent, not an addressable
+    // target, so it gets neither a mark nor a (self-occluding) first-person
+    // box.
     // Hazards + brush-trigger volumes (provisional colors). Trigger volumes are
     // invisible playspace -- their OBB reads as a slab, not a tight object box.
     {"npc_portal_turret_floor", {180, 60, 220}},  // turret - violet
