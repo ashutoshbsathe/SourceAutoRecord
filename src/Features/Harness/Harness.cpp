@@ -1,5 +1,7 @@
 #include "Harness.hpp"
 
+#include <grpc/impl/channel_arg_names.h>
+
 #include <array>
 #include <climits>
 #include <string>
@@ -183,6 +185,15 @@ void Harness::StartServer() {
     grpc::ServerBuilder builder;
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
     builder.RegisterService(&service);
+
+    // Survive long idle stretches between macros (minutes of client
+    // think-time): tolerate the client's keepalive pings and never idle- or
+    // age-close the connection. The client drives keepalive (harness.py).
+    builder.AddChannelArgument(
+        GRPC_ARG_HTTP2_MIN_RECV_PING_INTERVAL_WITHOUT_DATA_MS, 10000);
+    builder.AddChannelArgument(GRPC_ARG_MAX_CONNECTION_IDLE_MS, INT_MAX);
+    builder.AddChannelArgument(GRPC_ARG_MAX_CONNECTION_AGE_MS, INT_MAX);
+
     this->server = builder.BuildAndStart();
     if (this->server) {
       console->Print("Harness gRPC server listening on %s\n",

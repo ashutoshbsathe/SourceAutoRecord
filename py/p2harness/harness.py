@@ -11,6 +11,16 @@ from . import harness_pb2_grpc
 # well above the AgentLoop default; every other verb resolves quickly.
 _SLOW_VERBS = frozenset({'go_to', 'interact', 'move'})
 
+# Keepalive keeps a long-idle stream warm through minutes of client think-time
+# between macros; the server tolerates the pings (Harness.cpp). The ack timeout
+# is generous so a slow macro is never mistaken for a dead connection.
+_CHANNEL_OPTIONS = [
+    ('grpc.keepalive_time_ms', 60000),
+    ('grpc.keepalive_timeout_ms', 150000),
+    ('grpc.keepalive_permit_without_calls', 1),
+    ('grpc.http2.max_pings_without_data', 0),
+]
+
 
 def macro_timeout(verb: str) -> float:
     """A client timeout comfortably above a verb's server-side tick budget."""
@@ -25,7 +35,7 @@ class P2Harness:
 
     def __init__(self, address: str = 'localhost:50051'):
         self.address = address
-        self.channel = grpc.insecure_channel(self.address)
+        self.channel = grpc.insecure_channel(self.address, options=_CHANNEL_OPTIONS)
         self.stub = harness_pb2_grpc.Portal2HarnessStub(self.channel)
         self.shm = None
         self.shm_width = 0
