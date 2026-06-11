@@ -25,6 +25,17 @@ from .trajectory_io import make_step
 
 MODEL = 'gemini-3.5-flash'
 
+# Retry 429s (rate limits) and transient 5xx with exponential backoff -- free-tier
+# throttling is the norm here. Recovers per-minute throttling; the daily quota won't.
+_RETRY = types.HttpRetryOptions(
+    attempts=6,
+    initial_delay=4.0,
+    max_delay=90.0,
+    exp_base=2.0,
+    jitter=1.0,
+    http_status_codes=[429, 500, 503],
+)
+
 _SYSTEM = """You are an agent solving a Portal 2 test chamber. Goal: reach the exit.
 
 Each turn you get an annotated screenshot and telemetry: your position, the exit
@@ -148,7 +159,10 @@ class GeminiAgent:
         self.system = _SYSTEM.format(verbs='\n'.join(macro_grammar.verb_signatures()))
         # Keep the client referenced -- a temporary would be GC'd, closing its
         # HTTP client and breaking the chat ("client has been closed").
-        self.client = genai.Client(api_key=api_key)
+        self.client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(retry_options=_RETRY),
+        )
         self.chat = self.client.chats.create(
             model=MODEL,
             config=types.GenerateContentConfig(
@@ -230,8 +244,8 @@ def run_eval(session, agent, cfg, out_path, max_steps=25):
     )
     header.exit_pos.x, header.exit_pos.y, header.exit_pos.z = exit_pos
 
+    print(f'\n  recording -> {out_path}', flush=True)
     terminal = ''
-    pending = None  # (index, seen_obs, act, result) not yet written
     with TrajectoryWriter(out_path, header) as writer:
         for index in range(max_steps):
             print(f'\n{"═" * 16}  step {index}  {"═" * 16}', flush=True)
@@ -244,23 +258,19 @@ def run_eval(session, agent, cfg, out_path, max_steps=25):
             mr = obs.result
             sym = '✓' if mr.ok else '✗'
             print(f'  {sym} {act.macro.verb} → {mr.result_code} {mr.detail}'.rstrip())
-            if pending is not None:
-                _write(writer, *pending, '')
-            pending = (index, seen, act, obs.result)
             if reached_exit(obs, exit_pos, radius):
                 terminal = 'SOLVED'
-                break
-            if act.macro.verb == 'done':
+            elif act.macro.verb == 'done':
                 terminal = 'DONE'
-                break
-            if index == max_steps - 1:
+            elif index == max_steps - 1:
                 terminal = 'BUDGET'
+            # Write each step as it happens, so a rate-limit/crash mid-run still
+            # leaves a complete trajectory up to the last finished step.
+            _write(writer, index, seen, act, obs.result, terminal)
+            if terminal:
                 break
-        if pending is not None:
-            _write(writer, *pending, terminal or 'GAVE_UP')
-    print(
-        f'\n  tokens this run: in {getattr(agent, "tokens_in", 0)} '
-        f'/ out {getattr(agent, "tokens_out", 0)}',
-        flush=True,
+    total = (
+        f'in {getattr(agent, "tokens_in", 0)} / out {getattr(agent, "tokens_out", 0)}'
     )
+    print(f'\n  {terminal or "GAVE_UP"}  ·  tokens {total}  ·  {out_path}', flush=True)
     return terminal or 'GAVE_UP'

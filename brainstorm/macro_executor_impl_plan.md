@@ -426,12 +426,45 @@ differs (typed stdin vs the model). The model is **Gemini 3.5 Flash**.
 - **The model is given the exit** (dist + bearing in the percept) — a tunable choice that keeps the eval about
   navigation+reasoning rather than blind exit-finding. Drop the exit line from `_percept_text` to test the latter.
 - **Each Step records the observation the model SAW + its action + that action's result** (not the post-action
-  frame), so reasoning lines up with the frame it concerned. Outcome stamped on the last step.
-- **Cost shape (flagged, not optimized):** the stateful chat re-sends every prior frame each turn (quadratic) and
-  `thinking_level=HIGH` drives output tokens. Fine for a one-off first-light run; on the free tier a ~25-step run
-  can hit rate limits. Bounded frame window / lower thinking are the levers when scaling.
-- **Run:** `uv run python py/run_eval.py --map M --exit x,y,z --radius R` (needs a video-mode instance + the key).
-  Gate 1 (eyeball the step-0 annotated frame for boxes+marks) still applies before trusting a result.
+  frame), so reasoning lines up with the frame it concerned. Steps are written **immediately** (no buffer), so a
+  rate-limit/crash mid-run still leaves a complete trajectory up to the last finished step.
+- **Retriable client:** the Gemini client retries 429s + transient 5xx with exponential backoff
+  (`HttpRetryOptions`) — free-tier throttling is the norm. Recovers per-minute throttling; the daily quota (RPD)
+  won't, so a long dev cycle wants a paid key.
+- **Cost shape:** the stateful chat re-sends every prior frame each turn (quadratic) and thinking drives output
+  tokens; the per-turn print shows `in (img) · out (think) · cached` so you can watch caching offset the growth.
+  Bounded frame window / lower thinking are the levers when scaling.
+- **Run:** `uv run python py/run_eval.py --map M --exit x,y,z --radius R` (needs a video-mode instance + the key);
+  writes `eval.trajectory` (`--out`). Gate 1 (eyeball the step-0 annotated frame for boxes+marks) still applies.
+
+**⭐ First light (2026-06-11): achieved** — Gemini perceived the chamber, reasoned, and stepped a verb through the
+real executor. Rate-limiting is the steady-state constraint (now retried).
+
+### QoL / follow-on (LLM eval — post first light)
+
+Banked, not yet built; pick by need:
+
+- **`--model` / `--thinking` flags** — model id + thinking level are the eval's variables; make them flags for cheap
+  iteration (Flash↔Pro, LOW/MEDIUM/HIGH) instead of editing `gemini_agent.py`.
+- **Quiet the SDK logs** — `logging.getLogger('httpx'|'google_genai').setLevel(WARNING)` (or a `--quiet` flag) so the
+  per-turn prints read cleanly.
+- **Bounded frame window** — the real cost backstop for the quadratic: keep only the last K frames as images, older
+  steps as their text percept (already captured). The lever once `cached` stops covering growth or RPD bites.
+- **Trajectory viewer** — a NiceGUI/CLI viewer (mirror `vis/visualize.py`): scrub frames + reasoning + result +
+  per-step tokens. (The planned separate visualizer.)
+- **Gate-1 / dump helper** — a `read_trajectory` CLI or `--dump-frames DIR` to extract `frame_png` per step (eyeball
+  the overlay; build datasets).
+- **Token/cost budget cap** — stop a run when cumulative tokens exceed a cap; print a $ estimate from usage even on
+  the free tier (to project paid cost).
+- **Per-chamber config** — a tiny YAML/dict of `{map, exit_pos, radius, budget}` so a suite is one command, not
+  per-chamber flags.
+- **Explicit context caching** — cache the constant system prompt + grammar (Gemini explicit caching) to cut input
+  cost beyond the implicit cache.
+- **Richer percept** — door open/closed, cube-on-button, a visible-marks/compass summary; prompt quality is a
+  first-class eval variable, so iterate it against real failures.
+- **Determinism** — a fixed seed / `temperature=0` for reproducible transcripts (thinking still adds variance).
+- **Multi-provider seam** — an Opus/GPT cross-check is one sibling agent (`claude_agent.py`); the percept +
+  `validate()` + record core is already shared, so only `__call__` differs.
 
 ---
 
