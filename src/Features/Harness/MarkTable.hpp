@@ -5,19 +5,22 @@
 #include <unordered_map>
 #include <utility>
 
-// Assigns a stable, deterministic integer "mark" to each puzzle entity.
-// RebuildFromWorld() recomputes the numbering from world state -- entities
-// sorted by index (rounded origin as tiebreak), numbered 1..N -- so the same
-// chamber yields the same mark<->entity assignment across runs and save/loads,
-// which transcript comparability and replay depend on.
+// Assigns a stable integer "mark" to each puzzle entity. Once an entity is seen
+// it keeps its mark for the rest of the episode even as other entities
+// spawn/despawn, so dynamic chambers (e.g. cube droppers) never renumber the
+// existing marks mid-run. New entities are appended in deterministic order
+// (index, rounded origin as tiebreak), so the same chamber yields the same
+// assignment across runs -- which transcript comparability depends on.
 //
 // The number drawn on the frame == the mark in the snapshot == the anchor a
-// macro verb resolves. Marks are dense 1..N, so they shift if an entity
-// spawns/despawns mid-episode; fine for the static hand-authored chambers.
+// macro verb resolves. A respawned entity (new serial) counts as new and gets a
+// fresh mark, so marks grow over an episode but never shift under an entity.
 class MarkTable {
  public:
-  // Recompute marks from the live server entity list. Idempotent for a frozen
-  // world; safe to call from the render (main) and Observe (gRPC) threads.
+  // Recompute marks from the live server entity list. Walks the engine entity
+  // list, so it must run on the MAIN thread (today only ON_EVENT(RENDER) calls
+  // it). gRPC threads must not call this -- they read via GetMark /
+  // GetEntityFromMark, which are mutex-locked.
   void RebuildFromWorld();
 
   // Forward lookup: entity (slot index + serial) -> mark, or 0 if unmarked.
@@ -29,10 +32,14 @@ class MarkTable {
   void Clear();
 
  private:
-  // index << 16 | serial  <->  mark, kept in lockstep by RebuildFromWorld.
+  // key = index << 16 | serial. `assigned` persists every key's mark for the
+  // episode (so marks are stable); forward/reverse mirror only the currently
+  // live entities and are rebuilt each call. All guarded by `mutex`.
   std::mutex mutex;
-  std::unordered_map<uint32_t, int> forward;  // key -> mark
-  std::unordered_map<int, uint32_t> reverse;  // mark -> key
+  std::unordered_map<uint32_t, int> assigned;  // key -> mark (persistent)
+  std::unordered_map<uint32_t, int> forward;   // live key -> mark
+  std::unordered_map<int, uint32_t> reverse;   // live mark -> key
+  int nextMark = 1;                            // next mark to hand out
 };
 
 extern MarkTable markTable;

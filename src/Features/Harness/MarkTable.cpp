@@ -17,12 +17,11 @@ MarkTable markTable;
 void MarkTable::RebuildFromWorld() {
   if (!server || !entityList) return;
 
-  // Gather marked entities and number them deterministically: by index, with
-  // rounded origin as a tiebreak. The walk is unlocked; only the swap is
-  // guarded.
+  // Gather the currently marked entities. The walk is unlocked; only the
+  // assign + map swap below is guarded.
   struct Cand {
+    uint32_t key;  // index << 16 | serial
     int index;
-    uint16_t serial;
     long rx, ry, rz;
   };
   std::vector<Cand> cands;
@@ -32,26 +31,36 @@ void MarkTable::RebuildFromWorld() {
     const char* className = server->GetEntityClassName(info->m_pEntity);
     if (!IsHarnessMarkedClass(className)) continue;
     Vector o = SE(info->m_pEntity)->abs_origin();
-    cands.push_back({i, static_cast<uint16_t>(info->m_SerialNumber),
-                     std::lround(o.x), std::lround(o.y), std::lround(o.z)});
+    uint32_t key = (static_cast<uint32_t>(i) << 16) |
+                   static_cast<uint16_t>(info->m_SerialNumber);
+    cands.push_back(
+        {key, i, std::lround(o.x), std::lround(o.y), std::lround(o.z)});
   }
 
-  std::sort(cands.begin(), cands.end(), [](const Cand& a, const Cand& b) {
-    if (a.index != b.index) return a.index < b.index;
-    if (a.rx != b.rx) return a.rx < b.rx;
-    if (a.ry != b.ry) return a.ry < b.ry;
-    return a.rz < b.rz;
-  });
-
   std::lock_guard<std::mutex> lock(mutex);
+
+  // Assign a mark to any entity we haven't seen yet, in deterministic order
+  // (index, rounded origin), appended after the marks already handed out --
+  // so existing entities keep their mark when others spawn/despawn.
+  std::vector<const Cand*> fresh;
+  for (const auto& c : cands)
+    if (!assigned.count(c.key)) fresh.push_back(&c);
+  std::sort(fresh.begin(), fresh.end(), [](const Cand* a, const Cand* b) {
+    if (a->index != b->index) return a->index < b->index;
+    if (a->rx != b->rx) return a->rx < b->rx;
+    if (a->ry != b->ry) return a->ry < b->ry;
+    return a->rz < b->rz;
+  });
+  for (const Cand* c : fresh) assigned[c->key] = nextMark++;
+
+  // Mirror only the live entities into forward/reverse (a despawned mark drops
+  // out, so its reverse lookup correctly misses).
   forward.clear();
   reverse.clear();
-  int mark = 1;
   for (const auto& c : cands) {
-    uint32_t key = (static_cast<uint32_t>(c.index) << 16) | c.serial;
-    forward[key] = mark;
-    reverse[mark] = key;
-    ++mark;
+    int mark = assigned.at(c.key);  // every live key was just assigned above
+    forward[c.key] = mark;
+    reverse[mark] = c.key;
   }
 }
 
@@ -72,8 +81,10 @@ std::pair<int, uint16_t> MarkTable::GetEntityFromMark(int mark) {
 
 void MarkTable::Clear() {
   std::lock_guard<std::mutex> lock(mutex);
+  assigned.clear();
   forward.clear();
   reverse.clear();
+  nextMark = 1;
 }
 
 // Fresh marks on each map load so numbering restarts per chamber.

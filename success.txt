@@ -1,0 +1,34 @@
+# macro_repl transcript -- map testchamber_000
+move forward 20        # COMPLETED moved 49 units (COMPLETED)
+move forward 20        # COMPLETED moved 58 units (COMPLETED)
+move forward 20        # COMPLETED moved 58 units (COMPLETED)
+move forward 20        # COMPLETED moved 58 units (COMPLETED)
+move forward 20        # COMPLETED moved 58 units (COMPLETED)
+move forward 20        # COMPLETED moved 58 units (COMPLETED)
+aim_at 12              # SUCCESS aim pitch=23.0 yaw=134.3
+move forward 5         # COMPLETED moved 18 units (COMPLETED)
+go_to 12               # SUCCESS dist=35 after march
+aim_at 12              # SUCCESS aim pitch=51.8 yaw=-174.5
+pick_up 12             # SUCCESS grabbed mark 12 (dz=9 moved=13 dist=58)
+look +45 +45           # SUCCESS aim pitch=89.0 yaw=-129.5 (pitch clamped)
+aim_at 8               # SUCCESS aim pitch=7.5 yaw=3.8
+go_to 8                # SUCCESS dist=10 after march
+move backward 20       # BAD_DIR move: unknown dir 'backward'
+move back 20           # COMPLETED moved 49 units (COMPLETED)
+move forward 5         # COMPLETED moved 4 units (COMPLETED)
+move forward 5         # COMPLETED moved 17 units (COMPLETED)
+release                # SUCCESS released (look-down)
+aim_at 8               # SUCCESS aim pitch=49.6 yaw=3.2
+release 12             # SUCCESS released toward mark 12
+go_to 12               # SUCCESS dist=10 after march
+aim_at 12              # SUCCESS aim pitch=40.3 yaw=-16.9
+pick_up 12             # SUCCESS grabbed mark 12 (dz=9 moved=12 dist=73)
+move back 15           # COMPLETED moved 37 units (COMPLETED)
+move back 15           # COMPLETED moved 46 units (COMPLETED)
+move back 5            # COMPLETED moved 17 units (COMPLETED)
+move back 5            # COMPLETED moved 17 units (COMPLETED)
+release 12             # SUCCESS released toward mark 12
+move right 50          # COMPLETED moved 137 units (COMPLETED)
+aim_at 7               # SUCCESS aim pitch=0.0 yaw=36.0
+move forward 50        # COMPLETED moved 126 units (COMPLETED)
+go_to 7                # SUCCESS dist=26 after march

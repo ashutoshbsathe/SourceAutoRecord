@@ -70,22 +70,21 @@ message EnvironmentMessage {
 // See brainstorm/macro_executor_impl_plan.md and llm_percept_act_grammar.md.
 
 message MacroRequest {
-  string verb =
-      1;  // aim_at|look|go_to|move|pick_up_cube|release_cube|press|interact|wait|done
+  string verb = 1;  // aim_at|look|go_to|move|pick_up|release|interact|wait|done
   int32 mark = 2;   // anchored verbs: target mark (0 = unset)
   int32 ticks = 3;  // wait() AND move(): hold duration in ticks
   string dir = 4;   // move(): forward|back|left|right (relative to facing)
   int32 yaw = 5;    // look(): signed degrees, lexer-snapped to 15
   int32 pitch =
       6;  // look(): signed degrees, lexer-snapped to 15, engine-clamped
-  // P1 (portals/nav): string color; Vector3 point; string direction;
+  // later (portals/nav): string color; Vector3 point; string direction;
 }
 
 message MacroResult {
   bool ok = 1;
   string result_code =
-      2;  // SUCCESS|DONE|NOT_READY|BAD_MARK|NO_PLAYER|CANCELLED|NOT_IMPLEMENTED|
-          // (later) STUCK|BLOCKED|UNREACHABLE|EDGE|WALL|...
+      2;  // machine-parseable status, e.g. SUCCESS|DONE|BAD_MARK|GRAB_FAILED|
+          // STUCK|BLOCKED|UNREACHABLE|EDGE|WALL|CANCELLED|NOT_READY
   string detail = 3;
   bool reached = 4;      // go_to
   float final_dist = 5;  // go_to
