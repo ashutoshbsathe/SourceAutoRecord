@@ -3,6 +3,7 @@ runs/
 checkpoints/
 ray_results/
 ray_tmp/
+*.trajectory
 
 .vscode/
 *.so

@@ -60,6 +60,30 @@ VERB_SPECS = {
     'done': Verb('Declare the task complete (success = exit proximity).'),
 }
 
+VERBS = frozenset(VERB_SPECS)
+
+
+def build_macro(verb, args):
+    """Map a verb + positional string args to a MacroRequest (raises on bad args).
+
+    The imperative twin of validate(): no percept checks, just the arg shapes a
+    typed or scripted command supplies.
+    """
+    m = harness_pb2.MacroRequest(verb=verb)
+    if verb in ('aim_at', 'go_to', 'pick_up', 'interact'):
+        m.mark = int(args[0])
+    elif verb == 'release':
+        m.mark = int(args[0]) if args else 0
+    elif verb == 'move':
+        m.dir = args[0]
+        m.ticks = int(args[1])
+    elif verb == 'look':
+        m.yaw = int(args[0])
+        m.pitch = int(args[1]) if len(args) > 1 else 0
+    elif verb == 'wait':
+        m.ticks = int(args[0])
+    return m
+
 
 def _is_int(v):
     """True for a real integer (JSON booleans are ints in Python -- exclude them)."""

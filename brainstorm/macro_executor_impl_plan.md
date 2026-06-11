@@ -360,34 +360,45 @@ differs (typed stdin vs the model). The model is **Gemini 3.5 Flash**.
 - **Verify:** `macro_repl.py --attach < success.txt` still solves the canonical chamber. Pure refactor.
 - **Size:** ~180 LOC. **Deps:** PR4/PR5.
 
-### PR7b — binary `.trajectory` format + ReAct loop + scripted agent
+### PR7b — binary `.trajectory` format + the REPL as the manual recorder
 
-- **Goal:** the full loop + lossless serialization, exercised by a free deterministic agent (the canonical solve),
-  before any API spend. This is the scripted-canonical-solve gate, productized.
-- **Files:** new `py/llm_eval/trajectory.proto`, `py/llm_eval/trajectory_io.py`, `py/llm_eval/driver.py`;
-  `--record FILE` on `macro_repl.py`.
+- **Goal:** the lossless trajectory format, plus a way to produce trajectories **by hand** — the human is the
+  agent, no model and no transcript replay. A trajectory captures action + observation (+ frame) per step; the
+  model-only fields are mocked.
+- **Files:** new `py/llm_eval/trajectory.proto`, `py/llm_eval/trajectory_io.py`; `--record`/`--exit`/`--radius` on
+  `macro_repl.py`; `reached_exit` on `testchamber_session.py`.
 - **Changes:**
-  - `trajectory.proto` (**Python-only** — never crosses gRPC, so NOT in `harness.proto`): `LlmTrajectoryHeader`
-    (map, exit_pos, success_radius, model_id, system prompt, grammar version) + `LlmStep` (step index, `frame_png`
-    bytes, marks, `reasoning`, raw model response, the action, `MacroResult`, held_mark, token usage). Compile to a
-    Python stub (extend `make proto_py`); exclude the generated stub from `format.sh`.
-  - `trajectory_io.py`: `TrajectoryWriter` (length-delimited append) + `read_trajectory`.
-  - `driver.py`: `run_trajectory(session, agent, chamber_cfg, writer, max_steps, max_retries)` — set
-    `sar_harness_annotate 1`; `reset`; prime; loop `action = agent(obs)` → `validate(action, obs.marks,
-    session.held_mark)` → on error string record+re-ask (capped); on `MacroRequest` `step(capture_frame=True)`,
-    write the step; stop on `done` or `reached_exit`.
-  - The **scripted agent**: a callable replaying a verb list (parsed from a transcript like `success.txt`).
-  - `macro_repl.py --record FILE` writes the same `.trajectory`, so the REPL gets the binary artifact too.
-- **Verify:** the scripted canonical solve runs through the real driver, `reached_exit` true, and a complete
-  `.trajectory` (frames embedded, every field) is produced — zero API spend. The harness + serialization are now
-  confound-free, so any later model failure is cleanly perception/reasoning.
-- **Size:** ~220 LOC + proto. **Deps:** PR7a.
+  - `trajectory.proto` (**Python-only** — never crosses gRPC, so NOT in `harness.proto`): `TrajectoryHeader`
+    (map, exit_pos, success_radius, model, system_prompt, grammar) + `Step` (index, `frame_png` bytes,
+    percept_json, player, reasoning, raw_response, action+result as serialized harness protos, held_mark,
+    `TokenUsage`, terminal). Compile via `make proto_py`; the generated stub is out of the lint gate.
+  - `trajectory_io.py`: `TrajectoryWriter` (length-delimited append, per-record flush), `read_trajectory`,
+    `make_step(obs, macro, ...)`. `reached_exit(obs, exit_pos, radius)` lives with `Observation`.
+  - `macro_repl.py --record FILE [--exit x,y,z --radius R]`: each verb step captures a frame and writes a `Step`;
+    the typed command is the `reasoning`, the model fields (`raw_response`, `TokenUsage`) are mocked (usage = -1),
+    and a step is marked `SOLVED` when it reaches the exit. Frame capture needs a video-mode instance (SHM); if
+    absent, `--record` disables itself with a warning.
+- **Verify:** hand-solve a chamber in the REPL with `--record`, read the `.trajectory` back — frames embedded,
+  action + observation per step, mocked model fields, `SOLVED` on the exit step.
+- **Size:** ~160 LOC + proto. **Deps:** PR7a.
+
+**As-built (7b):**
+
+- **No scripted replay, no `run_trajectory.py`, no `driver.py`.** Execution isn't tick-perfect, so replaying a saved
+  transcript has no value — the REPL (human agent) records the trajectory directly, and the model agent loop is
+  built in 7c where it's actually exercised. `make_step` / `TrajectoryWriter` / `reached_exit` are the shared core
+  both the REPL and 7c use.
+- **`VERBS` + `build_macro` moved to `macro_grammar`** (`VERBS = frozenset(VERB_SPECS)`) — the eval code no longer
+  imports the REPL script.
+- **bagz rejected:** no `cp314` wheel (only cp310–313), unusable on `requires-python >=3.14`. Kept the repo's
+  `.rollout`-style length-delimited framing (`struct '<I'`) — zero new deps, crash-safe (per-record flush →
+  readable prefix), reader tolerates a truncated tail.
 
 ### PR7c — Gemini 3.5 Flash agent → ⭐ FIRST LIGHT
 
-- **Goal:** swap the scripted agent for the frozen VLM; the first perception-vs-reasoning signal.
-- **Files:** new `py/llm_eval/gemini_agent.py`; wire into `driver.py`. Adds `google-genai`; loads `GEMINI_API_KEY`
-  from the repo `.env`.
+- **Goal:** the frozen VLM drives a chamber to a `.trajectory`; the first perception-vs-reasoning signal.
+- **Files:** new `py/llm_eval/gemini_agent.py` + the model agent loop (built here, reusing `trajectory_io` +
+  `reached_exit` + `make_step`). Adds `google-genai`; loads `GEMINI_API_KEY` from the repo `.env`.
 - **Changes:**
   - `GeminiAgent` — one `client.chats.create(model="gemini-3.5-flash", config=...)` per trajectory,
     `thinking_level=HIGH`, system instruction from `verb_signatures()` + task + percept-format. `next_action(obs)`

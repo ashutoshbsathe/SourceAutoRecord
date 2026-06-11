@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package llm_eval;
+
+// One frozen-model solve attempt: a header, then one Step per macro. On disk
+// the messages are length-delimited (a uint32 little-endian size prefix each),
+// matching the .rollout framing. Frames are embedded PNG bytes, so a trajectory
+// is a single self-contained file.
+
+message Vec3 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+message TokenUsage {
+  int32 input = 1;
+  int32 output = 2;
+  int32 cached = 3;
+}
+
+message TrajectoryHeader {
+  string map = 1;
+  Vec3 exit_pos = 2;
+  float success_radius = 3;
+  string model = 4;          // empty for the scripted agent
+  string system_prompt = 5;  // empty for the scripted agent
+  string grammar = 6;        // the verb vocabulary in play, for provenance
+}
+
+message Step {
+  int32 index = 1;
+  bytes frame_png = 2;       // annotated frame, PNG-encoded (empty if uncaptured)
+  string percept_json = 3;   // the marked-entity list the agent saw
+  Vec3 player = 4;
+  string reasoning = 5;      // the agent's stated thought (or the typed command)
+  string raw_response = 6;   // the model's full response, verbatim (empty if none)
+  // action/result are opaque serialized harness protos -- this keeps the file
+  // standalone (no harness.proto include); parse them with harness_pb2.
+  bytes action = 7;          // serialized harness.MacroRequest
+  bytes result = 8;          // serialized harness.MacroResult
+  int32 held_mark = 9;
+  TokenUsage usage = 10;
+  string terminal = 11;      // empty except the final step: SOLVED|DONE|BUDGET|GAVE_UP
+}

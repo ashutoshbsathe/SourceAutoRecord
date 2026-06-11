@@ -57,10 +57,15 @@ py/p2harness/harness_pb2_grpc.py: $(PROTO_SRC)
 	/opt/p2-grpc32/bin/protoc -I=src/Features/Harness --grpc_python_out=py/p2harness --plugin=protoc-gen-grpc_python=/opt/p2-grpc32/bin/grpc_python_plugin $<
 	sed -i 's/^import harness_pb2 as harness__pb2/from . import harness_pb2 as harness__pb2/' $@
 
+# Python-only proto for the eval trajectory format (not part of the gRPC surface)
+py/llm_eval/trajectory_pb2.py: py/llm_eval/trajectory.proto
+	@mkdir -p py/llm_eval
+	/opt/p2-grpc32/bin/protoc -I=py/llm_eval --python_out=py/llm_eval $<
+
 # Convenience targets
 proto_cpp: src/Features/Harness/harness.pb.cpp src/Features/Harness/harness.pb.h src/Features/Harness/harness.grpc.pb.cpp src/Features/Harness/harness.grpc.pb.h
 
-proto_py: py/p2harness/harness_pb2.py py/p2harness/harness_pb2_grpc.py
+proto_py: py/p2harness/harness_pb2.py py/p2harness/harness_pb2_grpc.py py/llm_eval/trajectory_pb2.py
 
 proto: proto_cpp proto_py
 
