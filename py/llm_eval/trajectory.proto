@@ -17,6 +17,14 @@ message TokenUsage {
   int32 input = 1;
   int32 output = 2;
   int32 cached = 3;
+  int32 image = 4;     // share of input
+  int32 thinking = 5;  // share of output
+}
+
+message Attempt {
+  string raw_response = 1;
+  string rejection_reason = 2;
+  TokenUsage usage = 3;
 }
 
 message TrajectoryHeader {
@@ -42,4 +50,8 @@ message Step {
   int32 held_mark = 9;
   TokenUsage usage = 10;
   string terminal = 11;      // empty except the final step: SOLVED|DONE|BUDGET|GAVE_UP
+  string thinking = 12;
+  repeated Attempt attempts = 13;
+  string prompt_sent = 14;
+  float eye_yaw = 15;
 }

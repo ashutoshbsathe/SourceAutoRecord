@@ -1,0 +1,207 @@
+~/HDD/MachineLearning/2026/SourceAutoRecord (yeeh) » uv run python py/run_eval.py --map testchamber_000 --exit 815,854,1 --radius=10
+launching game instance 0 ...
+INFO:game_launcher:[Instance 0] Starting: gamescope -w 640 -h 480 -W 640 -H 480 -b -- /home/ashutosh/.steam/root/ubuntu12_32/steam-runtime/run.sh /home/ashutosh/HDD/SteamLibrary/steamapps/common/Portal 2/portal2.sh -game portal2 -nosteam -novid -vulkan -windowed -low -nomousegrab +engine_no_focus_sleep 0 +tv_port 47000 +hostport 48000 +clientport 49000 +sar_harness_instance 0 +sar_harness 1
+INFO:game_launcher:[Instance 0] PID: 11023
+  waiting for harness... (attempt 1)
+  waiting for harness... (attempt 2)
+  waiting for harness... (attempt 3)
+  waiting for harness... (attempt 4)
+  waiting for harness... (attempt 5)
+  waiting for harness... (attempt 6)
+
+  recording -> eval.trajectory
+
+════════════════  step 0  ════════════════
+  ▶ sent (frame + telemetry)
+    player=(192,-96,0) holding=nothing
+    exit=(815,854,1) dist=1136 bearing=-33
+    last_result=SUCCESS waited 1 ticks
+    marks:
+      [1] prop_testchamber_door pos=(192,-461,0) dist=365 bearing=-180 state={'open': None}
+      [2] prop_testchamber_door pos=(192,-13,-0) dist=83 bearing=0 state={'open': None}
+      [3] prop_testchamber_door pos=(-1904,2880,0) dist=3640 bearing=35 state={'open': None}
+      [4] prop_testchamber_door pos=(-2688,-2032,32) dist=3470 bearing=124 state={'open': None}
+      [5] prop_testchamber_door pos=(832,1221,0) dist=1464 bearing=-26 state={'open': None}
+      [6] trigger_portal_cleanser pos=(832,808,64) dist=1107 bearing=-35 state={}
+      [7] prop_floor_button pos=(576,704,8) dist=887 bearing=-26 state={'pressed': False}
+      [8] prop_testchamber_door pos=(832,781,0) dist=1086 bearing=-36 state={'open': None}
+      [9] prop_portal pos=(0,0,0) dist=215 bearing=63 state={}
+      [10] prop_portal pos=(0,0,0) dist=215 bearing=63 state={}
+      [11] prop_weighted_cube pos=(65,703,430) dist=809 bearing=9 state={'cube_type': 'standard', 'on_button': False}
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 200 OK"
+  ◀ gemini  (try 1)  in 1925 (img 1064)  ·  out 313 (think 275)
+    {"reasoning": "I will walk towards the weighted cube to pick it up and place it on the button.", "verb": "go_to", "mark": 11}
+  ✓ go_to → SUCCESS dist=7 after march
+
+════════════════  step 1  ════════════════
+  ▶ sent (frame + telemetry)
+    player=(66,696,0) holding=nothing
+    exit=(815,854,1) dist=766 bearing=-87
+    last_result=SUCCESS dist=7 after march
+    marks:
+      [1] prop_testchamber_door pos=(192,-461,0) dist=1164 bearing=177 state={'open': None}
+      [2] prop_testchamber_door pos=(192,-13,-0) dist=720 bearing=-179 state={'open': None}
+      [3] prop_testchamber_door pos=(-1904,2880,0) dist=2941 bearing=33 state={'open': None}
+      [4] prop_testchamber_door pos=(-2688,-2032,32) dist=3876 bearing=126 state={'open': None}
+      [5] prop_testchamber_door pos=(832,1221,0) dist=929 bearing=-65 state={'open': None}
+      [6] trigger_portal_cleanser pos=(832,808,64) dist=774 bearing=-91 state={}
+      [7] prop_floor_button pos=(576,704,8) dist=510 bearing=-98 state={'pressed': False}
+      [8] prop_testchamber_door pos=(832,781,0) dist=771 bearing=-93 state={'open': None}
+      [9] prop_portal pos=(0,0,0) dist=699 bearing=166 state={}
+      [10] prop_portal pos=(0,0,0) dist=699 bearing=166 state={}
+      [11] prop_weighted_cube pos=(117,672,18) dist=56 bearing=-124 state={'cube_type': 'standard', 'on_button': False}
+      [12] prop_weighted_cube pos=(65,703,430) dist=8 bearing=0 state={'cube_type': 'standard', 'on_button': False}
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 200 OK"
+  ◀ gemini  (try 1)  in 3817 (img 2128)  ·  out 203 (think 174)
+    {"reasoning": "I will pick up the nearby weighted cube.", "verb": "pick_up", "mark": 11}
+  ✓ pick_up → SUCCESS grabbed mark 11 (dz=9 moved=11 dist=73)
+
+════════════════  step 2  ════════════════
+  ▶ sent (frame + telemetry)
+    player=(66,696,0) holding=11
+    exit=(815,854,1) dist=766 bearing=37
+    last_result=SUCCESS grabbed mark 11 (dz=9 moved=11 dist=73)
+    marks:
+      [1] prop_testchamber_door pos=(192,-461,0) dist=1164 bearing=-59 state={'open': None}
+      [2] prop_testchamber_door pos=(192,-13,-0) dist=720 bearing=-55 state={'open': None}
+      [3] prop_testchamber_door pos=(-1904,2880,0) dist=2941 bearing=157 state={'open': None}
+      [4] prop_testchamber_door pos=(-2688,-2032,32) dist=3876 bearing=-110 state={'open': None}
+      [5] prop_testchamber_door pos=(832,1221,0) dist=929 bearing=59 state={'open': None}
+      [6] trigger_portal_cleanser pos=(832,808,64) dist=774 bearing=33 state={}
+      [7] prop_floor_button pos=(576,704,8) dist=510 bearing=26 state={'pressed': False}
+      [8] prop_testchamber_door pos=(832,781,0) dist=771 bearing=31 state={'open': None}
+      [9] prop_portal pos=(0,0,0) dist=699 bearing=-70 state={}
+      [10] prop_portal pos=(0,0,0) dist=699 bearing=-70 state={}
+      [11] prop_weighted_cube pos=(123,669,27) dist=63 bearing=0 state={'cube_type': 'standard', 'on_button': False}
+      [12] prop_weighted_cube pos=(65,703,430) dist=8 bearing=124 state={'cube_type': 'standard', 'on_button': False}
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 200 OK"
+  ◀ gemini  (try 1)  in 5610 (img 3192)  ·  out 110 (think 81)
+    {"reasoning": "I will walk with the cube to the button.", "verb": "go_to", "mark": 7}
+  ✓ go_to → SUCCESS dist=14 after march
+
+════════════════  step 3  ════════════════
+  ▶ sent (frame + telemetry)
+    player=(562,704,18) holding=11
+    exit=(815,854,1) dist=294 bearing=30
+    last_result=SUCCESS dist=14 after march
+    marks:
+      [1] prop_testchamber_door pos=(192,-461,0) dist=1222 bearing=-108 state={'open': None}
+      [2] prop_testchamber_door pos=(192,-13,-0) dist=807 bearing=-118 state={'open': None}
+      [3] prop_testchamber_door pos=(-1904,2880,0) dist=3289 bearing=138 state={'open': None}
+      [4] prop_testchamber_door pos=(-2688,-2032,32) dist=4248 bearing=-141 state={'open': None}
+      [5] prop_testchamber_door pos=(832,1221,0) dist=583 bearing=62 state={'open': None}
+      [6] trigger_portal_cleanser pos=(832,808,64) dist=289 bearing=20 state={}
+      [7] prop_floor_button pos=(576,704,8) dist=14 bearing=-0 state={'pressed': True}
+      [8] prop_testchamber_door pos=(832,781,0) dist=281 bearing=15 state={'open': None}
+      [9] prop_portal pos=(0,0,0) dist=901 bearing=-130 state={}
+      [10] prop_portal pos=(0,0,0) dist=901 bearing=-130 state={}
+      [11] prop_weighted_cube pos=(630,705,62) dist=68 bearing=0 state={'cube_type': 'standard', 'on_button': False}
+      [12] prop_weighted_cube pos=(65,703,430) dist=497 bearing=179 state={'cube_type': 'standard', 'on_button': False}
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 200 OK"
+  ◀ gemini  (try 1)  in 7304 (img 4256)  ·  out 126 (think 96)
+    {"reasoning": "I will release the cube on the button to keep it pressed.", "verb": "release", "mark": 7}
+  ✓ release → SUCCESS released toward mark 7
+
+════════════════  step 4  ════════════════
+  ▶ sent (frame + telemetry)
+    player=(562,704,18) holding=nothing
+    exit=(815,854,1) dist=294 bearing=30
+    last_result=SUCCESS released toward mark 7
+    marks:
+      [1] prop_testchamber_door pos=(192,-461,0) dist=1222 bearing=-108 state={'open': None}
+      [2] prop_testchamber_door pos=(192,-13,-0) dist=807 bearing=-118 state={'open': None}
+      [3] prop_testchamber_door pos=(-1904,2880,0) dist=3289 bearing=138 state={'open': None}
+      [4] prop_testchamber_door pos=(-2688,-2032,32) dist=4248 bearing=-141 state={'open': None}
+      [5] prop_testchamber_door pos=(832,1221,0) dist=583 bearing=62 state={'open': None}
+      [6] trigger_portal_cleanser pos=(832,808,64) dist=289 bearing=20 state={}
+      [7] prop_floor_button pos=(576,704,8) dist=14 bearing=-0 state={'pressed': True}
+      [8] prop_testchamber_door pos=(832,781,0) dist=281 bearing=15 state={'open': None}
+      [9] prop_portal pos=(0,0,0) dist=901 bearing=-129 state={}
+      [10] prop_portal pos=(0,0,0) dist=901 bearing=-129 state={}
+      [11] prop_weighted_cube pos=(594,704,49) dist=32 bearing=0 state={'cube_type': 'standard', 'on_button': False}
+      [12] prop_weighted_cube pos=(65,703,430) dist=497 bearing=179 state={'cube_type': 'standard', 'on_button': False}
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 200 OK"
+  ◀ gemini  (try 1)  in 9012 (img 5320)  ·  out 111 (think 73)
+    {"reasoning": "The button is pressed. Now I will walk towards the test chamber door that should be open.", "verb": "go_to", "mark": 8}
+  ✗ go_to → BLOCKED go_to blocked by WALL
+
+════════════════  step 5  ════════════════
+  ▶ sent (frame + telemetry)
+    player=(562,704,18) holding=nothing
+    exit=(815,854,1) dist=294 bearing=30
+    last_result=BLOCKED go_to blocked by WALL
+    marks:
+      [1] prop_testchamber_door pos=(192,-461,0) dist=1222 bearing=-108 state={'open': None}
+      [2] prop_testchamber_door pos=(192,-13,-0) dist=807 bearing=-118 state={'open': None}
+      [3] prop_testchamber_door pos=(-1904,2880,0) dist=3289 bearing=138 state={'open': None}
+      [4] prop_testchamber_door pos=(-2688,-2032,32) dist=4248 bearing=-141 state={'open': None}
+      [5] prop_testchamber_door pos=(832,1221,0) dist=583 bearing=62 state={'open': None}
+      [6] trigger_portal_cleanser pos=(832,808,64) dist=289 bearing=20 state={}
+      [7] prop_floor_button pos=(576,704,8) dist=14 bearing=-0 state={'pressed': True}
+      [8] prop_testchamber_door pos=(832,781,0) dist=281 bearing=15 state={'open': None}
+      [9] prop_portal pos=(0,0,0) dist=901 bearing=-129 state={}
+      [10] prop_portal pos=(0,0,0) dist=901 bearing=-129 state={}
+      [11] prop_weighted_cube pos=(594,704,49) dist=32 bearing=0 state={'cube_type': 'standard', 'on_button': False}
+      [12] prop_weighted_cube pos=(65,703,430) dist=497 bearing=179 state={'cube_type': 'standard', 'on_button': False}
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 200 OK"
+  ◀ gemini  (try 1)  in 10707 (img 6384)  ·  out 106 (think 61)
+    {"reasoning": "I am blocked by the cube/button. I will aim at the door first to clear my path and see the exit way.", "verb": "aim_at", "mark": 8}
+  ✓ aim_at → SUCCESS aim pitch=6.8 yaw=15.9
+
+════════════════  step 6  ════════════════
+  ▶ sent (frame + telemetry)
+    player=(562,704,18) holding=nothing
+    exit=(815,854,1) dist=294 bearing=15
+    last_result=SUCCESS aim pitch=6.8 yaw=15.9
+    marks:
+      [1] prop_testchamber_door pos=(192,-461,0) dist=1222 bearing=-124 state={'open': None}
+      [2] prop_testchamber_door pos=(192,-13,-0) dist=807 bearing=-133 state={'open': None}
+      [3] prop_testchamber_door pos=(-1904,2880,0) dist=3289 bearing=123 state={'open': None}
+      [4] prop_testchamber_door pos=(-2688,-2032,32) dist=4248 bearing=-156 state={'open': None}
+      [5] prop_testchamber_door pos=(832,1221,0) dist=583 bearing=46 state={'open': None}
+      [6] trigger_portal_cleanser pos=(832,808,64) dist=289 bearing=5 state={}
+      [7] prop_floor_button pos=(576,704,8) dist=14 bearing=-15 state={'pressed': True}
+      [8] prop_testchamber_door pos=(832,781,0) dist=281 bearing=0 state={'open': None}
+      [9] prop_portal pos=(0,0,0) dist=901 bearing=-145 state={}
+      [10] prop_portal pos=(0,0,0) dist=901 bearing=-145 state={}
+      [11] prop_weighted_cube pos=(594,704,49) dist=32 bearing=-15 state={'cube_type': 'standard', 'on_button': False}
+      [12] prop_weighted_cube pos=(65,703,430) dist=497 bearing=164 state={'cube_type': 'standard', 'on_button': False}
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 429 Too Many Requests"
+INFO:google_genai._api_client:Retrying google.genai._api_client.BaseApiClient._request_once in 4.49 seconds as it raised ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-3.5-flash\nPlease retry in 19.200325521s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3.5-flash'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '19s'}]}}.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 429 Too Many Requests"
+INFO:google_genai._api_client:Retrying google.genai._api_client.BaseApiClient._request_once in 8.72 seconds as it raised ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-3.5-flash\nPlease retry in 13.662063661s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3.5-flash'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '13s'}]}}.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 429 Too Many Requests"
+INFO:google_genai._api_client:Retrying google.genai._api_client.BaseApiClient._request_once in 16.9 seconds as it raised ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-3.5-flash\nPlease retry in 3.794524095s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3.5-flash'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '3s'}]}}.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 200 OK"
+  ◀ gemini  (try 1)  in 12402 (img 7448)  ·  out 93 (think 49)
+    {"reasoning": "I am standing right next to the button/cube. I will back up slightly to get clear space.", "verb": "move", "dir": "back", "pitch": 0}
+    ↳ rejected: move: ticks must be an integer in [1, 400], got None; re-prompting
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 200 OK"
+  ◀ gemini  (try 2)  in 12526 (img 7448)  ·  out 65 (think 21)
+    {"reasoning": "I am standing right next to the button/cube. I will back up slightly to get clear space.", "verb": "move", "dir": "back", "pitch": 0}
+    ↳ rejected: move: ticks must be an integer in [1, 400], got None; re-prompting
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 429 Too Many Requests"
+INFO:google_genai._api_client:Retrying google.genai._api_client.BaseApiClient._request_once in 4.27 seconds as it raised ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.5-flash\nPlease retry in 30.109436819s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3.5-flash'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '30s'}]}}.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 429 Too Many Requests"
+INFO:google_genai._api_client:Retrying google.genai._api_client.BaseApiClient._request_once in 8.9 seconds as it raised ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.5-flash\nPlease retry in 24.633599329s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3.5-flash'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '24s'}]}}.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 429 Too Many Requests"
+INFO:google_genai._api_client:Retrying google.genai._api_client.BaseApiClient._request_once in 16.1 seconds as it raised ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.5-flash\nPlease retry in 14.243689257s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3.5-flash'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '14s'}]}}.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 429 Too Many Requests"
+INFO:google_genai._api_client:Retrying google.genai._api_client.BaseApiClient._request_once in 32.6 seconds as it raised ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.5-flash\nPlease retry in 56.996690473s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3.5-flash'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '56s'}]}}.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 429 Too Many Requests"
+INFO:google_genai._api_client:Retrying google.genai._api_client.BaseApiClient._request_once in 64.5 seconds as it raised ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.5-flash\nPlease retry in 22.515084322s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3.5-flash'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '22s'}]}}.
+INFO:httpx:HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.1 429 Too Many Requests"
+fatal: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.5-flash\nPlease retry in 16.881539222s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3.5-flash'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '16s'}]}}
+tearing down game instance ...
+INFO:game_launcher:[Instance 0] Stopping...
+AgentLoop RPC stream dropped: StatusCode.UNAVAILABLE Socket closed
+INFO:game_launcher:[Instance 0] Stopped.

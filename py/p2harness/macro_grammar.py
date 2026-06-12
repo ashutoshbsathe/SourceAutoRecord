@@ -169,18 +169,18 @@ def validate(call, entities, held_mark=None):
 
 
 def _signature(verb, spec):
-    """Human-readable 'verb(args)' for the prompt / tool description."""
+    """Human-readable 'verb(arg: type)' for the prompt / tool description."""
     args = []
     if spec.mark == 'optional':
-        args.append('[mark]')
+        args.append('mark?: int')
     elif spec.mark:
-        args.append('mark')
+        args.append('mark: int')
     if spec.dirs is not None:
-        args.append('dir')
+        args.append('dir: ' + '|'.join(spec.dirs))
     if spec.ticks_max is not None:
-        args.append('ticks')
+        args.append(f'ticks: int 1-{spec.ticks_max}')
     if spec.look:
-        args += ['yaw', '[pitch]']
+        args += ['yaw: int deg', 'pitch?: int deg']
     return f'{verb}({", ".join(args)})'
 
 
@@ -207,24 +207,26 @@ def tool_schema():
             },
             'mark': {
                 'type': 'integer',
-                'description': 'target entity mark (anchored verbs)',
+                'description': 'target entity mark; required by aim_at/go_to/'
+                'interact/pick_up, optional for release, unused by others',
             },
             'ticks': {
                 'type': 'integer',
-                'description': 'duration in ticks (wait, move)',
+                'description': 'duration in ticks; REQUIRED by move and wait, '
+                'unused by every other verb',
             },
             'dir': {
                 'type': 'string',
                 'enum': list(MOVE_DIRS),
-                'description': 'move direction',
+                'description': 'move only: movement direction',
             },
             'yaw': {
                 'type': 'integer',
-                'description': 'look: signed degrees, snapped to 15',
+                'description': 'look only: signed degrees, snapped to 15',
             },
             'pitch': {
                 'type': 'integer',
-                'description': 'look: signed degrees, snapped to 15',
+                'description': 'look only: signed degrees, snapped to 15',
             },
         },
         'required': ['verb'],
