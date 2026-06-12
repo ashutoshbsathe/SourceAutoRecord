@@ -92,6 +92,8 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 | `trajectory_visualizer.md` | the `.trajectory` (LLM eval) self-contained HTML viewer design |
 | `trajectory_retry_capture.md` | the Observation+Call `.trajectory` data model (per-call retries) |
 | `first_light_and_next_steps.md` | **⭐ post-first-light: the result, the reasoning-vs-locomotion finding, and next steps** |
+| `diverge_catalog.md` | **the full idea space** — 259 consolidated ideas (A–M themes, stable IDs), skeptic's corner, next-7-days shortlist; raw council output in `.council/` |
+| `vp_pitch.md` | the **VP Research pitch narrative** (thesis, 7 workstreams, milestones, risks, the 4.5-FTE ask) |
 | `hdem_implementation.md` / `_plan.md` | the `.hdem` sidecar recorder design |
 | `entity_snapshotter_redesign.md` | snapshotter hot-path / perf design |
 | `phase4_sendtable_discovery.md` | snapshotter field discovery + curated-status follow-up |
