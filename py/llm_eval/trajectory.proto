@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package llm_eval;
 
-// One frozen-model solve attempt: a header, then one Step per macro. On disk
-// the messages are length-delimited (a uint32 little-endian size prefix each),
+// One frozen-model solve attempt: a header, then one Step per macro. On disk the
+// messages are length-delimited (a uint32 little-endian size prefix each),
 // matching the .rollout framing. Frames are embedded PNG bytes, so a trajectory
 // is a single self-contained file.
 
@@ -21,10 +21,29 @@ message TokenUsage {
   int32 thinking = 5;  // share of output
 }
 
-message Attempt {
-  string raw_response = 1;
-  string rejection_reason = 2;
-  TokenUsage usage = 3;
+// The percept the model re-answers across retries. Stored once per Step.
+message Observation {
+  bytes frame_png = 1;     // annotated frame, PNG-encoded (empty if uncaptured)
+  string percept_json = 2;  // the marked-entity list the agent saw
+  Vec3 player = 3;
+  float eye_yaw = 4;        // camera yaw, for a map facing arrow
+  int32 held_mark = 5;
+}
+
+// One LLM round-trip against the Step's observation -- same shape whether the
+// validator accepted or rejected it.
+message Call {
+  string prompt_sent = 1;       // the exact message sent this call (percept, or a re-prompt)
+  string thinking = 2;          // this call's thought-summary text
+  string raw_response = 3;      // the model's full reply, verbatim
+  string reasoning = 4;         // parsed reasoning ("" if the reply didn't parse)
+  TokenUsage usage = 5;
+  bool accepted = 6;            // the validator passed this call (at most one per Step)
+  string rejection_reason = 7;  // "" if accepted, else "invalid JSON" or the validate() reason
+  // action/result are opaque serialized harness protos -- set only on the
+  // accepted call; parse them with harness_pb2.
+  bytes action = 8;             // serialized harness.MacroRequest
+  bytes result = 9;             // serialized harness.MacroResult
 }
 
 message TrajectoryHeader {
@@ -38,20 +57,7 @@ message TrajectoryHeader {
 
 message Step {
   int32 index = 1;
-  bytes frame_png = 2;       // annotated frame, PNG-encoded (empty if uncaptured)
-  string percept_json = 3;   // the marked-entity list the agent saw
-  Vec3 player = 4;
-  string reasoning = 5;      // the agent's stated thought (or the typed command)
-  string raw_response = 6;   // the model's full response, verbatim (empty if none)
-  // action/result are opaque serialized harness protos -- this keeps the file
-  // standalone (no harness.proto include); parse them with harness_pb2.
-  bytes action = 7;          // serialized harness.MacroRequest
-  bytes result = 8;          // serialized harness.MacroResult
-  int32 held_mark = 9;
-  TokenUsage usage = 10;
-  string terminal = 11;      // empty except the final step: SOLVED|DONE|BUDGET|GAVE_UP
-  string thinking = 12;
-  repeated Attempt attempts = 13;
-  string prompt_sent = 14;
-  float eye_yaw = 15;
+  Observation obs = 2;
+  repeated Call calls = 3;  // try 0..N in order; the last is accepted, or none is (gave up)
+  string terminal = 4;      // empty except the final step: SOLVED|DONE|BUDGET|GAVE_UP
 }

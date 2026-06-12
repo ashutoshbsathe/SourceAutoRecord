@@ -56,18 +56,23 @@ def _pre(text):
     return f'<pre class="plain">{html.escape(text or "")}</pre>'
 
 
-def _action(step):
-    """Decode a step's serialized MacroRequest."""
+def _action(call):
+    """Decode a call's serialized MacroRequest."""
     m = harness_pb2.MacroRequest()
-    m.ParseFromString(step.action)
+    m.ParseFromString(call.action)
     return m
 
 
-def _result(step):
-    """Decode a step's serialized MacroResult."""
+def _result(call):
+    """Decode a call's serialized MacroResult."""
     r = harness_pb2.MacroResult()
-    r.ParseFromString(step.result)
+    r.ParseFromString(call.result)
     return r
+
+
+def _accepted(step):
+    """The step's accepted Call, or None if it gave up."""
+    return next((c for c in step.calls if c.accepted), None)
 
 
 def _verb(action):
@@ -95,11 +100,11 @@ def _tokens(u):
     return s + (f' · cached {u.cached}' if u.cached else '')
 
 
-def _frame(step, idx):
+def _frame(obs, idx):
     """The annotated frame as a clickable inline <img>, or a placeholder."""
-    if not step.frame_png:
+    if not obs.frame_png:
         return '<div class="noframe">no frame captured</div>'
-    uri = 'data:image/png;base64,' + base64.b64encode(step.frame_png).decode('ascii')
+    uri = 'data:image/png;base64,' + base64.b64encode(obs.frame_png).decode('ascii')
     return (
         f'<img class="frame" src="{uri}" loading="lazy" alt="step {idx} frame" '
         'onclick="lightbox(this.src)">'
@@ -131,9 +136,9 @@ def _projector(header, steps):
     """Build a world->SVG projection covering every player/mark/exit point."""
     xs, ys = [header.exit_pos.x], [header.exit_pos.y]
     for s in steps:
-        xs.append(s.player.x)
-        ys.append(s.player.y)
-        for m in json.loads(s.percept_json or '[]'):
+        xs.append(s.obs.player.x)
+        ys.append(s.obs.player.y)
+        for m in json.loads(s.obs.percept_json or '[]'):
             p = m.get('pos') or [0, 0, 0]
             xs.append(p[0])
             ys.append(p[1])
@@ -155,18 +160,19 @@ def _map(header, steps, idx, ctx):
     try:
         proj, scale, (w, h) = ctx
         s = steps[idx]
-        target = _action(s).mark
+        acc = _accepted(s)
+        target = _action(acc).mark if acc else 0
         ex, ey = proj(header.exit_pos.x, header.exit_pos.y)
         er = max(header.success_radius * scale, 4)
         out = [f'<svg class="map" viewBox="0 0 {w} {h}">']
         out.append(f'<circle cx="{ex:.1f}" cy="{ey:.1f}" r="{er:.1f}" class="exit-r"/>')
         out.append(f'<circle cx="{ex:.1f}" cy="{ey:.1f}" r="3" class="exit"/>')
         pts = ' '.join(
-            '%.1f,%.1f' % proj(steps[i].player.x, steps[i].player.y)
+            '%.1f,%.1f' % proj(steps[i].obs.player.x, steps[i].obs.player.y)
             for i in range(idx + 1)
         )
         out.append(f'<polyline points="{pts}" class="path"/>')
-        for m in json.loads(s.percept_json or '[]'):
+        for m in json.loads(s.obs.percept_json or '[]'):
             p = m.get('pos') or [0, 0, 0]
             mx, my = proj(p[0], p[1])
             cls = 'mk hot' if target and m.get('mark') == target else 'mk'
@@ -174,9 +180,11 @@ def _map(header, steps, idx, ctx):
             out.append(
                 f'<text x="{mx + 5:.1f}" y="{my + 3:.1f}" class="mlbl">{m.get("mark")}</text>'
             )
-        px, py = proj(s.player.x, s.player.y)
-        yaw = math.radians(s.eye_yaw)
-        fx, fy = proj(s.player.x + math.cos(yaw) * 45, s.player.y + math.sin(yaw) * 45)
+        px, py = proj(s.obs.player.x, s.obs.player.y)
+        yaw = math.radians(s.obs.eye_yaw)
+        fx, fy = proj(
+            s.obs.player.x + math.cos(yaw) * 45, s.obs.player.y + math.sin(yaw) * 45
+        )
         out.append(
             f'<line x1="{px:.1f}" y1="{py:.1f}" x2="{fx:.1f}" y2="{fy:.1f}" class="facing"/>'
         )
@@ -187,84 +195,107 @@ def _map(header, steps, idx, ctx):
         return ''
 
 
+def _render_call(call, j):
+    """Render one LLM call -- accepted (green) or rejected (amber) -- uniformly."""
+    acc = call.accepted
+    r = _result(call) if acc else None
+    good = bool(r.ok) if r else False
+    if acc:
+        label = f'✓ {html.escape(_verb(_action(call)))}'
+        extras = _result_extras(r)
+        outcome = (
+            f'<div class="result {"ok" if good else "bad"}">'
+            f'<span class="rc">{"✓" if good else "✗"} {html.escape(r.result_code)}</span> '
+            f'<span class="detail">{html.escape(r.detail)}</span>'
+            f'{(" · " + html.escape(extras)) if extras else ""}'
+            f'<span class="tok">{_tokens(call.usage)}</span></div>'
+        )
+    else:
+        label = f'try {j + 1} · ✗ rejected'
+        outcome = (
+            f'<div class="result bad"><span class="rc">✗ rejected</span> '
+            f'<span class="reason">{html.escape(call.rejection_reason)}</span>'
+            f'<span class="tok">{_tokens(call.usage)}</span></div>'
+        )
+    reasoning = (
+        f'<div class="reasoning"><span class="rlbl">reasoning</span> '
+        f'{html.escape(call.reasoning)}</div>'
+        if call.reasoning
+        else ''
+    )
+    open_attr = '' if (acc and good) else ' open'
+    think = (
+        f'<details class="think"{open_attr}>'
+        f'<summary>🧠 thinking · {len(call.thinking)} chars</summary>{_md(call.thinking)}</details>'
+        if call.thinking
+        else ''
+    )
+    prompt = (
+        f'<details class="io"><summary>prompt sent · {len(call.prompt_sent)} chars</summary>'
+        f'{_pre(call.prompt_sent)}</details>'
+        if call.prompt_sent
+        else ''
+    )
+    response = (
+        f'<details class="io"><summary>raw response · {len(call.raw_response)} chars</summary>'
+        f'{_json_block(call.raw_response)}</details>'
+        if call.raw_response
+        else ''
+    )
+    return (
+        f'<div class="call {"ok" if acc else "bad"}"><div class="call-h">{label}</div>'
+        f'{reasoning}{think}{outcome}<div class="io-row">{prompt}{response}</div></div>'
+    )
+
+
 def _card(header, steps, idx, ctx):
-    """Render one decision step into a card."""
+    """Render one decision step (its observation + every LLM call) into a card."""
     s = steps[idx]
-    a, r = _action(s), _result(s)
-    ok = bool(r.ok)
-    marks = json.loads(s.percept_json or '[]')
-    target = a.mark or None
-
-    if s.thinking:
-        think = (
-            f'<details class="think"{"" if ok else " open"}>'
-            f'<summary>🧠 thinking · {len(s.thinking)} chars</summary>{_md(s.thinking)}</details>'
-        )
-    else:
-        think = '<div class="muted">no thinking trace</div>'
-
-    if s.attempts:
-        tries = ''
-        for j, at in enumerate(s.attempts):
-            tries += (
-                f'<div class="try"><div class="try-h">try {j + 1} · ✗ rejected</div>'
-                f'<div class="reason">{html.escape(at.rejection_reason)}</div>'
-                f'{_json_block(at.raw_response)}<div class="cost">{_tokens(at.usage)}</div></div>'
-            )
-        attempts = (
-            f'<details class="attempts" open><summary>⟲ {len(s.attempts)} rejected '
-            f'before accept</summary>{tries}</details>'
-        )
-    else:
-        attempts = '<div class="muted">attempts: none (accepted first try)</div>'
-
-    extras = _result_extras(r)
-    held = f' · held [{s.held_mark}]' if s.held_mark else ''
+    obs = s.obs
+    marks = json.loads(obs.percept_json or '[]')
+    acc = _accepted(s)
+    a = _action(acc) if acc else None
+    r = _result(acc) if acc else None
+    ok = bool(r.ok) if r else False
+    target = (a.mark if a else 0) or None
+    verb = html.escape(_verb(a)) if a else '(no valid action)'
+    badge = (
+        f'<span class="badge {"ok" if ok else "bad"}">'
+        f'{"✓" if ok else "✗"} {html.escape(r.result_code)}</span>'
+        if acc
+        else '<span class="badge bad">✗ gave up</span>'
+    )
+    held = f' · held [{obs.held_mark}]' if obs.held_mark else ''
     term = (
         f'<span class="term {"ok" if s.terminal in ("SOLVED", "DONE") else "bad"}">'
         f'{s.terminal}</span>'
         if s.terminal
         else ''
     )
-    prompt = (
-        f'<details class="io"><summary>prompt sent · {len(s.prompt_sent)} chars</summary>'
-        f'{_pre(s.prompt_sent)}</details>'
-        if s.prompt_sent
-        else ''
+    n = len(s.calls)
+    calls_h = (
+        '' if n == 1 else f'<div class="calls-h">{n} calls · {n - 1} rejected</div>'
     )
-    response = (
-        f'<details class="io"><summary>raw response · {len(s.raw_response)} chars</summary>'
-        f'{_json_block(s.raw_response)}</details>'
-        if s.raw_response
-        else ''
-    )
+    calls = ''.join(_render_call(c, j) for j, c in enumerate(s.calls))
 
     return f"""
 <section class="card" data-ok="{str(ok).lower()}" id="step-{idx}">
   <header class="ch">
     <span class="idx">STEP {idx}</span>
-    <span class="verb">{html.escape(_verb(a))}</span>
+    <span class="verb">{verb}</span>
     <span class="arrow">→</span>
-    <span class="badge {'ok' if ok else 'bad'}">{'✓' if ok else '✗'} {html.escape(r.result_code)}</span>
+    {badge}
     {term}
   </header>
   <div class="grid">
-    <div class="frame-col">{_frame(s, idx)}
-      <div class="cap">player ({s.player.x:.0f},{s.player.y:.0f},{s.player.z:.0f}) · yaw {s.eye_yaw:.0f}°{held}</div>
+    <div class="frame-col">{_frame(obs, idx)}
+      <div class="cap">player ({obs.player.x:.0f},{obs.player.y:.0f},{obs.player.z:.0f}) · yaw {obs.eye_yaw:.0f}°{held}</div>
     </div>
     <div class="percept-col"><div class="colh">PERCEPT · {len(marks)} marks</div>{_percept(marks, target)}</div>
     <div class="map-col">{_map(header, steps, idx, ctx)}</div>
   </div>
-  <div class="reasoning"><span class="rlbl">reasoning</span> {html.escape(s.reasoning) or '<i>—</i>'}</div>
-  {think}
-  {attempts}
-  <div class="result {'ok' if ok else 'bad'}">
-    <span class="rc">{'✓' if ok else '✗'} {html.escape(r.result_code)}</span>
-    <span class="detail">{html.escape(r.detail)}</span>
-    {('· ' + html.escape(extras)) if extras else ''}
-    <span class="tok">{_tokens(s.usage)}</span>
-  </div>
-  <div class="io-row">{prompt}{response}</div>
+  {calls_h}
+  {calls}
 </section>"""
 
 
@@ -272,10 +303,10 @@ def build_html(header, steps):
     """Render the whole trajectory into one self-contained HTML string."""
     ctx = _projector(header, steps)
     cards = ''.join(_card(header, steps, i, ctx) for i in range(len(steps)))
-    fails = sum(1 for s in steps if not _result(s).ok)
-    ti = sum(s.usage.input for s in steps)
-    to = sum(s.usage.output for s in steps)
-    tc = sum(s.usage.cached for s in steps)
+    fails = sum(1 for s in steps if not (_accepted(s) and _result(_accepted(s)).ok))
+    ti = sum(c.usage.input for s in steps for c in s.calls)
+    to = sum(c.usage.output for s in steps for c in s.calls)
+    tc = sum(c.usage.cached for s in steps for c in s.calls)
     term = steps[-1].terminal if steps else ''
     tcls = 'ok' if term in ('SOLVED', 'DONE') else ('bad' if term else 'neutral')
     hdr_extras = ''
@@ -464,13 +495,15 @@ details[open]>summary{color:var(--ink); border-color:var(--accent)}
 .think>.md{margin:10px 0 4px; padding:14px 18px; border-left:3px solid rgba(165,131,255,.5);
   background:rgba(124,92,196,.06); border-radius:0 10px 10px 0; max-width:78ch; color:#c9d2de}
 
-.attempts{margin-top:10px}
-.attempts>summary{color:var(--amber); border-color:rgba(210,153,34,.4); background:rgba(210,153,34,.07)}
-.try{margin:10px 0; padding:12px 14px; border:1px solid rgba(210,153,34,.3); border-left:3px solid var(--amber);
-  border-radius:0 10px 10px 0; background:rgba(210,153,34,.05)}
-.try-h{color:var(--amber); font-weight:700; font-size:12.5px; margin-bottom:6px}
-.try .reason{color:var(--red); font-family:ui-monospace,monospace; font-size:12.5px; margin-bottom:8px}
-.try .cost{color:var(--faint); font-size:11.5px; margin-top:6px}
+.calls-h{font-size:11px; letter-spacing:.1em; color:var(--faint); font-weight:700; margin:16px 0 6px}
+.call{margin:10px 0; padding:12px 14px; border:1px solid var(--line); border-left:3px solid var(--faint);
+  border-radius:0 10px 10px 0}
+.call.ok{border-left-color:var(--green); background:rgba(63,185,80,.04)}
+.call.bad{border-left-color:var(--amber); border-color:rgba(210,153,34,.3); background:rgba(210,153,34,.05)}
+.call-h{font-weight:700; font-size:13px; margin-bottom:8px; font-family:ui-monospace,monospace}
+.call.ok>.call-h{color:var(--green)}
+.call.bad>.call-h{color:var(--amber)}
+.result .reason{color:var(--red); font-family:ui-monospace,monospace}
 
 .result{display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:14px; padding:10px 14px;
   border-radius:10px; font-size:13px; background:var(--panel2); border:1px solid var(--line)}

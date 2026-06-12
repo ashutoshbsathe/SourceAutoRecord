@@ -235,6 +235,7 @@ def main():
         elif args.record:
             from llm_eval import trajectory_pb2
             from llm_eval.trajectory_io import TrajectoryWriter
+            from llm_eval.trajectory_io import make_call
             from llm_eval.trajectory_io import make_step
             from p2harness import macro_grammar
 
@@ -260,16 +261,18 @@ def main():
                 solved = exit_pos is not None and reached_exit(
                     obs, exit_pos, args.radius
                 )
+                call = make_call(
+                    '',
+                    '',
+                    '',
+                    line,
+                    mock_usage,
+                    accepted=True,
+                    macro=macro,
+                    result=obs.result,
+                )
                 recorder.write_step(
-                    make_step(
-                        next(counter),
-                        obs,
-                        macro,
-                        obs.result,
-                        reasoning=line,
-                        usage=mock_usage,
-                        terminal='SOLVED' if solved else '',
-                    )
+                    make_step(next(counter), obs, [call], 'SOLVED' if solved else '')
                 )
 
         try:

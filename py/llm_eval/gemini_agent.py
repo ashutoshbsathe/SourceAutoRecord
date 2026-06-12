@@ -11,7 +11,6 @@ import json
 import math
 import os
 from dataclasses import dataclass
-from dataclasses import field
 
 from google import genai
 from google.genai import types
@@ -22,6 +21,7 @@ from testchamber_session import reached_exit
 from . import trajectory_pb2
 from .trajectory_io import TrajectoryWriter
 from .trajectory_io import encode_png
+from .trajectory_io import make_call
 from .trajectory_io import make_step
 
 MODEL = 'gemini-3.5-flash'
@@ -152,24 +152,12 @@ def _indent(text, prefix='    '):
     return '\n'.join(prefix + line for line in text.splitlines())
 
 
-def _attempt(raw, reason, usage):
-    """A rejected reply as a trajectory Attempt."""
-    return trajectory_pb2.Attempt(
-        raw_response=raw, rejection_reason=reason, usage=usage
-    )
-
-
 @dataclass
 class AgentAction:
-    """One model decision: the macro plus the reasoning/response/usage behind it."""
+    """One step's outcome: the accepted macro (None if gave up) + every LLM call."""
 
-    macro: harness_pb2.MacroRequest | None  # None when the agent gave up
-    reasoning: str
-    raw_response: str
-    usage: trajectory_pb2.TokenUsage
-    thinking: str = ''
-    prompt_sent: str = ''
-    attempts: list = field(default_factory=list)
+    macro: harness_pb2.MacroRequest | None
+    calls: list  # the Call protos: rejected tries in order, then the accepted one
 
 
 class GeminiAgent:
@@ -217,7 +205,8 @@ class GeminiAgent:
             types.Part.from_bytes(data=encode_png(obs.frame), mime_type='image/png'),
             percept,
         ]
-        attempts = []
+        sent = percept  # the exact text we send this call (a re-prompt on retries)
+        calls = []
         for attempt in range(self.max_retries + 1):
             resp = self.chat.send_message(message=message)
             raw, thinking = _parts(resp)
@@ -230,52 +219,38 @@ class GeminiAgent:
                 call = json.loads(raw)
             except json.JSONDecodeError:
                 print('    ↳ invalid JSON; re-prompting', flush=True)
-                attempts.append(_attempt(raw, 'invalid JSON', usage))
-                message = ['Your reply was not valid JSON. Return one action object.']
+                calls.append(
+                    make_call(
+                        sent, thinking, raw, '', usage, rejection_reason='invalid JSON'
+                    )
+                )
+                sent = 'Your reply was not valid JSON. Return one action object.'
+                message = [sent]
                 continue
             req = macro_grammar.validate(call, obs.marks, obs.held_mark)
+            reasoning = call.get('reasoning', '')
             if isinstance(req, harness_pb2.MacroRequest):
-                return AgentAction(
-                    req,
-                    call.get('reasoning', ''),
-                    raw,
-                    usage,
-                    thinking=thinking,
-                    prompt_sent=percept,
-                    attempts=attempts,
+                calls.append(
+                    make_call(
+                        sent, thinking, raw, reasoning, usage, accepted=True, macro=req
+                    )
                 )
+                return AgentAction(req, calls)
             print(f'    ↳ rejected: {req}; re-prompting', flush=True)
-            attempts.append(_attempt(raw, str(req), usage))
-            message = [f'That action was rejected: {req}. Return a corrected action.']
+            calls.append(
+                make_call(
+                    sent, thinking, raw, reasoning, usage, rejection_reason=str(req)
+                )
+            )
+            sent = f'That action was rejected: {req}. Return a corrected action.'
+            message = [sent]
         print('    ↳ gave up (max retries exhausted)', flush=True)
-        return AgentAction(
-            None,
-            '',
-            raw,
-            usage,
-            thinking=thinking,
-            prompt_sent=percept,
-            attempts=attempts,
-        )
+        return AgentAction(None, calls)
 
 
-def _write(writer, index, obs, act, result, terminal):
-    """Serialize one (seen observation, action, result) to the trajectory."""
-    writer.write_step(
-        make_step(
-            index,
-            obs,
-            act.macro or harness_pb2.MacroRequest(),
-            result,
-            reasoning=act.reasoning,
-            raw_response=act.raw_response,
-            usage=act.usage,
-            terminal=terminal,
-            thinking=act.thinking,
-            prompt_sent=act.prompt_sent,
-            attempts=act.attempts,
-        )
-    )
+def _write(writer, index, obs, calls, terminal):
+    """Serialize one (observation, calls) step to the trajectory."""
+    writer.write_step(make_step(index, obs, calls, terminal))
 
 
 def run_eval(session, agent, cfg, out_path, max_steps=25):
@@ -311,15 +286,11 @@ def run_eval(session, agent, cfg, out_path, max_steps=25):
                     '  ✗ no valid action after retries; recording GAVE_UP', flush=True
                 )
                 terminal = 'GAVE_UP'
-                result = harness_pb2.MacroResult(
-                    ok=False,
-                    result_code='GAVE_UP',
-                    detail=f'{len(act.attempts)} rejected attempts',
-                )
-                _write(writer, index, seen, act, result, terminal)
+                _write(writer, index, seen, act.calls, terminal)
                 break
             obs = session.step(act.macro, capture_frame=True)
             mr = obs.result
+            act.calls[-1].result = mr.SerializeToString()  # the accepted call's result
             sym = '✓' if mr.ok else '✗'
             print(f'  {sym} {act.macro.verb} → {mr.result_code} {mr.detail}'.rstrip())
             if reached_exit(obs, exit_pos, radius):
@@ -330,7 +301,7 @@ def run_eval(session, agent, cfg, out_path, max_steps=25):
                 terminal = 'BUDGET'
             # Write each step as it happens, so a rate-limit/crash mid-run still
             # leaves a complete trajectory up to the last finished step.
-            _write(writer, index, seen, act, obs.result, terminal)
+            _write(writer, index, seen, act.calls, terminal)
             if terminal:
                 break
     total = (

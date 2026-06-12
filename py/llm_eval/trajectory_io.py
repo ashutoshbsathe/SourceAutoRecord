@@ -1,8 +1,10 @@
 """Read and write the binary `.trajectory` format.
 
 Length-delimited protobuf (a uint32 little-endian size prefix per message,
-matching the `.rollout` framing): a TrajectoryHeader, then one Step per macro.
-Frames are embedded as PNG bytes, so a trajectory is one self-contained file.
+matching the `.rollout` framing): a TrajectoryHeader, then one Step per macro. A
+Step is one Observation plus the ordered Calls the model made for it (the last is
+accepted, or none is when the agent gave up). Frames are embedded as PNG bytes,
+so a trajectory is one self-contained file.
 """
 
 import json
@@ -23,44 +25,45 @@ def encode_png(frame):
     return buf.tobytes() if ok else b''
 
 
-def make_step(
-    index,
-    obs,
-    macro,
-    result,
-    reasoning='',
-    raw_response='',
-    usage=None,
-    terminal='',
-    thinking='',
-    prompt_sent='',
-    attempts=None,
+def make_call(
+    prompt_sent,
+    thinking,
+    raw_response,
+    reasoning,
+    usage,
+    accepted=False,
+    rejection_reason='',
+    macro=None,
+    result=None,
 ):
-    """Build a Step from the observation the agent acted on and what happened.
-
-    `obs` supplies the frame/percept/player the agent saw; `macro` is the action
-    it chose; `result` is that action's MacroResult.
-    """
-    px, py, pz = obs.player
-    step = trajectory_pb2.Step(
-        index=index,
-        frame_png=encode_png(obs.frame),
-        percept_json=json.dumps(obs.marks),
-        player=trajectory_pb2.Vec3(x=px, y=py, z=pz),
-        reasoning=reasoning,
-        raw_response=raw_response,
-        action=macro.SerializeToString(),
-        result=result.SerializeToString(),
-        held_mark=obs.held_mark or 0,
-        terminal=terminal,
-        thinking=thinking,
+    """Build one Call. `macro`/`result` are set only on the accepted call."""
+    call = trajectory_pb2.Call(
         prompt_sent=prompt_sent,
-        eye_yaw=obs.state.camera.y,
+        thinking=thinking,
+        raw_response=raw_response,
+        reasoning=reasoning,
+        accepted=accepted,
+        rejection_reason=rejection_reason,
     )
     if usage is not None:
-        step.usage.CopyFrom(usage)
-    if attempts:
-        step.attempts.extend(attempts)
+        call.usage.CopyFrom(usage)
+    if macro is not None:
+        call.action = macro.SerializeToString()
+    if result is not None:
+        call.result = result.SerializeToString()
+    return call
+
+
+def make_step(index, obs, calls, terminal=''):
+    """Build a Step from the observation the agent saw and the calls it made."""
+    px, py, pz = obs.player
+    step = trajectory_pb2.Step(index=index, terminal=terminal)
+    step.obs.frame_png = encode_png(obs.frame)
+    step.obs.percept_json = json.dumps(obs.marks)
+    step.obs.player.x, step.obs.player.y, step.obs.player.z = px, py, pz
+    step.obs.eye_yaw = obs.state.camera.y
+    step.obs.held_mark = obs.held_mark or 0
+    step.calls.extend(calls)
     return step
 
 
