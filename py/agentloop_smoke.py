@@ -361,11 +361,11 @@ def check_client(ctx):
         # Local validation: a present mark passes; an absent one is rejected as a
         # structured string with no gRPC round-trip.
         target = marks[0]['mark']
-        good = macro_grammar.validate({'verb': 'aim_at', 'mark': target}, marks)
+        good = macro_grammar.validate(f'aim_at {target}', marks)
         require(
             isinstance(good, harness_pb2.MacroRequest), f'good aim_at rejected: {good}'
         )
-        reject = macro_grammar.validate({'verb': 'aim_at', 'mark': 999999}, marks)
+        reject = macro_grammar.validate('aim_at 999999', marks)
         require(isinstance(reject, str), 'validate accepted an absent mark')
 
         # Send the validated macro; the structured result must come back.

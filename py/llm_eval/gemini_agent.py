@@ -1,15 +1,16 @@
 """The frozen-VLM agent + eval loop: Gemini drives a chamber to a `.trajectory`.
 
 Gemini is the verb source -- the REPL loop with the model in place of stdin. Each
-step sends the annotated frame + telemetry to one stateful chat, gets a JSON
-action back (structured output), validates it against the live percept, re-prompts
-in-session on rejection, then steps + records. Stops on `done`, exit-proximity, or
-the step budget.
+step sends the annotated frame + telemetry to one stateful chat, gets back a
+fenced ```json {reasoning, verb} block (verb = a plain command string like the
+REPL types), validates it against the live percept, re-prompts in-session on
+rejection, then steps + records. Stops on `done`, exit-proximity, or the budget.
 """
 
 import json
 import math
 import os
+import re
 from dataclasses import dataclass
 
 from google import genai
@@ -57,20 +58,26 @@ Notes:
 - {caveat}
 - `last_result` is feedback: SUCCESS, or a failure like STUCK/BLOCKED/WALL/EDGE/
   BAD_MARK -- if a verb failed, try a different approach.
-- Reason briefly, then return {{"reasoning": "...", "verb": "...", ...args}}.
 - Use `done` only once the exit distance is near 0.
+- Your output should be STRICTLY in the following format:
+<begin expected format, yes 3 backticks with json is the expected starting of the response>
+```json
+{{
+    "reasoning": "foo bar therefore let me try baz",
+    "verb": "move forward 10"
+}}
+```
+<end expected format, ends with 3 backticks>
+You MAY choose to add additional things in the response as well HOWEVER this JSON block must be in PRISTINE condition.
+
+When you think you're done, the final output block must be:
+```json
+{{
+    "reasoning": "test chamber done",
+    "verb": "done"
+}}
+```
 """
-
-
-def _response_schema():
-    """The action JSON schema: the grammar's tool schema plus a reasoning field."""
-    schema = dict(macro_grammar.tool_schema())
-    schema['properties'] = {
-        'reasoning': {'type': 'string', 'description': 'brief reasoning'},
-        **schema['properties'],
-    }
-    schema['required'] = ['reasoning', 'verb']
-    return schema
 
 
 def _bearing(px, py, eye_yaw, tx, ty):
@@ -152,6 +159,21 @@ def _indent(text, prefix='    '):
     return '\n'.join(prefix + line for line in text.splitlines())
 
 
+_ACTION_BLOCK = re.compile(r'```(?:json)?\s*(\{.*?\})\s*```', re.DOTALL)
+
+
+def _extract_action(text):
+    """Pull the {reasoning, verb} object from a fenced ```json block (or None)."""
+    for block in reversed(_ACTION_BLOCK.findall(text)):
+        try:
+            obj = json.loads(block)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict) and obj.get('verb'):
+            return obj
+    return None
+
+
 @dataclass
 class AgentAction:
     """One step's outcome: the accepted macro (None if gave up) + every LLM call."""
@@ -187,8 +209,6 @@ class GeminiAgent:
             model=MODEL,
             config=types.GenerateContentConfig(
                 system_instruction=self.system,
-                response_mime_type='application/json',
-                response_schema=_response_schema(),
                 thinking_config=types.ThinkingConfig(
                     thinking_level=types.ThinkingLevel.MEDIUM,
                     include_thoughts=True,
@@ -215,20 +235,29 @@ class GeminiAgent:
             self.tokens_out += usage.output
             print(f'  ◀ gemini  (try {attempt + 1})  {_token_line(usage)}')
             print(_indent(raw), flush=True)
-            try:
-                call = json.loads(raw)
-            except json.JSONDecodeError:
-                print('    ↳ invalid JSON; re-prompting', flush=True)
+            action = _extract_action(raw)
+            if action is None:
+                print('    ↳ no parseable action block; re-prompting', flush=True)
                 calls.append(
                     make_call(
-                        sent, thinking, raw, '', usage, rejection_reason='invalid JSON'
+                        sent,
+                        thinking,
+                        raw,
+                        '',
+                        usage,
+                        rejection_reason='no parseable ```json action block',
                     )
                 )
-                sent = 'Your reply was not valid JSON. Return one action object.'
+                sent = (
+                    'No parseable ```json action block in your reply. Return one '
+                    '```json {"reasoning": "...", "verb": "..."} ``` block.'
+                )
                 message = [sent]
                 continue
-            req = macro_grammar.validate(call, obs.marks, obs.held_mark)
-            reasoning = call.get('reasoning', '')
+            reasoning = action.get('reasoning', '')
+            req = macro_grammar.validate(
+                action.get('verb', ''), obs.marks, obs.held_mark
+            )
             if isinstance(req, harness_pb2.MacroRequest):
                 calls.append(
                     make_call(

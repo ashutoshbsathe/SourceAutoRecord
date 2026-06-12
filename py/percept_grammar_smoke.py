@@ -183,20 +183,20 @@ def test_delete_and_serial_reuse():
 
 
 def test_validate_ok():
-    """Well-formed actions validate into the right MacroRequest."""
+    """Well-formed command strings validate into the right MacroRequest."""
     ents = parse_snapshot(FULL)
-    r = mg.validate({'verb': 'go_to', 'mark': 2}, ents)
+    r = mg.validate('go_to 2', ents)
     check(isinstance(r, pb.MacroRequest) and r.verb == 'go_to' and r.mark == 2, r)
-    r = mg.validate({'verb': 'pick_up', 'mark': 1}, ents)
+    r = mg.validate('pick_up 1', ents)
     check(isinstance(r, pb.MacroRequest), f'cube pick_up rejected: {r}')
-    r = mg.validate({'verb': 'release'}, ents, held_mark=1)
+    r = mg.validate('release', ents, held_mark=1)
     check(isinstance(r, pb.MacroRequest) and r.mark == 0, r)
-    r = mg.validate({'verb': 'move', 'dir': 'forward', 'ticks': 20}, ents)
+    r = mg.validate('move forward 20', ents)
     check(isinstance(r, pb.MacroRequest) and r.dir == 'forward' and r.ticks == 20, r)
-    r = mg.validate({'verb': 'done'}, ents)
+    r = mg.validate('done', ents)
     check(isinstance(r, pb.MacroRequest) and r.verb == 'done', r)
     # look snaps to 15 deg and clamps pitch.
-    r = mg.validate({'verb': 'look', 'yaw': 38, 'pitch': -100}, ents)
+    r = mg.validate('look 38 -100', ents)
     check(
         isinstance(r, pb.MacroRequest) and r.yaw == 45 and r.pitch == -89,
         f'look snap/clamp: yaw={r.yaw} pitch={r.pitch}',
@@ -205,35 +205,26 @@ def test_validate_ok():
 
 
 def test_validate_reject():
-    """Malformed or impossible actions reject locally with a structured string."""
+    """Malformed or impossible command strings reject locally with a string."""
     ents = parse_snapshot(FULL)
 
-    def rejected(call, held=None):
-        r = mg.validate(call, ents, held_mark=held)
-        check(isinstance(r, str), f'expected rejection, got {r!r} for {call}')
+    def rejected(text, held=None):
+        r = mg.validate(text, ents, held_mark=held)
+        check(isinstance(r, str), f'expected rejection, got {r!r} for {text!r}')
         return r
 
-    rejected({'verb': 'frobnicate'})
-    rejected({'verb': 'go_to', 'mark': 99})  # absent mark
-    rejected({'verb': 'aim_at'})  # missing mark
-    rejected({'verb': 'pick_up', 'mark': 2})  # button isn't grabbable
-    rejected({'verb': 'pick_up', 'mark': 1}, held=1)  # already holding
-    rejected({'verb': 'release'}, held=None)  # not holding
-    rejected({'verb': 'wait', 'ticks': 0})  # below range
-    rejected({'verb': 'wait', 'ticks': 9999})  # above range
-    rejected({'verb': 'wait', 'ticks': True})  # bool is not an int
-    rejected({'verb': 'move', 'dir': 'sideways', 'ticks': 5})  # bad dir
-    rejected('not a dict')
+    rejected('frobnicate')  # unknown verb
+    rejected('go_to 99')  # absent mark
+    rejected('aim_at')  # missing mark
+    rejected('pick_up 2')  # button isn't grabbable
+    rejected('pick_up 1', held=1)  # already holding
+    rejected('release', held=None)  # not holding
+    rejected('wait 0')  # below range
+    rejected('wait 9999')  # above range
+    rejected('wait abc')  # not an int
+    rejected('move sideways 5')  # bad dir
+    rejected('move forward')  # missing ticks (the bug that motivated this)
     return '11 malformed/impossible actions rejected locally'
-
-
-def test_tool_schema():
-    """The tool schema is single-sourced from VERB_SPECS and covers every verb."""
-    schema = mg.tool_schema()
-    enum = schema['properties']['verb']['enum']
-    check(set(enum) == set(mg.VERB_SPECS), f'verb enum != VERB_SPECS: {enum}')
-    check(len(mg.verb_signatures()) == len(mg.VERB_SPECS), 'signature count mismatch')
-    return f'{len(enum)} verbs exposed; schema in sync with validate'
 
 
 def test_examples_validate():
@@ -242,7 +233,6 @@ def test_examples_validate():
     Each example is checked against a synthetic percept fitted to its own mark:
     grabbable class for pick_up, holding-state set for release, etc.
     """
-    import json
 
     def synth(mark, cls):
         return {
@@ -255,9 +245,9 @@ def test_examples_validate():
         }
 
     for verb, spec in mg.VERB_SPECS.items():
-        call = json.loads(spec.example)
-        check(call['verb'] == verb, f'{verb}: example verb is {call["verb"]!r}')
-        mark = call.get('mark', 0)
+        tokens = spec.example.split()
+        check(tokens[0] == verb, f'{verb}: example verb is {tokens[0]!r}')
+        mark = int(tokens[1]) if spec.mark and len(tokens) > 1 else 0
         held = None
         if spec.mark == 'grabbable':
             ents = [synth(mark, 'prop_weighted_cube')]  # must be grabbable
@@ -268,7 +258,7 @@ def test_examples_validate():
             ents = [synth(mark, 'prop_floor_button')]
         else:
             ents = []
-        r = mg.validate(call, ents, held_mark=held)
+        r = mg.validate(spec.example, ents, held_mark=held)
         check(isinstance(r, pb.MacroRequest), f'{verb} example rejected: {r!r}')
     check(len(mg.verb_examples()) == len(mg.VERB_SPECS), 'one example per verb')
     return f'{len(mg.VERB_SPECS)} verb examples valid; CAVEAT len={len(mg.CAVEAT)}'
@@ -280,7 +270,6 @@ CHECKS = [
     ('delete_serial_reuse', test_delete_and_serial_reuse),
     ('validate_ok', test_validate_ok),
     ('validate_reject', test_validate_reject),
-    ('tool_schema', test_tool_schema),
     ('examples_validate', test_examples_validate),
 ]
 
