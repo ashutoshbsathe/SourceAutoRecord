@@ -11,6 +11,7 @@ import json
 import math
 import os
 from dataclasses import dataclass
+from dataclasses import field
 
 from google import genai
 from google.genai import types
@@ -105,6 +106,8 @@ def _usage(resp):
         input=u.prompt_token_count or 0,
         output=(u.candidates_token_count or 0) + (u.thoughts_token_count or 0),
         cached=u.cached_content_token_count or 0,
+        image=_img_tokens(u),
+        thinking=u.thoughts_token_count or 0,
     )
 
 
@@ -117,13 +120,24 @@ def _img_tokens(u):
     return 0
 
 
-def _token_line(resp, usage):
+def _parts(resp):
+    """Split a response into (answer_text, thinking_text)."""
+    answer, thinking = [], []
+    for cand in resp.candidates or []:
+        for part in (cand.content.parts if cand.content else None) or []:
+            if not part.text:
+                continue
+            (thinking if part.thought else answer).append(part.text)
+    return ''.join(answer), '\n'.join(thinking)
+
+
+def _token_line(usage):
     """Compact 'in N (img M) · out N (think M) · cached N' for one response."""
-    u = resp.usage_metadata
-    img = _img_tokens(u)
-    think = (u.thoughts_token_count or 0) if u is not None else 0
-    line = f'in {usage.input}' + (f' (img {img})' if img else '')
-    line += f'  ·  out {usage.output}' + (f' (think {think})' if think else '')
+    line = f'in {usage.input}' + (f' (img {usage.image})' if usage.image else '')
+    out = f'  ·  out {usage.output}' + (
+        f' (think {usage.thinking})' if usage.thinking else ''
+    )
+    line += out
     if usage.cached:
         line += f'  ·  cached {usage.cached}'
     return line
@@ -134,6 +148,13 @@ def _indent(text, prefix='    '):
     return '\n'.join(prefix + line for line in text.splitlines())
 
 
+def _attempt(raw, reason, usage):
+    """A rejected reply as a trajectory Attempt."""
+    return trajectory_pb2.Attempt(
+        raw_response=raw, rejection_reason=reason, usage=usage
+    )
+
+
 @dataclass
 class AgentAction:
     """One model decision: the macro plus the reasoning/response/usage behind it."""
@@ -142,6 +163,9 @@ class AgentAction:
     reasoning: str
     raw_response: str
     usage: trajectory_pb2.TokenUsage
+    thinking: str = ''
+    prompt_sent: str = ''
+    attempts: list = field(default_factory=list)
 
 
 class GeminiAgent:
@@ -170,7 +194,8 @@ class GeminiAgent:
                 response_mime_type='application/json',
                 response_schema=_response_schema(),
                 thinking_config=types.ThinkingConfig(
-                    thinking_level=types.ThinkingLevel.MEDIUM
+                    thinking_level=types.ThinkingLevel.MEDIUM,
+                    include_thoughts=True,
                 ),
             ),
         )
@@ -184,24 +209,35 @@ class GeminiAgent:
             types.Part.from_bytes(data=encode_png(obs.frame), mime_type='image/png'),
             percept,
         ]
+        attempts = []
         for attempt in range(self.max_retries + 1):
             resp = self.chat.send_message(message=message)
-            raw = resp.text or ''
+            raw, thinking = _parts(resp)
             usage = _usage(resp)
             self.tokens_in += usage.input
             self.tokens_out += usage.output
-            print(f'  ◀ gemini  (try {attempt + 1})  {_token_line(resp, usage)}')
+            print(f'  ◀ gemini  (try {attempt + 1})  {_token_line(usage)}')
             print(_indent(raw), flush=True)
             try:
                 call = json.loads(raw)
             except json.JSONDecodeError:
                 print('    ↳ invalid JSON; re-prompting', flush=True)
+                attempts.append(_attempt(raw, 'invalid JSON', usage))
                 message = ['Your reply was not valid JSON. Return one action object.']
                 continue
             req = macro_grammar.validate(call, obs.marks, obs.held_mark)
             if isinstance(req, harness_pb2.MacroRequest):
-                return AgentAction(req, call.get('reasoning', ''), raw, usage)
+                return AgentAction(
+                    req,
+                    call.get('reasoning', ''),
+                    raw,
+                    usage,
+                    thinking=thinking,
+                    prompt_sent=percept,
+                    attempts=attempts,
+                )
             print(f'    ↳ rejected: {req}; re-prompting', flush=True)
+            attempts.append(_attempt(raw, str(req), usage))
             message = [f'That action was rejected: {req}. Return a corrected action.']
         print('    ↳ gave up (max retries exhausted)', flush=True)
         return None
@@ -219,6 +255,9 @@ def _write(writer, index, obs, act, result, terminal):
             raw_response=act.raw_response,
             usage=act.usage,
             terminal=terminal,
+            thinking=act.thinking,
+            prompt_sent=act.prompt_sent,
+            attempts=act.attempts,
         )
     )
 

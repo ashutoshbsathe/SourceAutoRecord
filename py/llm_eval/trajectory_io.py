@@ -24,7 +24,17 @@ def encode_png(frame):
 
 
 def make_step(
-    index, obs, macro, result, reasoning='', raw_response='', usage=None, terminal=''
+    index,
+    obs,
+    macro,
+    result,
+    reasoning='',
+    raw_response='',
+    usage=None,
+    terminal='',
+    thinking='',
+    prompt_sent='',
+    attempts=None,
 ):
     """Build a Step from the observation the agent acted on and what happened.
 
@@ -43,9 +53,14 @@ def make_step(
         result=result.SerializeToString(),
         held_mark=obs.held_mark or 0,
         terminal=terminal,
+        thinking=thinking,
+        prompt_sent=prompt_sent,
+        eye_yaw=obs.state.camera.y,
     )
     if usage is not None:
         step.usage.CopyFrom(usage)
+    if attempts:
+        step.attempts.extend(attempts)
     return step
 
 
