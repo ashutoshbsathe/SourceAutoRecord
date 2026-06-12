@@ -30,6 +30,8 @@ For features and installation instructions, please visit [the website].
 
 [the website]: https://sar.portal2.sr/
 
+This is a modified version of SAR with a ton of "unsupported" modifications. DO NOT USE THIS FOR SPEEDRUNNING. THIS IS PURELY A RESEARCH FORK IM WORKING IN MY FREE TIME.
+
 ## Support
 
 | Game                                                                    | Windows | Linux |
