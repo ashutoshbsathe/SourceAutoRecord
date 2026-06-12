@@ -28,36 +28,97 @@ GRABBABLE_CLASSES = frozenset(
 )
 
 
+# The one warning that doesn't fit a single verb's doc: go_to/interact auto-march
+# in a straight line and need a clear path. Surfaced verbatim in the prompt so the
+# model stops blindly retrying a STUCK go_to (the bug that motivated this).
+CAVEAT = (
+    '`go_to`/`interact` auto-march in a STRAIGHT LINE: they only reach a mark with '
+    'a clear path -- anything in the way (wall, door, object) fails STUCK/BLOCKED/'
+    "WALL. When that happens, don't retry blindly: `look` to find the opening, "
+    'then `move` through it (or pick a nearer, in-view mark) before retrying.'
+)
+
+
 @dataclass(frozen=True)
 class Verb:
     """One verb's argument spec, shared by validation and the tool schema."""
 
     doc: str
+    example: str  # one valid model-emitted JSON action that exercises this verb
+    hint: str  # one-line teaching note paired with `example` in the prompt
     mark: str | None = None  # 'required' | 'grabbable' | 'optional' | None
     ticks_max: int | None = None  # set => required `ticks` in [1, ticks_max]
     dirs: tuple | None = None  # set => required `dir` from this set
     look: bool = False  # set => required signed `yaw` + optional `pitch` (15deg)
 
 
+# doc = the signature line; example/hint = the per-verb teaching shown in the
+# prompt. Examples are kept valid by percept_grammar_smoke.test_examples_validate.
 VERB_SPECS = {
-    'aim_at': Verb('Point the view at a mark.', mark='required'),
-    'go_to': Verb('Walk in a straight line to a mark.', mark='required'),
-    'interact': Verb(
-        'Walk to a mark and press it (+use) -- a button or switch.', mark='required'
+    'aim_at': Verb(
+        'Point the view at a mark.',
+        '{"reasoning": "Survey the exit door before moving.", '
+        '"verb": "aim_at", "mark": 9}',
+        'Point the view at mark 9 to orient.',
+        mark='required',
     ),
-    'pick_up': Verb('Grab the cube/box/turret at a mark.', mark='grabbable'),
+    'go_to': Verb(
+        'Walk in a STRAIGHT LINE to a mark -- only with a clear path; a wall/door/'
+        'object between you and the mark fails STUCK/BLOCKED/WALL.',
+        '{"reasoning": "Clear straight path to the cube, no wall between us.", '
+        '"verb": "go_to", "mark": 3}',
+        'Straight-march to mark 3 (path must be clear).',
+        mark='required',
+    ),
+    'interact': Verb(
+        'Walk in a STRAIGHT LINE to a mark and press it (+use) -- a button or '
+        'switch; like go_to it needs a clear path, else STUCK/BLOCKED/WALL.',
+        '{"reasoning": "Nothing blocks the floor button; walk over and press it.", '
+        '"verb": "interact", "mark": 5}',
+        'Straight-march to mark 5 and +use it.',
+        mark='required',
+    ),
+    'pick_up': Verb(
+        'Grab the cube/box/turret at a mark.',
+        '{"reasoning": "Grab the weighted cube to carry it to the button.", '
+        '"verb": "pick_up", "mark": 3}',
+        'Grab grabbable mark 3 (must be empty-handed).',
+        mark='grabbable',
+    ),
     'release': Verb(
         'Drop the carried object toward a mark, or at your feet if omitted.',
+        '{"reasoning": "Drop the cube onto the floor button.", '
+        '"verb": "release", "mark": 5}',
+        'Drop the held object toward mark 5 (omit mark to drop at feet).',
         mark='optional',
     ),
     'move': Verb(
         'Hold a movement direction for N ticks.',
+        '{"reasoning": "A wall blocks go_to, so strafe right to clear the corner.", '
+        '"verb": "move", "dir": "right", "ticks": 40}',
+        'Hold right for 40 ticks (1-400) to step around an obstacle.',
         dirs=MOVE_DIRS,
         ticks_max=MOVE_MAX_TICKS,
     ),
-    'look': Verb('Turn the view by signed degrees (snapped to 15).', look=True),
-    'wait': Verb('Let the frozen world run for N ticks.', ticks_max=WAIT_MAX_TICKS),
-    'done': Verb('Declare the task complete (success = exit proximity).'),
+    'look': Verb(
+        'Turn the view by signed degrees (snapped to 15).',
+        '{"reasoning": "Turn 90 degrees left to scan the room.", '
+        '"verb": "look", "yaw": 90}',
+        'Turn view +90deg (left); pitch optional, snapped to 15.',
+        look=True,
+    ),
+    'wait': Verb(
+        'Let the frozen world run for N ticks.',
+        '{"reasoning": "Let the dropped cube settle and the button latch.", '
+        '"verb": "wait", "ticks": 60}',
+        'Let the world run 60 ticks (1-600).',
+        ticks_max=WAIT_MAX_TICKS,
+    ),
+    'done': Verb(
+        'Declare the task complete (success = exit proximity).',
+        '{"reasoning": "Exit distance is ~0; the chamber is solved.", "verb": "done"}',
+        'Declare success once exit distance is near 0.',
+    ),
 }
 
 VERBS = frozenset(VERB_SPECS)
@@ -187,6 +248,11 @@ def _signature(verb, spec):
 def verb_signatures():
     """One 'verb(args): doc' line per verb for the system prompt (single source)."""
     return [f'{_signature(v, s)}: {s.doc}' for v, s in VERB_SPECS.items()]
+
+
+def verb_examples():
+    """One '<example>  # <hint>' line per verb: every verb shown once, valid."""
+    return [f'{s.example}  # {s.hint}' for s in VERB_SPECS.values()]
 
 
 def tool_schema():

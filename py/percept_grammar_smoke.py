@@ -236,6 +236,44 @@ def test_tool_schema():
     return f'{len(enum)} verbs exposed; schema in sync with validate'
 
 
+def test_examples_validate():
+    """Every verb's prompt example parses and validates (so the prompt can't lie).
+
+    Each example is checked against a synthetic percept fitted to its own mark:
+    grabbable class for pick_up, holding-state set for release, etc.
+    """
+    import json
+
+    def synth(mark, cls):
+        return {
+            'mark': mark,
+            'class': cls,
+            'pos': [10.0, 20.0, 0.0],
+            'dist': 50.0,
+            'bearing': 12.0,
+            'state': 'idle',
+        }
+
+    for verb, spec in mg.VERB_SPECS.items():
+        call = json.loads(spec.example)
+        check(call['verb'] == verb, f'{verb}: example verb is {call["verb"]!r}')
+        mark = call.get('mark', 0)
+        held = None
+        if spec.mark == 'grabbable':
+            ents = [synth(mark, 'prop_weighted_cube')]  # must be grabbable
+        elif verb == 'release':
+            held = 99  # release requires holding something
+            ents = [synth(mark, 'prop_floor_button')] if mark else []
+        elif spec.mark:
+            ents = [synth(mark, 'prop_floor_button')]
+        else:
+            ents = []
+        r = mg.validate(call, ents, held_mark=held)
+        check(isinstance(r, pb.MacroRequest), f'{verb} example rejected: {r!r}')
+    check(len(mg.verb_examples()) == len(mg.VERB_SPECS), 'one example per verb')
+    return f'{len(mg.VERB_SPECS)} verb examples valid; CAVEAT len={len(mg.CAVEAT)}'
+
+
 CHECKS = [
     ('projection', test_projection),
     ('delta_merge', test_delta_merge),
@@ -243,6 +281,7 @@ CHECKS = [
     ('validate_ok', test_validate_ok),
     ('validate_reject', test_validate_reject),
     ('tool_schema', test_tool_schema),
+    ('examples_validate', test_examples_validate),
 ]
 
 

@@ -71,7 +71,9 @@ def _result(step):
 
 
 def _verb(action):
-    """A verb plus its non-default args, e.g. 'go_to mark=7'."""
+    """A verb plus its non-default args, e.g. 'go_to mark=7' (empty verb = gave up)."""
+    if not action.verb:
+        return '(no valid action)'
     args = ' '.join(f'{f.name}={v}' for f, v in action.ListFields() if f.name != 'verb')
     return f'{action.verb} {args}'.strip()
 

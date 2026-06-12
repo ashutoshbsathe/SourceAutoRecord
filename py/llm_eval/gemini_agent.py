@@ -47,10 +47,14 @@ your last action, and a list of marked entities -- each with an integer `mark`
 Verbs:
 {verbs}
 
+One valid example of every verb:
+{examples}
+
 Notes:
 - `mark` is an entity's integer label. Distance is 2D ground distance in game
   units -- the metric `go_to` drives to, so when a distance is near 0 you have
   arrived. Bearing is degrees off your facing (+ = left).
+- {caveat}
 - `last_result` is feedback: SUCCESS, or a failure like STUCK/BLOCKED/WALL/EDGE/
   BAD_MARK -- if a verb failed, try a different approach.
 - Reason briefly, then return {{"reasoning": "...", "verb": "...", ...args}}.
@@ -159,7 +163,7 @@ def _attempt(raw, reason, usage):
 class AgentAction:
     """One model decision: the macro plus the reasoning/response/usage behind it."""
 
-    macro: harness_pb2.MacroRequest
+    macro: harness_pb2.MacroRequest | None  # None when the agent gave up
     reasoning: str
     raw_response: str
     usage: trajectory_pb2.TokenUsage
@@ -180,7 +184,11 @@ class GeminiAgent:
         self.max_retries = max_retries
         self.tokens_in = 0
         self.tokens_out = 0
-        self.system = _SYSTEM.format(verbs='\n'.join(macro_grammar.verb_signatures()))
+        self.system = _SYSTEM.format(
+            verbs='\n'.join(macro_grammar.verb_signatures()),
+            examples='\n'.join(macro_grammar.verb_examples()),
+            caveat=macro_grammar.CAVEAT,
+        )
         # Keep the client referenced -- a temporary would be GC'd, closing its
         # HTTP client and breaking the chat ("client has been closed").
         self.client = genai.Client(
@@ -201,7 +209,7 @@ class GeminiAgent:
         )
 
     def __call__(self, obs):
-        """Return a validated AgentAction for `obs`, or None if it can't."""
+        """Return an AgentAction for `obs` (macro=None if every retry was rejected)."""
         percept = _percept_text(obs, self.exit_pos)
         print('  ▶ sent (frame + telemetry)', flush=True)
         print(_indent(percept), flush=True)
@@ -240,7 +248,15 @@ class GeminiAgent:
             attempts.append(_attempt(raw, str(req), usage))
             message = [f'That action was rejected: {req}. Return a corrected action.']
         print('    ↳ gave up (max retries exhausted)', flush=True)
-        return None
+        return AgentAction(
+            None,
+            '',
+            raw,
+            usage,
+            thinking=thinking,
+            prompt_sent=percept,
+            attempts=attempts,
+        )
 
 
 def _write(writer, index, obs, act, result, terminal):
@@ -249,7 +265,7 @@ def _write(writer, index, obs, act, result, terminal):
         make_step(
             index,
             obs,
-            act.macro,
+            act.macro or harness_pb2.MacroRequest(),
             result,
             reasoning=act.reasoning,
             raw_response=act.raw_response,
@@ -290,8 +306,17 @@ def run_eval(session, agent, cfg, out_path, max_steps=25):
             print(f'\n{"═" * 16}  step {index}  {"═" * 16}', flush=True)
             seen = obs
             act = agent(seen)
-            if act is None:
-                print('  ✗ agent produced no valid action; stopping', flush=True)
+            if act.macro is None:
+                print(
+                    '  ✗ no valid action after retries; recording GAVE_UP', flush=True
+                )
+                terminal = 'GAVE_UP'
+                result = harness_pb2.MacroResult(
+                    ok=False,
+                    result_code='GAVE_UP',
+                    detail=f'{len(act.attempts)} rejected attempts',
+                )
+                _write(writer, index, seen, act, result, terminal)
                 break
             obs = session.step(act.macro, capture_frame=True)
             mr = obs.result
