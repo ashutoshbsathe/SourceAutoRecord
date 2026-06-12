@@ -4,6 +4,7 @@ checkpoints/
 ray_results/
 ray_tmp/
 *.trajectory
+*.trajectory.html
 
 .vscode/
 *.so

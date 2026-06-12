@@ -871,6 +871,18 @@ wheels = [
 ]
 
 [[package]]
+name = "mdit-py-plugins"
+version = "0.6.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "markdown-it-py", marker = "sys_platform == 'linux'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/59/fc/f8d0863f8862f25602c0404d75568e89fb6b4109804645e5cdfb1be5cf56/mdit_py_plugins-0.6.1.tar.gz", hash = "sha256:a2bca0f039f39dbd35fb74ae1b5f998608c437463371f0ff7f49a19a17a114d0", size = 56114, upload-time = "2026-05-13T09:03:38.91Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a5/69/6da5581c6a7fede7dc261bf4e67d6adca4196f176b43288b55b3db395b6e/mdit_py_plugins-0.6.1-py3-none-any.whl", hash = "sha256:214c82fb2ac524472ab6a5bcab1de80f73b50443e187f401bfd77efbc7c6481d", size = 66663, upload-time = "2026-05-13T09:03:37.76Z" },
+]
+
+[[package]]
 name = "mdurl"
 version = "0.1.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1774,12 +1786,15 @@ dependencies = [
     { name = "grpcio", marker = "sys_platform == 'linux'" },
     { name = "gymnasium", marker = "sys_platform == 'linux'" },
     { name = "jax", extra = ["cuda13"], marker = "sys_platform == 'linux'" },
+    { name = "markdown-it-py", marker = "sys_platform == 'linux'" },
+    { name = "mdit-py-plugins", marker = "sys_platform == 'linux'" },
     { name = "msgpack", marker = "sys_platform == 'linux'" },
     { name = "nicegui", marker = "sys_platform == 'linux'" },
     { name = "opencv-python", marker = "sys_platform == 'linux'" },
     { name = "optax", marker = "sys_platform == 'linux'" },
     { name = "pillow", marker = "sys_platform == 'linux'" },
     { name = "protobuf", marker = "sys_platform == 'linux'" },
+    { name = "pygments", marker = "sys_platform == 'linux'" },
     { name = "python-dotenv", marker = "sys_platform == 'linux'" },
     { name = "ray", extra = ["rllib"], marker = "sys_platform == 'linux'" },
     { name = "tensorboardx", marker = "sys_platform == 'linux'" },
@@ -1798,12 +1813,15 @@ requires-dist = [
     { name = "grpcio", specifier = ">=1.80.0" },
     { name = "gymnasium", specifier = ">=0.29.1" },
     { name = "jax", extras = ["cuda13"], specifier = ">=0.6.0" },
+    { name = "markdown-it-py", specifier = ">=4.0.0" },
+    { name = "mdit-py-plugins", specifier = ">=0.6.1" },
     { name = "msgpack", specifier = ">=1.0.0" },
     { name = "nicegui", specifier = ">=2.0.0" },
     { name = "opencv-python", specifier = ">=4.13.0.92" },
     { name = "optax", specifier = ">=0.2.4" },
     { name = "pillow", specifier = ">=10.0.0" },
     { name = "protobuf", specifier = ">=7.34.1" },
+    { name = "pygments", specifier = ">=2.20.0" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "ray", extras = ["rllib"], specifier = ">=2.55.1" },
     { name = "tensorboardx", specifier = ">=2.6.0" },
