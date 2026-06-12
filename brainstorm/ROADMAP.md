@@ -89,6 +89,9 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 | `llm_percept_act_phased_plan.md` | the **build order** (tracks A–D, phase-by-phase) |
 | `macro_executor_impl_plan.md` | **code-grounded PR plan** for the macro executor + driver (Track C/D detail, PR0–PR7 to first light) |
 | `rollout_visualizer.md` | the `.rollout` browser viewer |
+| `trajectory_visualizer.md` | the `.trajectory` (LLM eval) self-contained HTML viewer design |
+| `trajectory_retry_capture.md` | the Observation+Call `.trajectory` data model (per-call retries) |
+| `first_light_and_next_steps.md` | **⭐ post-first-light: the result, the reasoning-vs-locomotion finding, and next steps** |
 | `hdem_implementation.md` / `_plan.md` | the `.hdem` sidecar recorder design |
 | `entity_snapshotter_redesign.md` | snapshotter hot-path / perf design |
 | `phase4_sendtable_discovery.md` | snapshotter field discovery + curated-status follow-up |
