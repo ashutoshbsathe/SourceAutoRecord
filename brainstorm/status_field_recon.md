@@ -250,6 +250,64 @@ mechanism (which reuses Source's engine `save`/`load` — see grammar doc §4):
    (phased-plan A3 revision) makes marks load-invariant *regardless* — but confirm
    `load` doesn't trigger a surprise re-warmup or otherwise disturb the harness.
 
+## I/O-edge recon (`sar_show_entinp`) — complementary to the field dump
+
+The exit-detection recon (see [exit_detection_brainstorm.md](exit_detection_brainstorm.md) §2.5–2.6,
+captured via `sar_show_entinp 1`, **not** `sar_harness_dump_fields`) incidentally exposed a **second
+source of status**: the entity-I/O edges that drive puzzle state. These complement the field dump — the
+field dump reads a *value* off an entity; the I/O stream shows the *event* that set it, and often names a
+`logic_branch` that mirrors the status as a clean bool even when the prop has none.
+
+Findings from a campaign chamber exit (`sp_a2_triple_laser`; its field rows are Chamber-1 above):
+
+| Element | I/O edge(s) seen | Relation to the field-dump row |
+|---|---|---|
+| Laser catcher | `catcher_N.CallScriptFunction(CatcherPowerOff/On)`; **`laser_catcher_N_powered_branch.SetValue(0/1)`** + `all_lasers_powered_listener._OnLogicBranchChanged()` | The `_powered_branch` `logic_branch` is a clean bool mirror of `point_laser_target.m_bPowered` `[dm]` — possibly simpler to read than chasing the child target. |
+| Exit door | `@exit_door-testchamber_door.Close()`/`Open()`; **`@exit_door-door_wants_to_close_branch.SetValue(1/0)`** + `door_can_close_branch_listener._OnLogicBranchChanged()` | **Lead on the deferred door white-whale (C5/condump005):** a `logic_branch` tracks door intent at the *logic* layer — a candidate controlling bool (check whether its `m_bInValue` is `[net]`). Beats fishing for an anim field on the prop. |
+| Buttons | `new_buttonN_texture_changer.SetTextureIndex(0/1)`; `new_buttdownN.PlaySound()` | Visual/audio mirror of the press; canonical bool is still `m_bButtonState`/`m_nSequence` per the table. |
+| Cube dropper | `cube_dropper_*-cube_dropper_box_spawner.ForceSpawn()` | Spawn event; cube identity keys on `(index,serial)` (C3). |
+
+**Meta-insight — the logic layer is a status source.** PeTI/Valve chambers wire puzzle state through
+`logic_branch` entities (`*_branch.SetValue(0/1)` + `_OnLogicBranchChanged()`). These show up in the I/O
+stream **and** carry the bool the prop often lacks (catcher power, door intent). Worth a dedicated
+`sar_show_entinp` pass on a button/catcher/door-rich chamber, **played through** (not noclipped), to catch
+the *on/open* edges — the exit captures only caught the *off/close* teardown. Net: two complementary recon
+modes — field-dump for the prop's own value, I/O-stream for the controlling logic edge.
+
+### I/O vocabulary by element — PeTI-default vs BEEmod-compiled (2026-06-17)
+
+A batch of `sar_show_entinp` captures on varied workshop maps (`sp_facade` custom-Hammer+BEEmod, a BEE2-heavy
+chamber, `cc_00_intro`, "no elements") exposed the **two parallel naming schemes** the resolver/annotator must
+handle, and the I/O encoding of each element's status. BEEmod compiles to terse abbreviations + `&NNNN`
+entity-hash suffixes on spawned props.
+
+| element | PeTI-default I/O | BEEmod-compiled I/O | status encoding |
+|---|---|---|---|
+| Laser catcher | `lasercatchNN-laser_catcher.CallScriptFunction(CatcherPowerOn/Off)` | `lcNN-laser_catcher.Skin(1/0)` + `lcNN-output.FireUser2/1()` | `Skin(1)`=powered / scriptfn |
+| Laser emitter | `laseremitNN-laser.TurnOn()` | `leNNN-laser.TurnOn/Off()` + `-light.TurnOn/Off()` | on/off |
+| Pedestal button | — | `pro_pedNN-button.Use()` + `-output.SetValue(1/0)`/`.Test()` | `output` value |
+| Cube (floor) button | — | `cpNN-man.SetStateBTrue/False()` + `-toggle.SetTextureIndex(1/0)` + `-snd_on/off` | manager state |
+| Cube dropper | `cubedropperNN-cube_dropper_box_spawner.ForceSpawn()` | `cdNN-spawn_man.SetStateA/B…`, `-cube_dropper_model.SetAnimation(item_dropper_open/close)`/`Skin(0/1)` | spawn/open state |
+| Logic gate / counter | — | `lgNNN.Add(1)/Subtract(1)` (math_counter = "N lasers lit"); `logic_hmwNN-blue/orange.Enable/Disable` + `in.Add/Subtract` | counter value |
+| Indicator panel (antline) | `indicator_panelNN-indicator_panel.Check()/Uncheck()`; `indicator_toggleNN-texture_toggle.SetTextureIndex(1/0)` | `ipNNNNNN-pan.Check()/Uncheck()` | check/uncheck |
+| Exit door | `@exit_door.Open()/close()` + `door_wants_close`/`door_clear` logic_branch; `doorexitN-branch_toggle.ToggleTest()` | same | logic_branch + solve-gated |
+| Custom door (Hammer) | `doorN.SetAnimationNoReset(Open / vert_door_slow_opening / …)` | — | animation |
+| Fan (Hammer) | `fanNbase.StartForward/StartBackward()` + `fanNpush/pull.Enable/Disable()` | — | direction |
+| Moving wall (Hammer) | `startroom_wall_*.EnableMotion()` + `_push.Enable()` | — | motion |
+| Cube-pos detector | `cubepos_NNN-counter.Add(1)/start_trig.Enable()` | — | trigger count |
+| Text popup | — | `text_popupNNN-popup.Display()` | — |
+
+**Three takeaways:**
+1. **Solve-gating is visible:** `lasercatchNN…CatcherPowerOn → @exit_door.Open()` — the exit door's open-state
+   is downstream of the catcher power, captured live. Confirms door-open ⇔ chamber solved.
+2. **Status is encoded ≥4 ways in the I/O layer** — `CallScriptFunction(…PowerOn/Off)`, `Skin(0/1)`,
+   `logic_branch.SetValue`/`ToggleTest`, `math_counter.Add/Subtract`. The resolver needs per-class strategy
+   (matches the field-dump conclusion above), and the annotator must recognize **both** naming schemes.
+3. **`AddOutput` is used by maps at runtime** (`@exit_door.AddOutput(OnFullyClosed …)`, `box&NNNN.AddOutput(
+   OnUser1 !self:Dissolve…)`) — i.e. live entities self-rewire; the engine supports it in this build
+   (field-confirmed; see exit_detection_brainstorm.md §2.8 / §8). `point_servercommand` elements also fire raw
+   console commands (`…-console.Command(sv_player_collide_with_laser 0)`).
+
 ## What to send back
 
 - This table, filled in for the classes you use.

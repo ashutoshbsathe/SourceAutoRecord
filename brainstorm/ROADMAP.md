@@ -83,7 +83,10 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 | **ROADMAP.md** (this) | state, milestones, decisions, where to look |
 | `fixed_ontology_scope.md` | *why* deep-narrow + the v0 scope decision (read first for scope) |
 | `puzzlemaker_elements.md` | the element list (categories A/B/C, P1) |
-| `status_field_recon.md` | per-class status fields (the locked schema) + recon protocol |
+| `status_field_recon.md` | per-class status fields (the locked schema) + recon protocol + I/O-edge vocabulary (PeTI vs BEEmod) |
+| `exit_detection_brainstorm.md` | the map-completion oracle (exit detector): signal recon across 8 maps, the OR-set, the §9 shippable-v0 spec + corpus sweep |
+| `exit_detector_impl_plan.md` | **⭐ the PR-by-PR build plan for the exit detector (P1–P8) — point here to start shipping** |
+| `exit_criteria_structure.md` | (parked, post-oracle) exposing the exit's dependency graph as structured hints / dense reward |
 | `llm_percept_act_grammar.md` | the percept/act **design** (the macro verbs, the thesis) |
 | `llm_act_grammar_altitude.md` | **why closed verbs over Voyager-style code-as-action** (industry sweep + decision) |
 | `llm_percept_act_phased_plan.md` | the **build order** (tracks A–D, phase-by-phase) |

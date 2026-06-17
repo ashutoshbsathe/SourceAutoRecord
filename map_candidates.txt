@@ -8,3 +8,54 @@ players : 1 humans, 0 bots (1 max) (not hibernating)
 #  3 1 "StackSmasher789" STEAM_1:1:503036455 00:10 33 0 active 10000 loopback
 #end
 
+hostname: StackSmasher789
+version : 2.0.0.1/2001 8928 secure  
+udp/ip  :  192.168.1.26:27015 os(Linux) type(listen)
+map     : workshop/961974825780601321/multiverse_part1 at: 5755 x, -6535 y, 446 z
+players : 1 humans, 0 bots (1 max) (not hibernating)
+
+# userid name uniqueid connected ping loss state rate adr
+#  3 1 "StackSmasher789" STEAM_1:1:503036455 00:14 33 0 active 10000 loopback
+#end
+
+hostname: StackSmasher789
+version : 2.0.0.1/2001 8928 secure  
+udp/ip  :  192.168.1.26:27015 os(Linux) type(listen)
+map     : workshop/596996616964103777/1361778957 at: -1904 x, 2096 y, -78 z
+players : 1 humans, 0 bots (1 max) (not hibernating)
+
+# userid name uniqueid connected ping loss state rate adr
+#  3 1 "StackSmasher789" STEAM_1:1:503036455 00:07 33 0 active 10000 loopback
+#end
+
+hostname: StackSmasher789
+version : 2.0.0.1/2001 8928 secure  
+udp/ip  :  192.168.1.26:27015 os(Linux) type(listen)
+map     : workshop/594719743088576710/cc_00_intro at: -7185 x, 39 y, 64 z
+players : 1 humans, 0 bots (1 max) (not hibernating)
+
+# userid name uniqueid connected ping loss state rate adr
+#  4 1 "StackSmasher789" STEAM_1:1:503036455 00:10 24 0 active 10000 loopback
+#end
+
+hostname: StackSmasher789
+version : 2.0.0.1/2001 8928 secure  
+udp/ip  :  192.168.1.26:27015 os(Linux) type(listen)
+map     : workshop/594719286333571054/sp_facade at: 1377 x, 3229 y, -195 z
+players : 1 humans, 0 bots (1 max) (not hibernating)
+
+# userid name uniqueid connected ping loss state rate adr
+#  5 1 "StackSmasher789" STEAM_1:1:503036455 00:04 33 1 active 10000 loopback
+#end
+
+hostname: StackSmasher789
+version : 2.0.0.1/2001 8928 secure  
+udp/ip  :  192.168.1.26:27015 os(Linux) type(listen)
+map     : workshop/1009314089628973529/1549462179 at: -2000 x, 2000 y, -79 z
+players : 1 humans, 0 bots (1 max) (not hibernating)
+
+# userid name uniqueid connected ping loss state rate adr
+#  6 1 "StackSmasher789" STEAM_1:1:503036455 00:06 32 0 active 10000 loopback
+#end
+
+
