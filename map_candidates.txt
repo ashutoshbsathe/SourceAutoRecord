@@ -58,4 +58,13 @@ players : 1 humans, 0 bots (1 max) (not hibernating)
 #  6 1 "StackSmasher789" STEAM_1:1:503036455 00:06 32 0 active 10000 loopback
 #end
 
+hostname: StackSmasher789
+version : 2.0.0.1/2001 8928 secure  
+udp/ip  :  192.168.1.26:27015 os(Linux) type(listen)
+map     : workshop/1865059969741309475/1647934068 at: -1904 x, 2096 y, -78 z
+players : 1 humans, 0 bots (1 max) (not hibernating)
+
+# userid name uniqueid connected ping loss state rate adr
+#  3 1 "StackSmasher789" STEAM_1:1:503036455 00:05 32 0 active 10000 loopback
+#end
 

@@ -98,6 +98,8 @@ def report(macro, obs):
                 extra = f' mark{macro.mark}={fmt_pos(m["pos"])}'
                 break
     print(f'  {mr.result_code:<13} {mr.detail}   player={fmt_pos(obs.player)}{extra}')
+    if obs.state.chamber_complete:
+        print(f'  *** chamber_complete  exit_signal_mask={obs.state.exit_signal_mask}')
 
 
 def run_repl(session, record_step=None):
