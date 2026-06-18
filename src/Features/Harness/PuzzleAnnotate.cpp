@@ -1,4 +1,4 @@
-#include "HarnessAnnotate.hpp"
+#include "PuzzleAnnotate.hpp"
 
 #include <cstdio>
 #include <cstring>

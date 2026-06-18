@@ -7,9 +7,9 @@
 #include "Entity.hpp"
 #include "Event.hpp"
 #include "Features/EntityList.hpp"
-#include "HarnessAnnotate.hpp"
 #include "Modules/Server.hpp"
 #include "Offsets.hpp"
+#include "PuzzleAnnotate.hpp"
 #include "Utils/SDK/EntityEdict.hpp"
 
 MarkTable markTable;

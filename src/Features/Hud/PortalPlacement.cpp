@@ -27,7 +27,7 @@ Variable sar_pp_hud_y("sar_pp_hud_y", "5", "y pos of portal placement hud.\n", 0
 Variable sar_pp_hud_opacity("sar_pp_hud_opacity", "100", 0, 255, "Opacity of portal previews.\n", 0);
 Variable sar_pp_hud_font("sar_pp_hud_font", "0", 0, "Change font of portal placement hud.\n");
 
-// A5: the master harness-annotation cvar (defined in HarnessAnnotate.cpp) also
+// A5: the master harness-annotation cvar (defined in PuzzleAnnotate.cpp) also
 // drives an always-on crosshair portal-landing indicator, reusing this feature's
 // TraceFirePortal compute + world preview below (green=valid, red=invalid). We
 // OR it into the gates here rather than puppeteering sar_pp_hud, so the preview

@@ -101,7 +101,7 @@ static void PopulateEntityStateProto(
   protoState->set_target_name(slot.targetName);
   // Frame<->telemetry bridge: the same integer drawn on the annotated frame.
   // 0 if this class isn't marked. MarkTable is rebuilt every RENDER frame
-  // (HarnessAnnotate.cpp) independent of the visual overlay cvar, so marks are
+  // (PuzzleAnnotate.cpp) independent of the visual overlay cvar, so marks are
   // live whether or not sar_harness_annotate is on; reads are mutex-guarded.
   protoState->set_mark(markTable.GetMark(entityIndex, slot.serial));
 
