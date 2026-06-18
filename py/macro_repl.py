@@ -102,11 +102,13 @@ def report(macro, obs):
         print(f'  *** chamber_complete  exit_signal_mask={obs.state.exit_signal_mask}')
 
 
-def run_repl(session, record_step=None):
+def run_repl(session, record_step=None, on_exit='none'):
     """The interactive command loop (the session must already be primed).
 
     If `record_step(obs, macro, line)` is given, each verb step captures a frame
-    and is handed to it (the binary-trajectory recorder).
+    and is handed to it (the binary-trajectory recorder). `on_exit`
+    ('none'|'restart'|'terminate') is what to do when a step latches
+    chamber_complete.
     """
     if readline is not None:
         try:
@@ -172,6 +174,19 @@ def run_repl(session, record_step=None):
                 record_step(obs, macro, line)
             mr = obs.result
             transcript.append((line, f'{mr.result_code} {mr.detail}'.strip()))
+
+            if obs.state.chamber_complete and on_exit != 'none':
+                if on_exit == 'terminate':
+                    print('  chamber_complete -- terminating')
+                    break
+                try:
+                    obs = session.reset(session.current_map)
+                except Exception as e:  # noqa: BLE001 -- REPL: surface, don't crash
+                    print(f'  restart failed: {type(e).__name__}: {e}')
+                    continue
+                print(f'  chamber_complete -- restarted ({session.current_map})')
+                transcript.append(('reset', f'-> {session.current_map} (on-exit)'))
+                dump_marks(obs)
     finally:
         if readline is not None:
             try:
@@ -201,6 +216,12 @@ def main():
     )
     parser.add_argument(
         '--radius', type=float, default=64.0, help='exit success radius (units)'
+    )
+    parser.add_argument(
+        '--on-exit',
+        choices=('none', 'restart', 'terminate'),
+        default='none',
+        help='on chamber_complete: do nothing, reload the map, or quit',
     )
     args = parser.parse_args()
 
@@ -278,7 +299,7 @@ def main():
                 )
 
         try:
-            run_repl(session, record_step)
+            run_repl(session, record_step, args.on_exit)
         finally:
             if recorder is not None:
                 recorder.close()

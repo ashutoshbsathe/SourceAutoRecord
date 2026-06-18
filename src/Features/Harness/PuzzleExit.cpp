@@ -5,6 +5,7 @@
 #include <atomic>
 #include <cstring>
 
+#include "Event.hpp"
 #include "Harness.hpp"
 
 namespace {
@@ -58,3 +59,5 @@ void PuzzleExit::Reset() {
 bool PuzzleExit::Get() { return g_complete.load(); }
 
 int PuzzleExit::GetMask() { return g_mask.load(); }
+
+ON_EVENT(SESSION_START) { PuzzleExit::Reset(); }
