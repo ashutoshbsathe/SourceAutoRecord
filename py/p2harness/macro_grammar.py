@@ -107,9 +107,10 @@ VERB_SPECS = {
         ticks_max=WAIT_MAX_TICKS,
     ),
     'done': Verb(
-        'Declare the task complete (success = exit proximity).',
+        'Give up: stop when stuck with no action left (the environment, not '
+        '`done`, detects a real solve).',
         'done',
-        'declare the chamber solved (only when exit distance is ~0).',
+        'give up when stuck; the environment marks a real solve, not `done`.',
     ),
 }
 

@@ -4,11 +4,11 @@ Gemini is the verb source -- the REPL loop with the model in place of stdin. Eac
 step sends the annotated frame + telemetry to one stateful chat, gets back a
 fenced ```json {reasoning, verb} block (verb = a plain command string like the
 REPL types), validates it against the live percept, re-prompts in-session on
-rejection, then steps + records. Stops on `done`, exit-proximity, or the budget.
+rejection, then steps + records. Stops on the engine's chamber-complete signal,
+`done`, or the budget.
 """
 
 import json
-import math
 import os
 import re
 from dataclasses import dataclass
@@ -17,7 +17,6 @@ from google import genai
 from google.genai import types
 from p2harness import harness_pb2
 from p2harness import macro_grammar
-from testchamber_session import reached_exit
 
 from . import trajectory_pb2
 from .trajectory_io import TrajectoryWriter
@@ -38,12 +37,14 @@ _RETRY = types.HttpRetryOptions(
     http_status_codes=[429, 500, 503],
 )
 
-_SYSTEM = """You are an agent solving a Portal 2 test chamber. Goal: reach the exit.
+_SYSTEM = """You are an agent solving a Portal 2 test chamber. Goal: explore the
+chamber and reach its exit. You are not told where the exit is -- look around,
+move through the chamber, and use the marked entities to find your way out.
 
-Each turn you get an annotated screenshot and telemetry: your position, the exit
-(distance + bearing), `holding` (the mark you carry, or nothing), the result of
-your last action, and a list of marked entities -- each with an integer `mark`
-(also drawn on the frame), class, position, distance, bearing, and state.
+Each turn you get an annotated screenshot and telemetry: your position, `holding`
+(the mark you carry, or nothing), the result of your last action, and a list of
+marked entities -- each with an integer `mark` (also drawn on the frame), class,
+position, distance, bearing, and state.
 
 Verbs:
 {verbs}
@@ -58,7 +59,13 @@ Notes:
 - {caveat}
 - `last_result` is feedback: SUCCESS, or a failure like STUCK/BLOCKED/WALL/EDGE/
   BAD_MARK -- if a verb failed, try a different approach.
-- Use `done` only once the exit distance is near 0.
+- The environment decides when the chamber is solved and ends the run for you --
+  you do NOT judge success yourself. Just keep making progress toward the exit.
+  The exit is usually an elevator that carries you out over a few seconds, so if
+  you believe you've reached it but the run hasn't ended, `wait 250` near the
+  exit (200-300 ticks) to let the elevator finish.
+- Use `done` only to stop when you are truly stuck with no action left to try;
+  it is a give-up, not a win -- the environment, not `done`, marks a real solve.
 - Your output should be STRICTLY in the following format:
 <begin expected format, yes 3 backticks with json is the expected starting of the response>
 ```json
@@ -70,32 +77,21 @@ Notes:
 <end expected format, ends with 3 backticks>
 You MAY choose to add additional things in the response as well HOWEVER this JSON block must be in PRISTINE condition.
 
-When you think you're done, the final output block must be:
+If you give up -- stuck, with no action left to try -- the output block must be:
 ```json
 {{
-    "reasoning": "test chamber done",
+    "reasoning": "stuck, no action left to try",
     "verb": "done"
 }}
 ```
 """
 
 
-def _bearing(px, py, eye_yaw, tx, ty):
-    """Signed degrees from the player's facing to a point (+ = left)."""
-    return (
-        math.degrees(math.atan2(ty - py, tx - px)) - eye_yaw + 180.0
-    ) % 360.0 - 180.0
-
-
-def _percept_text(obs, exit_pos):
-    """Format the player + exit + marked-entity telemetry the model reads."""
+def _percept_text(obs):
+    """Format the player + marked-entity telemetry the model reads."""
     px, py, pz = obs.player
-    eye_yaw = obs.state.camera.y
-    ex, ey, ez = exit_pos
     lines = [
         f'player=({px:.0f},{py:.0f},{pz:.0f}) holding={obs.held_mark or "nothing"}',
-        f'exit=({ex:.0f},{ey:.0f},{ez:.0f}) dist={math.hypot(ex - px, ey - py):.0f} '
-        f'bearing={_bearing(px, py, eye_yaw, ex, ey):.0f}',
         f'last_result={obs.result.result_code} {obs.result.detail}'.strip(),
         'marks:',
     ]
@@ -185,12 +181,11 @@ class AgentAction:
 class GeminiAgent:
     """A Gemini chat that returns one validated macro per observation."""
 
-    def __init__(self, exit_pos, max_retries=3):
+    def __init__(self, max_retries=3):
         """Open one Gemini chat for this run (reads GEMINI_API_KEY)."""
         api_key = os.environ.get('GEMINI_API_KEY')
         if not api_key:
             raise RuntimeError('GEMINI_API_KEY not set (put it in the repo .env)')
-        self.exit_pos = exit_pos
         self.max_retries = max_retries
         self.tokens_in = 0
         self.tokens_out = 0
@@ -218,7 +213,7 @@ class GeminiAgent:
 
     def __call__(self, obs):
         """Return an AgentAction for `obs` (macro=None if every retry was rejected)."""
-        percept = _percept_text(obs, self.exit_pos)
+        percept = _percept_text(obs)
         print('  ▶ sent (frame + telemetry)', flush=True)
         print(_indent(percept), flush=True)
         message = [
@@ -282,26 +277,24 @@ def _write(writer, index, obs, calls, terminal):
     writer.write_step(make_step(index, obs, calls, terminal))
 
 
-def run_eval(session, agent, cfg, out_path, max_steps=25):
+def run_eval(session, agent, cfg, out_path, max_steps=30):
     """Drive the chamber with `agent`, recording each step. Returns the terminal.
 
-    cfg holds map / exit_pos / success_radius. The terminal (also on the last
-    step) is SOLVED | DONE | BUDGET | GAVE_UP.
+    cfg holds the map name. The terminal (also on the last step) is
+    SOLVED | DONE | BUDGET | GAVE_UP -- SOLVED comes from the engine's
+    chamber-complete signal, not the agent.
     """
     if session.harness.shm is None:
         raise RuntimeError('frame capture needs a video-mode instance (no SHM mapped)')
     session.harness.execute_command('sar_harness_annotate 1')
     obs = session.reset(cfg['map'], capture_frame=True)
 
-    exit_pos, radius = cfg['exit_pos'], cfg['success_radius']
     header = trajectory_pb2.TrajectoryHeader(
         map=cfg['map'],
-        success_radius=radius,
         model=MODEL,
         system_prompt=getattr(agent, 'system', ''),
         grammar='\n'.join(macro_grammar.verb_signatures()),
     )
-    header.exit_pos.x, header.exit_pos.y, header.exit_pos.z = exit_pos
 
     print(f'\n  recording -> {out_path}', flush=True)
     terminal = ''
@@ -322,7 +315,7 @@ def run_eval(session, agent, cfg, out_path, max_steps=25):
             act.calls[-1].result = mr.SerializeToString()  # the accepted call's result
             sym = '✓' if mr.ok else '✗'
             print(f'  {sym} {act.macro.verb} → {mr.result_code} {mr.detail}'.rstrip())
-            if reached_exit(obs, exit_pos, radius):
+            if obs.state.chamber_complete:
                 terminal = 'SOLVED'
             elif act.macro.verb == 'done':
                 terminal = 'DONE'

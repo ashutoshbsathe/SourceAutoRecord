@@ -41,13 +41,6 @@ class Observation:
         return self.state.server_tick
 
 
-def reached_exit(obs, exit_pos, radius):
-    """True when the player is within `radius` of `exit_pos` (x, y, z)."""
-    px, py, pz = obs.player
-    ex, ey, ez = exit_pos
-    return ((px - ex) ** 2 + (py - ey) ** 2 + (pz - ez) ** 2) ** 0.5 <= radius
-
-
 class TestChamberSession:
     """Drive one chamber to a solve: reset, step macros, read the percept.
 

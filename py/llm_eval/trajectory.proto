@@ -48,8 +48,8 @@ message Call {
 
 message TrajectoryHeader {
   string map = 1;
-  Vec3 exit_pos = 2;
-  float success_radius = 3;
+  reserved 2, 3;  // was exit_pos/success_radius; the engine auto-detects the exit
+  reserved "exit_pos", "success_radius";
   string model = 4;          // empty for the scripted agent
   string system_prompt = 5;  // empty for the scripted agent
   string grammar = 6;        // the verb vocabulary in play, for provenance

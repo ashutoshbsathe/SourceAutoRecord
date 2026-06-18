@@ -133,8 +133,8 @@ def _percept(marks, target):
 
 
 def _projector(header, steps):
-    """Build a world->SVG projection covering every player/mark/exit point."""
-    xs, ys = [header.exit_pos.x], [header.exit_pos.y]
+    """Build a world->SVG projection covering every player/mark point."""
+    xs, ys = [], []
     for s in steps:
         xs.append(s.obs.player.x)
         ys.append(s.obs.player.y)
@@ -142,6 +142,8 @@ def _projector(header, steps):
             p = m.get('pos') or [0, 0, 0]
             xs.append(p[0])
             ys.append(p[1])
+    if not xs:  # no player/mark points to bound -- fall back to the origin
+        xs, ys = [0.0], [0.0]
     w, h, pad = 300, 210, 22
     minx, miny = min(xs), min(ys)
     spanx, spany = max(max(xs) - minx, 1.0), max(max(ys) - miny, 1.0)
@@ -152,21 +154,17 @@ def _projector(header, steps):
     def proj(x, y):
         return ox + (x - minx) * scale, h - (oy + (y - miny) * scale)
 
-    return proj, scale, (w, h)
+    return proj, (w, h)
 
 
 def _map(header, steps, idx, ctx):
-    """A top-down SVG: path so far, marks, exit ring, player + facing arrow."""
+    """A top-down SVG: path so far, marks, player + facing arrow."""
     try:
-        proj, scale, (w, h) = ctx
+        proj, (w, h) = ctx
         s = steps[idx]
         acc = _accepted(s)
         target = _action(acc).mark if acc else 0
-        ex, ey = proj(header.exit_pos.x, header.exit_pos.y)
-        er = max(header.success_radius * scale, 4)
         out = [f'<svg class="map" viewBox="0 0 {w} {h}">']
-        out.append(f'<circle cx="{ex:.1f}" cy="{ey:.1f}" r="{er:.1f}" class="exit-r"/>')
-        out.append(f'<circle cx="{ex:.1f}" cy="{ey:.1f}" r="3" class="exit"/>')
         pts = ' '.join(
             '%.1f,%.1f' % proj(steps[i].obs.player.x, steps[i].obs.player.y)
             for i in range(idx + 1)
@@ -328,7 +326,6 @@ def build_html(header, steps):
         f'<span class="outcome {tcls}">{term or "in progress"}</span></div>'
         f'<div class="stats">{len(steps)} steps · '
         f'<span class="{"bad" if fails else "muted"}">{fails} failed</span> · '
-        f'exit ({header.exit_pos.x:.0f},{header.exit_pos.y:.0f},{header.exit_pos.z:.0f}) r={header.success_radius:.0f} · '
         f'Σ in {ti:,} / out {to:,}' + (f' / cached {tc:,}' if tc else '') + '</div>'
         f'<div class="controls">'
         f'<button onclick="allThinking(true)">expand thinking</button>'
@@ -468,8 +465,6 @@ body.fails-only .card[data-ok="true"]{display:none}
   background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:1px 6px}
 
 .map{width:300px; max-width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:10px}
-.map .exit-r{fill:rgba(63,185,80,.10); stroke:rgba(63,185,80,.5); stroke-dasharray:3 3}
-.map .exit{fill:var(--green)}
 .map .path{fill:none; stroke:var(--accent); stroke-width:1.5; opacity:.6; stroke-linejoin:round}
 .map .mk{fill:var(--faint)}
 .map .mk.hot{fill:var(--hot)}

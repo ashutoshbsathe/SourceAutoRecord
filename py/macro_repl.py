@@ -43,7 +43,6 @@ from p2harness.macro_grammar import VERBS
 from p2harness.macro_grammar import build_macro
 from testchamber_session import TestChamberSession
 from testchamber_session import launch_or_attach
-from testchamber_session import reached_exit
 
 HELP = """commands:
   go_to N / aim_at N / pick_up N / interact N   verbs taking a mark
@@ -212,12 +211,6 @@ def main():
         '--record', help='also write a binary .trajectory (frames + telemetry)'
     )
     parser.add_argument(
-        '--exit', help='exit position "x,y,z" (marks a step SOLVED on reaching it)'
-    )
-    parser.add_argument(
-        '--radius', type=float, default=64.0, help='exit success radius (units)'
-    )
-    parser.add_argument(
         '--on-exit',
         choices=('none', 'restart', 'terminate'),
         default='none',
@@ -262,18 +255,10 @@ def main():
             from llm_eval.trajectory_io import make_step
             from p2harness import macro_grammar
 
-            exit_pos = (
-                tuple(float(v) for v in args.exit.split(',')) if args.exit else None
-            )
             header = trajectory_pb2.TrajectoryHeader(
                 map=session.current_map,
-                success_radius=args.radius,
                 grammar='\n'.join(macro_grammar.verb_signatures()),
             )
-            if exit_pos is not None:
-                header.exit_pos.x = exit_pos[0]
-                header.exit_pos.y = exit_pos[1]
-                header.exit_pos.z = exit_pos[2]
             recorder = TrajectoryWriter(args.record, header)
             counter = itertools.count()
             # The human is the agent here, so the model fields are mocked.
@@ -281,9 +266,7 @@ def main():
 
             def record_step(obs, macro, line):
                 """Append the current verb step (human agent; model fields mocked)."""
-                solved = exit_pos is not None and reached_exit(
-                    obs, exit_pos, args.radius
-                )
+                solved = obs.state.chamber_complete
                 call = make_call(
                     '',
                     '',
