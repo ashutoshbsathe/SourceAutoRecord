@@ -70,8 +70,9 @@ def dump_marks(obs):
         print('  (no marked entities)')
         return
     for m in obs.marks:
-        name = f' "{m["name"]}"' if m['name'] else ''
-        print(f'  [{m["mark"]:>2}] {m["class"]:<22} {fmt_pos(m["pos"])}{name}')
+        name = m['name']
+        tag = f' "{name}"' if name else ''
+        print(f'  [{m["mark"]:>2}] {m["class"]:<22} {fmt_pos(m["pos"])}{tag}')
 
 
 def write_transcript(path, map_name, steps):

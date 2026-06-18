@@ -69,6 +69,23 @@ Two priorities lead now; each gets its own brainstorm next session:
 
 ---
 
+## Code hygiene / tech debt (anytime, low-stakes)
+
+Not on the critical path, but worth a sweep when touching a file: small *taste* debt
+has crept into `py/` (and likely `src/`). Fix in passing, don't make a project of it.
+
+- [ ] **Dict-access taste sweep** — kill pointless `.get(k)` guards on dicts whose
+      schema *guarantees* `k` (e.g. mark dicts from `entities._mark_dict` always carry
+      all keys), and the inconsistency of mixing `m['x']` and `m.get('x')` in one
+      expression. Hoist the value into a local instead of burying a quoted subscript in
+      an f-string (`f' "{m["name"]}"'` → `name = m['name']; tag = f' "{name}"'`). *Keep
+      the legitimate `.get`s*: sparse delta field-maps and untrusted LLM JSON genuinely
+      may miss keys. (First pass done in `gemini_agent._percept_text` + `macro_repl.dump_marks`, 2026-06-18.)
+- [ ] **General readability pass** — convoluted inline f-strings / nested conditionals,
+      when you're already in the file. Minimal, surgical, no churn-for-churn's-sake.
+
+---
+
 ## Key decisions (log)
 
 | Date | Decision | Detail |

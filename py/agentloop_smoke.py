@@ -264,7 +264,7 @@ def check_move(ctx):
     require(env.HasField('macro_result'), 'no macro_result on move')
     mr = env.macro_result
     require(
-        mr.result_code in ('COMPLETED', 'WALL', 'EDGE', 'STUCK'),
+        mr.result_code in ('COMPLETED', 'ADVANCED', 'WALL', 'EDGE', 'STUCK'),
         f'unexpected move result_code {mr.result_code!r}',
     )
     # Pass if it advanced, or the verb correctly aborted (guard/stuck). A
@@ -316,7 +316,7 @@ def check_go_to(ctx):
     require(env.success, f'go_to step RPC failed: {env.error_message}')
     mr = env.macro_result
     require(
-        mr.result_code in ('SUCCESS', 'STUCK', 'BLOCKED', 'UNREACHABLE'),
+        mr.result_code in ('SUCCESS', 'ADVANCED', 'STUCK', 'BLOCKED', 'UNREACHABLE'),
         f'unexpected go_to result_code {mr.result_code!r}',
     )
     ctx.observations.append(gamestate_dict(env.state, f'macro.go_to[{best.mark}]'))

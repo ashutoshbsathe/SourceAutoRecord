@@ -44,7 +44,9 @@ move through the chamber, and use the marked entities to find your way out.
 Each turn you get an annotated screenshot and telemetry: your position, `holding`
 (the mark you carry, or nothing), the result of your last action, and a list of
 marked entities -- each with an integer `mark` (also drawn on the frame), class,
-position, distance, bearing, and state.
+`name` (its in-game targetname, e.g. `@exit_door`, `@entrance_door`,
+`@exit_airlock_door` -- read this to tell otherwise-identical entities apart and
+to find the way OUT), position, distance, bearing, and state.
 
 Verbs:
 {verbs}
@@ -57,13 +59,19 @@ Notes:
   units -- the metric `go_to` drives to, so when a distance is near 0 you have
   arrived. Bearing is degrees off your facing (+ = left).
 - {caveat}
-- `last_result` is feedback: SUCCESS, or a failure like STUCK/BLOCKED/WALL/EDGE/
-  BAD_MARK -- if a verb failed, try a different approach.
+- `last_result` is feedback. SUCCESS/COMPLETED = the verb did what you asked.
+  ADVANCED = you walked toward the mark but a wall/edge stopped you partway
+  (`moved` units shows how far) -- you are at a NEW position now, so re-read the
+  percept and re-plan; do NOT just repeat the same move. A failure like
+  STUCK/BLOCKED/WALL/EDGE/BAD_MARK means you did NOT move -- try a different
+  approach (e.g. `look` for an opening, then `move`, or pick a nearer mark).
 - The environment decides when the chamber is solved and ends the run for you --
   you do NOT judge success yourself. Just keep making progress toward the exit.
   The exit is usually an elevator that carries you out over a few seconds, so if
   you believe you've reached it but the run hasn't ended, `wait 250` near the
-  exit (200-300 ticks) to let the elevator finish.
+  exit (200-300 ticks) to let the elevator finish. If the environment doesn't report
+  success after executing a single `wait 250`, make sure your position is appropriate
+  and try again after applying a few micro corrections.
 - Use `done` only to stop when you are truly stuck with no action left to try;
   it is a give-up, not a win -- the environment, not `done`, marks a real solve.
 - Your output should be STRICTLY in the following format:
@@ -97,8 +105,10 @@ def _percept_text(obs):
     ]
     for m in obs.marks:
         x, y, z = m['pos']
+        name = m['name']
+        tag = f' "{name}"' if name else ''
         lines.append(
-            f'  [{m["mark"]}] {m["class"]} pos=({x:.0f},{y:.0f},{z:.0f}) '
+            f'  [{m["mark"]}] {m["class"]}{tag} pos=({x:.0f},{y:.0f},{z:.0f}) '
             f'dist={m["dist"]:.0f} bearing={m["bearing"]:.0f} state={m["state"]}'
         )
     return '\n'.join(lines)

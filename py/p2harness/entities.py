@@ -28,7 +28,8 @@ def _project_state(class_name, fields):
 
     Only category-A puzzle elements carry status; everything else gets {}. Field
     mappings are per status_field_recon.md. The door has no reliable server
-    open-state field, so `open` is None (read it from the frame).
+    open-state field, so it carries no status -- read open/closed from the frame
+    (an advertised-but-always-None `open` key only misleads the model).
     """
     if class_name == 'prop_weighted_cube':
         return {
@@ -40,7 +41,7 @@ def _project_state(class_name, fields):
     if 'button' in class_name:  # floor / weight buttons: a clean networked bool
         return {'pressed': bool(fields.get('m_bButtonState', False))}
     if 'door' in class_name:  # no server open-state field -- visual only
-        return {'open': None}
+        return {}
     return {}
 
 

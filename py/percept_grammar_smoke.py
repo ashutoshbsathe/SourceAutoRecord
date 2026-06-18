@@ -107,7 +107,7 @@ def test_projection():
     check(set(m) == {1, 2, 3, 4}, f'marks {sorted(m)} (unmarked leaked?)')
     check(m[1]['state'] == {'cube_type': 'standard', 'on_button': True}, m[1]['state'])
     check(m[2]['state'] == {'pressed': False}, m[2]['state'])
-    check(m[3]['state'] == {'open': None}, m[3]['state'])
+    check(m[3]['state'] == {}, m[3]['state'])  # door: no server open-state field
     check(m[4]['state'] == {'pressed': False}, m[4]['state'])  # m_nSequence 0 != 3
     # player at origin facing yaw 0; cube at +x 256 -> bearing ~0, horizontal dist 256.
     check(abs(m[1]['bearing']) < 0.1, f'cube bearing {m[1]["bearing"]}')
@@ -150,7 +150,7 @@ def test_delta_merge():
     check(m[1]['state']['on_button'] is True, 'cube on_button not updated')
     check(m[1]['pos'] == [256.0, 205.0, 64.0], f'cube pos not updated: {m[1]["pos"]}')
     check(m[2]['state']['pressed'] is True, 'button press not updated')
-    check(m[3]['state'] == {'open': None}, 'door dropped/changed across delta')
+    check(m[3]['state'] == {}, 'door dropped/changed across delta')
     return 'delta merged; static marks + unchanged fields preserved'
 
 

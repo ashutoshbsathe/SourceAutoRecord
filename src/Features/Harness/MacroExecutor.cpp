@@ -1,6 +1,7 @@
 #include "MacroExecutor.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <string>
 
@@ -48,6 +49,16 @@ constexpr float kMinGrabMove = 8.0f;  // a real grab snaps it more than this
 constexpr float kReleasePitch = 75.0f;  // mark-less release: look-down pitch
 
 int Slot() { return GET_SLOT(); }
+
+// Wrap a yaw to [-180, 180]. Keeps reported aim angles readable and stops the
+// cumulative look() (cur.y + yaw) from drifting unbounded across many turns, so
+// the model never has to do +-360 mod-arithmetic on its own facing.
+float NormalizeYaw(float yaw) {
+  yaw = std::fmod(yaw, 360.0f);
+  if (yaw > 180.0f) yaw -= 360.0f;
+  if (yaw < -180.0f) yaw += 360.0f;
+  return yaw;
+}
 
 // Eye position of the host player (slot 0 -> entity index 1), matching the
 // engine's own eye calc (Cheats.cpp:315 / AutoAimTool.cpp:86). False if no
@@ -136,6 +147,8 @@ void ClearFramebulk() {
 // `angles` instead). Main thread only.
 QAngle ApplyAbsoluteView(QAngle angles) {
   angles.x = std::min(std::max(angles.x, -kPitchLimit), kPitchLimit);
+  angles.y =
+      NormalizeYaw(angles.y);  // commanded == reported, bounded [-180,180]
   angles.z = 0;
   ClearFramebulk();  // also zeroes viewAnalog
   engine->SetAngles(Slot(), angles);
@@ -378,6 +391,7 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
     bool ok = false;
     std::string code = "BAD_MARK";
     Vector center{0, 0, 0};
+    Vector startFeet{0, 0, 0};  // for moved_dist (distance actually walked)
     float initialDist = 0;
   };
   auto res = std::make_shared<Resolve>();
@@ -387,6 +401,7 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
     ServerEnt* pl = server->GetPlayer(1);
     if (pl) {
       Vector feet = pl->abs_origin();
+      res->startFeet = feet;
       res->initialDist =
           Vector{res->center.x - feet.x, res->center.y - feet.y, 0}.Length2D();
     }
@@ -486,23 +501,42 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
   // distance.
   Scheduler::OnMainThread([]() { ClearFramebulk(); });
   AdvanceTicksBlocking(kGoToSettle);
+  Vector finalFeet = res->startFeet;
   {
     auto fin = std::make_shared<float>(finalDist);
-    RunOnMainThreadSync(context_, [fin, target]() {
+    auto feet = std::make_shared<Vector>(res->startFeet);
+    RunOnMainThreadSync(context_, [fin, feet, target]() {
       ServerEnt* pl = server->GetPlayer(1);
       if (pl) {
-        Vector feet = pl->abs_origin();
-        *fin = Vector{target.x - feet.x, target.y - feet.y, 0}.Length2D();
+        *feet = pl->abs_origin();
+        *fin = Vector{target.x - feet->x, target.y - feet->y, 0}.Length2D();
       }
     });
     finalDist = *fin;
+    finalFeet = *feet;
   }
+  float moved =
+      Vector{finalFeet.x - res->startFeet.x, finalFeet.y - res->startFeet.y, 0}
+          .Length2D();
 
-  r.set_ok(reached);
-  r.set_result_code(code);
+  // A blocked/stuck march that still covered real ground is ADVANCED, not a
+  // failure: the model should re-plan from its new spot, not retry the same
+  // verb. Pinned (moved ~0) keeps the honest BLOCKED/STUCK/UNREACHABLE code.
+  bool advanced =
+      !reached && moved > kReachRadius &&
+      (code == "BLOCKED" || code == "STUCK" || code == "UNREACHABLE");
+  std::string why =
+      r.detail();  // "go_to blocked by WALL/EDGE" if a guard tripped
+  r.set_ok(reached || advanced);
+  r.set_result_code(advanced ? "ADVANCED" : code);
   r.set_reached(reached);
   r.set_final_dist(finalDist);
-  if (r.detail().empty())
+  r.set_moved_dist(moved);
+  if (advanced)
+    r.set_detail(Utils::ssprintf("advanced %.0f units, %.0f to go (%s)", moved,
+                                 finalDist,
+                                 why.empty() ? code.c_str() : why.c_str()));
+  else if (r.detail().empty())
     r.set_detail(Utils::ssprintf("dist=%.0f after march", finalDist));
   return r;
 }
@@ -612,10 +646,18 @@ portal2_harness::MacroResult MacroExecutor::Move(const std::string& dir,
     return r;
   }
 
-  r.set_ok(code == "COMPLETED");
-  r.set_result_code(code);
+  // A guard-stopped move that still covered real ground is ADVANCED (progress
+  // to re-plan from), not a flat WALL/EDGE/STUCK failure the model reads as
+  // "moved nowhere". Pinned (moved ~0) keeps the honest guard code.
+  bool advanced = moved > kReachRadius &&
+                  (code == "WALL" || code == "EDGE" || code == "STUCK");
+  r.set_ok(code == "COMPLETED" || advanced);
+  r.set_result_code(advanced ? "ADVANCED" : code);
   r.set_moved_dist(moved);
-  r.set_detail(Utils::ssprintf("moved %.0f units (%s)", moved, code.c_str()));
+  r.set_detail(
+      advanced ? Utils::ssprintf("moved %.0f units then %s (ADVANCED)", moved,
+                                 code.c_str())
+               : Utils::ssprintf("moved %.0f units (%s)", moved, code.c_str()));
   return r;
 }
 

@@ -76,9 +76,12 @@ VERB_SPECS = {
         mark='required',
     ),
     'pick_up': Verb(
-        'Grab the cube/box/turret at a mark.',
+        'Grab the cube/box/turret at a mark. Does NOT walk you there -- you must '
+        "ALREADY be within arm's reach (~1 step, dist < ~96u) or it fails "
+        'OUT_OF_REACH. go_to or move right up to the mark FIRST, then pick_up.',
         'pick_up 3',
-        'grab grabbable mark 3 (must be empty-handed).',
+        'grab grabbable mark 3 you are ALREADY standing next to (empty-handed); '
+        'it does not move you -- go_to it first.',
         mark='grabbable',
     ),
     'release': Verb(
@@ -95,9 +98,10 @@ VERB_SPECS = {
         ticks_max=MOVE_MAX_TICKS,
     ),
     'look': Verb(
-        'Turn the view by signed degrees (snapped to 15).',
-        'look -75 30',
-        'turn the view: yaw -75 (left), pitch 30 (up); pitch optional.',
+        'Turn the view by signed degrees, snapped to 15: +yaw turns LEFT, -yaw '
+        'RIGHT; -pitch looks UP, +pitch looks DOWN.',
+        'look 75 -30',
+        'turn the view: yaw +75 (left), pitch -30 (look up); pitch optional.',
         look=True,
     ),
     'wait': Verb(
