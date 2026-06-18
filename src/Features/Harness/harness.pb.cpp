@@ -590,8 +590,10 @@ inline constexpr GameState::Impl_::Impl_(::_pbi::ConstantInitialized) noexcept
       camera_{nullptr},
       entity_snapshot_{nullptr},
       health_{0},
+      server_tick_{0},
       is_crouching_{false},
-      server_tick_{0} {}
+      chamber_complete_{false},
+      exit_signal_mask_{0} {}
 
 template <typename>
 PROTOBUF_CONSTEXPR GameState::GameState(::_pbi::ConstantInitialized)
@@ -854,7 +856,7 @@ const ::uint32_t
         1,
         0x081,  // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState, _impl_._has_bits_),
-        10,  // hasbit index offset
+        12,  // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState, _impl_.position_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState, _impl_.velocity_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState, _impl_.camera_),
@@ -865,13 +867,19 @@ const ::uint32_t
                               _impl_.server_tick_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState,
                               _impl_.entity_snapshot_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState,
+                              _impl_.chamber_complete_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState,
+                              _impl_.exit_signal_mask_),
         0,
         1,
         2,
         4,
-        5,
         6,
+        5,
         3,
+        7,
+        8,
         0x081,  // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::ActionRequest,
                               _impl_._has_bits_),
@@ -1073,19 +1081,19 @@ static const ::_pbi::MigrationSchema schemas[] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     {82, sizeof(::portal2_harness::EntityState)},
     {105, sizeof(::portal2_harness::EntitySnapshot)},
     {114, sizeof(::portal2_harness::GameState)},
-    {131, sizeof(::portal2_harness::ActionRequest)},
-    {162, sizeof(::portal2_harness::ActionResponse)},
-    {169, sizeof(::portal2_harness::CommandRequest)},
-    {174, sizeof(::portal2_harness::CommandResponse)},
-    {181, sizeof(::portal2_harness::ResetRequest)},
-    {186, sizeof(::portal2_harness::ResetResponse)},
-    {195, sizeof(::portal2_harness::HandshakeRequest)},
-    {202, sizeof(::portal2_harness::HandshakeResponse)},
-    {217, sizeof(::portal2_harness::RolloutHeader)},
-    {230, sizeof(::portal2_harness::RolloutStep)},
-    {239, sizeof(::portal2_harness::Empty)},
-    {240, sizeof(::portal2_harness::RenderDemoRequest)},
-    {249, sizeof(::portal2_harness::RenderDemoResponse)},
+    {135, sizeof(::portal2_harness::ActionRequest)},
+    {166, sizeof(::portal2_harness::ActionResponse)},
+    {173, sizeof(::portal2_harness::CommandRequest)},
+    {178, sizeof(::portal2_harness::CommandResponse)},
+    {185, sizeof(::portal2_harness::ResetRequest)},
+    {190, sizeof(::portal2_harness::ResetResponse)},
+    {199, sizeof(::portal2_harness::HandshakeRequest)},
+    {206, sizeof(::portal2_harness::HandshakeResponse)},
+    {221, sizeof(::portal2_harness::RolloutHeader)},
+    {234, sizeof(::portal2_harness::RolloutStep)},
+    {243, sizeof(::portal2_harness::Empty)},
+    {244, sizeof(::portal2_harness::RenderDemoRequest)},
+    {253, sizeof(::portal2_harness::RenderDemoResponse)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::portal2_harness::_Vector3_default_instance_._instance,
@@ -1160,7 +1168,7 @@ const char
         "ark\030\n \001(\005\"h\n\016EntitySnapshot\022.\n\010entities\030"
         "\001 \003(\0132\034.portal2_harness.EntityState\022\030\n\020i"
         "s_full_snapshot\030\002 \001(\010\022\014\n\004tick\030\003 "
-        "\001(\005\"\202\002\n\t"
+        "\001(\005\"\266\002\n\t"
         "GameState\022*\n\010position\030\001 \001(\0132\030.portal2_ha"
         "rness.Vector3\022*\n\010velocity\030\002 \001(\0132\030.portal"
         "2_harness.Vector3\022(\n\006camera\030\003 \001(\0132\030.port"
@@ -1169,77 +1177,78 @@ const char
         "s_crouching\030\005 \001(\010\022\023\n\013server_tick\030\006 "
         "\001(\005\0228"
         "\n\017entity_snapshot\030\007 \001(\0132\037.portal2_harnes"
-        "s.EntitySnapshot\"\250\002\n\rActionRequest\022\021\n\tnu"
-        "m_ticks\030\001 \001(\005\022\023\n\013key_forward\030\002 "
-        "\001(\010\022\020\n\010ke"
-        "y_left\030\003 \001(\010\022\024\n\014key_backward\030\004 "
-        "\001(\010\022\021\n\tke"
-        "y_right\030\005 \001(\010\022\017\n\007key_use\030\006 "
-        "\001(\010\022\022\n\nkey_zo"
-        "omin\030\007 \001(\010\022\023\n\013key_zoomout\030\010 "
-        "\001(\010\022\022\n\nkey_c"
-        "rouch\030\t \001(\010\022\026\n\016portal_primary\030\n "
-        "\001(\010\022\030\n\020p"
-        "ortal_secondary\030\013 \001(\010\022\020\n\010key_jump\030\014 "
-        "\001(\010\022"
-        "\020\n\010mouse_dx\030\r \001(\002\022\020\n\010mouse_dy\030\016 "
-        "\001(\002\"8\n\016A"
-        "ctionResponse\022\017\n\007success\030\001 \001(\010\022\025\n\rerror_"
-        "message\030\002 \001(\t\"!\n\016CommandRequest\022\017\n\007comma"
-        "nd\030\001 "
-        "\001(\t\"9\n\017CommandResponse\022\017\n\007success\030\001"
-        " \001(\010\022\025\n\rerror_message\030\002 \001(\t\" \n\014ResetRequ"
-        "est\022\020\n\010map_name\030\001 \001(\t\"j\n\rResetResponse\022\017"
-        "\n\007success\030\001 \001(\010\022\025\n\rerror_message\030\002 "
-        "\001(\t\0221"
-        "\n\rinitial_state\030\003 \001(\0132\032.portal2_harness."
-        "GameState\"=\n\020HandshakeRequest\022\026\n\016client_"
-        "version\030\001 \001(\t\022\021\n\tclient_id\030\002 "
-        "\001(\t\"\206\001\n\021Han"
-        "dshakeResponse\022\024\n\014game_version\030\001 \001(\t\022\020\n\010"
-        "map_name\030\002 \001(\t\022\021\n\tshm_width\030\003 "
-        "\001(\005\022\022\n\nshm"
-        "_height\030\004 \001(\005\022\020\n\010shm_size\030\005 "
-        "\001(\005\022\020\n\010shm_n"
-        "ame\030\006 \001(\t\"l\n\rRolloutHeader\022\020\n\010map_name\030\001"
-        " \001(\t\022\021\n\tshm_width\030\002 "
-        "\001(\005\022\022\n\nshm_height\030\003 "
-        "\001(\005\022\020\n\010tickrate\030\004 "
-        "\001(\002\022\020\n\010shm_name\030\005 \001(\t\""
-        "|\n\013RolloutStep\022)\n\005state\030\001 \001(\0132\032.portal2_"
-        "harness.GameState\022.\n\006action\030\002 \001(\0132\036.port"
-        "al2_harness.ActionRequest\022\022\n\nimage_data\030"
-        "\003 \001(\014\"\007\n\005Empty\"S\n\021RenderDemoRequest\022\021\n\td"
-        "emo_path\030\001 \001(\t\022\023\n\013output_path\030\002 "
-        "\001(\t\022\026\n\016c"
-        "apture_pixels\030\003 \001(\010\"\204\001\n\022RenderDemoRespon"
-        "se\022\017\n\007success\030\001 "
-        "\001(\010\022\025\n\rerror_message\030\002 \001"
-        "(\t\022\031\n\021final_output_path\030\003 "
-        "\001(\t\022\026\n\016recorde"
-        "d_ticks\030\004 \001(\005\022\023\n\013total_bytes\030\005 "
-        "\001(\0032\273\004\n\016P"
-        "ortal2Harness\022Y\n\020InitialHandshake\022!.port"
-        "al2_harness.HandshakeRequest\032\".portal2_h"
-        "arness.HandshakeResponse\022=\n\007Observe\022\026.po"
-        "rtal2_harness.Empty\032\032.portal2_harness.Ga"
-        "meState\022F\n\003Act\022\036.portal2_harness.ActionR"
-        "equest\032\037.portal2_harness.ActionResponse\022"
-        "S\n\016ExecuteCommand\022\037.portal2_harness.Comm"
-        "andRequest\032 .portal2_harness.CommandResp"
-        "onse\022F\n\005Reset\022\035.portal2_harness.ResetReq"
-        "uest\032\036.portal2_harness.ResetResponse\022S\n\t"
-        "AgentLoop\022\035.portal2_harness.AgentMessage"
-        "\032#.portal2_harness.EnvironmentMessage(\0010"
-        "\001\022U\n\nRenderDemo\022\".portal2_harness.Render"
-        "DemoRequest\032#.portal2_harness.RenderDemo"
-        "Responseb\006proto3"};
+        "s.EntitySnapshot\022\030\n\020chamber_complete\030\010 \001"
+        "(\010\022\030\n\020exit_signal_mask\030\t "
+        "\001(\005\"\250\002\n\rActionR"
+        "equest\022\021\n\tnum_ticks\030\001 \001(\005\022\023\n\013key_forward"
+        "\030\002 \001(\010\022\020\n\010key_left\030\003 "
+        "\001(\010\022\024\n\014key_backward"
+        "\030\004 \001(\010\022\021\n\tkey_right\030\005 "
+        "\001(\010\022\017\n\007key_use\030\006 \001"
+        "(\010\022\022\n\nkey_zoomin\030\007 "
+        "\001(\010\022\023\n\013key_zoomout\030\010 "
+        "\001(\010\022\022\n\nkey_crouch\030\t "
+        "\001(\010\022\026\n\016portal_primar"
+        "y\030\n \001(\010\022\030\n\020portal_secondary\030\013 "
+        "\001(\010\022\020\n\010key"
+        "_jump\030\014 \001(\010\022\020\n\010mouse_dx\030\r "
+        "\001(\002\022\020\n\010mouse_d"
+        "y\030\016 "
+        "\001(\002\"8\n\016ActionResponse\022\017\n\007success\030\001 \001"
+        "(\010\022\025\n\rerror_message\030\002 \001(\t\"!\n\016CommandRequ"
+        "est\022\017\n\007command\030\001 \001(\t\"9\n\017CommandResponse\022"
+        "\017\n\007success\030\001 \001(\010\022\025\n\rerror_message\030\002 "
+        "\001(\t\""
+        " \n\014ResetRequest\022\020\n\010map_name\030\001 \001(\t\"j\n\rRes"
+        "etResponse\022\017\n\007success\030\001 \001(\010\022\025\n\rerror_mes"
+        "sage\030\002 \001(\t\0221\n\rinitial_state\030\003 \001(\0132\032.port"
+        "al2_harness.GameState\"=\n\020HandshakeReques"
+        "t\022\026\n\016client_version\030\001 "
+        "\001(\t\022\021\n\tclient_id\030\002"
+        " \001(\t\"\206\001\n\021HandshakeResponse\022\024\n\014game_versi"
+        "on\030\001 \001(\t\022\020\n\010map_name\030\002 "
+        "\001(\t\022\021\n\tshm_width\030"
+        "\003 \001(\005\022\022\n\nshm_height\030\004 "
+        "\001(\005\022\020\n\010shm_size\030\005 "
+        "\001(\005\022\020\n\010shm_name\030\006 "
+        "\001(\t\"l\n\rRolloutHeader\022\020"
+        "\n\010map_name\030\001 \001(\t\022\021\n\tshm_width\030\002 "
+        "\001(\005\022\022\n\ns"
+        "hm_height\030\003 \001(\005\022\020\n\010tickrate\030\004 "
+        "\001(\002\022\020\n\010shm"
+        "_name\030\005 \001(\t\"|\n\013RolloutStep\022)\n\005state\030\001 "
+        "\001("
+        "\0132\032.portal2_harness.GameState\022.\n\006action\030"
+        "\002 \001(\0132\036.portal2_harness.ActionRequest\022\022\n"
+        "\nimage_data\030\003 \001(\014\"\007\n\005Empty\"S\n\021RenderDemo"
+        "Request\022\021\n\tdemo_path\030\001 \001(\t\022\023\n\013output_pat"
+        "h\030\002 \001(\t\022\026\n\016capture_pixels\030\003 "
+        "\001(\010\"\204\001\n\022Rend"
+        "erDemoResponse\022\017\n\007success\030\001 \001(\010\022\025\n\rerror"
+        "_message\030\002 \001(\t\022\031\n\021final_output_path\030\003 \001("
+        "\t\022\026\n\016recorded_ticks\030\004 "
+        "\001(\005\022\023\n\013total_bytes"
+        "\030\005 \001(\0032\273\004\n\016Portal2Harness\022Y\n\020InitialHand"
+        "shake\022!.portal2_harness.HandshakeRequest"
+        "\032\".portal2_harness.HandshakeResponse\022=\n\007"
+        "Observe\022\026.portal2_harness.Empty\032\032.portal"
+        "2_harness.GameState\022F\n\003Act\022\036.portal2_har"
+        "ness.ActionRequest\032\037.portal2_harness.Act"
+        "ionResponse\022S\n\016ExecuteCommand\022\037.portal2_"
+        "harness.CommandRequest\032 .portal2_harness"
+        ".CommandResponse\022F\n\005Reset\022\035.portal2_harn"
+        "ess.ResetRequest\032\036.portal2_harness.Reset"
+        "Response\022S\n\tAgentLoop\022\035.portal2_harness."
+        "AgentMessage\032#.portal2_harness.Environme"
+        "ntMessage(\0010\001\022U\n\nRenderDemo\022\".portal2_ha"
+        "rness.RenderDemoRequest\032#.portal2_harnes"
+        "s.RenderDemoResponseb\006proto3"};
 static ::absl::once_flag descriptor_table_harness_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable
     descriptor_table_harness_2eproto = {
         false,
         false,
-        3336,
+        3388,
         descriptor_table_protodef_harness_2eproto,
         "harness.proto",
         &descriptor_table_harness_2eproto_once,
@@ -4890,8 +4899,8 @@ GameState::GameState(::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
   ::memcpy(
       reinterpret_cast<char*>(&_impl_) + offsetof(Impl_, health_),
       reinterpret_cast<const char*>(&from._impl_) + offsetof(Impl_, health_),
-      offsetof(Impl_, server_tick_) - offsetof(Impl_, health_) +
-          sizeof(Impl_::server_tick_));
+      offsetof(Impl_, exit_signal_mask_) - offsetof(Impl_, health_) +
+          sizeof(Impl_::exit_signal_mask_));
 
   // @@protoc_insertion_point(copy_constructor:portal2_harness.GameState)
 }
@@ -4903,8 +4912,8 @@ PROTOBUF_NDEBUG_INLINE GameState::Impl_::Impl_(
 inline void GameState::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   new (&_impl_) Impl_(internal_visibility(), arena);
   ::memset(reinterpret_cast<char*>(&_impl_) + offsetof(Impl_, position_), 0,
-           offsetof(Impl_, server_tick_) - offsetof(Impl_, position_) +
-               sizeof(Impl_::server_tick_));
+           offsetof(Impl_, exit_signal_mask_) - offsetof(Impl_, position_) +
+               sizeof(Impl_::exit_signal_mask_));
 }
 GameState::~GameState() {
   // @@protoc_insertion_point(destructor:portal2_harness.GameState)
@@ -4967,17 +4976,17 @@ PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData*
   return GameState_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<
-    3, 7, 4, 0, 2>
+    4, 9, 4, 0, 2>
     GameState::_table_ = {
         {
             PROTOBUF_FIELD_OFFSET(GameState, _impl_._has_bits_),
             0,  // no _extensions_
-            7,
-            56,  // max_field_number, fast_idx_mask
+            9,
+            120,  // max_field_number, fast_idx_mask
             offsetof(decltype(_table_), field_lookup_table),
-            4294967168,  // skipmap
+            4294966784,  // skipmap
             offsetof(decltype(_table_), field_entries),
-            7,  // num_field_entries
+            9,  // num_field_entries
             4,  // num_aux_entries
             offsetof(decltype(_table_), aux_entries),
             GameState_class_data_.base(),
@@ -5005,17 +5014,34 @@ PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<
              {32, 4, 0, PROTOBUF_FIELD_OFFSET(GameState, _impl_.health_)}},
             // bool is_crouching = 5;
             {::_pbi::TcParser::SingularVarintNoZag1<
-                 bool, offsetof(GameState, _impl_.is_crouching_), 5>(),
-             {40, 5, 0,
+                 bool, offsetof(GameState, _impl_.is_crouching_), 6>(),
+             {40, 6, 0,
               PROTOBUF_FIELD_OFFSET(GameState, _impl_.is_crouching_)}},
             // int32 server_tick = 6;
             {::_pbi::TcParser::SingularVarintNoZag1<
-                 ::uint32_t, offsetof(GameState, _impl_.server_tick_), 6>(),
-             {48, 6, 0, PROTOBUF_FIELD_OFFSET(GameState, _impl_.server_tick_)}},
+                 ::uint32_t, offsetof(GameState, _impl_.server_tick_), 5>(),
+             {48, 5, 0, PROTOBUF_FIELD_OFFSET(GameState, _impl_.server_tick_)}},
             // .portal2_harness.EntitySnapshot entity_snapshot = 7;
             {::_pbi::TcParser::FastMtS1,
              {58, 3, 3,
               PROTOBUF_FIELD_OFFSET(GameState, _impl_.entity_snapshot_)}},
+            // bool chamber_complete = 8;
+            {::_pbi::TcParser::SingularVarintNoZag1<
+                 bool, offsetof(GameState, _impl_.chamber_complete_), 7>(),
+             {64, 7, 0,
+              PROTOBUF_FIELD_OFFSET(GameState, _impl_.chamber_complete_)}},
+            // int32 exit_signal_mask = 9;
+            {::_pbi::TcParser::SingularVarintNoZag1<
+                 ::uint32_t, offsetof(GameState, _impl_.exit_signal_mask_),
+                 8>(),
+             {72, 8, 0,
+              PROTOBUF_FIELD_OFFSET(GameState, _impl_.exit_signal_mask_)}},
+            {::_pbi::TcParser::MiniParse, {}},
+            {::_pbi::TcParser::MiniParse, {}},
+            {::_pbi::TcParser::MiniParse, {}},
+            {::_pbi::TcParser::MiniParse, {}},
+            {::_pbi::TcParser::MiniParse, {}},
+            {::_pbi::TcParser::MiniParse, {}},
         }},
         {{65535, 65535}},
         {{
@@ -5037,16 +5063,24 @@ PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<
              (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
             // bool is_crouching = 5;
             {PROTOBUF_FIELD_OFFSET(GameState, _impl_.is_crouching_),
-             _Internal::kHasBitsOffset + 5, 0,
+             _Internal::kHasBitsOffset + 6, 0,
              (0 | ::_fl::kFcOptional | ::_fl::kBool)},
             // int32 server_tick = 6;
             {PROTOBUF_FIELD_OFFSET(GameState, _impl_.server_tick_),
-             _Internal::kHasBitsOffset + 6, 0,
+             _Internal::kHasBitsOffset + 5, 0,
              (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
             // .portal2_harness.EntitySnapshot entity_snapshot = 7;
             {PROTOBUF_FIELD_OFFSET(GameState, _impl_.entity_snapshot_),
              _Internal::kHasBitsOffset + 3, 3,
              (0 | ::_fl::kFcOptional | ::_fl::kMessage | ::_fl::kTvTable)},
+            // bool chamber_complete = 8;
+            {PROTOBUF_FIELD_OFFSET(GameState, _impl_.chamber_complete_),
+             _Internal::kHasBitsOffset + 7, 0,
+             (0 | ::_fl::kFcOptional | ::_fl::kBool)},
+            // int32 exit_signal_mask = 9;
+            {PROTOBUF_FIELD_OFFSET(GameState, _impl_.exit_signal_mask_),
+             _Internal::kHasBitsOffset + 8, 0,
+             (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
         }},
         {{
             {::_pbi::TcParser::GetTable<::portal2_harness::Vector3>()},
@@ -5082,13 +5116,14 @@ PROTOBUF_NOINLINE void GameState::Clear() {
       _impl_.entity_snapshot_->Clear();
     }
   }
-  if ((cached_has_bits & 0x00000070u) != 0) {
-    ::memset(
-        &_impl_.health_, 0,
-        static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.server_tick_) -
-                              reinterpret_cast<char*>(&_impl_.health_)) +
-            sizeof(_impl_.server_tick_));
+  if ((cached_has_bits & 0x000000f0u) != 0) {
+    ::memset(&_impl_.health_, 0,
+             static_cast<::size_t>(
+                 reinterpret_cast<char*>(&_impl_.chamber_complete_) -
+                 reinterpret_cast<char*>(&_impl_.health_)) +
+                 sizeof(_impl_.chamber_complete_));
   }
+  _impl_.exit_signal_mask_ = 0;
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
 }
@@ -5142,7 +5177,7 @@ PROTOBUF_NOINLINE void GameState::Clear() {
   }
 
   // bool is_crouching = 5;
-  if ((cached_has_bits & 0x00000020u) != 0) {
+  if ((cached_has_bits & 0x00000040u) != 0) {
     if (this_._internal_is_crouching() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteBoolToArray(
@@ -5151,7 +5186,7 @@ PROTOBUF_NOINLINE void GameState::Clear() {
   }
 
   // int32 server_tick = 6;
-  if ((cached_has_bits & 0x00000040u) != 0) {
+  if ((cached_has_bits & 0x00000020u) != 0) {
     if (this_._internal_server_tick() != 0) {
       target = ::google::protobuf::internal::WireFormatLite::
           WriteInt32ToArrayWithField<6>(stream, this_._internal_server_tick(),
@@ -5164,6 +5199,24 @@ PROTOBUF_NOINLINE void GameState::Clear() {
     target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
         7, *this_._impl_.entity_snapshot_,
         this_._impl_.entity_snapshot_->GetCachedSize(), target, stream);
+  }
+
+  // bool chamber_complete = 8;
+  if ((cached_has_bits & 0x00000080u) != 0) {
+    if (this_._internal_chamber_complete() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteBoolToArray(
+          8, this_._internal_chamber_complete(), target);
+    }
+  }
+
+  // int32 exit_signal_mask = 9;
+  if ((cached_has_bits & 0x00000100u) != 0) {
+    if (this_._internal_exit_signal_mask() != 0) {
+      target = ::google::protobuf::internal::WireFormatLite::
+          WriteInt32ToArrayWithField<9>(
+              stream, this_._internal_exit_signal_mask(), target);
+    }
   }
 
   if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
@@ -5193,7 +5246,7 @@ PROTOBUF_NOINLINE void GameState::Clear() {
 
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x0000007fu) != 0) {
+  if ((cached_has_bits & 0x000000ffu) != 0) {
     // .portal2_harness.Vector3 position = 1;
     if ((cached_has_bits & 0x00000001u) != 0) {
       total_size +=
@@ -5225,17 +5278,32 @@ PROTOBUF_NOINLINE void GameState::Clear() {
             ::_pbi::WireFormatLite::Int32SizePlusOne(this_._internal_health());
       }
     }
-    // bool is_crouching = 5;
+    // int32 server_tick = 6;
     if ((cached_has_bits & 0x00000020u) != 0) {
+      if (this_._internal_server_tick() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
+            this_._internal_server_tick());
+      }
+    }
+    // bool is_crouching = 5;
+    if ((cached_has_bits & 0x00000040u) != 0) {
       if (this_._internal_is_crouching() != 0) {
         total_size += 2;
       }
     }
-    // int32 server_tick = 6;
-    if ((cached_has_bits & 0x00000040u) != 0) {
-      if (this_._internal_server_tick() != 0) {
+    // bool chamber_complete = 8;
+    if ((cached_has_bits & 0x00000080u) != 0) {
+      if (this_._internal_chamber_complete() != 0) {
+        total_size += 2;
+      }
+    }
+  }
+  {
+    // int32 exit_signal_mask = 9;
+    if ((cached_has_bits & 0x00000100u) != 0) {
+      if (this_._internal_exit_signal_mask() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
-            this_._internal_server_tick());
+            this_._internal_exit_signal_mask());
       }
     }
   }
@@ -5254,7 +5322,7 @@ void GameState::MergeImpl(::google::protobuf::MessageLite& to_msg,
   (void)cached_has_bits;
 
   cached_has_bits = from._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x0000007fu) != 0) {
+  if ((cached_has_bits & 0x000000ffu) != 0) {
     if ((cached_has_bits & 0x00000001u) != 0) {
       ABSL_DCHECK(from._impl_.position_ != nullptr);
       if (_this->_impl_.position_ == nullptr) {
@@ -5299,14 +5367,24 @@ void GameState::MergeImpl(::google::protobuf::MessageLite& to_msg,
       }
     }
     if ((cached_has_bits & 0x00000020u) != 0) {
+      if (from._internal_server_tick() != 0) {
+        _this->_impl_.server_tick_ = from._impl_.server_tick_;
+      }
+    }
+    if ((cached_has_bits & 0x00000040u) != 0) {
       if (from._internal_is_crouching() != 0) {
         _this->_impl_.is_crouching_ = from._impl_.is_crouching_;
       }
     }
-    if ((cached_has_bits & 0x00000040u) != 0) {
-      if (from._internal_server_tick() != 0) {
-        _this->_impl_.server_tick_ = from._impl_.server_tick_;
+    if ((cached_has_bits & 0x00000080u) != 0) {
+      if (from._internal_chamber_complete() != 0) {
+        _this->_impl_.chamber_complete_ = from._impl_.chamber_complete_;
       }
+    }
+  }
+  if ((cached_has_bits & 0x00000100u) != 0) {
+    if (from._internal_exit_signal_mask() != 0) {
+      _this->_impl_.exit_signal_mask_ = from._impl_.exit_signal_mask_;
     }
   }
   _this->_impl_._has_bits_[0] |= cached_has_bits;
@@ -5327,8 +5405,8 @@ void GameState::InternalSwap(
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::google::protobuf::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(GameState, _impl_.server_tick_) +
-      sizeof(GameState::_impl_.server_tick_) -
+      PROTOBUF_FIELD_OFFSET(GameState, _impl_.exit_signal_mask_) +
+      sizeof(GameState::_impl_.exit_signal_mask_) -
       PROTOBUF_FIELD_OFFSET(GameState, _impl_.position_)>(
       reinterpret_cast<char*>(&_impl_.position_),
       reinterpret_cast<char*>(&other->_impl_.position_));

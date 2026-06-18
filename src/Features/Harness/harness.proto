@@ -134,6 +134,8 @@ message GameState {
   bool is_crouching = 5;
   int32 server_tick = 6;
   EntitySnapshot entity_snapshot = 7;
+  bool chamber_complete = 8;
+  int32 exit_signal_mask = 9;  // which exit signal(s) fired
 }
 
 // --- Action Messages ---

@@ -19,6 +19,7 @@
 #include "Modules/Engine.hpp"
 #include "Modules/FileSystem.hpp"
 #include "Modules/Server.hpp"
+#include "PuzzleExit.hpp"
 #include "RolloutRecorder.hpp"
 #include "SAR.hpp"
 #include "Scheduler.hpp"
@@ -207,6 +208,10 @@ static void PopulateEntityStateProto(
 
 bool Portal2HarnessImpl::InternalObserve(portal2_harness::GameState* response) {
   if (!session->isRunning) return false;
+
+  // Set here so both observe return paths carry it.
+  response->set_chamber_complete(PuzzleExit::Get());
+  response->set_exit_signal_mask(PuzzleExit::GetMask());
 
   Vector position;
   Vector velocity;

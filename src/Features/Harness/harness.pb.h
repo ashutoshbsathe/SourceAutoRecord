@@ -4656,8 +4656,10 @@ class GameState final : public ::google::protobuf::Message
     kCameraFieldNumber = 3,
     kEntitySnapshotFieldNumber = 7,
     kHealthFieldNumber = 4,
-    kIsCrouchingFieldNumber = 5,
     kServerTickFieldNumber = 6,
+    kIsCrouchingFieldNumber = 5,
+    kChamberCompleteFieldNumber = 8,
+    kExitSignalMaskFieldNumber = 9,
   };
   // .portal2_harness.Vector3 position = 1;
   bool has_position() const;
@@ -4729,16 +4731,6 @@ class GameState final : public ::google::protobuf::Message
   void _internal_set_health(::int32_t value);
 
   public:
-  // bool is_crouching = 5;
-  void clear_is_crouching() ;
-  bool is_crouching() const;
-  void set_is_crouching(bool value);
-
-  private:
-  bool _internal_is_crouching() const;
-  void _internal_set_is_crouching(bool value);
-
-  public:
   // int32 server_tick = 6;
   void clear_server_tick() ;
   ::int32_t server_tick() const;
@@ -4749,11 +4741,41 @@ class GameState final : public ::google::protobuf::Message
   void _internal_set_server_tick(::int32_t value);
 
   public:
+  // bool is_crouching = 5;
+  void clear_is_crouching() ;
+  bool is_crouching() const;
+  void set_is_crouching(bool value);
+
+  private:
+  bool _internal_is_crouching() const;
+  void _internal_set_is_crouching(bool value);
+
+  public:
+  // bool chamber_complete = 8;
+  void clear_chamber_complete() ;
+  bool chamber_complete() const;
+  void set_chamber_complete(bool value);
+
+  private:
+  bool _internal_chamber_complete() const;
+  void _internal_set_chamber_complete(bool value);
+
+  public:
+  // int32 exit_signal_mask = 9;
+  void clear_exit_signal_mask() ;
+  ::int32_t exit_signal_mask() const;
+  void set_exit_signal_mask(::int32_t value);
+
+  private:
+  ::int32_t _internal_exit_signal_mask() const;
+  void _internal_set_exit_signal_mask(::int32_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:portal2_harness.GameState)
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<3, 7,
+  static const ::google::protobuf::internal::TcParseTable<4, 9,
                                    4, 0,
                                    2>
       _table_;
@@ -4780,8 +4802,10 @@ class GameState final : public ::google::protobuf::Message
     ::portal2_harness::Vector3* PROTOBUF_NULLABLE camera_;
     ::portal2_harness::EntitySnapshot* PROTOBUF_NULLABLE entity_snapshot_;
     ::int32_t health_;
-    bool is_crouching_;
     ::int32_t server_tick_;
+    bool is_crouching_;
+    bool chamber_complete_;
+    ::int32_t exit_signal_mask_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -7974,7 +7998,7 @@ inline void GameState::_internal_set_health(::int32_t value) {
 inline void GameState::clear_is_crouching() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.is_crouching_ = false;
-  _impl_._has_bits_[0] &= ~0x00000020u;
+  _impl_._has_bits_[0] &= ~0x00000040u;
 }
 inline bool GameState::is_crouching() const {
   // @@protoc_insertion_point(field_get:portal2_harness.GameState.is_crouching)
@@ -7982,7 +8006,7 @@ inline bool GameState::is_crouching() const {
 }
 inline void GameState::set_is_crouching(bool value) {
   _internal_set_is_crouching(value);
-  _impl_._has_bits_[0] |= 0x00000020u;
+  _impl_._has_bits_[0] |= 0x00000040u;
   // @@protoc_insertion_point(field_set:portal2_harness.GameState.is_crouching)
 }
 inline bool GameState::_internal_is_crouching() const {
@@ -7998,7 +8022,7 @@ inline void GameState::_internal_set_is_crouching(bool value) {
 inline void GameState::clear_server_tick() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.server_tick_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000040u;
+  _impl_._has_bits_[0] &= ~0x00000020u;
 }
 inline ::int32_t GameState::server_tick() const {
   // @@protoc_insertion_point(field_get:portal2_harness.GameState.server_tick)
@@ -8006,7 +8030,7 @@ inline ::int32_t GameState::server_tick() const {
 }
 inline void GameState::set_server_tick(::int32_t value) {
   _internal_set_server_tick(value);
-  _impl_._has_bits_[0] |= 0x00000040u;
+  _impl_._has_bits_[0] |= 0x00000020u;
   // @@protoc_insertion_point(field_set:portal2_harness.GameState.server_tick)
 }
 inline ::int32_t GameState::_internal_server_tick() const {
@@ -8114,6 +8138,54 @@ inline void GameState::set_allocated_entity_snapshot(::portal2_harness::EntitySn
 
   _impl_.entity_snapshot_ = reinterpret_cast<::portal2_harness::EntitySnapshot*>(value);
   // @@protoc_insertion_point(field_set_allocated:portal2_harness.GameState.entity_snapshot)
+}
+
+// bool chamber_complete = 8;
+inline void GameState::clear_chamber_complete() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.chamber_complete_ = false;
+  _impl_._has_bits_[0] &= ~0x00000080u;
+}
+inline bool GameState::chamber_complete() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.GameState.chamber_complete)
+  return _internal_chamber_complete();
+}
+inline void GameState::set_chamber_complete(bool value) {
+  _internal_set_chamber_complete(value);
+  _impl_._has_bits_[0] |= 0x00000080u;
+  // @@protoc_insertion_point(field_set:portal2_harness.GameState.chamber_complete)
+}
+inline bool GameState::_internal_chamber_complete() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.chamber_complete_;
+}
+inline void GameState::_internal_set_chamber_complete(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.chamber_complete_ = value;
+}
+
+// int32 exit_signal_mask = 9;
+inline void GameState::clear_exit_signal_mask() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.exit_signal_mask_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000100u;
+}
+inline ::int32_t GameState::exit_signal_mask() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.GameState.exit_signal_mask)
+  return _internal_exit_signal_mask();
+}
+inline void GameState::set_exit_signal_mask(::int32_t value) {
+  _internal_set_exit_signal_mask(value);
+  _impl_._has_bits_[0] |= 0x00000100u;
+  // @@protoc_insertion_point(field_set:portal2_harness.GameState.exit_signal_mask)
+}
+inline ::int32_t GameState::_internal_exit_signal_mask() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.exit_signal_mask_;
+}
+inline void GameState::_internal_set_exit_signal_mask(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.exit_signal_mask_ = value;
 }
 
 // -------------------------------------------------------------------

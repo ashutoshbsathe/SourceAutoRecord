@@ -19,6 +19,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 645,
     "is_full_snapshot": true
   },
@@ -42,6 +44,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 0,
     "is_full_snapshot": false
   },
@@ -65,6 +69,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 645,
     "is_full_snapshot": true
   },
@@ -88,6 +94,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 5,
     "is_full_snapshot": false
   },
@@ -111,6 +119,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 4,
     "is_full_snapshot": false
   },
@@ -134,6 +144,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 3,
     "is_full_snapshot": false
   },
@@ -157,6 +169,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 3,
     "is_full_snapshot": false
   },
@@ -180,6 +194,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 3,
     "is_full_snapshot": false
   },
@@ -203,6 +219,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 4,
     "is_full_snapshot": false
   },
@@ -226,6 +244,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 4,
     "is_full_snapshot": false
   },
@@ -249,6 +269,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 2,
     "is_full_snapshot": false
   },
@@ -272,6 +294,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 2,
     "is_full_snapshot": false
   },
@@ -295,6 +319,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 2,
     "is_full_snapshot": false
   },
@@ -318,6 +344,8 @@
     ],
     "health": 100,
     "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
     "entities": 8,
     "is_full_snapshot": false
   }

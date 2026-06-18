@@ -71,6 +71,8 @@ def gamestate_dict(gs, label):
         'camera': [gs.camera.x, gs.camera.y, gs.camera.z],
         'health': gs.health,
         'is_crouching': gs.is_crouching,
+        'chamber_complete': gs.chamber_complete,
+        'exit_signal_mask': gs.exit_signal_mask,
         'entities': len(gs.entity_snapshot.entities),
         'is_full_snapshot': gs.entity_snapshot.is_full_snapshot,
     }
