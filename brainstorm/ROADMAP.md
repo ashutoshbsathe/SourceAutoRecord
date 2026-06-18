@@ -18,6 +18,17 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 
 ---
 
+## Top of mind (2026-06-18) — next brainstorm targets
+
+Two priorities lead now; each gets its own brainstorm next session:
+
+1. **Annotation improvements** — the in-engine percept (boxes + Set-of-Marks labels + portal reticle) is built (Track A, A1–A5); next is sharpening what it shows and how. *(brainstorm pending)*
+2. **Movement tech** — `go_to` dodging around obstacles/hazards and smarter locomotion (the local-vs-global line the macros draw). *(brainstorm pending)*
+
+**Exit detection — parked as "good enough."** The PuzzleExit oracle's C++ core (P1–P4) is shipped + verified: it latches `chamber_complete` from the AcceptInput OR-set, reads out over gRPC, and re-arms per episode. The remaining phases (P5+: Python terminate-on-bit, smoke gate, prevention, radius-oracle deletion) are **not critical** and can wait. → [exit_detector_impl_plan.md](exit_detector_impl_plan.md)
+
+---
+
 ## Current status — 2026-06-11
 
 - ✅ **Annotation (Track A, A1–A5):** colored boxes + Set-of-Marks labels + portal reticle, in-engine.
@@ -85,7 +96,7 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 | `puzzlemaker_elements.md` | the element list (categories A/B/C, P1) |
 | `status_field_recon.md` | per-class status fields (the locked schema) + recon protocol + I/O-edge vocabulary (PeTI vs BEEmod) |
 | `exit_detection_brainstorm.md` | the map-completion oracle (exit detector): signal recon across 8 maps, the OR-set, the §9 shippable-v0 spec + corpus sweep |
-| `exit_detector_impl_plan.md` | **⭐ the PR-by-PR build plan for the exit detector (P1–P8) — point here to start shipping** |
+| `exit_detector_impl_plan.md` | the PR-by-PR exit-detector build plan — **P1–P4 done + verified; P5+ deferred** (not critical, see Top of mind) |
 | `exit_criteria_structure.md` | (parked, post-oracle) exposing the exit's dependency graph as structured hints / dense reward |
 | `llm_percept_act_grammar.md` | the percept/act **design** (the macro verbs, the thesis) |
 | `llm_act_grammar_altitude.md` | **why closed verbs over Voyager-style code-as-action** (industry sweep + decision) |

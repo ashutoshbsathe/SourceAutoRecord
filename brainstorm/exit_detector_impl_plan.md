@@ -11,6 +11,18 @@ here to start.*
 
 ---
 
+## Status (2026-06-18)
+
+**P0–P4 shipped + verified — the oracle works.** The C++ core latches `chamber_complete` from the
+AcceptInput OR-set, reads it out over gRPC (`GameState.chamber_complete` / `exit_signal_mask`), and
+re-arms on `SESSION_START`. Verified in the REPL (`exit_signal_mask=1` = `@relay_pti_level_end` at a
+real PeTI exit) and over the wire. Side-work landed with it: REPL `--on-exit {none,restart,terminate}`
++ a per-step `chamber_complete` readout, and `agentloop_smoke.py` dumps the two fields.
+
+**P5–P8 are deprioritized (user call) — the detector is good enough for now.** Pick them up when the
+eval actually needs episodes to terminate on the bit. Focus has moved to annotation + movement tech
+(see [ROADMAP.md](ROADMAP.md) "Top of mind").
+
 ## 0. Design decisions (resolved; flag if you disagree on wake)
 
 | # | Decision | Choice | Why |
@@ -65,7 +77,7 @@ latched. Add it later only if a map is found that fires it first.
 Each phase is an independent, reviewable commit. **(agent)** = I can run it; **(you)** = needs a game launch, so
 you run it (per the no-long-runs-in-agent-terminal rule).
 
-### P0 — (recommended first) establish the `Puzzle*` convention
+### P0 — ✅ done · establish the `Puzzle*` convention
 - Rename `HarnessAnnotate.{hpp,cpp}` → `PuzzleAnnotate.{hpp,cpp}`, class `HarnessAnnotate` → `PuzzleAnnotate`.
   Touch the ~5 referencing sites: the `#include` in `MarkTable.cpp`, the `AddFeature<…>` in `SAR.cpp`, the two
   comment refs (`Portal2HarnessImpl.cpp:104`, `PortalPlacement.cpp:30`), and the Makefile source entry.
@@ -79,7 +91,7 @@ you run it (per the no-long-runs-in-agent-terminal rule).
 - **Size:** ~5 files, mechanical. **Land on its own** (reviewable in isolation; not entangled with new code).
   Skippable — `PuzzleExit` can ship alongside `HarnessAnnotate`, just slightly inconsistent until later.
 
-### P1 — `PuzzleExit` translation unit (latch + matcher + accessors)
+### P1 — ✅ done · `PuzzleExit` translation unit (latch + matcher + accessors)
 - **New:** `src/Features/Harness/PuzzleExit.hpp` (decls for `OnInput/Reset/Get/GetMask`),
   `PuzzleExit.cpp` (the §1 code + `Reset()` clears both atomics; `Get()`/`GetMask()` read them).
 - **Makefile:** add `PuzzleExit.cpp` to the Harness sources list (same place `Portal2HarnessImpl.cpp` etc. are
@@ -87,7 +99,7 @@ you run it (per the no-long-runs-in-agent-terminal rule).
 - **Verify (agent):** `make` builds & links; `./format.sh` clean. No behaviour change yet (nothing calls it).
 - **Size:** ~60 LOC, 2 files.
 
-### P2 — proto field + read-out (observable, still always-false)
+### P2 — ✅ done · proto field + read-out (observable, still always-false)
 - **`harness.proto`:** add to `GameState` — `bool chamber_complete = 8;` and `int32 exit_signal_mask = 9;`
   (`GameState` currently ends at `entity_snapshot = 7` → 8/9 are the next free tags; automatic, no decision).
 - `make proto` **(agent)** — regenerates BOTH C++ (`*.pb.cpp`) and Python (`harness_pb2*.py`) stubs.
@@ -97,7 +109,7 @@ you run it (per the no-long-runs-in-agent-terminal rule).
   reads `false`. (gRPC surface changed → smoke-test gate now applies, addressed in P6.)
 - **Size:** ~4 lines + proto.
 
-### P3 — wire the matcher into `AcceptInput_Hook` (it now fires)
+### P3 — ✅ done · wire the matcher into `AcceptInput_Hook` (it now fires)
 - **`src/Modules/Server.cpp`:** `#include "Features/Harness/PuzzleExit.hpp"`; add **one** call after the existing
   un-gated observe blocks (just before `reloadedFix->OverrideInput` at `:656`):
   `PuzzleExit::OnInput(entName, className, inputName, parameter.ToString());`
@@ -106,7 +118,7 @@ you run it (per the no-long-runs-in-agent-terminal rule).
   `exit_signal_mask` shows the expected bit(s) per the §2.8 matrix. **This is the first real end-to-end win.**
 - **Size:** 1 line + include.
 
-### P4 — reset on `SESSION_START` (no bleed across episodes)
+### P4 — ✅ done · reset on `SESSION_START` (no bleed across episodes)
 - **`PuzzleExit.cpp`:** `ON_EVENT(SESSION_START) { PuzzleExit::Reset(); }` (or fold into the Harness
   SESSION_START handler, `Harness.cpp:248`). The hook re-binds every SESSION_START already (`Server.cpp:705`), so
   the matcher stays live.
@@ -114,7 +126,7 @@ you run it (per the no-long-runs-in-agent-terminal rule).
   `false`. Confirm no "complete" bleeds into episode 2.
 - **Size:** ~3 lines.
 
-### P5 — Python: terminate on the bit + "restart, don't advance" + the exit-unseen flag
+### P5 — ⏸ deferred · Python: terminate on the bit + "restart, don't advance" + the exit-unseen flag
 - **`py/rl_challenge_env.py`:** replace `_check_terminated` (`:146`, the `abs(dist) <= 100` radius hack) with
   `return bool(state.chamber_complete)`; key the `+10000` terminal reward (`:256`) off the real bit.
 - **`py/testchamber_session.py`:** replace `reached_exit` (`:44`) with a `state.chamber_complete` read.
@@ -126,14 +138,14 @@ you run it (per the no-long-runs-in-agent-terminal rule).
 - **Verify (you):** run one episode to a real exit → episode terminates at the exit tick, harness loads next.
 - **Size:** ~10 lines.
 
-### P6 — smoke test (the PR gate)
+### P6 — ⏸ deferred · smoke test (the PR gate)
 - **`py/agentloop_smoke.py`:** assert `chamber_complete` is `false` mid-map and flips `true` at a known exit on a
   fixed test map (it boots a real game — this is the by-hand gate per CLAUDE.md). The mark↔label-style "fired at
   the *right tick*" remains a documented manual visual check.
 - **Verify (you):** `uv run python py/agentloop_smoke.py` passes.
 - **Size:** ~15 lines.
 
-### P7 — prevention (fast-follow; only for *completing* maps)
+### P7 — ⏸ deferred · prevention (fast-follow; only for *completing* maps)
 - **`src/Modules/Server.cpp` `AcceptInput_Hook`:** before the dispatch at `:658`, add
   `if (harnessControlActive.load() && (!strcasecmp(inputName,"ChangeLevel") || !strcasecmp(inputName,"ChangeLevelPostFade"))) return;`
   → the entity's changelevel never reaches the engine. Bookkeeping above (`:584`–`:656`, incl.
@@ -145,7 +157,7 @@ you run it (per the no-long-runs-in-agent-terminal rule).
 - **Skip if:** the P5 reset already wins the race on completing maps in practice — measure first.
 - **Size:** ~2 lines.
 
-### P8 — delete the radius oracle
+### P8 — ⏸ deferred · delete the radius oracle
 - Remove `--exit`/`--radius` (`py/macro_repl.py:198-262`), the dead `reached_exit`/`_check_terminated` distance
   math, and the 2D-told/3D-judged distance bug (catalog A10) with it.
 - **Verify (agent):** `ruff` clean; grep shows no remaining `--radius`/`reached_exit` callers.

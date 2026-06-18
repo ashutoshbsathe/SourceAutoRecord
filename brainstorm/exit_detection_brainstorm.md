@@ -816,7 +816,10 @@ dies after episode 1.
 
 ## 9. Shippable v0 — the detector + the corpus sweep
 
-**Status (2026-06-17): nothing compiled yet; design fully de-risked across 8 maps (§2.4–2.8); spec ready.**
+**Status (2026-06-18): C++ core (P1–P4) built + verified.** The oracle latches `chamber_complete` from the
+AcceptInput OR-set, reads out over gRPC, and re-arms per episode (verified in the REPL: `exit_signal_mask=1` =
+`@relay_pti_level_end` at a real PeTI exit). The remaining Python phases (P5–P8) are **deprioritized** — good
+enough for now; see [exit_detector_impl_plan.md](exit_detector_impl_plan.md).
 This is the smallest *shippable* thing and is exactly the plan: detect the exit on ANY map → have the harness
 **restart instead of advancing** → bake in → mass-play → flag maps where it doesn't fire.
 
