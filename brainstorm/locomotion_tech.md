@@ -93,26 +93,40 @@ Each phase is verified by hand through `py/macro_repl.py` on a live game (the us
 not the agent). Result codes are plain strings in `MacroResult.result_code` (no proto change unless
 noted).
 
+> **Update 2026-06-19 — predictive → reactive pivot.** P0.1's *predictive* hull guard was built,
+> tested in-game, and **rejected**: a body-width hull trace that hard-stops the march can't model
+> Source's wall-*sliding*, so it false-`WALL`'d on open floor near a doorframe and needed
+> width/band tuning. The replacement (now P1.1, **shipped**) is **reactive**: hold forward, let the
+> engine slide the player, and read a true dead-end off lack of *real* closest-approach progress —
+> no hull, nothing map-tuned. `TraceHull` (Engine) was reverted with it and is **deferred to P2**
+> (it's the right tool for A\* grid cell-passability, not a march-stopper). The held-entity trace
+> filter (P0.2) went with it — the reactive march has no forward trace for a carried cube to fool.
+
 ### P0 — shared primitives (C++)
-- **P0.1 — hull-swept guard.** Add a `HullTrace` helper (build `Ray_t` with `m_Extents` = player
-  half-hull) and swap `CheckGuard`'s forward point-ray for it. Handle `startsolid`/`allsolid`
-  (player flush against a wall) honestly. *Verify:* `go_to` through a doorway the body just fits.
-- **P0.2 — held-entity-aware trace filter.** Cache the grabbed entity handle in `MacroExecutor` on a
-  confirmed `PickUp`, clear on `Release`/`SESSION_START`. A 2-entity filter passes player + held
-  entity. *Verify:* `go_to` while carrying a cube that previously false-`WALL`'d now proceeds.
+- **P0.1 — hull-swept guard.** ~~Add a `HullTrace` helper + swap `CheckGuard`'s point-ray for it.~~
+  **REVERTED** (predictive→reactive pivot, see note above): superseded by the reactive P1.1; the
+  forward wall guard is gone (`CheckGuard`→`CheckEdge`, edge-only). `TraceHull` deferred to P2.
+- **P0.2 — held-entity-aware trace filter.** ~~Cache the grabbed entity, 2-entity filter.~~
+  **REVERTED** — the reactive march has no forward trace, so a carried cube can't fool it. Re-add a
+  C++ held-entity handle when P-manip/laser actually needs one.
 - **P0.3 — `ReadBoolField(ent, name)`** wrapping `EntField::getServerOffset` (also the §5 laser
-  predicate reader). *Verify:* fold into P-manip (read `m_bButtonState`, compare to the percept).
+  predicate reader). **Deferred to P-manip** (its first consumer — avoids landing dead code now).
 
 ### P1 — local controller (C++) — *complete locomotion*
-- **P1.1 — ray-fan steering (MARCH→STEER).** When the straight hull path is blocked, fan
-  hull-traces at ±15/30/45/60° off the target bearing; pick the hull-clear heading minimizing angle
-  off-target with positive lookahead progress; strafe that way a few ticks (camera stays on target),
-  re-home. Cap steer attempts + oscillation/visited guard → honest `BLOCKED`. Tag the blocker
-  (`m_pEnt`) in telemetry. *Verify:* `go_to` past a lone cube / single wall / door frame.
-- **P1.2 — Bug2 wall-follow (WALLFOLLOW state).** When ray-fan can't make progress (concave pocket),
-  follow the obstacle boundary (keep wall on one side via `plane.normal`) until the straight
-  line-to-target is clear, then resume MARCH. 2D-complete. Perimeter budget + Bug2 leave-condition →
-  `BLOCKED` if it loops the whole boundary. *Verify:* `go_to` into a U-shaped pocket.
+- **P1.1 — reactive march + perturbation steering. ✅ SHIPPED + adversarially reviewed (2026-06-19).**
+  No predictive forward trace. Hold forward toward the target; the engine slides the player along
+  walls. Track `bestDist` (closest 2D approach); a batch that beats it by `kGoToProgressEps`(4u) =
+  progress (sliding toward target counts). After `kGoToStuckBatches`(3) homing batches with no
+  progress, steer an offset heading (`{±50,±90,±140}°` off bearing, escalating) for
+  `kGoToSteerBatches`(6) batches, then re-home; give up `BLOCKED` only after a full offset cycle
+  makes no net gain. `EDGE` stays predictive (`CheckEdge` down-ray — a pit step is irreversible);
+  `kGoToMaxTicks`(400) hard cap. Reports `SUCCESS` / `ADVANCED` (real ground covered, re-plan) /
+  `BLOCKED` / `UNREACHABLE`. Review: termination clean, steering off-by-one-free, 0 confirmed bugs.
+  *Verify:* `go_to` past the airlock jamb / a lone cube — slides/veers through instead of dead-stop.
+- **P1.2 — Bug2 wall-follow (robustness upgrade, follow-on).** The P1.1 perturbation is the light
+  v1; a concave/U pocket can still exhaust the offset cycle → `BLOCKED`. Bug2 (follow the obstacle
+  boundary via `plane.normal` until the start→goal line clears) is the 2D-*complete* upgrade. Build
+  if a real chamber needs it. *Verify:* `go_to` into a U-shaped pocket.
 
 ### P2 — global A* (C++) — *optimal + plannable*
 - **P2.1 — lazy occupancy grid.** Cell ≈ player-hull-width; `WalkableCell` (floor hull-probe + body

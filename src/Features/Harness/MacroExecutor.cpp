@@ -35,10 +35,17 @@ constexpr int kGoToMaxTicks = 400;  // give up after this many ticks
 constexpr int kGoToSettle = 24;  // ticks to bleed off walk velocity at the end
 constexpr float kReachRadius = 48.0f;  // horizontal dist that counts as arrived
 constexpr float kStuckEps = 1.0f;      // <this much progress/iter twice = stuck
-constexpr float kProbeHeight = 18.0f;  // lift guard rays to ~step height
-constexpr float kWallProbe = 24.0f;    // forward wall-ray length
+constexpr float kProbeHeight = 18.0f;  // lift the edge ray to ~step height
 constexpr float kStepAhead = 24.0f;    // edge ray is cast this far ahead
 constexpr float kStepDownMax = 64.0f;  // no floor within this below = edge
+// go_to steering: when it stops getting closer, veer to a heading offset from
+// the target bearing for a burst, then re-home; give up after a full cycle.
+constexpr float kGoToProgressEps = 4.0f;  // min closest-approach gain
+constexpr int kGoToStuckBatches = 3;      // no-progress batches before a veer
+constexpr int kGoToSteerBatches = 6;      // batches held per veer heading
+constexpr float kGoToSteerOffsets[] = {50,  -50, 90,
+                                       -90, 140, -140};  // deg off bearing
+constexpr int kGoToNumSteerOffsets = 6;
 
 // Interaction-verb tuning (pick_up / release / interact).
 constexpr int kSettle = 20;       // ticks to let a grab/drop/use resolve
@@ -136,15 +143,12 @@ void ClearFramebulk() {
     fb.buttonStates[i] = false;
 }
 
-// THE aiming primitive. Clamps pitch (so the *commanded* angle equals what the
-// engine's own clamp will hold) and zeroes roll, sets the absolute view, and
-// zeroes the framebulk view delta -- so the TAS per-tick re-apply, which
-// computes `GetAngles() - viewAnalog` (TasController.cpp:200 /
-// TasPlayer.cpp:663), preserves it (delta 0 => idempotent). Returns the
-// commanded angle so the verb can report it (camera == commanded after the tick
-// is exactly "SetAngles survived"). If the re-apply ever clobbers it, THIS is
-// the single function to swap (drive a computed viewAnalog delta toward
-// `angles` instead). Main thread only.
+// The aiming primitive: clamp pitch to the engine's own clamp, zero roll, set
+// the absolute view, and zero the framebulk view delta so the TAS per-tick
+// re-apply (GetAngles() - viewAnalog, TasController.cpp:200) preserves it
+// (delta 0 => idempotent). Returns the commanded angle (== camera if SetAngles
+// survived); if the re-apply ever clobbers it, swap THIS for a viewAnalog
+// delta. Main thread only.
 QAngle ApplyAbsoluteView(QAngle angles) {
   angles.x = std::min(std::max(angles.x, -kPitchLimit), kPitchLimit);
   angles.y =
@@ -180,25 +184,12 @@ void SetMoveFramebulk(float side, float fwd) {
     fb.buttonStates[i] = false;
 }
 
-// Press +use, release, then let the world settle. Source's +use pickup is
-// edge-triggered: m_afButtonPressed&IN_USE is set only on the tick IN_USE goes
-// 0->1, and PlayerUse grabs/drops/activates on that single edge. We hold the
-// button for kUseHoldTicks rather than one tick because a 1-tick framebulk
-// press can be cleared (the release below) before the simulated tick that runs
-// PlayerUse ever reads it -- a race between this verb thread's release and the
-// tick advance (worse if sv_alternateticks is on, where one
-// AdvanceTicksBlocking drives a 2-sim-tick pair). Holding a few ticks keeps
-// IN_USE asserted across enough simulated ticks that PlayerUse sees the edge.
-// It stays ONE logical press: the edge is only on the 0->1 transition, so extra
-// held ticks add no new edge and can't double-toggle (grab-then-drop) for ANY
-// verb. Fire-and-forget framebulk writes, FIFO-ordered ahead of the AdvanceTick
-// burst (same discipline as Wait()); `settle` ticks then let the physics/grab
-// resolve.
-//
-// gRPC (verb) thread ONLY: it blocks on the tick condvar via
-// AdvanceTicksBlocking (the tick countdown only runs on the main thread), so
-// calling it from inside a main-thread closure would self-deadlock. The "Main
-// thread only" helpers above are the opposite contract.
+// Pulse +use, then settle. +use is edge-triggered (PlayerUse acts on the IN_USE
+// 0->1 tick), so hold it kUseHoldTicks rather than 1: a 1-tick press can be
+// cleared before the simulated tick reads it -- a race vs the tick advance,
+// worse under sv_alternateticks' 2-sim-tick pairs. Extra held ticks add no new
+// edge, so it stays ONE logical press (can't grab-then-drop). gRPC-thread ONLY:
+// it blocks on the tick condvar, so a main-thread closure would self-deadlock.
 void PulseUse(int settle) {
   Scheduler::OnMainThread([]() {
     ClearFramebulk();
@@ -209,26 +200,12 @@ void PulseUse(int settle) {
   AdvanceTicksBlocking(settle);
 }
 
-// Edge/wall guard: probe along worldYaw from the player's feet. Returns "" if
-// clear to march, "WALL" if a solid is right ahead, "EDGE" if the floor drops
-// away just ahead. Minimal (one forward ray + one down ray) -- enough for the
-// flat chambers; a fan-of-rays nav-compass is a follow-on. `player`
-// is the trace pass-entity so the rays don't hit the player itself. Main
-// thread.
-std::string CheckGuard(void* player, const Vector& feet, float worldYaw) {
+// "EDGE" if the floor drops away kStepAhead in front of the player, else "".
+// Walls aren't guarded -- the march slides off them. Main thread.
+std::string CheckEdge(void* player, const Vector& feet, float worldYaw) {
   CTraceFilterSimple filter;
   filter.SetPassEntity(player);
-
-  // Forward wall ray at ~step height.
-  Vector wallStart = feet + Vector{0, 0, kProbeHeight};
   QAngle fwdAng{0, worldYaw, 0};
-  CGameTrace wall;
-  if (engine->Trace(wallStart, fwdAng, kWallProbe, MASK_PLAYERSOLID, filter,
-                    wall)) {
-    return "WALL";
-  }
-
-  // Floor ray straight down from a point kStepAhead ahead; no hit = no floor.
   Vector fwdDir;
   Math::AngleVectors(fwdAng, &fwdDir);
   Vector aheadStart = feet + fwdDir * kStepAhead + Vector{0, 0, kProbeHeight};
@@ -418,78 +395,131 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
     return r;
   }
 
-  // Closed march loop: each batch re-aim level at the target, probe the guard,
-  // step forward; stop on arrival, no-progress (stuck), guard, max-ticks, or a
-  // dropped stream. The per-batch RunOnMainThreadSync honors cancellation.
-  struct Step {
-    bool reached = false;
-    std::string guard;  // "", "WALL", "EDGE", "NO_PLAYER"
-    float dist = 0;
-    Vector pos{0, 0, 0};
-  };
+  // March toward the target, sliding off walls; veer to an offset heading when
+  // closest-approach stalls, BLOCKED after a full offset cycle gains nothing.
+  // Per-batch RunOnMainThreadSync honors cancel; kGoToMaxTicks caps it.
   Vector target = res->center;
-  Vector lastPos{0, 0, 0};
-  bool havePrev = false;
-  int stuckRuns = 0;
+  float bestDist = res->initialDist;  // closest 2D approach so far
+  float cycleStartBest =
+      res->initialDist;  // bestDist when this steer cycle began
+  int stuckBatches = 0;  // homing batches without progress
+  int steerLeft = 0;     // batches left in the current steer burst
+  float steerYaw = 0;    // committed steer heading (world yaw)
+  int perturbIdx = 0;    // next offset to try this cycle
   float finalDist = res->initialDist;
   bool reached = false;
   std::string code = "UNREACHABLE";
 
+  struct Sense {
+    bool noPlayer = false;
+    bool reached = false;
+    float dist = 0;
+    float homeYaw = 0;
+  };
+  struct March {
+    bool noPlayer = false;
+    bool edge = false;
+  };
+
   for (int t = 0; t < kGoToMaxTicks; t += kGoToTickBatch) {
-    auto s = std::make_shared<Step>();
-    bool ok = RunOnMainThreadSync(context_, [s, target]() {
+    // Phase A: where are we, how far + which way to the target.
+    auto sense = std::make_shared<Sense>();
+    bool okA = RunOnMainThreadSync(context_, [sense, target]() {
       ServerEnt* pl = server->GetPlayer(1);
       if (!pl) {
-        s->guard = "NO_PLAYER";
+        sense->noPlayer = true;
         return;
       }
       Vector feet = pl->abs_origin();
-      s->pos = feet;
       Vector forward{target.x - feet.x, target.y - feet.y, 0};
-      s->dist = forward.Length2D();
-      if (s->dist <= kReachRadius) {
-        s->reached = true;
+      sense->dist = forward.Length2D();
+      if (sense->dist <= kReachRadius) {
+        sense->reached = true;
         return;
       }
       Vector up{0, 0, 1};
       QAngle a{0, 0, 0};
       Math::VectorAngles(forward, up, &a);
-      std::string g = CheckGuard(pl, feet, a.y);
-      if (!g.empty()) {
-        s->guard = g;
-        return;
-      }
-      ApplyAbsoluteView(QAngle{0, a.y, 0});  // level aim at the target
-      SetMoveFramebulk(0, 1);                // walk forward
+      sense->homeYaw = a.y;
     });
-    if (!ok) {
+    if (!okA) {
       r.set_ok(false);
       r.set_result_code("CANCELLED");
       r.set_final_dist(finalDist);
       return r;
     }
-
-    finalDist = s->dist;
-    if (s->reached) {
+    if (sense->noPlayer) {
+      code = "NO_PLAYER";
+      break;
+    }
+    finalDist = sense->dist;
+    if (sense->reached) {
       reached = true;
       code = "SUCCESS";
       break;
     }
-    if (!s->guard.empty()) {
-      code = (s->guard == "NO_PLAYER") ? "NO_PLAYER" : "BLOCKED";
-      r.set_detail("go_to blocked by " + s->guard);
+
+    // Closest-approach is the progress signal (a slide toward the target
+    // counts).
+    if (sense->dist < bestDist - kGoToProgressEps) {
+      bestDist = sense->dist;
+      stuckBatches = 0;
+      steerLeft = 0;  // made progress -> stop steering, re-home
+    } else if (steerLeft == 0) {
+      stuckBatches++;
+    }
+
+    // Stalled while homing -> veer to the next offset; dead-end after a full
+    // cycle.
+    if (steerLeft == 0 && stuckBatches >= kGoToStuckBatches) {
+      if (perturbIdx >= kGoToNumSteerOffsets) {
+        if (bestDist >= cycleStartBest - kGoToProgressEps) {
+          code = "BLOCKED";
+          break;
+        }
+        perturbIdx = 0;
+        cycleStartBest = bestDist;
+      }
+      steerYaw = sense->homeYaw + kGoToSteerOffsets[perturbIdx];
+      perturbIdx++;
+      steerLeft = kGoToSteerBatches;
+      stuckBatches = 0;
+    }
+    float yaw = (steerLeft > 0) ? steerYaw : sense->homeYaw;
+    if (steerLeft > 0) steerLeft--;
+
+    // Phase B: don't step off an edge; otherwise aim + walk one batch.
+    auto march = std::make_shared<March>();
+    bool okB = RunOnMainThreadSync(context_, [march, yaw]() {
+      ServerEnt* pl = server->GetPlayer(1);
+      if (!pl) {
+        march->noPlayer = true;
+        return;
+      }
+      Vector feet = pl->abs_origin();
+      if (!CheckEdge(pl, feet, yaw).empty()) {
+        march->edge = true;
+        ClearFramebulk();  // hold position this batch
+        return;
+      }
+      ApplyAbsoluteView(QAngle{0, yaw, 0});
+      SetMoveFramebulk(0, 1);
+    });
+    if (!okB) {
+      r.set_ok(false);
+      r.set_result_code("CANCELLED");
+      r.set_final_dist(finalDist);
+      return r;
+    }
+    if (march->noPlayer) {
+      code = "NO_PLAYER";
       break;
     }
-    if (havePrev) {
-      Vector d{s->pos.x - lastPos.x, s->pos.y - lastPos.y, 0};
-      stuckRuns = (d.Length2D() < kStuckEps) ? stuckRuns + 1 : 0;
-      if (stuckRuns >= 2) {
-        code = "STUCK";
-        break;
-      }
+    if (march->edge) {
+      // Unsafe heading -> veer to the next offset next batch.
+      steerLeft = 0;
+      stuckBatches = kGoToStuckBatches;
     }
-    lastPos = s->pos;
-    havePrev = true;
 
     AdvanceTicksBlocking(kGoToTickBatch);
   }
@@ -505,13 +535,19 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
   {
     auto fin = std::make_shared<float>(finalDist);
     auto feet = std::make_shared<Vector>(res->startFeet);
-    RunOnMainThreadSync(context_, [fin, feet, target]() {
+    bool finRan = RunOnMainThreadSync(context_, [fin, feet, target]() {
       ServerEnt* pl = server->GetPlayer(1);
       if (pl) {
         *feet = pl->abs_origin();
         *fin = Vector{target.x - feet->x, target.y - feet->y, 0}.Length2D();
       }
     });
+    if (!finRan) {  // stream dropped during settle -- don't claim a result
+      r.set_ok(false);
+      r.set_result_code("CANCELLED");
+      r.set_final_dist(finalDist);
+      return r;
+    }
     finalDist = *fin;
     finalFeet = *feet;
   }
@@ -519,14 +555,10 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
       Vector{finalFeet.x - res->startFeet.x, finalFeet.y - res->startFeet.y, 0}
           .Length2D();
 
-  // A blocked/stuck march that still covered real ground is ADVANCED, not a
-  // failure: the model should re-plan from its new spot, not retry the same
-  // verb. Pinned (moved ~0) keeps the honest BLOCKED/STUCK/UNREACHABLE code.
-  bool advanced =
-      !reached && moved > kReachRadius &&
-      (code == "BLOCKED" || code == "STUCK" || code == "UNREACHABLE");
-  std::string why =
-      r.detail();  // "go_to blocked by WALL/EDGE" if a guard tripped
+  // Covered real ground but didn't arrive -> ADVANCED, so the model re-plans
+  // from the new spot instead of repeating the verb.
+  bool advanced = !reached && moved > kReachRadius &&
+                  (code == "BLOCKED" || code == "UNREACHABLE");
   r.set_ok(reached || advanced);
   r.set_result_code(advanced ? "ADVANCED" : code);
   r.set_reached(reached);
@@ -534,9 +566,8 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
   r.set_moved_dist(moved);
   if (advanced)
     r.set_detail(Utils::ssprintf("advanced %.0f units, %.0f to go (%s)", moved,
-                                 finalDist,
-                                 why.empty() ? code.c_str() : why.c_str()));
-  else if (r.detail().empty())
+                                 finalDist, code.c_str()));
+  else
     r.set_detail(Utils::ssprintf("dist=%.0f after march", finalDist));
   return r;
 }
@@ -599,7 +630,7 @@ portal2_harness::MacroResult MacroExecutor::Move(const std::string& dir,
       Vector feet = pl->abs_origin();
       s->pos = feet;
       float worldYaw = engine->GetAngles(Slot()).y + md.yawOffset;
-      std::string g = CheckGuard(pl, feet, worldYaw);
+      std::string g = CheckEdge(pl, feet, worldYaw);
       if (!g.empty()) {
         s->guard = g;
         return;
@@ -664,10 +695,9 @@ portal2_harness::MacroResult MacroExecutor::Move(const std::string& dir,
 portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
   portal2_harness::MacroResult r;
 
-  // Phase 1 (main thread): resolve, grabbable-class + reach check, snapshot the
-  // pre-grab position. Heap output so a post-cancel closure can't write a dead
-  // stack. The class gate stops a wrong mark (e.g. a button) from being
-  // +use-pressed as a side effect; the confirmation below is the real "stuck?".
+  // Phase 1 (main thread): resolve + grabbable-class + reach check, snapshot
+  // the pre-grab pos. Heap output survives a post-cancel closure run; the class
+  // gate stops a wrong mark (e.g. a button) being +use-pressed by a bad grab.
   struct Pre {
     bool ok = false;
     std::string code = "BAD_MARK";
@@ -717,12 +747,9 @@ portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
   if (!aim.ok()) return aim;  // BAD_MARK / NO_PLAYER / CANCELLED bubble up
   PulseUse(kSettle);
 
-  // Confirm the grab. There's no networked held flag, so infer it: a real grab
-  // ends with the object within kHeldDist of the eye AND snaps it more than
-  // kMinGrabMove (independent of view pitch). Requiring the move is what
-  // rejects a +use that hit nothing: it reads moved=0 and fails honestly
-  // instead of a false success. dz/moved/dist ride in the detail for
-  // calibration.
+  // No networked held flag, so infer the grab: the object ends within kHeldDist
+  // of the eye AND moved more than kMinGrabMove. The move check rejects a +use
+  // that hit nothing (reads moved=0) instead of reporting a false success.
   struct Post {
     bool resolved = false;
     bool held = false;
@@ -778,9 +805,8 @@ portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
 }
 
 portal2_harness::MacroResult MacroExecutor::Release(int mark) {
-  // Orient before dropping so the object lands where intended: face the mark if
-  // one is given, else look down to drop it at the player's feet (e.g. onto the
-  // floor button being stood on). A bad mark just drops at the current facing.
+  // Orient before dropping: face the mark if given, else look down to drop at
+  // the player's feet (e.g. onto a floor button being stood on).
   if (mark > 0) {
     AimAt(mark);
   } else {
@@ -791,14 +817,11 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
     if (ran) AdvanceTicksBlocking(1);
   }
 
-  // Drop it: a +use pulse releases the carried object. Held-state is tracked by
-  // the caller, so there's nothing to confirm and we always report SUCCESS.
-  // Caveat: +use is a context toggle -- if the caller issues release while NOT
-  // actually holding but standing on a grabbable, the same edge GRABS instead,
-  // still reported as "released". The model's held-state tracking is what keeps
-  // intent and world-state aligned. Like Wait(), no cancellation hop: on a
-  // dropped stream the pulse may still fire (harmless; a Reset reloads the
-  // map).
+  // +use pulse drops the carried object. The caller tracks held-state, so
+  // there's nothing to confirm -- always SUCCESS. Caveat: +use is a context
+  // toggle, so a release issued while NOT holding (but stood on a grabbable)
+  // GRABS instead; the caller's held-tracking keeps intent aligned. No cancel
+  // hop (like Wait): on a dropped stream the pulse may still fire (harmless).
   PulseUse(kSettle);
   portal2_harness::MacroResult r;
   r.set_ok(true);
