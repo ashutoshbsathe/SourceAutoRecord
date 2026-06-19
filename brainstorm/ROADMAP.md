@@ -23,7 +23,7 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 Two priorities lead now; each gets its own brainstorm next session:
 
 1. **Annotation improvements** — the in-engine percept (boxes + Set-of-Marks labels + portal reticle) is built (Track A, A1–A5); next is sharpening what it shows and how. *(brainstorm pending)*
-2. **Movement tech** — `go_to` dodging around obstacles/hazards and smarter locomotion (the local-vs-global line the macros draw). *(brainstorm pending)*
+2. **Locomotion tech** — `go_to` dodging around obstacles/hazards and smarter locomotion (the local-vs-global line the macros draw). Plan: layered planner (local controller → global A* over a lazy hull-probed grid) + reliable closed-loop place-on-button, with **lasers as the next big frontier** (beam-routing via a held redirection cube, same closed-loop spine) → [locomotion_tech.md](locomotion_tech.md). *(brainstormed; impl pending)*
 
 **Exit detection — parked as "good enough."** The PuzzleExit oracle's C++ core (P1–P4) is shipped + verified: it latches `chamber_complete` from the AcceptInput OR-set, reads out over gRPC, and re-arms per episode. The remaining phases (P5+: Python terminate-on-bit, smoke gate, prevention, radius-oracle deletion) are **not critical** and can wait. → [exit_detector_impl_plan.md](exit_detector_impl_plan.md)
 
@@ -119,6 +119,7 @@ has crept into `py/` (and likely `src/`). Fix in passing, don't make a project o
 | `llm_act_grammar_altitude.md` | **why closed verbs over Voyager-style code-as-action** (industry sweep + decision) |
 | `llm_percept_act_phased_plan.md` | the **build order** (tracks A–D, phase-by-phase) |
 | `macro_executor_impl_plan.md` | **code-grounded PR plan** for the macro executor + driver (Track C/D detail, PR0–PR7 to first light) |
+| `locomotion_tech.md` | **`go_to` pathfinding (local controller + A*) + reliable place-on-button + the laser-routing frontier** — phased plan, substrate recon, ROADMAP #2 |
 | `rollout_visualizer.md` | the `.rollout` browser viewer |
 | `trajectory_visualizer.md` | the `.trajectory` (LLM eval) self-contained HTML viewer design |
 | `trajectory_retry_capture.md` | the Observation+Call `.trajectory` data model (per-call retries) |
