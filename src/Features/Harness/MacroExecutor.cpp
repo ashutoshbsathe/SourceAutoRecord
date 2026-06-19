@@ -13,6 +13,7 @@
 #include "Harness.hpp"
 #include "HarnessThread.hpp"
 #include "MarkTable.hpp"
+#include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
 #include "Modules/Server.hpp"
 #include "Scheduler.hpp"
@@ -20,6 +21,11 @@
 #include "Utils/Math.hpp"
 #include "Utils/SDK/EntityEdict.hpp"
 #include "Utils/SDK/Trace.hpp"
+#include "Variable.hpp"
+
+Variable sar_harness_goto_debug(
+    "sar_harness_goto_debug", "0",
+    "Log per-batch go_to VFH steering (heading, clearance, feet move).\n");
 
 namespace {
 
@@ -38,14 +44,21 @@ constexpr float kStuckEps = 1.0f;      // <this much progress/iter twice = stuck
 constexpr float kProbeHeight = 18.0f;  // lift the edge ray to ~step height
 constexpr float kStepAhead = 24.0f;    // edge ray is cast this far ahead
 constexpr float kStepDownMax = 64.0f;  // no floor within this below = edge
-// go_to steering: when it stops getting closer, veer to a heading offset from
-// the target bearing for a burst, then re-home; give up after a full cycle.
+// go_to VFH steering (see ChooseVfhHeading) + global-stall termination.
 constexpr float kGoToProgressEps = 4.0f;  // min closest-approach gain
-constexpr int kGoToStuckBatches = 3;      // no-progress batches before a veer
-constexpr int kGoToSteerBatches = 6;      // batches held per veer heading
-constexpr float kGoToSteerOffsets[] = {50,  -50, 90,
-                                       -90, 140, -140};  // deg off bearing
-constexpr int kGoToNumSteerOffsets = 6;
+constexpr int kVfhBins = 24;              // clearance rays around the circle
+constexpr float kVfhProbeDist = 96.0f;    // per-ray clearance horizon (units)
+constexpr float kVfhClearMin = 40.0f;     // a bin is passable at/above this
+constexpr float kVfhClearWeight = 0.15f;  // clearance bonus vs goal-angle cost
+constexpr float kVfhHystBonus = 15.0f;    // deg-equiv bias to hold last heading
+constexpr int kGoToGlobalStall = 40;      // no-progress batches -> BLOCKED
+// Wedge detector: a move the point-ray says is clear but the feet don't take
+// (rim/lip/hull-clip the ray misses) blocks that heading for a cooldown, so the
+// next pick veers/backs out instead of pushing into it forever.
+constexpr float kWedgeEps = 3.0f;  // batch feet-move below this = stuck
+constexpr int kWedgeStuckBatches =
+    2;                              // no-move batches before a heading blocks
+constexpr int kWedgeCooldown = 16;  // batches a wedged heading stays blocked
 
 // Interaction-verb tuning (pick_up / release / interact).
 constexpr int kSettle = 20;       // ticks to let a grab/drop/use resolve
@@ -216,6 +229,68 @@ std::string CheckEdge(void* player, const Vector& feet, float worldYaw) {
     return "EDGE";
   }
   return "";
+}
+
+// Open distance along world yaw from `from`, capped at maxDist (point ray).
+// Main thread.
+float RayClearance(void* player, const Vector& from, float worldYaw,
+                   float maxDist) {
+  CTraceFilterSimple filter;
+  filter.SetPassEntity(player);
+  Vector pos = from;
+  QAngle ang{0, worldYaw, 0};
+  CGameTrace tr;
+  if (!engine->Trace(pos, ang, maxDist, MASK_PLAYERSOLID, filter, tr))
+    return maxDist;
+  return tr.fraction * maxDist;
+}
+
+// World yaw -> nearest VFH bin index in [0, kVfhBins).
+int VfhBin(float yaw) {
+  constexpr float binDeg = 360.0f / kVfhBins;
+  int b = static_cast<int>(std::lround(yaw / binDeg)) % kVfhBins;
+  return b < 0 ? b + kVfhBins : b;
+}
+
+struct VfhPick {
+  bool found = false;   // false => every heading is boxed or a cliff this batch
+  float yaw = 0;        // world heading the body should strafe toward
+  float clearance = 0;  // chosen bin's open distance (debug telemetry)
+};
+
+// 360 deg VFH: one clearance ray per bin; pick the highest-scoring passable,
+// non-cliff bin. Score = -|angle-to-goal| (dominant) + clearance + hysteresis.
+// Bins flagged in wedgeTtl (physically stuck, ray-invisible) are skipped.
+// Main thread.
+VfhPick ChooseVfhHeading(void* player, const Vector& feet, float goalBearing,
+                         float lastYaw, bool haveLast, const int* wedgeTtl) {
+  constexpr float binDeg = 360.0f / kVfhBins;
+  Vector probe = feet + Vector{0, 0, kProbeHeight};
+  float clear[kVfhBins];
+  for (int i = 0; i < kVfhBins; i++)
+    clear[i] = RayClearance(player, probe, i * binDeg, kVfhProbeDist);
+
+  for (int guard = 0; guard < kVfhBins; guard++) {
+    int best = -1;
+    float bestScore = 0;
+    for (int i = 0; i < kVfhBins; i++) {
+      if (clear[i] < kVfhClearMin || wedgeTtl[i] > 0) continue;
+      float yaw = i * binDeg;
+      float s = -std::fabs(NormalizeYaw(yaw - goalBearing)) +
+                kVfhClearWeight * clear[i];
+      if (haveLast && std::fabs(NormalizeYaw(yaw - lastYaw)) < binDeg * 0.5f)
+        s += kVfhHystBonus;
+      if (best < 0 || s > bestScore) {
+        best = i;
+        bestScore = s;
+      }
+    }
+    if (best < 0) return {};  // fully boxed
+    float yaw = best * binDeg;
+    if (CheckEdge(player, feet, yaw).empty()) return {true, yaw, clear[best]};
+    clear[best] = 0;  // cliff -> drop this bin and re-pick
+  }
+  return {};
 }
 
 }  // namespace
@@ -395,131 +470,126 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
     return r;
   }
 
-  // March toward the target, sliding off walls; veer to an offset heading when
-  // closest-approach stalls, BLOCKED after a full offset cycle gains nothing.
-  // Per-batch RunOnMainThreadSync honors cancel; kGoToMaxTicks caps it.
+  // VFH march: strafe the body toward the chosen heading, camera held on the
+  // target. Per-batch RunOnMainThreadSync honors cancel; kGoToMaxTicks caps it.
   Vector target = res->center;
-  float bestDist = res->initialDist;  // closest 2D approach so far
-  float cycleStartBest =
-      res->initialDist;  // bestDist when this steer cycle began
-  int stuckBatches = 0;  // homing batches without progress
-  int steerLeft = 0;     // batches left in the current steer burst
-  float steerYaw = 0;    // committed steer heading (world yaw)
-  int perturbIdx = 0;    // next offset to try this cycle
+  float bestDist = res->initialDist;  // closest 2D approach so far (global)
+  int stallBatches = 0;               // batches since bestDist last improved
+  float lastYaw = 0;                  // committed heading (hysteresis)
+  bool haveLast = false;
   float finalDist = res->initialDist;
   bool reached = false;
-  std::string code = "UNREACHABLE";
+  std::string code = "BLOCKED";  // also the kGoToMaxTicks cap fallthrough
 
-  struct Sense {
+  struct Step {
     bool noPlayer = false;
     bool reached = false;
+    bool commandedMove = false;  // a strafe was issued (vs a boxed hold)
     float dist = 0;
-    float homeYaw = 0;
+    float chosenYaw = 0;
+    Vector feet{0, 0, 0};  // for per-batch displacement
   };
-  struct March {
-    bool noPlayer = false;
-    bool edge = false;
+  struct WedgeState {
+    int ttl[kVfhBins] = {};  // per-bin physical-block countdown
+    int stuckRun = 0;  // consecutive no-move batches on a committed heading
   };
 
+  auto wedge = std::make_shared<WedgeState>();
+  Vector prevFeet = res->startFeet;
+  bool lastCommandedMove = false;
   for (int t = 0; t < kGoToMaxTicks; t += kGoToTickBatch) {
-    // Phase A: where are we, how far + which way to the target.
-    auto sense = std::make_shared<Sense>();
-    bool okA = RunOnMainThreadSync(context_, [sense, target]() {
+    auto step = std::make_shared<Step>();
+    bool ok = RunOnMainThreadSync(context_, [step, target, lastYaw, haveLast,
+                                             lastCommandedMove, prevFeet, wedge,
+                                             t, bestDist]() {
       ServerEnt* pl = server->GetPlayer(1);
       if (!pl) {
-        sense->noPlayer = true;
+        step->noPlayer = true;
         return;
       }
       Vector feet = pl->abs_origin();
+      step->feet = feet;
       Vector forward{target.x - feet.x, target.y - feet.y, 0};
-      sense->dist = forward.Length2D();
-      if (sense->dist <= kReachRadius) {
-        sense->reached = true;
+      step->dist = forward.Length2D();
+      if (step->dist <= kReachRadius) {
+        step->reached = true;
         return;
+      }
+      // Wedge feedback: decay blocks, and if last batch commanded a move
+      // the feet didn't take (a rim/lip/hull-clip the ray missed), block
+      // that heading (+/-1 bin: the hull is wider than a ray) so this pick
+      // veers off it.
+      float moved =
+          Vector{feet.x - prevFeet.x, feet.y - prevFeet.y, 0}.Length2D();
+      for (int i = 0; i < kVfhBins; i++)
+        if (wedge->ttl[i] > 0) wedge->ttl[i]--;
+      if (lastCommandedMove) {
+        wedge->stuckRun = (moved < kWedgeEps) ? wedge->stuckRun + 1 : 0;
+        if (wedge->stuckRun >= kWedgeStuckBatches) {
+          int b = VfhBin(lastYaw);
+          wedge->ttl[b] = wedge->ttl[(b + 1) % kVfhBins] =
+              wedge->ttl[(b + kVfhBins - 1) % kVfhBins] = kWedgeCooldown;
+          wedge->stuckRun = 0;  // give the next heading its own grace window
+        }
       }
       Vector up{0, 0, 1};
       QAngle a{0, 0, 0};
       Math::VectorAngles(forward, up, &a);
-      sense->homeYaw = a.y;
+      float goalBearing = a.y;
+      step->chosenYaw = goalBearing;
+      VfhPick pick = ChooseVfhHeading(pl, feet, goalBearing, lastYaw, haveLast,
+                                      wedge->ttl);
+      // Camera on the target; ApplyAbsoluteView clears the framebulk, so a
+      // boxed batch (no pick) holds.
+      ApplyAbsoluteView(QAngle{0, goalBearing, 0});
+      if (pick.found) {
+        step->chosenYaw = pick.yaw;
+        step->commandedMove = true;
+        float delta = DEG2RAD(NormalizeYaw(pick.yaw - goalBearing));
+        SetMoveFramebulk(-std::sin(delta), std::cos(delta));  // body-frame
+      }
+      if (sar_harness_goto_debug.GetBool()) {
+        int wb = 0;
+        for (int i = 0; i < kVfhBins; i++)
+          if (wedge->ttl[i] > 0) wb++;
+        console->Print(
+            "goto t=%d dist=%.0f best=%.0f hdg=%+.0f clr=%.0f moved=%.1f "
+            "wb=%d%s\n",
+            t, step->dist, bestDist,
+            NormalizeYaw(step->chosenYaw - goalBearing), pick.clearance, moved,
+            wb, pick.found ? "" : " BOXED");
+      }
     });
-    if (!okA) {
+    if (!ok) {
       r.set_ok(false);
       r.set_result_code("CANCELLED");
       r.set_final_dist(finalDist);
       return r;
     }
-    if (sense->noPlayer) {
+    if (step->noPlayer) {
       code = "NO_PLAYER";
       break;
     }
-    finalDist = sense->dist;
-    if (sense->reached) {
+    finalDist = step->dist;
+    if (step->reached) {
       reached = true;
       code = "SUCCESS";
       break;
     }
 
-    // Closest-approach is the progress signal (a slide toward the target
-    // counts).
-    if (sense->dist < bestDist - kGoToProgressEps) {
-      bestDist = sense->dist;
-      stuckBatches = 0;
-      steerLeft = 0;  // made progress -> stop steering, re-home
-    } else if (steerLeft == 0) {
-      stuckBatches++;
-    }
-
-    // Stalled while homing -> veer to the next offset; dead-end after a full
-    // cycle.
-    if (steerLeft == 0 && stuckBatches >= kGoToStuckBatches) {
-      if (perturbIdx >= kGoToNumSteerOffsets) {
-        if (bestDist >= cycleStartBest - kGoToProgressEps) {
-          code = "BLOCKED";
-          break;
-        }
-        perturbIdx = 0;
-        cycleStartBest = bestDist;
-      }
-      steerYaw = sense->homeYaw + kGoToSteerOffsets[perturbIdx];
-      perturbIdx++;
-      steerLeft = kGoToSteerBatches;
-      stuckBatches = 0;
-    }
-    float yaw = (steerLeft > 0) ? steerYaw : sense->homeYaw;
-    if (steerLeft > 0) steerLeft--;
-
-    // Phase B: don't step off an edge; otherwise aim + walk one batch.
-    auto march = std::make_shared<March>();
-    bool okB = RunOnMainThreadSync(context_, [march, yaw]() {
-      ServerEnt* pl = server->GetPlayer(1);
-      if (!pl) {
-        march->noPlayer = true;
-        return;
-      }
-      Vector feet = pl->abs_origin();
-      if (!CheckEdge(pl, feet, yaw).empty()) {
-        march->edge = true;
-        ClearFramebulk();  // hold position this batch
-        return;
-      }
-      ApplyAbsoluteView(QAngle{0, yaw, 0});
-      SetMoveFramebulk(0, 1);
-    });
-    if (!okB) {
-      r.set_ok(false);
-      r.set_result_code("CANCELLED");
-      r.set_final_dist(finalDist);
-      return r;
-    }
-    if (march->noPlayer) {
-      code = "NO_PLAYER";
+    // Regress is allowed (backing out of a pocket), so only a long global stall
+    // -- not one bad batch -- blocks.
+    if (step->dist < bestDist - kGoToProgressEps) {
+      bestDist = step->dist;
+      stallBatches = 0;
+    } else if (++stallBatches >= kGoToGlobalStall) {
+      code = "BLOCKED";
       break;
     }
-    if (march->edge) {
-      // Unsafe heading -> veer to the next offset next batch.
-      steerLeft = 0;
-      stuckBatches = kGoToStuckBatches;
-    }
+    lastYaw = step->chosenYaw;
+    haveLast = true;
+    lastCommandedMove = step->commandedMove;
+    prevFeet = step->feet;
 
     AdvanceTicksBlocking(kGoToTickBatch);
   }
@@ -557,8 +627,7 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
 
   // Covered real ground but didn't arrive -> ADVANCED, so the model re-plans
   // from the new spot instead of repeating the verb.
-  bool advanced = !reached && moved > kReachRadius &&
-                  (code == "BLOCKED" || code == "UNREACHABLE");
+  bool advanced = !reached && moved > kReachRadius && code == "BLOCKED";
   r.set_ok(reached || advanced);
   r.set_result_code(advanced ? "ADVANCED" : code);
   r.set_reached(reached);

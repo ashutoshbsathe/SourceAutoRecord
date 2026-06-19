@@ -84,6 +84,10 @@ go_to(mark):
 - `release <button-mark>` is **upgraded** to closed-loop (no new `place_on` verb).
 - The closed-loop micro-adjust controller keeps its **(predicate, perturbation) seam pluggable** so
   the laser verb (§5) drops in as "same controller, different predicate + nudge."
+- **Local controller is a 360° VFH polar histogram** (see the 2026-06-19-later pivot note in §4), not
+  the bearing-offset steer: clearance histogram (wall/door rays + analytic cube OBBs) → freest valley
+  nearest goal, willing to move backward. It subsumes the line-65 "ray-fan steering" and the line-66
+  Bug2 fallback into one mechanism; A* (P2) still sits above it as the global "which corridor" layer.
 
 ---
 
@@ -101,6 +105,48 @@ noted).
 > no hull, nothing map-tuned. `TraceHull` (Engine) was reverted with it and is **deferred to P2**
 > (it's the right tool for A\* grid cell-passability, not a march-stopper). The held-entity trace
 > filter (P0.2) went with it — the reactive march has no forward trace for a carried cube to fool.
+
+> **Update 2026-06-19 (later) — reactive → VFH-360 pivot.** The shipped reactive march (P1.1) has
+> two field-reported failures. (1) **It shoves cubes**: Phase B's only guard is the down-ray pit
+> check ([MacroExecutor.cpp:500](../src/Features/Harness/MacroExecutor.cpp#L500)), so it holds
+> forward into a `prop_weighted_cube` and the physics solver resolves player-vs-*movable* by pushing
+> the cube; the shove still closes the 2D feet→target distance
+> ([:464](../src/Features/Harness/MacroExecutor.cpp#L464)) so `stuckBatches` never fires. (2) **It
+> gives up on side doors**: the steer machine instant-re-homes on any 4u gain
+> ([:467](../src/Features/Harness/MacroExecutor.cpp#L467)→`homeYaw`
+> [:488](../src/Features/Harness/MacroExecutor.cpp#L488)) with bearing-relative offsets
+> ([:46](../src/Features/Harness/MacroExecutor.cpp#L46)), so start-near-wall + far-side-door
+> oscillates against the wall and the 6-offset cycle exhausts → `BLOCKED`.
+>
+> **Decision — the new local controller is a 360° VFH polar histogram, and `go_to` may move
+> backward/sideways** (not just a forward cone) when that improves the approach:
+> - **Histogram** (per batch, K≈24 bins around the full circle): wall/door clearance from one ray
+>   per bin; **cube obstacles injected analytically** from their known OBBs (the snapshotter already
+>   enumerates grabbable props — no trace), skipping the `go_to` target and the held cube by identity.
+> - **Steer = freest valley nearest the goal bearing.** Goal-bearing-open is the fast path (= today's
+>   line-of-sight march); a blocked front lets a sideways/backward valley win. Hysteresis/commitment
+>   on the chosen valley so it doesn't thrash. This makes willingness-to-regress the *escape* from the
+>   concave/U pocket that defeated the bearing-offset steer.
+> - **Movement is body-frame** ([MacroExecutor.cpp:175](../src/Features/Harness/MacroExecutor.cpp#L175),
+>   `ApplyMoveAnalog`): camera stays toward the target while the body strafes any direction — so a
+>   backward step doesn't spin the view, and `go_to` ends aimed at the target.
+> - **Held identity is reused, not re-inferred.** `pick_up` already confirms the grab
+>   ([MacroExecutor.cpp:775](../src/Features/Harness/MacroExecutor.cpp#L775)); cache that entity on the
+>   executor (set on SUCCESS, cleared in `Release`) and the histogram skips it. No per-tick flag, **no
+>   proto change**. Supersedes the reverted P0.2 — driven by the pick_up confirmation, not the
+>   unreliable `m_hOwnerEntity` networked handle. The Python side already tracks this as `held_mark`
+>   ([testchamber_session.py:91](../py/testchamber_session.py#L91)); the C++ cache mirrors it where
+>   the march runs.
+> - **VFH subsumes the planned `plane.normal` Bug2 wall-follow (P1.2).** "Follow the wall toward the
+>   door" falls out of "freest valley nearest goal" when you're flush against a wall (the grazing ray
+>   is the open valley). One mechanism, not two. Standalone Bug2 is kept only as the documented
+>   completeness fallback for concave/U pockets where greedy VFH can still local-min.
+> - **Termination must go global.** Per-batch regress is now *allowed* (backing out of a pocket), so a
+>   stalled batch can no longer mean `BLOCKED`; use a **global closest-approach** check + the
+>   `kGoToMaxTicks` cap instead.
+> - **Caveats:** ~24 point-rays/batch (still ≪ the ~1ms framebuffer read — cap + measure); a point-ray
+>   fan can slip a thin feature / clear a ray but clip the hull (densify or hull-ify if it misses);
+>   per-direction edge check must run on the *chosen* heading, including backward, before committing.
 
 ### P0 — shared primitives (C++)
 - **P0.1 — hull-swept guard.** ~~Add a `HullTrace` helper + swap `CheckGuard`'s point-ray for it.~~
@@ -123,10 +169,62 @@ noted).
   `kGoToMaxTicks`(400) hard cap. Reports `SUCCESS` / `ADVANCED` (real ground covered, re-plan) /
   `BLOCKED` / `UNREACHABLE`. Review: termination clean, steering off-by-one-free, 0 confirmed bugs.
   *Verify:* `go_to` past the airlock jamb / a lone cube — slides/veers through instead of dead-stop.
-- **P1.2 — Bug2 wall-follow (robustness upgrade, follow-on).** The P1.1 perturbation is the light
-  v1; a concave/U pocket can still exhaust the offset cycle → `BLOCKED`. Bug2 (follow the obstacle
-  boundary via `plane.normal` until the start→goal line clears) is the 2D-*complete* upgrade. Build
-  if a real chamber needs it. *Verify:* `go_to` into a U-shaped pocket.
+  **→ Steering core superseded by P-VFH.1 (360° histogram); P1.1's reach/edge/termination scaffold is reused.**
+- **P1.2 — Bug2 wall-follow. SUPERSEDED by P-VFH** — the 360° "freest valley nearest goal" reproduces
+  wall-following without a separate state machine. **Retained only as the documented completeness
+  fallback for concave/U pockets** where greedy VFH can still local-min: follow the obstacle boundary
+  via `plane.normal` until the start→goal line clears. Build *only* if a real chamber defeats VFH.
+
+### P-VFH — 360° VFH local controller (C++ before Python) — *supersedes the P1.1 steer + P1.2*
+
+Each phase hand-verified via `py/macro_repl.py` on a live game (the user runs the game). C++ before
+Python; P-VFH.1 ships the side-door fix on its own. No proto change anywhere in this group.
+
+- **P-VFH.1 — VFH steering core. ✅ SHIPPED + adversarially reviewed (2026-06-19).** Replaced the
+  offset-list steer with a 360° clearance histogram (`RayClearance` one ray per bin →
+  `ChooseVfhHeading`: highest-scoring passable, non-cliff bin, score `= -|angle-to-goal| (dominant) +
+  kVfhClearWeight·clearance + kVfhHystBonus` hysteresis), body-frame strafe `(-sin Δ, cos Δ)` with the
+  camera held on the target, and **global** closest-approach + `kGoToMaxTicks` termination (regress is
+  now allowed, so a single stalled batch ≠ `BLOCKED`; only `kGoToGlobalStall`=40 no-gain batches blocks).
+  Constants: bins=24, probe=96u, clearMin=40u, clearWeight=0.15, hyst=15°, stall=40. *Fixes the
+  side-door give-up: oscillation, the far door, move-away pockets.* Review (6 finders + refute + a
+  completeness critic) confirmed the strafe math, trace/yaw frame, threading, and both verify scenarios;
+  one in-scope fix applied: the `kGoToMaxTicks` cap fallthrough was mislabelled `UNREACHABLE` (a code the
+  agent prompt doesn't handle) → now `BLOCKED` (cap-with-net-progress already upgrades to `ADVANCED`), so
+  `UNREACHABLE` is dropped until P2 A* gives it a real "no path" meaning. *Verify:* start flush to a wall
+  with the door far to one side — it follows the wall to the door instead of `BLOCKED`; a U-pocket no
+  longer dead-locks. **Known deferred gaps (by design, confirmed in review):** `go_to` *to* a solid prop
+  (cube/turret) or carrying a cube probes through it as a wall → P-VFH.2/.3 (target/held identity skip);
+  point-ray-vs-hull clip + flush startsolid → P-VFH.4; deep concave-pocket escape → P1.2 Bug2.
+- **P-VFH.1b — wedge detector + telemetry (2026-06-19, follow-up).** Field repro: `go_to` on a workshop
+  map veered 51° off-goal into the curved rim of a circular door and froze — telemetry (`clr=96`,
+  `moved=0.0` for 40 batches, `hdg` frozen) proved a **ray-blind wedge**: the point-ray reads the lane
+  open but the player hull/lip can't enter, and the static histogram re-picks the identical bin forever.
+  VFH steers only on ray-sensed clearance, so it never elected another valley (the old offset-steer
+  blind-veered on any stall; VFH had dropped that fallback). Fix: a **reactive wedge detector** —
+  commanded a move but `moved < kWedgeEps`(3u) for `kWedgeStuckBatches`(2) ⇒ block that heading's bin
+  ±1 in a per-bin `ttl` map for `kWedgeCooldown`(16) batches (decaying), so `ChooseVfhHeading` skips it
+  and the next pick veers/backs out. This is the "physical block" sense the rays miss — complements (not
+  replaces) the P-VFH.4 hull-swept rays. Also added cvar `sar_harness_goto_debug` (per-batch
+  `dist/best/hdg/clr/moved/wb` log; off by default) — keep it; it's the diagnosis tool for this family.
+  *Verify:* re-run the rim repro with the cvar on — on a `moved≈0` batch `hdg` should now **change** and
+  the player slides off the rim instead of freezing.
+- **P-VFH.2 — held-entity cache.** `heldEntity_` member set on `pick_up` SUCCESS, cleared in
+  `Release`. Plumbing for .3; no behaviour change. ~6 LOC. *Verify:* log the cached handle across a
+  pick_up/release pair.
+- **P-VFH.3 — cube OBBs into the histogram.** Inject grabbable-prop OBBs (skip the `go_to` target +
+  the held cube by identity) as blocked sectors; mirror the edge branch's `ClearFramebulk`
+  ([:502](../src/Features/Harness/MacroExecutor.cpp#L502)) on a cube block so there is zero forward
+  creep before the veer. *Fixes cube shove.* ~30 LOC. *Verify:* `go_to` past a cube on a button —
+  the cube's `on_button` stays True; `go_to` *to* a cube still approaches it.
+- **P-VFH.4 — flush-wall hardening.** Handle `startsolid`/`allsolid` rays at point-blank (garbage
+  normal in exactly the flush case), cap traces/batch, per-direction edge check on the chosen heading
+  including backward. ~25 LOC. *Verify:* `go_to` while spawned point-blank against a wall doesn't pick
+  a random heading.
+- **P-VFH.5 — grammar / prompt / smoke (Python).** Rewrite the `go_to` doc in `macro_grammar.py`
+  (routes around cubes, finds side doors, may step back; drop the straight-line caveat), update result
+  codes + the `gemini_agent.py` feedback notes, and add `agentloop_smoke` assertions
+  (go_to-around-a-cube leaves it seated; go_to-to-a-far-side-door arrives). ~40 LOC.
 
 ### P2 — global A* (C++) — *optimal + plannable*
 - **P2.1 — lazy occupancy grid.** Cell ≈ player-hull-width; `WalkableCell` (floor hull-probe + body
