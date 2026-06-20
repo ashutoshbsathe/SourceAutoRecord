@@ -48,7 +48,9 @@ constexpr int kGoToTickBatch = 4;   // ticks advanced per march iteration
 constexpr int kGoToMaxTicks = 400;  // give up after this many ticks
 constexpr int kGoToSettle = 24;  // ticks to bleed off walk velocity at the end
 constexpr float kReachRadius = 48.0f;  // horizontal dist that counts as arrived
-constexpr float kStuckEps = 1.0f;      // <this much progress/iter twice = stuck
+constexpr float kLegRadius = 24.0f;  // looser arrival for an A* waypoint (P2.6)
+constexpr int kMaxReplans = 2;       // A* re-plans on a dynamically-blocked leg
+constexpr float kStuckEps = 1.0f;    // <this much progress/iter twice = stuck
 constexpr float kProbeHeight = 18.0f;  // lift the edge ray to ~step height
 constexpr float kStepAhead = 24.0f;    // edge ray is cast this far ahead
 constexpr float kStepDownMax = 64.0f;  // no floor within this below = edge
@@ -379,6 +381,7 @@ struct MarchOutcome {
   bool reached = false;
   bool cancelled = false;  // stream dropped mid-march; caller skips settle
   float dist = 0;          // 2D dist to target at loop exit (pre-settle)
+  int ticksUsed = 0;       // ticks advanced; the cross-leg budget decrement
 };
 
 // One VFH march leg: strafe the body toward the freest goal-ward heading with
@@ -413,7 +416,8 @@ MarchOutcome MarchTo(grpc::ServerContext* context, const Vector& target,
   auto wedge = std::make_shared<WedgeState>();
   Vector prevFeet = startFeet;
   bool lastCommandedMove = false;
-  for (int t = 0; t < tickBudget; t += kGoToTickBatch) {
+  int t = 0;
+  for (; t < tickBudget; t += kGoToTickBatch) {
     auto step = std::make_shared<Step>();
     bool ok = RunOnMainThreadSync(
         context, [step, target, lastYaw, haveLast, lastCommandedMove, prevFeet,
@@ -482,6 +486,7 @@ MarchOutcome MarchTo(grpc::ServerContext* context, const Vector& target,
         });
     if (!ok) {
       out.cancelled = true;
+      out.ticksUsed = t;
       return out;  // out.dist carries the last-good finalDist
     }
     if (step->noPlayer) {
@@ -509,6 +514,78 @@ MarchOutcome MarchTo(grpc::ServerContext* context, const Vector& target,
     prevFeet = step->feet;
 
     AdvanceTicksBlocking(kGoToTickBatch);
+  }
+  out.ticksUsed = t;
+  return out;
+}
+
+// After a straight march BLOCKED, route around the pocket with A*: plan over
+// the lazy hull-probed grid, then march each waypoint leg through the same
+// MarchTo. Intermediate waypoints use a loose arrival radius; the final leg
+// targets the real mark. A dynamically-blocked leg (a door/cube that moved)
+// re-plans from the current feet, capped at kMaxReplans. A fresh kGoToMaxTicks
+// budget is shared across the legs so a long route can't run unbounded.
+// gRPC-thread only.
+MarchOutcome RouteAround(grpc::ServerContext* context, const Vector& target,
+                         uint32_t targetKey, uint32_t heldKey,
+                         float initialDist) {
+  MarchOutcome out;  // defaults to BLOCKED
+  out.dist = initialDist;
+  int budget = kGoToMaxTicks;
+
+  for (int attempt = 0; attempt <= kMaxReplans; ++attempt) {
+    // Read feet + plan a route on the main thread (the planner traces the
+    // world).
+    auto legs = std::make_shared<std::vector<Vector>>();
+    auto startFeet = std::make_shared<Vector>();
+    bool ran = RunOnMainThreadSync(context, [legs, startFeet, target, targetKey,
+                                             heldKey]() {
+      ServerEnt* pl = server->GetPlayer(1);
+      if (!pl) return;
+      *startFeet = pl->abs_origin();
+      GoToPlanner planner(pl->collision().OBBMins(), pl->collision().OBBMaxs(),
+                          startFeet->z, targetKey, heldKey);
+      *legs = planner.Plan(*startFeet, target);
+    });
+    if (!ran) {
+      out.cancelled = true;
+      return out;
+    }
+    if (legs->empty()) return out;  // no route exists -> BLOCKED
+
+    bool blockedLeg = false;
+    Vector from = *startFeet;
+    for (size_t i = 0; i < legs->size(); ++i) {
+      bool last = (i + 1 == legs->size());
+      Vector legTarget = last ? target : (*legs)[i];
+      float radius = last ? kReachRadius : kLegRadius;
+      float d =
+          Vector{legTarget.x - from.x, legTarget.y - from.y, 0}.Length2D();
+      MarchOutcome leg = MarchTo(context, legTarget, radius, budget, targetKey,
+                                 heldKey, from, d);
+      if (leg.cancelled) {
+        out.cancelled = true;
+        return out;
+      }
+      budget -= leg.ticksUsed;
+      out.dist = leg.dist;
+      from = legTarget;
+      if (leg.code == "NO_PLAYER") {
+        out.code = "NO_PLAYER";
+        return out;
+      }
+      if (last && leg.reached) {
+        out.reached = true;
+        out.code = "SUCCESS";
+        return out;
+      }
+      if (leg.code == "BLOCKED") {  // dynamic block -> re-plan from here
+        blockedLeg = true;
+        break;
+      }
+      if (budget <= 0) return out;  // budget spent -> BLOCKED
+    }
+    if (!blockedLeg) break;  // all legs marched, final not reached -> BLOCKED
   }
   return out;
 }
@@ -701,9 +778,15 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
   // lives in MarchTo, so the A* layer (P2.6) can chain legs through the same
   // executor.
   Vector target = res->center;
+  uint32_t heldKey = g_heldEntityKey.load();
   MarchOutcome m =
       MarchTo(context_, target, kReachRadius, kGoToMaxTicks, res->targetKey,
-              g_heldEntityKey.load(), res->startFeet, res->initialDist);
+              heldKey, res->startFeet, res->initialDist);
+  // Straight march stalled in a pocket -> route around it with A* (continues
+  // from the blocked feet, so the plan stays short and well under the cell
+  // cap).
+  if (!m.cancelled && m.code == "BLOCKED")
+    m = RouteAround(context_, target, res->targetKey, heldKey, m.dist);
   if (m.cancelled) {
     r.set_ok(false);
     r.set_result_code("CANCELLED");
