@@ -64,4 +64,5 @@ dependencies = [
     "markdown-it-py>=4.0.0",
     "mdit-py-plugins>=0.6.1",
     "pygments>=2.20.0",
+    "srctools>=2.7.0",
 ]
