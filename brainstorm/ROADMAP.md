@@ -18,12 +18,34 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 
 ---
 
-## Top of mind (2026-06-18) — next brainstorm targets
+## Top of mind (2026-06-20) — next steps
 
-Two priorities lead now; each gets its own brainstorm next session:
+**`go_to` A\* routing — SHIPPED ✅ (P2.0–P2.6, money test passed).** VFH local control + A\*
+global routing over a lazy hull-probed 16u grid: the cube-on-button pocket that oscillated →
+BLOCKED now rounds the pocket and reaches the mark, `on_button` holds, and a line-of-sight `go_to`
+keeps the zero-plan fast path. → [astar_routing_design.md](astar_routing_design.md),
+[locomotion_tech.md](locomotion_tech.md). Verb-time camera view-hold also shipped (release/pick_up
+no longer flip the view to the ceiling).
 
-1. **Annotation improvements** — the in-engine percept (boxes + Set-of-Marks labels + portal reticle) is built (Track A, A1–A5); next is sharpening what it shows and how. *(brainstorm pending)*
-2. **Locomotion tech** — `go_to` dodging around obstacles/hazards and smarter locomotion (the local-vs-global line the macros draw). Plan: layered planner (local controller → global A* over a lazy hull-probed grid) + reliable closed-loop place-on-button, with **lasers as the next big frontier** (beam-routing via a held redirection cube, same closed-loop spine) → [locomotion_tech.md](locomotion_tech.md). *(brainstormed; impl pending)*
+Next, roughly priority order (user to choose):
+
+1. **P2.8 — grammar/prompt sync** *(A\* closeout, ~30 LOC Py)*. The model's `go_to` doc still says
+   *straight-line*; rewrite it ("routes around obstacles; `BLOCKED` only if no path exists"), drop
+   the caveat, add an `agentloop_smoke` assertion — else the LLM under-uses the new routing.
+   (P2.7 path-simplification = optional smoothing if the legs look choppy.)
+2. **P-manip — reliable closed-loop place-on-button.** The *other* first_light last-mile failure:
+   `release` is open-loop, cubes only transiently seat (`on_button` flips back). Closed-loop
+   drop→settle→`ReadBoolField(m_bButtonState)`→retry. Completes trustworthy locomotion+manipulation
+   and is the prototype spine for the laser `aim_laser` verb. → [locomotion_tech.md](locomotion_tech.md) §4 P-manip.
+3. **⭐ First light (M2)** — the frozen-VLM ReAct driver (PR5–PR7) on `testchamber_000`. The core
+   science; de-risked once go_to + place-on-button are both trustworthy. → [macro_executor_impl_plan.md](macro_executor_impl_plan.md).
+4. **Lasers (M3)** — the next big element frontier, gated on the L0 recon spike. → [locomotion_tech.md](locomotion_tech.md) §5.
+5. **Annotation improvements** — sharpen the in-engine percept (was priority #1; brainstorm pending).
+
+**Camera free-run drift — parked.** The harness keeps the TasPlayer asserting the view every tick
+even when `harnessControlActive == false` (warmup/idle "player control"), so the camera isn't truly
+yours in free-run. Isolated (Harness.cpp PRE_TICK + TasController per-tick `SetAngles`); a fix
+(stop/restart the TAS, or gate the assert) was prototyped and reverted — **not worth it right now.**
 
 **Exit detection — parked as "good enough."** The PuzzleExit oracle's C++ core (P1–P4) is shipped + verified: it latches `chamber_complete` from the AcceptInput OR-set, reads out over gRPC, and re-arms per episode. The remaining phases (P5+: Python terminate-on-bit, smoke gate, prevention, radius-oracle deletion) are **not critical** and can wait. → [exit_detector_impl_plan.md](exit_detector_impl_plan.md)
 

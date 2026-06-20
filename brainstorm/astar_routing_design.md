@@ -5,8 +5,12 @@ concave pockets instead of oscillating), plus the evaluation of the "save/restor
 alternative. Fleshes out [locomotion_tech.md](locomotion_tech.md) §4 **P2** and §3 (global
 planner + local controller compose). Read those first. Written 2026-06-20.
 
-> Status: **design agreed in shape, decision-forks open** (§3). Not yet built. The cube-shove
-> guard (P-VFH.2/.3) shipped as `79637dd0`; this is the next layer on top of it.
+> Status: **SHIPPED ✅ (P2.0–P2.6, 2026-06-20, money test passed).** Forks resolved as the
+> defaults except **16u cell** (user pick, not 32u) and the clearance cost-term (P2.5b) left
+> deferred. New file pair `GoToPlanner.{hpp,cpp}` + `MarchTo`/`RouteAround` in `MacroExecutor.cpp`;
+> debug condumps `sar_harness_probe_cells` / `sar_harness_goto_plan`. Remaining: **P2.7** path
+> simplification (optional smoothing) and **P2.8** model grammar/prompt sync (both open). Built on
+> the cube-shove guard (P-VFH.2/.3, `79637dd0`).
 
 ---
 
