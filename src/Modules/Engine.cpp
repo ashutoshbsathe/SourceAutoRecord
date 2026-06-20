@@ -288,6 +288,30 @@ bool Engine::Trace(Vector &pos, QAngle &angle, float distMax, int mask, CTraceFi
 	return true;
 }
 
+// Swept-hull variant of Trace: sweeps the AABB [mins, maxs] from start to end and
+// reports whether the hull is obstructed. Mirrors Source's Ray_t::Init hull case --
+// m_Start is the box center, m_StartOffset recovers the start corner, m_Extents are
+// the half-dimensions. Reading startsolid/allsolid is load-bearing: a hull that
+// begins inside a brush returns fraction 1.0 with a garbage normal, so fraction
+// alone would falsely read "clear." Returns true when blocked.
+bool Engine::TraceHull(const Vector &start, const Vector &end, const Vector &mins, const Vector &maxs, int mask, CTraceFilterSimple &filter, CGameTrace &tr) {
+	Vector center = (mins + maxs) * 0.5f;
+	Vector extents = (maxs - mins) * 0.5f;
+	Vector delta = end - start;
+
+	Ray_t ray;
+	ray.m_Start = VectorAligned(start.x + center.x, start.y + center.y, start.z + center.z);
+	ray.m_StartOffset = VectorAligned(-center.x, -center.y, -center.z);
+	ray.m_Delta = VectorAligned(delta.x, delta.y, delta.z);
+	ray.m_Extents = VectorAligned(extents.x, extents.y, extents.z);
+	ray.m_IsRay = false;
+	ray.m_IsSwept = delta.Length() != 0;
+
+	engine->TraceRay(this->engineTrace->ThisPtr(), ray, mask, &filter, &tr);
+
+	return tr.fraction < 1.0f || tr.startsolid || tr.allsolid;
+}
+
 bool Engine::TraceFromCamera(float distMax, int mask, CGameTrace &tr) {
 	void *player = server->GetPlayer(GET_SLOT() + 1);
 

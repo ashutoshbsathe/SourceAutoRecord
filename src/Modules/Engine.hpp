@@ -149,6 +149,7 @@ public:
 	bool IsSplitscreen();
 	void RecordDemoData(void *data, size_t len);
 	bool Trace(Vector &pos, QAngle &angle, float distMax, int mask, CTraceFilterSimple &filter, CGameTrace &tr);
+	bool TraceHull(const Vector &start, const Vector &end, const Vector &mins, const Vector &maxs, int mask, CTraceFilterSimple &filter, CGameTrace &tr);
 	bool TraceFromCamera(float distMax, int mask, CGameTrace &tr);
 	bool ConsoleVisible();
 	void GetTicks(int &host, int &server, int &client);

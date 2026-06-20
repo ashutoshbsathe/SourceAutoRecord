@@ -358,6 +358,147 @@ VfhPick ChooseVfhHeading(void* player, const Vector& feet, float goalBearing,
   return {};
 }
 
+// One VFH march leg's result. GoTo turns it into the MacroResult; the A* layer
+// (P2.6) will chain legs and decrement the tick budget across them.
+struct MarchOutcome {
+  std::string code = "BLOCKED";  // SUCCESS / BLOCKED / NO_PLAYER (cap->BLOCKED)
+  bool reached = false;
+  bool cancelled = false;  // stream dropped mid-march; caller skips settle
+  float dist = 0;          // 2D dist to target at loop exit (pre-settle)
+};
+
+// One VFH march leg: strafe the body toward the freest goal-ward heading with
+// the camera held on `target`, advancing ticks in batches until arrival, a
+// global stall, the tick budget, or a dropped stream. Per-leg state (wedge ttl,
+// bestDist, lastYaw, stallBatches) starts fresh here, so chained legs don't
+// bleed stall into each other. The caller owns the post-march settle + result.
+MarchOutcome MarchTo(grpc::ServerContext* context, const Vector& target,
+                     float reachRadius, int tickBudget, uint32_t targetKey,
+                     uint32_t heldKey, const Vector& startFeet,
+                     float initialDist) {
+  MarchOutcome out;
+  out.dist = initialDist;
+  float bestDist = initialDist;  // closest 2D approach so far (global)
+  int stallBatches = 0;          // batches since bestDist last improved
+  float lastYaw = 0;             // committed heading (hysteresis)
+  bool haveLast = false;
+
+  struct Step {
+    bool noPlayer = false;
+    bool reached = false;
+    bool commandedMove = false;  // a strafe was issued (vs a boxed hold)
+    float dist = 0;
+    float chosenYaw = 0;
+    Vector feet{0, 0, 0};  // for per-batch displacement
+  };
+  struct WedgeState {
+    int ttl[kVfhBins] = {};  // per-bin physical-block countdown
+    int stuckRun = 0;  // consecutive no-move batches on a committed heading
+  };
+
+  auto wedge = std::make_shared<WedgeState>();
+  Vector prevFeet = startFeet;
+  bool lastCommandedMove = false;
+  for (int t = 0; t < tickBudget; t += kGoToTickBatch) {
+    auto step = std::make_shared<Step>();
+    bool ok = RunOnMainThreadSync(
+        context, [step, target, lastYaw, haveLast, lastCommandedMove, prevFeet,
+                  wedge, t, bestDist, targetKey, heldKey, reachRadius]() {
+          ServerEnt* pl = server->GetPlayer(1);
+          if (!pl) {
+            step->noPlayer = true;
+            return;
+          }
+          Vector feet = pl->abs_origin();
+          step->feet = feet;
+          Vector forward{target.x - feet.x, target.y - feet.y, 0};
+          step->dist = forward.Length2D();
+          if (step->dist <= reachRadius) {
+            step->reached = true;
+            return;
+          }
+          // Wedge feedback: decay blocks, and if last batch commanded a move
+          // the feet didn't take (a rim/lip/hull-clip the ray missed), block
+          // that heading (+/-1 bin: the hull is wider than a ray) so this pick
+          // veers off it.
+          float moved =
+              Vector{feet.x - prevFeet.x, feet.y - prevFeet.y, 0}.Length2D();
+          for (int i = 0; i < kVfhBins; i++)
+            if (wedge->ttl[i] > 0) wedge->ttl[i]--;
+          if (lastCommandedMove) {
+            wedge->stuckRun = (moved < kWedgeEps) ? wedge->stuckRun + 1 : 0;
+            if (wedge->stuckRun >= kWedgeStuckBatches) {
+              int b = VfhBin(lastYaw);
+              wedge->ttl[b] = wedge->ttl[(b + 1) % kVfhBins] =
+                  wedge->ttl[(b + kVfhBins - 1) % kVfhBins] = kWedgeCooldown;
+              wedge->stuckRun =
+                  0;  // give the next heading its own grace window
+            }
+          }
+          Vector up{0, 0, 1};
+          QAngle a{0, 0, 0};
+          Math::VectorAngles(forward, up, &a);
+          float goalBearing = a.y;
+          step->chosenYaw = goalBearing;
+          Vector pmax = pl->collision().OBBMaxs();
+          float playerHalfWidth = std::max(pmax.x, pmax.y);
+          VfhPick pick =
+              ChooseVfhHeading(pl, feet, goalBearing, lastYaw, haveLast,
+                               wedge->ttl, playerHalfWidth, targetKey, heldKey);
+          // Camera on the target; ApplyAbsoluteView clears the framebulk, so a
+          // boxed batch (no pick) holds.
+          ApplyAbsoluteView(QAngle{0, goalBearing, 0});
+          if (pick.found) {
+            step->chosenYaw = pick.yaw;
+            step->commandedMove = true;
+            float delta = DEG2RAD(NormalizeYaw(pick.yaw - goalBearing));
+            SetMoveFramebulk(-std::sin(delta), std::cos(delta));  // body-frame
+          }
+          if (sar_harness_goto_debug.GetBool()) {
+            int wb = 0;
+            for (int i = 0; i < kVfhBins; i++)
+              if (wedge->ttl[i] > 0) wb++;
+            console->Print(
+                "goto t=%d dist=%.0f best=%.0f hdg=%+.0f clr=%.0f moved=%.1f "
+                "wb=%d%s\n",
+                t, step->dist, bestDist,
+                NormalizeYaw(step->chosenYaw - goalBearing), pick.clearance,
+                moved, wb, pick.found ? "" : " BOXED");
+          }
+        });
+    if (!ok) {
+      out.cancelled = true;
+      return out;  // out.dist carries the last-good finalDist
+    }
+    if (step->noPlayer) {
+      out.code = "NO_PLAYER";
+      break;
+    }
+    out.dist = step->dist;
+    if (step->reached) {
+      out.reached = true;
+      out.code = "SUCCESS";
+      break;
+    }
+    // Regress is allowed (backing out of a pocket), so only a long global stall
+    // -- not one bad batch -- blocks.
+    if (step->dist < bestDist - kGoToProgressEps) {
+      bestDist = step->dist;
+      stallBatches = 0;
+    } else if (++stallBatches >= kGoToGlobalStall) {
+      out.code = "BLOCKED";
+      break;
+    }
+    lastYaw = step->chosenYaw;
+    haveLast = true;
+    lastCommandedMove = step->commandedMove;
+    prevFeet = step->feet;
+
+    AdvanceTicksBlocking(kGoToTickBatch);
+  }
+  return out;
+}
+
 }  // namespace
 
 // Hands start empty each episode; a stale key would match the reloaded cube.
@@ -541,136 +682,23 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
     return r;
   }
 
-  // VFH march: strafe the body toward the chosen heading, camera held on the
-  // target. Per-batch RunOnMainThreadSync honors cancel; kGoToMaxTicks caps it.
-  // targetKey/heldKey: obstacles skipped by identity (fixed for this march).
+  // VFH march to the resolved target. targetKey/heldKey skip the destination
+  // and any carried cube in the obstacle histogram. The per-batch march loop
+  // lives in MarchTo, so the A* layer (P2.6) can chain legs through the same
+  // executor.
   Vector target = res->center;
-  uint32_t targetKey = res->targetKey;
-  uint32_t heldKey = g_heldEntityKey.load();
-  float bestDist = res->initialDist;  // closest 2D approach so far (global)
-  int stallBatches = 0;               // batches since bestDist last improved
-  float lastYaw = 0;                  // committed heading (hysteresis)
-  bool haveLast = false;
-  float finalDist = res->initialDist;
-  bool reached = false;
-  std::string code = "BLOCKED";  // also the kGoToMaxTicks cap fallthrough
-
-  struct Step {
-    bool noPlayer = false;
-    bool reached = false;
-    bool commandedMove = false;  // a strafe was issued (vs a boxed hold)
-    float dist = 0;
-    float chosenYaw = 0;
-    Vector feet{0, 0, 0};  // for per-batch displacement
-  };
-  struct WedgeState {
-    int ttl[kVfhBins] = {};  // per-bin physical-block countdown
-    int stuckRun = 0;  // consecutive no-move batches on a committed heading
-  };
-
-  auto wedge = std::make_shared<WedgeState>();
-  Vector prevFeet = res->startFeet;
-  bool lastCommandedMove = false;
-  for (int t = 0; t < kGoToMaxTicks; t += kGoToTickBatch) {
-    auto step = std::make_shared<Step>();
-    bool ok = RunOnMainThreadSync(
-        context_, [step, target, lastYaw, haveLast, lastCommandedMove, prevFeet,
-                   wedge, t, bestDist, targetKey, heldKey]() {
-          ServerEnt* pl = server->GetPlayer(1);
-          if (!pl) {
-            step->noPlayer = true;
-            return;
-          }
-          Vector feet = pl->abs_origin();
-          step->feet = feet;
-          Vector forward{target.x - feet.x, target.y - feet.y, 0};
-          step->dist = forward.Length2D();
-          if (step->dist <= kReachRadius) {
-            step->reached = true;
-            return;
-          }
-          // Wedge feedback: decay blocks, and if last batch commanded a move
-          // the feet didn't take (a rim/lip/hull-clip the ray missed), block
-          // that heading (+/-1 bin: the hull is wider than a ray) so this pick
-          // veers off it.
-          float moved =
-              Vector{feet.x - prevFeet.x, feet.y - prevFeet.y, 0}.Length2D();
-          for (int i = 0; i < kVfhBins; i++)
-            if (wedge->ttl[i] > 0) wedge->ttl[i]--;
-          if (lastCommandedMove) {
-            wedge->stuckRun = (moved < kWedgeEps) ? wedge->stuckRun + 1 : 0;
-            if (wedge->stuckRun >= kWedgeStuckBatches) {
-              int b = VfhBin(lastYaw);
-              wedge->ttl[b] = wedge->ttl[(b + 1) % kVfhBins] =
-                  wedge->ttl[(b + kVfhBins - 1) % kVfhBins] = kWedgeCooldown;
-              wedge->stuckRun =
-                  0;  // give the next heading its own grace window
-            }
-          }
-          Vector up{0, 0, 1};
-          QAngle a{0, 0, 0};
-          Math::VectorAngles(forward, up, &a);
-          float goalBearing = a.y;
-          step->chosenYaw = goalBearing;
-          Vector pmax = pl->collision().OBBMaxs();
-          float playerHalfWidth = std::max(pmax.x, pmax.y);
-          VfhPick pick =
-              ChooseVfhHeading(pl, feet, goalBearing, lastYaw, haveLast,
-                               wedge->ttl, playerHalfWidth, targetKey, heldKey);
-          // Camera on the target; ApplyAbsoluteView clears the framebulk, so a
-          // boxed batch (no pick) holds.
-          ApplyAbsoluteView(QAngle{0, goalBearing, 0});
-          if (pick.found) {
-            step->chosenYaw = pick.yaw;
-            step->commandedMove = true;
-            float delta = DEG2RAD(NormalizeYaw(pick.yaw - goalBearing));
-            SetMoveFramebulk(-std::sin(delta), std::cos(delta));  // body-frame
-          }
-          if (sar_harness_goto_debug.GetBool()) {
-            int wb = 0;
-            for (int i = 0; i < kVfhBins; i++)
-              if (wedge->ttl[i] > 0) wb++;
-            console->Print(
-                "goto t=%d dist=%.0f best=%.0f hdg=%+.0f clr=%.0f moved=%.1f "
-                "wb=%d%s\n",
-                t, step->dist, bestDist,
-                NormalizeYaw(step->chosenYaw - goalBearing), pick.clearance,
-                moved, wb, pick.found ? "" : " BOXED");
-          }
-        });
-    if (!ok) {
-      r.set_ok(false);
-      r.set_result_code("CANCELLED");
-      r.set_final_dist(finalDist);
-      return r;
-    }
-    if (step->noPlayer) {
-      code = "NO_PLAYER";
-      break;
-    }
-    finalDist = step->dist;
-    if (step->reached) {
-      reached = true;
-      code = "SUCCESS";
-      break;
-    }
-
-    // Regress is allowed (backing out of a pocket), so only a long global stall
-    // -- not one bad batch -- blocks.
-    if (step->dist < bestDist - kGoToProgressEps) {
-      bestDist = step->dist;
-      stallBatches = 0;
-    } else if (++stallBatches >= kGoToGlobalStall) {
-      code = "BLOCKED";
-      break;
-    }
-    lastYaw = step->chosenYaw;
-    haveLast = true;
-    lastCommandedMove = step->commandedMove;
-    prevFeet = step->feet;
-
-    AdvanceTicksBlocking(kGoToTickBatch);
+  MarchOutcome m =
+      MarchTo(context_, target, kReachRadius, kGoToMaxTicks, res->targetKey,
+              g_heldEntityKey.load(), res->startFeet, res->initialDist);
+  if (m.cancelled) {
+    r.set_ok(false);
+    r.set_result_code("CANCELLED");
+    r.set_final_dist(m.dist);
+    return r;
   }
+  bool reached = m.reached;
+  std::string code = m.code;
+  float finalDist = m.dist;
 
   // Stop: zero the framebulk and advance kGoToSettle ticks to bleed off most of
   // the walk velocity, so the player doesn't coast onto the target on the next
