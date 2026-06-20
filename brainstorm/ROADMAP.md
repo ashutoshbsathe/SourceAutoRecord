@@ -124,6 +124,7 @@ has crept into `py/` (and likely `src/`). Fix in passing, don't make a project o
 | `locomotion_tech.md` | **`go_to` pathfinding (local controller + A*) + reliable place-on-button + the laser-routing frontier** — phased plan, substrate recon, ROADMAP #2 |
 | `astar_routing_design.md` | **A\* global routing for `go_to`** (lazy hull-probed grid) + why save/restore tree-search is parked at the puzzle layer (C9), not locomotion |
 | `offline_map_preprocessing.md` | **offline BSP→JSON prior** — I/O causal graph + affordance prior (static geometry parked; A\* dominates) + the recon-gated surface/region "spatial-vocabulary" idea; complements runtime A\*/telemetry, gated on a srctools spike (P0) |
+| `bsp_corpus_harness_improvements.md` | **the §8 recon battery executed on all 277 workshop maps** (+ adversarially verified) — causal graph statically recoverable (proxy `OnProxyRelayN` baked at compile); `causal_confidence` 3-tier gate + edge-list sidecar + exit-relay resolver = build-first wins; corrects the "PeTI = no VScript" premise |
 | `rollout_visualizer.md` | the `.rollout` browser viewer |
 | `trajectory_visualizer.md` | the `.trajectory` (LLM eval) self-contained HTML viewer design |
 | `trajectory_retry_capture.md` | the Observation+Call `.trajectory` data model (per-call retries) |
