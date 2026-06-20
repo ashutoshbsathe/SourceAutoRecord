@@ -1,11 +1,14 @@
 #include "MacroExecutor.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <cstring>
 #include <memory>
 #include <string>
 
 #include "Entity.hpp"
+#include "Event.hpp"
 #include "Features/EntityList.hpp"
 #include "Features/Tas/TasController.hpp"
 #include "Features/Tas/TasPlayer.hpp"
@@ -16,6 +19,7 @@
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
 #include "Modules/Server.hpp"
+#include "Offsets.hpp"
 #include "Scheduler.hpp"
 #include "Utils.hpp"
 #include "Utils/Math.hpp"
@@ -69,6 +73,14 @@ constexpr float kMinGrabMove = 8.0f;  // a real grab snaps it more than this
 constexpr float kReleasePitch = 75.0f;  // mark-less release: look-down pitch
 
 int Slot() { return GET_SLOT(); }
+
+// index<<16 | serial (MarkTable convention), to match entities by identity.
+uint32_t PackEntKey(int index, uint16_t serial) {
+  return (static_cast<uint32_t>(index) << 16) | serial;
+}
+
+// Cube held by the last pick_up (0 = none); go_to skips it as an obstacle.
+std::atomic<uint32_t> g_heldEntityKey{0};
 
 // Wrap a yaw to [-180, 180]. Keeps reported aim angles readable and stops the
 // cumulative look() (cur.y + yaw) from drifting unbounded across many turns, so
@@ -252,6 +264,54 @@ int VfhBin(float yaw) {
   return b < 0 ? b + kVfhBins : b;
 }
 
+// Props go_to routes around instead of shoving: cubes, boxes, turrets, buttons.
+bool IsGoToObstacleClass(const char* cls) {
+  if (!cls) return false;
+  return !std::strcmp(cls, "prop_weighted_cube") ||
+         !std::strcmp(cls, "prop_monster_box") ||
+         !std::strcmp(cls, "npc_portal_turret_floor") ||
+         !std::strcmp(cls, "prop_floor_button") ||
+         !std::strcmp(cls, "prop_floor_cube_button") ||
+         !std::strcmp(cls, "prop_floor_ball_button") ||
+         !std::strcmp(cls, "prop_under_floor_button") ||
+         !std::strcmp(cls, "prop_button");
+}
+
+// Lower each VFH bin's clearance to the free distance toward any obstacle prop
+// covering that bearing (footprint circle + player half-width), so go_to keeps
+// a >=kVfhClearMin standoff. Skips the target + held cube. Main thread.
+void InjectObstacles(float* clear, const Vector& feet, float playerHalfWidth,
+                     uint32_t targetKey, uint32_t heldKey) {
+  constexpr float binDeg = 360.0f / kVfhBins;
+  for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
+    CEntInfo* info = entityList->GetEntityInfoByIndex(i);
+    if (!info || !info->m_pEntity) continue;
+    uint32_t key = PackEntKey(i, static_cast<uint16_t>(info->m_SerialNumber));
+    if (key == targetKey || key == heldKey) continue;
+    if (!IsGoToObstacleClass(server->GetEntityClassName(info->m_pEntity)))
+      continue;
+
+    ServerEnt* se = SE(info->m_pEntity);
+    ICollideable& coll = se->collision();
+    Vector mins = coll.OBBMins(), maxs = coll.OBBMaxs();
+    Vector center = se->abs_origin() + (mins + maxs) * 0.5f;
+    Vector d{center.x - feet.x, center.y - feet.y, 0};
+    float dist = d.Length2D();
+    float radius =  // footprint circle (rotation-safe) + player body
+        0.5f * Vector{maxs.x - mins.x, maxs.y - mins.y, 0}.Length2D() +
+        playerHalfWidth;
+    float freeDist = std::max(0.0f, dist - radius);
+    float halfWidth =  // overlap -> block the whole 90 deg arc toward it
+        (dist > radius) ? RAD2DEG(std::asin(radius / dist)) : 90.0f;
+    int span = static_cast<int>(std::ceil(halfWidth / binDeg));
+    int centerBin = VfhBin(RAD2DEG(std::atan2(d.y, d.x)));
+    for (int k = -span; k <= span; ++k) {
+      int b = ((centerBin + k) % kVfhBins + kVfhBins) % kVfhBins;
+      if (freeDist < clear[b]) clear[b] = freeDist;
+    }
+  }
+}
+
 struct VfhPick {
   bool found = false;   // false => every heading is boxed or a cliff this batch
   float yaw = 0;        // world heading the body should strafe toward
@@ -263,12 +323,17 @@ struct VfhPick {
 // Bins flagged in wedgeTtl (physically stuck, ray-invisible) are skipped.
 // Main thread.
 VfhPick ChooseVfhHeading(void* player, const Vector& feet, float goalBearing,
-                         float lastYaw, bool haveLast, const int* wedgeTtl) {
+                         float lastYaw, bool haveLast, const int* wedgeTtl,
+                         float playerHalfWidth, uint32_t targetKey,
+                         uint32_t heldKey) {
   constexpr float binDeg = 360.0f / kVfhBins;
   Vector probe = feet + Vector{0, 0, kProbeHeight};
   float clear[kVfhBins];
   for (int i = 0; i < kVfhBins; i++)
     clear[i] = RayClearance(player, probe, i * binDeg, kVfhProbeDist);
+  // Analytic obstacle footprints (props the rays would shove) on top of the ray
+  // clearances, so the chosen valley routes around them.
+  InjectObstacles(clear, feet, playerHalfWidth, targetKey, heldKey);
 
   for (int guard = 0; guard < kVfhBins; guard++) {
     int best = -1;
@@ -294,6 +359,9 @@ VfhPick ChooseVfhHeading(void* player, const Vector& feet, float goalBearing,
 }
 
 }  // namespace
+
+// Hands start empty each episode; a stale key would match the reloaded cube.
+ON_EVENT(SESSION_START) { g_heldEntityKey = 0; }
 
 portal2_harness::MacroResult MacroExecutor::Execute(
     const portal2_harness::MacroRequest& req) {
@@ -445,11 +513,14 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
     Vector center{0, 0, 0};
     Vector startFeet{0, 0, 0};  // for moved_dist (distance actually walked)
     float initialDist = 0;
+    uint32_t targetKey = 0;  // skip the destination in the obstacle histogram
   };
   auto res = std::make_shared<Resolve>();
   bool ran = RunOnMainThreadSync(context_, [res, mark]() {
     if (!ResolveMarkCenter(mark, &res->center, &res->code)) return;
     res->ok = true;
+    auto [idx, ser] = markTable.GetEntityFromMark(mark);
+    if (idx >= 0) res->targetKey = PackEntKey(idx, static_cast<uint16_t>(ser));
     ServerEnt* pl = server->GetPlayer(1);
     if (pl) {
       Vector feet = pl->abs_origin();
@@ -472,7 +543,10 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
 
   // VFH march: strafe the body toward the chosen heading, camera held on the
   // target. Per-batch RunOnMainThreadSync honors cancel; kGoToMaxTicks caps it.
+  // targetKey/heldKey: obstacles skipped by identity (fixed for this march).
   Vector target = res->center;
+  uint32_t targetKey = res->targetKey;
+  uint32_t heldKey = g_heldEntityKey.load();
   float bestDist = res->initialDist;  // closest 2D approach so far (global)
   int stallBatches = 0;               // batches since bestDist last improved
   float lastYaw = 0;                  // committed heading (hysteresis)
@@ -499,67 +573,71 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
   bool lastCommandedMove = false;
   for (int t = 0; t < kGoToMaxTicks; t += kGoToTickBatch) {
     auto step = std::make_shared<Step>();
-    bool ok = RunOnMainThreadSync(context_, [step, target, lastYaw, haveLast,
-                                             lastCommandedMove, prevFeet, wedge,
-                                             t, bestDist]() {
-      ServerEnt* pl = server->GetPlayer(1);
-      if (!pl) {
-        step->noPlayer = true;
-        return;
-      }
-      Vector feet = pl->abs_origin();
-      step->feet = feet;
-      Vector forward{target.x - feet.x, target.y - feet.y, 0};
-      step->dist = forward.Length2D();
-      if (step->dist <= kReachRadius) {
-        step->reached = true;
-        return;
-      }
-      // Wedge feedback: decay blocks, and if last batch commanded a move
-      // the feet didn't take (a rim/lip/hull-clip the ray missed), block
-      // that heading (+/-1 bin: the hull is wider than a ray) so this pick
-      // veers off it.
-      float moved =
-          Vector{feet.x - prevFeet.x, feet.y - prevFeet.y, 0}.Length2D();
-      for (int i = 0; i < kVfhBins; i++)
-        if (wedge->ttl[i] > 0) wedge->ttl[i]--;
-      if (lastCommandedMove) {
-        wedge->stuckRun = (moved < kWedgeEps) ? wedge->stuckRun + 1 : 0;
-        if (wedge->stuckRun >= kWedgeStuckBatches) {
-          int b = VfhBin(lastYaw);
-          wedge->ttl[b] = wedge->ttl[(b + 1) % kVfhBins] =
-              wedge->ttl[(b + kVfhBins - 1) % kVfhBins] = kWedgeCooldown;
-          wedge->stuckRun = 0;  // give the next heading its own grace window
-        }
-      }
-      Vector up{0, 0, 1};
-      QAngle a{0, 0, 0};
-      Math::VectorAngles(forward, up, &a);
-      float goalBearing = a.y;
-      step->chosenYaw = goalBearing;
-      VfhPick pick = ChooseVfhHeading(pl, feet, goalBearing, lastYaw, haveLast,
-                                      wedge->ttl);
-      // Camera on the target; ApplyAbsoluteView clears the framebulk, so a
-      // boxed batch (no pick) holds.
-      ApplyAbsoluteView(QAngle{0, goalBearing, 0});
-      if (pick.found) {
-        step->chosenYaw = pick.yaw;
-        step->commandedMove = true;
-        float delta = DEG2RAD(NormalizeYaw(pick.yaw - goalBearing));
-        SetMoveFramebulk(-std::sin(delta), std::cos(delta));  // body-frame
-      }
-      if (sar_harness_goto_debug.GetBool()) {
-        int wb = 0;
-        for (int i = 0; i < kVfhBins; i++)
-          if (wedge->ttl[i] > 0) wb++;
-        console->Print(
-            "goto t=%d dist=%.0f best=%.0f hdg=%+.0f clr=%.0f moved=%.1f "
-            "wb=%d%s\n",
-            t, step->dist, bestDist,
-            NormalizeYaw(step->chosenYaw - goalBearing), pick.clearance, moved,
-            wb, pick.found ? "" : " BOXED");
-      }
-    });
+    bool ok = RunOnMainThreadSync(
+        context_, [step, target, lastYaw, haveLast, lastCommandedMove, prevFeet,
+                   wedge, t, bestDist, targetKey, heldKey]() {
+          ServerEnt* pl = server->GetPlayer(1);
+          if (!pl) {
+            step->noPlayer = true;
+            return;
+          }
+          Vector feet = pl->abs_origin();
+          step->feet = feet;
+          Vector forward{target.x - feet.x, target.y - feet.y, 0};
+          step->dist = forward.Length2D();
+          if (step->dist <= kReachRadius) {
+            step->reached = true;
+            return;
+          }
+          // Wedge feedback: decay blocks, and if last batch commanded a move
+          // the feet didn't take (a rim/lip/hull-clip the ray missed), block
+          // that heading (+/-1 bin: the hull is wider than a ray) so this pick
+          // veers off it.
+          float moved =
+              Vector{feet.x - prevFeet.x, feet.y - prevFeet.y, 0}.Length2D();
+          for (int i = 0; i < kVfhBins; i++)
+            if (wedge->ttl[i] > 0) wedge->ttl[i]--;
+          if (lastCommandedMove) {
+            wedge->stuckRun = (moved < kWedgeEps) ? wedge->stuckRun + 1 : 0;
+            if (wedge->stuckRun >= kWedgeStuckBatches) {
+              int b = VfhBin(lastYaw);
+              wedge->ttl[b] = wedge->ttl[(b + 1) % kVfhBins] =
+                  wedge->ttl[(b + kVfhBins - 1) % kVfhBins] = kWedgeCooldown;
+              wedge->stuckRun =
+                  0;  // give the next heading its own grace window
+            }
+          }
+          Vector up{0, 0, 1};
+          QAngle a{0, 0, 0};
+          Math::VectorAngles(forward, up, &a);
+          float goalBearing = a.y;
+          step->chosenYaw = goalBearing;
+          Vector pmax = pl->collision().OBBMaxs();
+          float playerHalfWidth = std::max(pmax.x, pmax.y);
+          VfhPick pick =
+              ChooseVfhHeading(pl, feet, goalBearing, lastYaw, haveLast,
+                               wedge->ttl, playerHalfWidth, targetKey, heldKey);
+          // Camera on the target; ApplyAbsoluteView clears the framebulk, so a
+          // boxed batch (no pick) holds.
+          ApplyAbsoluteView(QAngle{0, goalBearing, 0});
+          if (pick.found) {
+            step->chosenYaw = pick.yaw;
+            step->commandedMove = true;
+            float delta = DEG2RAD(NormalizeYaw(pick.yaw - goalBearing));
+            SetMoveFramebulk(-std::sin(delta), std::cos(delta));  // body-frame
+          }
+          if (sar_harness_goto_debug.GetBool()) {
+            int wb = 0;
+            for (int i = 0; i < kVfhBins; i++)
+              if (wedge->ttl[i] > 0) wb++;
+            console->Print(
+                "goto t=%d dist=%.0f best=%.0f hdg=%+.0f clr=%.0f moved=%.1f "
+                "wb=%d%s\n",
+                t, step->dist, bestDist,
+                NormalizeYaw(step->chosenYaw - goalBearing), pick.clearance,
+                moved, wb, pick.found ? "" : " BOXED");
+          }
+        });
     if (!ok) {
       r.set_ok(false);
       r.set_result_code("CANCELLED");
@@ -866,6 +944,11 @@ portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
     return r;
   }
 
+  // Cache the carried cube so go_to skips it (else it self-blocks the march).
+  auto [hidx, hser] = markTable.GetEntityFromMark(mark);
+  if (hidx >= 0)
+    g_heldEntityKey = PackEntKey(hidx, static_cast<uint16_t>(hser));
+
   r.set_ok(true);
   r.set_result_code("SUCCESS");
   r.set_detail(Utils::ssprintf("grabbed mark %d (dz=%.0f moved=%.0f dist=%.0f)",
@@ -874,6 +957,8 @@ portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
 }
 
 portal2_harness::MacroResult MacroExecutor::Release(int mark) {
+  g_heldEntityKey = 0;  // hands empty (self-corrects on next pick_up if wrong)
+
   // Orient before dropping: face the mark if given, else look down to drop at
   // the player's feet (e.g. onto a floor button being stood on).
   if (mark > 0) {

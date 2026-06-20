@@ -209,14 +209,23 @@ Python; P-VFH.1 ships the side-door fix on its own. No proto change anywhere in 
   `dist/best/hdg/clr/moved/wb` log; off by default) — keep it; it's the diagnosis tool for this family.
   *Verify:* re-run the rim repro with the cvar on — on a `moved≈0` batch `hdg` should now **change** and
   the player slides off the rim instead of freezing.
-- **P-VFH.2 — held-entity cache.** `heldEntity_` member set on `pick_up` SUCCESS, cleared in
-  `Release`. Plumbing for .3; no behaviour change. ~6 LOC. *Verify:* log the cached handle across a
-  pick_up/release pair.
-- **P-VFH.3 — cube OBBs into the histogram.** Inject grabbable-prop OBBs (skip the `go_to` target +
-  the held cube by identity) as blocked sectors; mirror the edge branch's `ClearFramebulk`
-  ([:502](../src/Features/Harness/MacroExecutor.cpp#L502)) on a cube block so there is zero forward
-  creep before the veer. *Fixes cube shove.* ~30 LOC. *Verify:* `go_to` past a cube on a button —
-  the cube's `on_button` stays True; `go_to` *to* a cube still approaches it.
+- **P-VFH.2 — held-entity cache. ✅ SHIPPED + adversarially reviewed (2026-06-20).** Not a
+  `heldEntity_` member: `MacroExecutor` is rebuilt per macro step ([Portal2HarnessImpl.cpp:576](../src/Features/Harness/Portal2HarnessImpl.cpp#L576)),
+  so the cache is a file-scope `std::atomic<uint32_t> g_heldEntityKey` (packed index<<16|serial), set
+  on `pick_up` SUCCESS, cleared on `Release`, **and cleared on `ON_EVENT(SESSION_START)`** (review
+  catch — a cube held when an episode resets reloads into the same slot, so a stale key would skip a
+  real, no-longer-held cube). gRPC-thread write / main-thread read, no race (verbs are serial).
+- **P-VFH.3 — obstacle OBBs into the histogram. ✅ SHIPPED + adversarially reviewed (2026-06-20).**
+  `InjectObstacles` (in `ChooseVfhHeading`, after the ray fan) walks the live entity list and, per
+  obstacle prop, lowers the bins its footprint covers to `freeDist = dist − (bounding-circle +
+  player-half-width)`. A bin below `kVfhClearMin`(40u) is unpassable → the march veers with a **≥40u
+  body-edge standoff**, never picking a heading into a prop. **Scope widened past cubes** per user
+  ask: `IsGoToObstacleClass` = weighted/monster cube + box + floor turret + floor buttons
+  (`prop_floor_button`/`_cube_`/`_ball_`/`prop_under_floor_button`) + pedestal `prop_button`. Skips
+  the `go_to` target + held cube by identity. The planned "`ClearFramebulk` to kill forward creep"
+  was **unneeded** — the veer is elected the *same* batch (VFH never commits a forward step first),
+  so there is no creep to cancel. ~100 LOC. *Verify:* `go_to` past a cube on a button leaves
+  `on_button` True; `go_to` *to* a cube still approaches; walking while carrying isn't self-blocked.
 - **P-VFH.4 — flush-wall hardening.** Handle `startsolid`/`allsolid` rays at point-blank (garbage
   normal in exactly the flush case), cap traces/batch, per-direction edge check on the chosen heading
   including backward. ~25 LOC. *Verify:* `go_to` while spawned point-blank against a wall doesn't pick
