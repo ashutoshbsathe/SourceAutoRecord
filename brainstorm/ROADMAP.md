@@ -27,6 +27,8 @@ Two priorities lead now; each gets its own brainstorm next session:
 
 **Exit detection — parked as "good enough."** The PuzzleExit oracle's C++ core (P1–P4) is shipped + verified: it latches `chamber_complete` from the AcceptInput OR-set, reads out over gRPC, and re-arms per episode. The remaining phases (P5+: Python terminate-on-bit, smoke gate, prevention, radius-oracle deletion) are **not critical** and can wait. → [exit_detector_impl_plan.md](exit_detector_impl_plan.md)
 
+**Someday / capstone (recorded, not scheduled).** A non-LLM **brute-force chamber solver** — engine save/load × the offline causal-graph prior × A\* verb primitives (black-box savestate planning; IW(1)/novelty-pruning over annotation atoms = the cheap instantiation). Real use = an experimenter-side **solvability + difficulty oracle** for eval construction (pays off only if automated chamber generation ever lands). Walled to shallow chambers: **PSPACE-complete** core fragment (Demaine, Lockhart & Lynch, FUN 2018 — *not* the folklore "NP-complete") + the ~4.3 s/node save-load warmup. Record-only, don't build. → [offline_map_preprocessing.md](offline_map_preprocessing.md) §7 + C9.
+
 ---
 
 ## Current status — 2026-06-11
@@ -120,6 +122,8 @@ has crept into `py/` (and likely `src/`). Fix in passing, don't make a project o
 | `llm_percept_act_phased_plan.md` | the **build order** (tracks A–D, phase-by-phase) |
 | `macro_executor_impl_plan.md` | **code-grounded PR plan** for the macro executor + driver (Track C/D detail, PR0–PR7 to first light) |
 | `locomotion_tech.md` | **`go_to` pathfinding (local controller + A*) + reliable place-on-button + the laser-routing frontier** — phased plan, substrate recon, ROADMAP #2 |
+| `astar_routing_design.md` | **A\* global routing for `go_to`** (lazy hull-probed grid) + why save/restore tree-search is parked at the puzzle layer (C9), not locomotion |
+| `offline_map_preprocessing.md` | **offline BSP→JSON prior** — I/O causal graph + affordance prior (static geometry parked; A\* dominates) + the recon-gated surface/region "spatial-vocabulary" idea; complements runtime A\*/telemetry, gated on a srctools spike (P0) |
 | `rollout_visualizer.md` | the `.rollout` browser viewer |
 | `trajectory_visualizer.md` | the `.trajectory` (LLM eval) self-contained HTML viewer design |
 | `trajectory_retry_capture.md` | the Observation+Call `.trajectory` data model (per-call retries) |

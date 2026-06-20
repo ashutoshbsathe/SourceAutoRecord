@@ -236,6 +236,18 @@ Python; P-VFH.1 ships the side-door fix on its own. No proto change anywhere in 
   (go_to-around-a-cube leaves it seated; go_to-to-a-far-side-door arrives). ~40 LOC.
 
 ### P2 — global A* (C++) — *optimal + plannable*
+
+> **Detailed design + decision-forks + phasing: [astar_routing_design.md](astar_routing_design.md)**
+> (2026-06-20). The bullets below are the original sketch; the design doc supersedes them and also
+> records why the save/restore tree-search alternative is parked at the puzzle layer (C9), not here.
+>
+> **A\* searches *static world geometry only* and is blind to causality by construction** (no
+> button→door wiring, no affordance envelopes). An **offline BSP preprocessing layer**
+> ([offline_map_preprocessing.md](offline_map_preprocessing.md), 2026-06-20) is the *complement* —
+> but at the **causality** layer, not here: its load-bearing payload is the I/O causal graph +
+> affordance prior the model otherwise guesses. Offline *geometry* is **parked** — runtime A\*
+> already has ground-truth, dynamics-aware geometry and strictly dominates a static grid for "which
+> corridor" (a static grid can't even see the dynamic cube-pocket A\* exists to fix).
 - **P2.1 — lazy occupancy grid.** Cell ≈ player-hull-width; `WalkableCell` (floor hull-probe + body
   clearance, stores floor z) + `Passable(a,b)` (hull-sweep between adjacent cells), evaluated on
   demand + cached. *Verify:* a debug condump of probed cells matches the visible floor/walls.
