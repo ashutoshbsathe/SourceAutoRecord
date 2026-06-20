@@ -3,16 +3,20 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <string>
+#include <unordered_set>
 
+#include "Command.hpp"
 #include "Entity.hpp"
 #include "Event.hpp"
 #include "Features/EntityList.hpp"
 #include "Features/Tas/TasController.hpp"
 #include "Features/Tas/TasPlayer.hpp"
 #include "Features/Tas/TasScript.hpp"
+#include "GoToPlanner.hpp"
 #include "Harness.hpp"
 #include "HarnessThread.hpp"
 #include "MarkTable.hpp"
@@ -209,20 +213,30 @@ void SetMoveFramebulk(float side, float fwd) {
     fb.buttonStates[i] = false;
 }
 
-// Pulse +use, then settle. +use is edge-triggered (PlayerUse acts on the IN_USE
-// 0->1 tick), so hold it kUseHoldTicks rather than 1: a 1-tick press can be
-// cleared before the simulated tick reads it -- a race vs the tick advance,
-// worse under sv_alternateticks' 2-sim-tick pairs. Extra held ticks add no new
-// edge, so it stays ONE logical press (can't grab-then-drop). gRPC-thread ONLY:
-// it blocks on the tick condvar, so a main-thread closure would self-deadlock.
-void PulseUse(int settle) {
-  Scheduler::OnMainThread([]() {
-    ClearFramebulk();
+// Pulse +use (drop / grab / activate), HOLDING `view` across the whole pulse.
+// +use is edge-triggered (PlayerUse acts on the IN_USE 0->1 tick), so hold it
+// kUseHoldTicks rather than 1: a 1-tick press can be cleared before the
+// simulated tick reads it -- a race vs the tick advance, worse under
+// sv_alternateticks' 2-sim-tick pairs. Extra held ticks add no new edge, so it
+// stays ONE logical press (can't grab-then-drop). The view is re-asserted every
+// batch through the settle: a single SetAngles drifts -- the engine ratchets
+// pitch to the ceiling each tick -- exactly why the go_to march re-asserts per
+// batch. Without it the held object swings up mid-pulse and drops wrong.
+// gRPC-thread ONLY: it blocks on the tick condvar, so a main-thread closure
+// would self-deadlock.
+void PulseUse(int settle, QAngle view) {
+  Scheduler::OnMainThread([view]() {
+    ApplyAbsoluteView(view);  // clears the framebulk, so arm +use AFTER
     tasPlayer->playbackInfo.slots[0].framebulks[0].buttonStates[Use] = true;
   });
   AdvanceTicksBlocking(kUseHoldTicks);
-  Scheduler::OnMainThread([]() { ClearFramebulk(); });  // release +use
-  AdvanceTicksBlocking(settle);
+  // Release +use (the first re-assert's ClearFramebulk drops it) and settle,
+  // holding the view each batch so the drop lands where we aimed.
+  for (int done = 0; done < settle; done += kGoToTickBatch) {
+    int batch = std::min(kGoToTickBatch, settle - done);
+    Scheduler::OnMainThread([view]() { ApplyAbsoluteView(view); });
+    AdvanceTicksBlocking(batch);
+  }
 }
 
 // "EDGE" if the floor drops away kStepAhead in front of the player, else "".
@@ -917,10 +931,11 @@ portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
     return r;
   }
 
-  // Face the target, then pulse +use to grab it.
+  // Face the target, then pulse +use to grab it (holding the aim across the
+  // pulse so the view doesn't drift to the ceiling mid-grab).
   portal2_harness::MacroResult aim = AimAt(mark);
   if (!aim.ok()) return aim;  // BAD_MARK / NO_PLAYER / CANCELLED bubble up
-  PulseUse(kSettle);
+  PulseUse(kSettle, QAngle{aim.aim_pitch(), aim.aim_yaw(), 0});
 
   // No networked held flag, so infer the grab: the object ends within kHeldDist
   // of the eye AND moved more than kMinGrabMove. The move check rejects a +use
@@ -988,23 +1003,36 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
   g_heldEntityKey = 0;  // hands empty (self-corrects on next pick_up if wrong)
 
   // Orient before dropping: face the mark if given, else look down to drop at
-  // the player's feet (e.g. onto a floor button being stood on).
+  // the player's feet (e.g. onto a floor button being stood on). Capture the
+  // view so PulseUse can HOLD it across the drop -- a single SetAngles drifts
+  // pitch to the ceiling and flings the held cube (the "camera to the ceiling"
+  // bug). AimAt returns the commanded (pre-drift) angle.
+  QAngle view{0, 0, 0};
   if (mark > 0) {
-    AimAt(mark);
+    portal2_harness::MacroResult aim = AimAt(mark);
+    if (!aim.ok()) return aim;  // BAD_MARK / NO_PLAYER / CANCELLED bubble up
+    view = QAngle{aim.aim_pitch(), aim.aim_yaw(), 0};
   } else {
-    bool ran = RunOnMainThreadSync(context_, []() {
+    auto v = std::make_shared<QAngle>();
+    bool ran = RunOnMainThreadSync(context_, [v]() {
       QAngle cur = engine->GetAngles(Slot());
-      ApplyAbsoluteView(QAngle{kReleasePitch, cur.y, 0});
+      *v = ApplyAbsoluteView(QAngle{kReleasePitch, cur.y, 0});
     });
-    if (ran) AdvanceTicksBlocking(1);
+    if (!ran) {
+      portal2_harness::MacroResult r;
+      r.set_ok(false);
+      r.set_result_code("CANCELLED");
+      return r;
+    }
+    view = *v;
   }
 
-  // +use pulse drops the carried object. The caller tracks held-state, so
-  // there's nothing to confirm -- always SUCCESS. Caveat: +use is a context
-  // toggle, so a release issued while NOT holding (but stood on a grabbable)
-  // GRABS instead; the caller's held-tracking keeps intent aligned. No cancel
-  // hop (like Wait): on a dropped stream the pulse may still fire (harmless).
-  PulseUse(kSettle);
+  // +use pulse drops the carried object, holding `view` so it lands where we
+  // aimed. The caller tracks held-state, so there's nothing to confirm --
+  // always SUCCESS. Caveat: +use is a context toggle, so a release issued while
+  // NOT holding (but stood on a grabbable) GRABS instead; the caller's
+  // held-tracking keeps intent aligned.
+  PulseUse(kSettle, view);
   portal2_harness::MacroResult r;
   r.set_ok(true);
   r.set_result_code("SUCCESS");
@@ -1027,11 +1055,77 @@ portal2_harness::MacroResult MacroExecutor::Interact(int mark) {
   }
   portal2_harness::MacroResult aim = AimAt(mark);
   if (!aim.ok()) return aim;
-  PulseUse(kSettle);
+  PulseUse(kSettle, QAngle{aim.aim_pitch(), aim.aim_yaw(), 0});
 
   portal2_harness::MacroResult r;
   r.set_ok(true);
   r.set_result_code("SUCCESS");
   r.set_detail("interacted with mark " + std::to_string(mark));
   return r;
+}
+
+// Debug: A* a route to a mark and print it over the occupancy grid (. walkable,
+// # blocked/obstacle, o route, @ player, * goal). The route should bend around
+// cubes/walls. Does NOT move the player -- verify gate for P2.4/P2.5. The grid
+// is WORLD-absolute (+y/north at top), not view-relative.
+CON_COMMAND(sar_harness_goto_plan,
+            "sar_harness_goto_plan <mark> [radius] - A* a route to a mark and "
+            "print it over the grid (does not move the player). P2 go_to "
+            "planner.\n") {
+  if (args.ArgC() < 2) {
+    console->Print("usage: sar_harness_goto_plan <mark> [radius]\n");
+    return;
+  }
+  ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
+  if (!pl) {
+    console->Print("goto_plan: no player.\n");
+    return;
+  }
+  int mark = std::atoi(args[1]);
+  int radius = args.ArgC() > 2 ? std::atoi(args[2]) : 12;
+  if (radius < 1) radius = 1;
+  if (radius > 40) radius = 40;
+
+  Vector center;
+  std::string code;
+  if (!ResolveMarkCenter(mark, &center, &code)) {
+    console->Print("goto_plan: mark %d -> %s\n", mark, code.c_str());
+    return;
+  }
+  Vector feet = pl->abs_origin();
+  auto [idx, ser] = markTable.GetEntityFromMark(mark);
+  uint32_t targetKey =
+      idx >= 0 ? PackEntKey(idx, static_cast<uint16_t>(ser)) : 0;
+  ICollideable& coll = pl->collision();
+  GoToPlanner planner(coll.OBBMins(), coll.OBBMaxs(), feet.z, targetKey,
+                      g_heldEntityKey.load());
+  std::vector<Vector> path = planner.Plan(feet, center);
+
+  console->Print("goto_plan mark=%d: %zu waypoints to (%.0f,%.0f)\n", mark,
+                 path.size(), center.x, center.y);
+  if (path.empty()) {
+    console->Print("  no route (blocked, off-grid, or cap hit).\n");
+    return;
+  }
+  std::unordered_set<uint32_t> onPath;
+  for (const Vector& w : path)
+    onPath.insert(
+        GoToPlanner::CellKey(GoToPlanner::CellX(w.x), GoToPlanner::CellY(w.y)));
+  int pcx = GoToPlanner::CellX(feet.x), pcy = GoToPlanner::CellY(feet.y);
+  int gcx = GoToPlanner::CellX(center.x), gcy = GoToPlanner::CellY(center.y);
+  for (int dy = radius; dy >= -radius; --dy) {  // +y (north) at top
+    std::string row;
+    for (int dx = -radius; dx <= radius; ++dx) {
+      int cx = pcx + dx, cy = pcy + dy;
+      if (cx == pcx && cy == pcy)
+        row += '@';
+      else if (cx == gcx && cy == gcy)
+        row += '*';
+      else if (onPath.count(GoToPlanner::CellKey(cx, cy)))
+        row += 'o';
+      else
+        row += planner.At(cx, cy).state == GoToPlanner::WALKABLE ? '.' : '#';
+    }
+    console->Print("%s\n", row.c_str());
+  }
 }
