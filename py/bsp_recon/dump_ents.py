@@ -39,16 +39,18 @@ DEFAULT_OUT = _REPO / 'artifacts' / 'bsp_recon'
 
 # Logic entities that relay or gate a signal between others. An edge into one is
 # tagged so an indirect button -> ... -> door chain is visible.
-RELAY_CLASSES = frozenset({
-    'logic_relay',
-    'logic_branch',
-    'logic_auto',
-    'logic_branch_listener',
-    'logic_case',
-    'math_counter',
-    'logic_collision_pair',
-    'func_instance_io_proxy',
-})
+RELAY_CLASSES = frozenset(
+    {
+        'logic_relay',
+        'logic_branch',
+        'logic_auto',
+        'logic_branch_listener',
+        'logic_case',
+        'math_counter',
+        'logic_collision_pair',
+        'func_instance_io_proxy',
+    }
+)
 
 # Identity fields kept at top level, so the per-entity keyvalues dict is params.
 _IDENTITY = frozenset({'classname', 'targetname', 'origin'})
@@ -105,12 +107,14 @@ def _static_props(bsp):
     out = []
     try:
         for p in bsp.props:
-            out.append({
-                'model': p.model,
-                'origin': _vec(p.origin),
-                'angles': _vec(p.angles),
-                'skin': p.skin,
-            })
+            out.append(
+                {
+                    'model': p.model,
+                    'origin': _vec(p.origin),
+                    'angles': _vec(p.angles),
+                    'skin': p.skin,
+                }
+            )
     except Exception as exc:  # noqa: BLE001 -- prop lump variants differ across maps
         print(f'  (static props read failed: {exc})')
     return out
@@ -128,11 +132,13 @@ def vscript_taint(bsp, vmf):
         scripts = ent['vscripts']
         cls = ent['classname']
         if scripts or cls in ('logic_script', 'point_script'):
-            ent_hits.append({
-                'classname': cls,
-                'targetname': ent['targetname'],
-                'vscripts': scripts,
-            })
+            ent_hits.append(
+                {
+                    'classname': cls,
+                    'targetname': ent['targetname'],
+                    'vscripts': scripts,
+                }
+            )
     nut_files = []
     try:
         nut_files = [n for n in bsp.pakfile.namelist() if n.lower().endswith('.nut')]
@@ -162,24 +168,28 @@ def extract(path):
         for o in ent.outputs:
             edge_count += 1
             out_hist[o.output] += 1
-            outputs.append({
-                'output': o.output,
-                'target': o.target,
-                'input': o.input,
-                'params': o.params,
-                'delay': o.delay,
-                'times': o.times,
-                'via_logic': bool(o.target) and o.target in relay_names,
-            })
+            outputs.append(
+                {
+                    'output': o.output,
+                    'target': o.target,
+                    'input': o.input,
+                    'params': o.params,
+                    'delay': o.delay,
+                    'times': o.times,
+                    'via_logic': bool(o.target) and o.target in relay_names,
+                }
+            )
         bm = bmodels.get(ent)
-        entities.append({
-            'classname': cls,
-            'targetname': ent['targetname'],
-            'origin': ent['origin'],
-            'aabb': [_vec(bm.mins), _vec(bm.maxes)] if bm is not None else None,
-            'keyvalues': {k: v for k, v in ent.items() if k not in _IDENTITY},
-            'outputs': outputs,
-        })
+        entities.append(
+            {
+                'classname': cls,
+                'targetname': ent['targetname'],
+                'origin': ent['origin'],
+                'aabb': [_vec(bm.mins), _vec(bm.maxes)] if bm is not None else None,
+                'keyvalues': {k: v for k, v in ent.items() if k not in _IDENTITY},
+                'outputs': outputs,
+            }
+        )
     ent_hits, nut_files = vscript_taint(bsp, vmf)
     spawn = getattr(vmf, 'spawn', None)
     try:
@@ -216,19 +226,24 @@ def extract_geometry(path):
     faces = []
     for f in bsp.faces:
         ti = f.texinfo
-        faces.append({
-            'material': ti.mat,
-            'flags': ti.flags.value,
-            'portalable': not (ti.flags & SurfFlags.NOPORTAL),
-            'plane': _plane(f.plane),
-            'verts': [_vec(e.a) for e in f.edges],
-        })
+        faces.append(
+            {
+                'material': ti.mat,
+                'flags': ti.flags.value,
+                'portalable': not (ti.flags & SurfFlags.NOPORTAL),
+                'plane': _plane(f.plane),
+                'verts': [_vec(e.a) for e in f.edges],
+            }
+        )
     brushes = [
         {
             'contents': str(br.contents),
             'sides': [
-                {'material': s.texinfo.mat, 'flags': s.texinfo.flags.value,
-                 'plane': _plane(s.plane)}
+                {
+                    'material': s.texinfo.mat,
+                    'flags': s.texinfo.flags.value,
+                    'plane': _plane(s.plane),
+                }
                 for s in br.sides
             ],
         }
@@ -307,8 +322,10 @@ def sweep_corpus(root, outdir, geometry, jobs):
         'maps': entries,
     }
     (outdir / 'index.json').write_text(json.dumps(summary, indent=2))
-    print(f'wrote {summary["ok"]}/{len(bsps)} maps + index.json to {outdir} '
-          f'({len(failed)} failed)')
+    print(
+        f'wrote {summary["ok"]}/{len(bsps)} maps + index.json to {outdir} '
+        f'({len(failed)} failed)'
+    )
 
 
 def main():
@@ -324,11 +341,14 @@ def main():
         '--out', metavar='DIR', default=str(DEFAULT_OUT), help='JSON output dir'
     )
     ap.add_argument(
-        '--geometry', action='store_true',
+        '--geometry',
+        action='store_true',
         help='also emit <map>.geo.json (faces+brushes)',
     )
     ap.add_argument(
-        '--jobs', type=int, default=min(8, (os.cpu_count() or 4)),
+        '--jobs',
+        type=int,
+        default=min(8, (os.cpu_count() or 4)),
         help='parallel workers for --corpus',
     )
     args = ap.parse_args()
@@ -343,8 +363,10 @@ def main():
     if entry['status'] == 'fail':
         sys.exit(f'parse failed: {entry["error"]}')
     vs = '  [VScript]' if entry['vscript'] else ''
-    print(f'wrote {outdir / entry["json"]}  '
-          f'({entry["entity_count"]} entities, {entry["edge_count"]} edges){vs}')
+    print(
+        f'wrote {outdir / entry["json"]}  '
+        f'({entry["entity_count"]} entities, {entry["edge_count"]} edges){vs}'
+    )
 
 
 if __name__ == '__main__':
