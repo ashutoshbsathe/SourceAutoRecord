@@ -340,6 +340,77 @@ def check_go_to(ctx):
     )
 
 
+_GRABBABLE = {'prop_weighted_cube', 'prop_monster_box', 'npc_portal_turret_floor'}
+_BUTTONS = {
+    'prop_floor_button',
+    'prop_floor_cube_button',
+    'prop_floor_ball_button',
+    'prop_under_floor_button',
+}
+
+
+def check_place_on_button(ctx):
+    """release a held cube onto a button routes through the seat path: pick up a
+    grabbable, walk to a button, release on it. The verb must report a
+    place-on-button code -- SEATED when the cube seats, or NOT_FAIR/NOT_SEATED
+    when positioning/timing kept it from latching. A plain SUCCESS would mean the
+    button was not recognised and release fell back to a bare drop (the wiring
+    regression this guards). Needs a chamber with a reachable cube and button."""
+    reset_to_spawn(ctx)
+    ctx.harness.start_agent_loop()
+    try:
+        env = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(verb='wait', ticks=1)
+            ),
+            timeout=30.0,
+        )
+        cube = button = None
+        for e in env.state.entity_snapshot.entities:
+            if e.mark <= 0:
+                continue
+            if cube is None and e.class_name in _GRABBABLE:
+                cube = e
+            if button is None and e.class_name in _BUTTONS:
+                button = e
+        require(cube is not None, 'no grabbable cube mark (need a cube+button chamber)')
+        require(button is not None, 'no button mark (need a cube+button chamber)')
+
+        def run(verb, mark, timeout):
+            return ctx.harness.step_agent_loop(
+                harness_pb2.AgentMessage(
+                    macro=harness_pb2.MacroRequest(verb=verb, mark=mark)
+                ),
+                timeout=timeout,
+            )
+
+        run('go_to', cube.mark, 90.0)
+        grab = run('pick_up', cube.mark, 30.0)
+        require(
+            grab.macro_result.result_code == 'SUCCESS',
+            f'pick_up cube mark={cube.mark} failed: '
+            f'{grab.macro_result.result_code} ({grab.macro_result.detail}) -- '
+            f'cannot test seating',
+        )
+        run('go_to', button.mark, 90.0)
+        env = run('release', button.mark, 60.0)
+    finally:
+        ctx.harness.stop_agent_loop()
+    require(env.success, f'release step RPC failed: {env.error_message}')
+    require(env.HasField('macro_result'), 'no macro_result on release')
+    mr = env.macro_result
+    ctx.observations.append(gamestate_dict(env.state, f'macro.release[{button.mark}]'))
+    require(
+        mr.result_code in ('SEATED', 'NOT_FAIR', 'NOT_SEATED'),
+        f'release on button mark={button.mark} gave {mr.result_code!r}, not a '
+        f'place-on-button code -- button not recognised (wiring regression?)',
+    )
+    return (
+        f'release cube {cube.mark} on button {button.mark} -> '
+        f'{mr.result_code} ({mr.detail})'
+    )
+
+
 def check_client(ctx):
     """The Python macro client end to end: merge the streamed percept into
     marked-entity dicts (WorldView), validate an action locally against that
@@ -425,6 +496,7 @@ CHECKS = [
     ('macro', check_macro),
     ('move', check_move),
     ('go_to', check_go_to),
+    ('place_on_button', check_place_on_button),
     ('client', check_client),
     ('pixels', check_pixels),
     ('execute_command', check_execute_command),

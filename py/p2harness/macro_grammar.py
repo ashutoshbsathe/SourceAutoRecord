@@ -85,9 +85,13 @@ VERB_SPECS = {
         mark='grabbable',
     ),
     'release': Verb(
-        'Drop the carried object toward a mark, or at your feet if omitted.',
+        'Drop the held object. On a button mark you are in reach of, it places '
+        'the cube ON the button and presses it (SEATED); out of reach it just '
+        'drops (NOT_FAIR). A non-button mark, or none, drops toward the mark / '
+        'at your feet.',
         'release 5',
-        'drop the held object toward mark 5 (omit the mark to drop at your feet).',
+        'on a button you are standing next to, release ON it to seat and press '
+        'the cube (SEATED); otherwise it just drops.',
         mark='optional',
     ),
     'move': Verb(

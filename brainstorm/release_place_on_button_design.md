@@ -654,3 +654,10 @@ remaining item is the later strip-or-keep decision on the dormant `sar_harness_*
   to `kDropTries` times. Used by both the seat path (a failed drop -> `NOT_SEATED` rather than
   teleporting a still-grabbed cube) and the plain drop. **Verified working** -- drops first try, and
   the across-the-room `NOT_FAIR` now actually leaves the cube on the floor.
+- **P8 -- Python sync shipped (2026-06-21).** `macro_grammar` release doc now describes seating a held
+  cube on a button (`SEATED`) vs an out-of-reach plain drop (`NOT_FAIR`) -- flows into the
+  `gemini_agent` prompt automatically; `gemini_agent` Notes teach `SEATED`/`NOT_FAIR`/`NOT_SEATED`.
+  `agentloop_smoke` gains `check_place_on_button` (pick up a cube, walk to a button, release, assert the
+  seat-path code rather than a bare `SUCCESS`). Grammar smoke 6/6 + compile pass in-process; the
+  agentloop check boots a game (run on a cube+button chamber). **Unblocks "third light"** -- the
+  first_light re-eval with the enhanced verbs. (bisect TODO / R7 / D9 are deferred to after third light.)

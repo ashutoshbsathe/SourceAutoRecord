@@ -65,6 +65,9 @@ Notes:
   percept and re-plan; do NOT just repeat the same move. A failure like
   STUCK/BLOCKED/WALL/EDGE/BAD_MARK means you did NOT move -- try a different
   approach (e.g. `look` for an opening, then `move`, or pick a nearer mark).
+  SEATED = a held cube is now resting on the button you released onto (success).
+  NOT_FAIR/NOT_SEATED = the cube was only dropped, not placed -- get within reach
+  of the button (and clear of walls/fizzlers) and release again.
 - The environment decides when the chamber is solved and ends the run for you --
   you do NOT judge success yourself. Just keep making progress toward the exit.
   The exit is usually an elevator that carries you out over a few seconds, so if
