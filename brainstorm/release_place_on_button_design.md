@@ -615,3 +615,29 @@ remaining item is the later strip-or-keep decision on the dormant `sar_harness_*
   C4 must **displace the player first, then (re)compute the seat at rest height**; seating at the
   pressed-down Z would place the cube too low once the button rises. The cube's own weight re-presses it;
   the C5 dwell observes the settled state.
+- **C4 shipped + verified (2026-06-21).** `SeatEntity(ent, origin, angles)` = `CBaseEntity::Teleport`
+  (`VMT StartTouch+11`) + zeroed velocity. Temp `sar_harness_seat_place <button> [cube]` = `ComputeSeat`
+  + `SeatEntity`, no fairness/verify. `seat_check` also prints the press state (`m_bButtonState`,
+  `m_bActivated`). **Verified:** a free cube snaps dead-centre onto a `prop_floor_button` and presses it
+  after a short settle (the press is a sim-tick `StartTouch`, so it needs ticks to register — the verb
+  advances them; a console command can't). Committed `d206626c`.
+- **C5 shipped (2026-06-21), builds clean — the dwell-verify lives in the `release` verb.** The dwell
+  needs tick-advancing (gRPC thread), so it can't be a console command. `release <button-mark>` with a
+  held cube now: cache `heldKey` (before clearing held-state) → orient → button-class gate → drop
+  (`kReleaseDropSettle`) to free the grab → `ComputeSeat` + `SeatEntity` on the main thread → settle
+  (`kSeatSettle`) → read `m_bActivated`, settle (`kSeatDwellGap`), read again → `SEATED` iff both →
+  result `SEATED`/`NOT_SEATED`. Non-button release is byte-identical to before. **Deferred to next
+  steps:** the **fairness gate** (release currently seats onto any button it is aimed at) and the
+  **player-displacement** for the on-button case — so verify by releasing while standing *near* (not on)
+  a button. Settle constants seeded `32`/`16` with a `TODO` to bisect. *In-game verify owed:* hold cube,
+  stand near a button, `release <button-mark>` → cube drops, snaps on, button presses, result `SEATED`
+  (`m_bActivated 1/1`), no manual ticks. **Verified 2026-06-21:** `SEATED  m_bActivated 1/1`.
+- **Flat landing + player displacement shipped + verified (2026-06-21).** Two fixes from the C5 verify:
+  (1) a held cube placed at its tumbled carry-pose toppled on landing → off-centre + a transient
+  un-press (`[Button Activated]…[Button Deactivated]`). `ComputeSeat` now lays the cube **flat**
+  (`angles = {0, yaw, 0}`) so it settles centred and stays pressed. (2) Standing *on* the button failed
+  (the cube teleported into the player's space). `release` is now displacement-aware: hop 1 drops, finds
+  the seat, and if `CheckFairness().selfOnSeat`, teleports the **player** to `FindPlayerStandoff` and
+  defers; hop 2 advances `kButtonRiseTicks`, re-finds the seat at the risen rest height, and seats the
+  cube. **Both verified working** (near-button: flat centred seat; on-button: player blinks off, cube
+  seats). **Still deferred:** the fairness *gate* (release seats onto any aimed button) → next.

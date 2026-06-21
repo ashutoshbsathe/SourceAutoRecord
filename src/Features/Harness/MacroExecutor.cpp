@@ -77,6 +77,13 @@ constexpr float kGrabRange = 96.0f;   // reach gate: ~80u radius + half a cube
 constexpr float kHeldDist = 80.0f;    // a held object rides within this of eye
 constexpr float kMinGrabMove = 8.0f;  // a real grab snaps it more than this
 constexpr float kReleasePitch = 75.0f;  // mark-less release: look-down pitch
+constexpr int kReleaseDropSettle = 4;   // ticks to free the grab before a seat
+constexpr int kSeatSettle = 32;    // ticks for the press to register post-seat
+constexpr int kSeatDwellGap = 16;  // ticks between the two press reads
+constexpr int kButtonRiseTicks = 12;  // ticks for a button to rise once the
+                                      // player steps off it
+// TODO: bisect kSeatSettle / kSeatDwellGap / kButtonRiseTicks to their
+// minimums.
 
 // Place-on-button seat-find tuning.
 constexpr float kSeatProbeUp =
@@ -158,20 +165,28 @@ bool IsGrabbableClass(const char* cls) {
          s == "npc_portal_turret_floor";
 }
 
+// Button classes that accept an object placed on their press surface. The
+// pedestal prop_button is a use-press, not a place, so it is not here.
+bool IsButtonClass(const char* cls) {
+  if (!cls) return false;
+  std::string s(cls);
+  return s == "prop_floor_button" || s == "prop_floor_cube_button" ||
+         s == "prop_floor_ball_button" || s == "prop_under_floor_button";
+}
+
 // OBB centre of an entity. Uses the *unrotated* centre (origin +
-// (mins+maxs)/2): correct for axis-aligned PeTI elements; rotating the local
-// centre by abs_angles is the refinement for tilted entities. Main thread only
-// (live entity).
+// (mins+maxs)/2): correct for axis-aligned elements; rotating the local centre
+// by abs_angles is the refinement for tilted entities. Main thread only (live
+// entity).
 Vector EntityCenter(ServerEnt* se) {
   ICollideable& coll = se->collision();
   return se->abs_origin() + (coll.OBBMins() + coll.OBBMaxs()) * 0.5f;
 }
 
-// The cube the last pick_up grabbed -> live ServerEnt, serial-revalidated so a
-// recycled slot can't resolve to a stranger. null if hands are empty or stale.
-// Main thread only.
-ServerEnt* HeldCube() {
-  uint32_t key = g_heldEntityKey.load();
+// Packed key (index<<16 | serial) -> live ServerEnt, serial-revalidated so a
+// recycled slot can't resolve to a stranger. null if absent or stale. Main
+// thread only.
+ServerEnt* EntFromKey(uint32_t key) {
   if (!key) return nullptr;
   int index = static_cast<int>(key >> 16);
   uint16_t serial = static_cast<uint16_t>(key & 0xFFFF);
@@ -182,17 +197,20 @@ ServerEnt* HeldCube() {
   return SE(info->m_pEntity);
 }
 
-// Where a held cube should land to rest on a button's press surface, with its
-// orientation preserved. A press is pure bbox-overlap of the button's trigger,
-// so the recipe is geometric: trace down through the button centre to read the
-// real collision plane, sit the cube on it (bottom a hair into the trigger),
-// keep its current orientation. Read-only -- traces + field reads, mutates
-// nothing. Main thread only (live entities).
+// The cube the last pick_up grabbed (0 = none). Main thread only.
+ServerEnt* HeldCube() { return EntFromKey(g_heldEntityKey.load()); }
+
+// Where a held cube should land to rest on a button's press surface. A press is
+// pure bbox-overlap of the button's trigger, so the recipe is geometric: trace
+// down through the button centre to read the real collision plane, sit the cube
+// on it (bottom a hair into the trigger), laid flat (pitch/roll zeroed, yaw
+// kept) so it settles stably instead of toppling off-centre. Read-only --
+// traces + field reads, mutates nothing. Main thread only (live entities).
 struct Seat {
   bool ok;  // false => no solid press surface found under the button
   Vector
       origin;  // target m_vecAbsOrigin (CBaseEntity::Teleport takes an origin)
-  QAngle angles;   // cube orientation, carried verbatim
+  QAngle angles;   // flat placement angle (pitch/roll zeroed, cube yaw kept)
   Vector center;   // world point the cube centre lands on
   Vector surface;  // press surface the down-trace hit
   float normalZ;   // up-component of that surface (1 = flat, ~0 = wall)
@@ -247,7 +265,7 @@ Seat ComputeSeat(ServerEnt* button, ServerEnt* cube) {
   // the trigger (overlap latches the press; resting a hair above never would).
   s.center = Vector{cx, cy, tr.endpos.z + halfH - kSeatBias};
   s.origin = s.center + (cube->abs_origin() - cubeCenter);
-  s.angles = cube->abs_angles();
+  s.angles = QAngle{0, cube->abs_angles().y, 0};  // lay flat, keep yaw
   s.ok = true;
   return s;
 }
@@ -1353,7 +1371,17 @@ portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
 }
 
 portal2_harness::MacroResult MacroExecutor::Release(int mark) {
+  // Cache the held cube before clearing held-state -- the seat path resolves it
+  // again after the drop, once g_heldEntityKey is gone.
+  uint32_t heldKey = g_heldEntityKey.load();
   g_heldEntityKey = 0;  // hands empty (self-corrects on next pick_up if wrong)
+
+  auto cancelled = []() {
+    portal2_harness::MacroResult r;
+    r.set_ok(false);
+    r.set_result_code("CANCELLED");
+    return r;
+  };
 
   // Orient before dropping: face the mark if given, else look down to drop at
   // the player's feet (e.g. onto a floor button being stood on). Capture the
@@ -1371,26 +1399,117 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
       QAngle cur = engine->GetAngles(Slot());
       *v = ApplyAbsoluteView(QAngle{kReleasePitch, cur.y, 0});
     });
-    if (!ran) {
-      portal2_harness::MacroResult r;
-      r.set_ok(false);
-      r.set_result_code("CANCELLED");
-      return r;
-    }
+    if (!ran) return cancelled();
     view = *v;
   }
 
-  // +use pulse drops the carried object, holding `view` so it lands where we
-  // aimed. The caller tracks held-state, so there's nothing to confirm --
-  // always SUCCESS. Caveat: +use is a context toggle, so a release issued while
-  // NOT holding (but stood on a grabbable) GRABS instead; the caller's
-  // held-tracking keeps intent aligned.
-  PulseUse(kSettle, view);
+  // A held cube aimed at a button gets seated on it; everything else is the
+  // plain drop below.
+  bool seatPath = false;
+  if (mark > 0 && heldKey) {
+    auto isBtn = std::make_shared<bool>(false);
+    bool ran = RunOnMainThreadSync(context_, [isBtn, mark]() {
+      CEntInfo* info = nullptr;
+      std::string code;
+      if (ResolveMarkInfo(mark, &info, &code))
+        *isBtn = IsButtonClass(server->GetEntityClassName(info->m_pEntity));
+    });
+    if (!ran) return cancelled();
+    seatPath = *isBtn;
+  }
+
+  if (!seatPath) {
+    // +use pulse drops the carried object, holding `view` so it lands where we
+    // aimed. Nothing to confirm. Caveat: +use is a context toggle, so a release
+    // issued while NOT holding (but stood on a grabbable) GRABS instead; the
+    // caller's held-tracking keeps intent aligned.
+    PulseUse(kSettle, view);
+    portal2_harness::MacroResult r;
+    r.set_ok(true);
+    r.set_result_code("SUCCESS");
+    r.set_detail(mark > 0 ? Utils::ssprintf("released toward mark %d", mark)
+                          : "released (look-down)");
+    return r;
+  }
+
+  // Seat path: drop to free the grab. If the player stands in the seat, step it
+  // off first (so the button rises and the cube has room), then teleport the
+  // cube dead-centre, let the press register, and confirm it latched and stays.
+  PulseUse(kReleaseDropSettle, view);
+
+  // Hop 1: find the seat. If the player occupies it, displace the player and
+  // defer seating until the button rises; otherwise seat the cube now.
+  struct SeatStep {
+    bool placed = false;     // cube is on the button
+    bool displaced = false;  // player stepped off; seat after the button rises
+  };
+  auto step = std::make_shared<SeatStep>();
+  bool ran1 = RunOnMainThreadSync(context_, [step, heldKey, mark]() {
+    ServerEnt* cube = EntFromKey(heldKey);
+    ServerEnt* player = server->GetPlayer(1);
+    CEntInfo* binfo = nullptr;
+    std::string code;
+    if (!cube || !player || !ResolveMarkInfo(mark, &binfo, &code)) return;
+    ServerEnt* button = SE(binfo->m_pEntity);
+    Seat s = ComputeSeat(button, cube);
+    if (!s.ok) return;
+    Vector standoff;
+    if (CheckFairness(button, cube, player, s).selfOnSeat &&
+        FindPlayerStandoff(button, player, &standoff)) {
+      SeatEntity(player, standoff, player->abs_angles());
+      step->displaced = true;
+      return;
+    }
+    SeatEntity(cube, s.origin, s.angles);
+    step->placed = true;
+  });
+  if (!ran1) return cancelled();
+
+  // Hop 2 (only if displaced): the button has risen, so re-find the seat at the
+  // rest height and place the cube there.
+  if (step->displaced) {
+    AdvanceTicksBlocking(kButtonRiseTicks);
+    bool ran2 = RunOnMainThreadSync(context_, [step, heldKey, mark]() {
+      ServerEnt* cube = EntFromKey(heldKey);
+      CEntInfo* binfo = nullptr;
+      std::string code;
+      if (!cube || !ResolveMarkInfo(mark, &binfo, &code)) return;
+      Seat s = ComputeSeat(SE(binfo->m_pEntity), cube);
+      if (!s.ok) return;
+      SeatEntity(cube, s.origin, s.angles);
+      step->placed = true;
+    });
+    if (!ran2) return cancelled();
+  }
+
   portal2_harness::MacroResult r;
-  r.set_ok(true);
-  r.set_result_code("SUCCESS");
-  r.set_detail(mark > 0 ? Utils::ssprintf("released toward mark %d", mark)
-                        : "released (look-down)");
+  if (!step->placed) {
+    r.set_ok(false);
+    r.set_result_code("NOT_SEATED");
+    r.set_detail("release: could not place on mark " + std::to_string(mark));
+    return r;
+  }
+
+  // Dwell: the cube's m_bActivated must read pressed after the press settles,
+  // and still pressed a few ticks later -- a transient touch is not a seat.
+  auto readActivated = [this, heldKey]() {
+    auto act = std::make_shared<bool>(false);
+    RunOnMainThreadSync(context_, [act, heldKey]() {
+      ServerEnt* cube = EntFromKey(heldKey);
+      if (cube) *act = cube->field<bool>("m_bActivated");
+    });
+    return *act;
+  };
+  AdvanceTicksBlocking(kSeatSettle);
+  bool act1 = readActivated();
+  AdvanceTicksBlocking(kSeatDwellGap);
+  bool act2 = readActivated();
+
+  bool seated = act1 && act2;
+  r.set_ok(seated);
+  r.set_result_code(seated ? "SEATED" : "NOT_SEATED");
+  r.set_detail(Utils::ssprintf("release mark %d: m_bActivated %d/%d", mark,
+                               (int)act1, (int)act2));
   return r;
 }
 
