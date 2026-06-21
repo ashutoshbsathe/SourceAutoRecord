@@ -18,7 +18,55 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 
 ---
 
-## Top of mind (2026-06-20) — next steps
+## Top of mind (2026-06-21) — next steps
+
+### ⭐ FIRST LIGHT ACHIEVED — third light SOLVED + what the robust verbs bought
+
+A frozen VLM (gemini-3.5-flash) **SOLVED** the cube→button→door chamber end-to-end in **15 steps** —
+`noteworthy_trajectories/third_light.trajectory`. The unlock was the enhanced verbs (A\* `go_to` +
+closed-loop place-on-button `release`), both shipped this week. **M2 is done.** Items 1–3 in the
+priority list below are now complete.
+
+**The ablation writes itself** — same model, same chamber, only the verbs changed:
+
+| | first light (06-15) | third light (06-21) |
+|---|---|---|
+| outcome | **BUDGET** (gave up, 25 steps) | **SOLVED** (15 steps) |
+| `release` on the button | `SUCCESS released toward mark 7` ×2 (open-loop drop — cube fell off) | `SEATED m_bActivated 1/1` ×1 |
+| cube re-grabs | 3 (kept re-fetching the cube that wouldn't stay) | 1 |
+| `go_to` failures | BLOCKED ×4, WALL ×2 (old straight-line march) | 0 (A\* routes around) |
+| tokens in | 686k | **286k** |
+
+The agent's *plan* was correct in both runs (grab → carry → place → exit). First light failed because the
+verbs **lied** — `release` said SUCCESS while the cube transiently seated and fell off, so the agent
+re-grabbed and thrashed into walls until BUDGET. Third light's verbs told the truth (`SEATED` via the
+`m_bActivated` dwell; A\* `BLOCKED` only when truly walled) and it solved in one clean pass. **Lesson: for
+a frozen LLM, action-interface honesty + reliability dominates raw reasoning** — this *is* the
+reasoning-gap-vs-locomotion-gap result (M5), now with a clean before/after.
+
+**Place-on-button shipped (C1→P8, deferred bits noted):** `release <button>` = confirm-retry drop
+(`m_hAttachedObject`) → displace the player off the seat if it stands there → flat dead-centre
+`CBaseEntity::Teleport` → fairness gate (reach / press-normal / corridor / sightline / occupancy) →
+`m_bActivated` dwell → `SEATED`/`NOT_FAIR`/`NOT_SEATED`. → [release_place_on_button_design.md](release_place_on_button_design.md).
+*Deferred:* bisect the settle/dwell tick constants · R7 recon (past `prop_floor_button`) · strip-or-keep
+the dormant `sar_harness_seat_*` commands.
+
+**New frontiers to brainstorm next** (pick one for a fresh session):
+
+1. **Portals — the missing mechanic, highest ceiling.** The agent can't place portals; every chamber so
+   far is portal-free. A robust `shoot_portal` verb (aim at a portalable surface → fire; portalability is
+   baked + statically recoverable per the BSP recon) + `go_to` that traverses portals (parked,
+   `llm_percept_act_grammar.md` §4). Turns the eval into *actual Portal 2*.
+2. **The benchmark + the result.** Turn the ad-hoc "lights" into a measured suite: N annotated chambers ×
+   difficulty tiers × multi-model, scored on solve-rate / steps / tokens. The third-vs-first ablation is
+   the template metric. Capitalises on the win now; feeds M4 + the M5 talk.
+3. **Lasers (M3, on deck).** Reflector-cube redirection — the place-on-button teleport is its prototype
+   spine (`aim_laser` ≈ place + orient a reflector). → `locomotion_tech.md` §5.
+4. **Percept enrichment — the I/O causal graph.** The button→door wiring is statically recoverable
+   (`bsp_corpus_harness_improvements.md`). Feeding it to the agent unlocks multi-element, sequenced
+   puzzles (which button opens which door) — the reasoning ladder past a single cube→button→door.
+
+---
 
 **`go_to` A\* routing — SHIPPED ✅ (P2.0–P2.6, money test passed).** VFH local control + A\*
 global routing over a lazy hull-probed 16u grid: the cube-on-button pocket that oscillated →
@@ -73,7 +121,7 @@ yours in free-run. Isolated (Harness.cpp PRE_TICK + TasController per-tick `SetA
 
 - [x] **M0 — Lock the ontology.** Annotation built; recon mechanism done; status schema + scope locked.
 - [ ] **M1 — Status-aware percept** (Phase 1): curated category-A status flows over gRPC. *(1a ✅; 1b/1c remaining)*
-- [ ] **M2 — ⭐ FIRST LIGHT:** frozen VLM solves one cube→button→door chamber (no portals). The perception-vs-reasoning signal. *(Executor + chamber + manual solve ✅; remaining: the LLM ReAct driver — PR5–PR7.)*
+- [x] **M2 — ⭐ FIRST LIGHT:** frozen VLM solves one cube→button→door chamber (no portals). *(Achieved 2026-06-21 — gemini-3.5-flash SOLVED it in 15 steps once the verbs were robust; `third_light.trajectory`. The robust-verbs-vs-reasoning ablation is the perception-vs-reasoning signal.)*
 - [ ] **M3 — Ramp complexity:** add portals → lasers → panels; grow the chamber suite into difficulty tiers.
 - [ ] **M4 — Public benchmark:** multi-model eval (Claude/Gemini/GPT-class), scoring, reproducible packaging.
 - [ ] **M5 — VP talk, with data:** the reasoning-gap-vs-locomotion-gap result.
