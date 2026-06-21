@@ -33,10 +33,14 @@ Next, roughly priority order (user to choose):
    *straight-line*; rewrite it ("routes around obstacles; `BLOCKED` only if no path exists"), drop
    the caveat, add an `agentloop_smoke` assertion — else the LLM under-uses the new routing.
    (P2.7 path-simplification = optional smoothing if the legs look choppy.)
-2. **P-manip — reliable closed-loop place-on-button.** The *other* first_light last-mile failure:
-   `release` is open-loop, cubes only transiently seat (`on_button` flips back). Closed-loop
-   drop→settle→`ReadBoolField(m_bButtonState)`→retry. Completes trustworthy locomotion+manipulation
-   and is the prototype spine for the laser `aim_laser` verb. → [locomotion_tech.md](locomotion_tech.md) §4 P-manip.
+2. **P-manip — reliable place-on-button** *(design + phased plan LOCKED, 2026-06-21)*. The *other*
+   first_light last-mile failure: `release` is open-loop, cubes only transiently seat (`on_button`
+   flips back). **Direction:** a range-gated **central teleport** — static-trace fairness check
+   (reach + press-normal + drop-corridor; the "sim N ticks" idea was killed) → snap the cube
+   dead-center via FCPS's `CBaseEntity::Teleport`, orientation preserved → dwell-verify the held cube's
+   `m_bActivated`. Net ≈ reuse, **0 new offsets**. Prototype spine for the laser `aim_laser` verb.
+   → [release_place_on_button_design.md](release_place_on_button_design.md) (plan §10);
+   [locomotion_tech.md](locomotion_tech.md) §4.
 3. **⭐ First light (M2)** — the frozen-VLM ReAct driver (PR5–PR7) on `testchamber_000`. The core
    science; de-risked once go_to + place-on-button are both trustworthy. → [macro_executor_impl_plan.md](macro_executor_impl_plan.md).
 4. **Lasers (M3)** — the next big element frontier, gated on the L0 recon spike. → [locomotion_tech.md](locomotion_tech.md) §5.
@@ -145,6 +149,7 @@ has crept into `py/` (and likely `src/`). Fix in passing, don't make a project o
 | `macro_executor_impl_plan.md` | **code-grounded PR plan** for the macro executor + driver (Track C/D detail, PR0–PR7 to first light) |
 | `locomotion_tech.md` | **`go_to` pathfinding (local controller + A*) + reliable place-on-button + the laser-routing frontier** — phased plan, substrate recon, ROADMAP #2 |
 | `astar_routing_design.md` | **A\* global routing for `go_to`** (lazy hull-probed grid) + why save/restore tree-search is parked at the puzzle layer (C9), not locomotion |
+| `release_place_on_button_design.md` | **gated-fair central-teleport `release` onto a button** (the P-manip place-on-button design + phased plan C1–D9) — button taxonomy, static-trace fairness check, FCPS `Teleport` reuse, dwell-verify; orientation = preserve-only |
 | `offline_map_preprocessing.md` | **offline BSP→JSON prior** — I/O causal graph + affordance prior (static geometry parked; A\* dominates) + the recon-gated surface/region "spatial-vocabulary" idea; complements runtime A\*/telemetry, gated on a srctools spike (P0) |
 | `bsp_corpus_harness_improvements.md` | **the §8 recon battery executed on all 277 workshop maps** (+ adversarially verified) — causal graph statically recoverable (proxy `OnProxyRelayN` baked at compile); `causal_confidence` 3-tier gate + edge-list sidecar + exit-relay resolver = build-first wins; corrects the "PeTI = no VScript" premise |
 | `rollout_visualizer.md` | the `.rollout` browser viewer |
