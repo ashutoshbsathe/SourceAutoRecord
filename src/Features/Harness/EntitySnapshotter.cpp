@@ -125,7 +125,7 @@ void EntitySnapshotter::DiscoverSchema() {
   }
 
   // The SendTable walk only sees networked props; several puzzle status fields
-  // are datamap-only, so patch them in by hand (see status_field_recon.md).
+  // are datamap-only, so patch them in by hand.
   RegisterCuratedStatusFields();
 
   schemaDiscovered = true;

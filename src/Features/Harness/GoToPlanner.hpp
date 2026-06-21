@@ -6,9 +6,9 @@
 
 #include "Utils/SDK/Math.hpp"
 
-// Lazy occupancy grid + A* for go_to global routing (P2). Cells are hull-probed
+// Lazy occupancy grid + A* for go_to global routing. Cells are hull-probed
 // on demand and cached -- only the explored frontier is touched, no reset-time
-// sweep. Anchored to the world lattice at kCellSize; 2D connectivity (v0
+// sweep. Anchored to the world lattice at kCellSize; 2D connectivity (current
 // chambers are ~flat) with floorZ stored per cell as the 2.5D-ready seam.
 // Obstacle props (cubes/buttons/turrets) are stamped BLOCKED so the route bends
 // around them, not just walls. Construct once per go_to from the live player;

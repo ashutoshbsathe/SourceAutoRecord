@@ -20,8 +20,8 @@
 namespace {
 // Floor search window around the construction refZ (the player's feet): probe
 // from a little above to well below, so a flat chamber's floor (and a modest
-// step) is found. v0 is flat; multi-level revisits this using the stored
-// floorZ.
+// step) is found. Today's chambers are flat; multi-level routing revisits
+// this using the stored floorZ.
 constexpr float kProbeUp = 40.0f;
 constexpr float kProbeDown = 128.0f;
 constexpr float kHullLift = 2.0f;  // lift the body hull a hair off the floor
@@ -240,7 +240,7 @@ std::vector<Vector> GoToPlanner::Plan(const Vector& startPos,
 // WORLD- absolute (+y/north at top), not view-relative.
 CON_COMMAND(sar_harness_probe_cells,
             "sar_harness_probe_cells [radius] - hull-probe a grid of cells "
-            "around the player and print the occupancy map (P2 go_to "
+            "around the player and print the occupancy map (go_to "
             "planner). Default radius 6 cells.\n") {
   ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
   if (!pl) {
