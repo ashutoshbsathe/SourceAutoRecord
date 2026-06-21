@@ -565,3 +565,26 @@ anything live. All new C++ lands in `MacroExecutor.cpp` unless noted, reuse-heav
 
 *Direction + plan locked. Doc-index + P-manip cross-link in `ROADMAP.md` **done** (2026-06-21); D9's
 remaining item is the later strip-or-keep decision on the dormant `sar_harness_*` debug commands.*
+
+**Build log:**
+- **C1 + C2 shipped (2026-06-21), builds clean.** `ComputeSeat(button, cube) -> {origin, angles, …}`
+  (trigger-bounds X/Y · press-surface down-trace Z + rotation-aware cube half-height · preserved
+  `abs_angles` · centre→origin shift) + dormant read-only `sar_harness_seat_check <button-mark>
+  [cube-mark]` that prints the seat. Both file-local in `MacroExecutor.cpp`; `release` untouched.
+  *In-game verify still owed:* in `macro_repl`, hold a cube + `sar_harness_seat_check <floor-button>`
+  → seat should print centred-on-top (`normal.z≈1`, `center` over the button, `surface.z` = disc top).
+  **Verified 2026-06-21** on a `prop_floor_button` (player stood on it, cube held): geometry correct —
+  `surface z=14.39 normal.z=1.000`, `center`/`origin` centred at `(704,704,31.5)`, half-height ≈18
+  (rotation-aware extent works on a tumbled hold).
+- **Orientation decision: keep #3 as-is (preserve held `abs_angles`).** The verify exposed that a held
+  cube's angles are its *carry pose* (view-coupled, e.g. `p270 y150 r180`), not a rest orientation, so
+  a teleport at those angles lands tumbled. Press is overlap-only so it still latches; the visual/laser
+  question is **deferred to C4** (revisit once we see real post-drop placement), not canonicalised now.
+- **New condition — player-on-button is a fair seat with player displacement.** When the agent stands on
+  the target button while holding the cube, that is unambiguously fair, but the player must step off so
+  the cube can take the seat. Folds into fairness #4 (seat-occupancy): occupant == *self* ⇒ not
+  `SEAT_OCCUPIED`, instead displace the player. **Shipped read-only (2026-06-21):** `FindPlayerStandoff`
+  (ring-probe a nearby spot where the player hull fits on solid floor) + `seat_check` now prints
+  `on-button: ground=/geo=` and the chosen `standoff` (no teleport yet — C4 wires the moves: displace
+  player → drop → seat cube). *In-game verify owed:* stand on the button holding a cube, run
+  `seat_check` → expect `on-button ground=Y` (or `geo=Y`) and a sane `standoff` just off the button.

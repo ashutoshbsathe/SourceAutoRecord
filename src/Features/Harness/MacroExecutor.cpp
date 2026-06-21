@@ -43,14 +43,14 @@ constexpr int kMaxWaitTicks = 600;
 // regardless; this just keeps look()'s requested angle sane before SetAngles.
 constexpr float kPitchLimit = 89.0f;
 
-// go_to / move march tuning (v0 consts; flat chambers).
+// go_to / move march tuning (flat chambers).
 constexpr int kGoToTickBatch = 4;   // ticks advanced per march iteration
 constexpr int kGoToMaxTicks = 400;  // give up after this many ticks
 constexpr int kGoToSettle = 24;  // ticks to bleed off walk velocity at the end
 constexpr float kReachRadius = 48.0f;  // horizontal dist that counts as arrived
-constexpr float kLegRadius = 24.0f;  // looser arrival for an A* waypoint (P2.6)
-constexpr int kMaxReplans = 2;       // A* re-plans on a dynamically-blocked leg
-constexpr float kStuckEps = 1.0f;    // <this much progress/iter twice = stuck
+constexpr float kLegRadius = 24.0f;    // looser arrival for an A* waypoint
+constexpr int kMaxReplans = 2;     // A* re-plans on a dynamically-blocked leg
+constexpr float kStuckEps = 1.0f;  // <this much progress/iter twice = stuck
 constexpr float kProbeHeight = 18.0f;  // lift the edge ray to ~step height
 constexpr float kStepAhead = 24.0f;    // edge ray is cast this far ahead
 constexpr float kStepDownMax = 64.0f;  // no floor within this below = edge
@@ -77,6 +77,19 @@ constexpr float kGrabRange = 96.0f;   // reach gate: ~80u radius + half a cube
 constexpr float kHeldDist = 80.0f;    // a held object rides within this of eye
 constexpr float kMinGrabMove = 8.0f;  // a real grab snaps it more than this
 constexpr float kReleasePitch = 75.0f;  // mark-less release: look-down pitch
+
+// Place-on-button seat-find tuning.
+constexpr float kSeatProbeUp =
+    24.0f;  // down-trace starts this far over the button OBB top
+constexpr float kSeatProbeDown =
+    16.0f;  // ...and ends this far under its OBB bottom
+constexpr float kSeatBias =
+    1.0f;  // sink the cube bottom this far into the press volume
+constexpr float kStandoffMargin =
+    8.0f;  // gap past the button footprint for a stepped-off player to stand
+constexpr int kStandoffBearings = 16;  // directions probed around the button
+constexpr float kStandoffLift =
+    2.0f;  // lift the player-fit hull test off the floor
 
 int Slot() { return GET_SLOT(); }
 
@@ -144,6 +157,133 @@ bool IsGrabbableClass(const char* cls) {
 Vector EntityCenter(ServerEnt* se) {
   ICollideable& coll = se->collision();
   return se->abs_origin() + (coll.OBBMins() + coll.OBBMaxs()) * 0.5f;
+}
+
+// The cube the last pick_up grabbed -> live ServerEnt, serial-revalidated so a
+// recycled slot can't resolve to a stranger. null if hands are empty or stale.
+// Main thread only.
+ServerEnt* HeldCube() {
+  uint32_t key = g_heldEntityKey.load();
+  if (!key) return nullptr;
+  int index = static_cast<int>(key >> 16);
+  uint16_t serial = static_cast<uint16_t>(key & 0xFFFF);
+  CEntInfo* info = entityList->GetEntityInfoByIndex(index);
+  if (!info || !info->m_pEntity ||
+      static_cast<uint16_t>(info->m_SerialNumber) != serial)
+    return nullptr;
+  return SE(info->m_pEntity);
+}
+
+// Where a held cube should land to rest on a button's press surface, with its
+// orientation preserved. A press is pure bbox-overlap of the button's trigger,
+// so the recipe is geometric: trace down through the button centre to read the
+// real collision plane, sit the cube on it (bottom a hair into the trigger),
+// keep its current orientation. Read-only -- traces + field reads, mutates
+// nothing. Main thread only (live entities).
+struct Seat {
+  bool ok;  // false => no solid press surface found under the button
+  Vector
+      origin;  // target m_vecAbsOrigin (CBaseEntity::Teleport takes an origin)
+  QAngle angles;   // cube orientation, carried verbatim
+  Vector center;   // world point the cube centre lands on
+  Vector surface;  // press surface the down-trace hit
+  float normalZ;   // up-component of that surface (1 = flat, ~0 = wall)
+};
+Seat ComputeSeat(ServerEnt* button, ServerEnt* cube) {
+  Seat s{};
+  ICollideable& bcoll = button->collision();
+  Vector bOrigin = button->abs_origin();
+
+  // X/Y: midpoint of the button's trigger volume; if the vfunc hands back a
+  // degenerate box, fall through to the prop origin (these buttons are
+  // axis-aligned, so the two share an X/Y centre anyway).
+  Vector tmin = bOrigin, tmax = bOrigin;
+  bcoll.WorldSpaceTriggerBounds(&tmin, &tmax);
+  float cx = bOrigin.x, cy = bOrigin.y;
+  if (tmax.x >= tmin.x && tmax.y >= tmin.y) {
+    cx = (tmin.x + tmax.x) * 0.5f;
+    cy = (tmin.y + tmax.y) * 0.5f;
+  }
+
+  // Z: a point ray straight down through that centre reads the real press
+  // plane (its height and up-ness), so a recessed socket or a flush button is
+  // handled by the trace rather than by trusting the prop OBB top.
+  Vector bmin = bcoll.OBBMins(), bmax = bcoll.OBBMaxs();
+  Vector start{cx, cy, bOrigin.z + bmax.z + kSeatProbeUp};
+  QAngle down{90, 0, 0};
+  float span = (bmax.z - bmin.z) + kSeatProbeUp + kSeatProbeDown;
+  CTraceFilterSimple filter;
+  filter.SetPassEntity(server->GetPlayer(1));
+  CGameTrace tr;
+  if (!engine->Trace(start, down, span, MASK_PLAYERSOLID, filter, tr)) {
+    s.ok = false;
+    return s;
+  }
+  s.surface = tr.endpos;
+  s.normalZ = tr.plane.normal.z;
+
+  // Cube world-space Z half-extent and its centre->origin offset, both from one
+  // collision-to-world matrix so a tilted (reflector) cube stays consistent.
+  ICollideable& ccoll = cube->collision();
+  Vector cmin = ccoll.OBBMins(), cmax = ccoll.OBBMaxs();
+  Vector localCenter = (cmin + cmax) * 0.5f;
+  Vector localExtents = cmax - localCenter;
+  matrix3x4_t m = ccoll.CollisionToWorldTransform();
+  Vector cubeCenter = m.VectorTransform(localCenter);
+  const float* zrow = m.m_flMatVal[2];
+  float halfH = std::fabs(localExtents.x * zrow[0]) +
+                std::fabs(localExtents.y * zrow[1]) +
+                std::fabs(localExtents.z * zrow[2]);
+
+  // Seat the cube centre over the press point with its bottom kSeatBias into
+  // the trigger (overlap latches the press; resting a hair above never would).
+  s.center = Vector{cx, cy, tr.endpos.z + halfH - kSeatBias};
+  s.origin = s.center + (cube->abs_origin() - cubeCenter);
+  s.angles = cube->abs_angles();
+  s.ok = true;
+  return s;
+}
+
+// A spot just off a button where the player hull fits on solid floor, taken
+// from the first of a ring of bearings around it. Used to step the player off a
+// button it is standing on so a held cube can take its place. Read-only --
+// traces only. Main thread (live entities).
+bool FindPlayerStandoff(ServerEnt* button, ServerEnt* player, Vector* out) {
+  ICollideable& bcoll = button->collision();
+  Vector bmin = bcoll.OBBMins(), bmax = bcoll.OBBMaxs();
+  ICollideable& pcoll = player->collision();
+  Vector pmin = pcoll.OBBMins(), pmax = pcoll.OBBMaxs();
+  float buttonHalfW =
+      0.5f * Vector{bmax.x - bmin.x, bmax.y - bmin.y, 0}.Length2D();
+  float playerHalfW =
+      0.5f * Vector{pmax.x - pmin.x, pmax.y - pmin.y, 0}.Length2D();
+  float ringR = buttonHalfW + playerHalfW + kStandoffMargin;
+
+  Vector bOrigin = button->abs_origin();
+  float feetZ = player->abs_origin().z;
+  CTraceFilterSimple filter;
+  filter.SetPassEntity(player);
+  for (int i = 0; i < kStandoffBearings; ++i) {
+    QAngle a{0, (360.0f / kStandoffBearings) * i, 0};
+    Vector dir;
+    Math::AngleVectors(a, &dir);
+    float cx = bOrigin.x + dir.x * ringR, cy = bOrigin.y + dir.y * ringR;
+    // Floor under the candidate?
+    Vector top{cx, cy, feetZ + kProbeHeight};
+    QAngle down{90, 0, 0};
+    CGameTrace floorTr;
+    if (!engine->Trace(top, down, kProbeHeight + kStepDownMax, MASK_PLAYERSOLID,
+                       filter, floorTr))
+      continue;
+    // Player hull fits there? (a hull inside a wall reads startsolid)
+    Vector at{cx, cy, floorTr.endpos.z + kStandoffLift};
+    CGameTrace hullTr;
+    if (engine->TraceHull(at, at, pmin, pmax, MASK_PLAYERSOLID, filter, hullTr))
+      continue;
+    *out = Vector{cx, cy, floorTr.endpos.z};
+    return true;
+  }
+  return false;
 }
 
 // Mark -> world-space aim point (OBB centre). Sets *code on a bad mark. Main
@@ -375,7 +515,7 @@ VfhPick ChooseVfhHeading(void* player, const Vector& feet, float goalBearing,
 }
 
 // One VFH march leg's result. GoTo turns it into the MacroResult; the A* layer
-// (P2.6) will chain legs and decrement the tick budget across them.
+// will chain legs and decrement the tick budget across them.
 struct MarchOutcome {
   std::string code = "BLOCKED";  // SUCCESS / BLOCKED / NO_PLAYER (cap->BLOCKED)
   bool reached = false;
@@ -775,7 +915,7 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
 
   // VFH march to the resolved target. targetKey/heldKey skip the destination
   // and any carried cube in the obstacle histogram. The per-batch march loop
-  // lives in MarchTo, so the A* layer (P2.6) can chain legs through the same
+  // lives in MarchTo, so the A* layer can chain legs through the same
   // executor.
   Vector target = res->center;
   uint32_t heldKey = g_heldEntityKey.load();
@@ -1149,11 +1289,11 @@ portal2_harness::MacroResult MacroExecutor::Interact(int mark) {
 
 // Debug: A* a route to a mark and print it over the occupancy grid (. walkable,
 // # blocked/obstacle, o route, @ player, * goal). The route should bend around
-// cubes/walls. Does NOT move the player -- verify gate for P2.4/P2.5. The grid
+// cubes/walls. Does NOT move the player -- a read-only verify gate. The grid
 // is WORLD-absolute (+y/north at top), not view-relative.
 CON_COMMAND(sar_harness_goto_plan,
             "sar_harness_goto_plan <mark> [radius] - A* a route to a mark and "
-            "print it over the grid (does not move the player). P2 go_to "
+            "print it over the grid (does not move the player). go_to "
             "planner.\n") {
   if (args.ArgC() < 2) {
     console->Print("usage: sar_harness_goto_plan <mark> [radius]\n");
@@ -1210,5 +1350,95 @@ CON_COMMAND(sar_harness_goto_plan,
         row += planner.At(cx, cy).state == GoToPlanner::WALKABLE ? '.' : '#';
     }
     console->Print("%s\n", row.c_str());
+  }
+}
+
+// Debug: print where `release` would place the held cube to seat it on a button
+// mark -- the press surface it found, the cube-centre target, the teleport
+// origin, and the preserved angles. Does NOT move anything. Pass a cube mark to
+// test a specific cube instead of whatever is held (so it works without a
+// grab).
+CON_COMMAND(sar_harness_seat_check,
+            "sar_harness_seat_check <button-mark> [cube-mark] - print the seat "
+            "release would place the held (or given) cube on, over a button. "
+            "Does not move anything.\n") {
+  if (args.ArgC() < 2) {
+    console->Print("usage: sar_harness_seat_check <button-mark> [cube-mark]\n");
+    return;
+  }
+  ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
+  if (!pl) {
+    console->Print("seat_check: no player.\n");
+    return;
+  }
+  std::string code;
+  int buttonMark = std::atoi(args[1]);
+  CEntInfo* binfo = nullptr;
+  if (!ResolveMarkInfo(buttonMark, &binfo, &code)) {
+    console->Print("seat_check: button mark %d -> %s\n", buttonMark,
+                   code.c_str());
+    return;
+  }
+  ServerEnt* cube = nullptr;
+  if (args.ArgC() > 2) {
+    int cubeMark = std::atoi(args[2]);
+    CEntInfo* cinfo = nullptr;
+    if (!ResolveMarkInfo(cubeMark, &cinfo, &code)) {
+      console->Print("seat_check: cube mark %d -> %s\n", cubeMark,
+                     code.c_str());
+      return;
+    }
+    cube = SE(cinfo->m_pEntity);
+  } else if (!(cube = HeldCube())) {
+    console->Print(
+        "seat_check: not holding a cube (pass a cube mark to test)\n");
+    return;
+  }
+
+  const char* bcls = server->GetEntityClassName(binfo->m_pEntity);
+  Seat s = ComputeSeat(SE(binfo->m_pEntity), cube);
+  if (!s.ok) {
+    console->Print("seat_check: no press surface under %s mark %d\n", bcls,
+                   buttonMark);
+    return;
+  }
+  console->Print("seat_check button=%d (%s)\n", buttonMark, bcls);
+  console->Print("  surface  z=%.2f  normal.z=%.3f\n", s.surface.z, s.normalZ);
+  console->Print("  center   (%.1f, %.1f, %.1f)\n", s.center.x, s.center.y,
+                 s.center.z);
+  console->Print("  origin   (%.1f, %.1f, %.1f)\n", s.origin.x, s.origin.y,
+                 s.origin.z);
+  console->Print("  angles   (p%.1f y%.1f r%.1f)\n", s.angles.x, s.angles.y,
+                 s.angles.z);
+
+  // Player standing on the target button while holding the cube: an
+  // unambiguously fair seat, but the player has to step off first. Report
+  // whether that is the case and where the player would go (no teleport yet).
+  auto [bIdx, bSer] = markTable.GetEntityFromMark(buttonMark);
+  CBaseHandle ground = pl->ground_entity();
+  bool grounded = (bool)ground;
+  int groundIdx = grounded ? ground.GetEntryIndex() : -1;
+  CEntInfo* ginfo =
+      grounded ? entityList->GetEntityInfoByIndex(groundIdx) : nullptr;
+  const char* gcls = (ginfo && ginfo->m_pEntity)
+                         ? server->GetEntityClassName(ginfo->m_pEntity)
+                         : "(air)";
+  ICollideable& bcoll = SE(binfo->m_pEntity)->collision();
+  Vector bmin = bcoll.OBBMins(), bmax = bcoll.OBBMaxs();
+  float bHalfW = 0.5f * Vector{bmax.x - bmin.x, bmax.y - bmin.y, 0}.Length2D();
+  Vector feet = pl->abs_origin();
+  float dxy = Vector{feet.x - s.center.x, feet.y - s.center.y, 0}.Length2D();
+  bool onGround = grounded && groundIdx == bIdx;
+  bool onGeo = grounded && dxy < bHalfW + kStandoffMargin &&
+               std::fabs(feet.z - s.surface.z) < kProbeHeight;
+  console->Print("  player   ground=%s  on-button: ground=%s geo=%s\n", gcls,
+                 onGround ? "Y" : "N", onGeo ? "Y" : "N");
+  if (onGround || onGeo) {
+    Vector standoff;
+    if (FindPlayerStandoff(SE(binfo->m_pEntity), pl, &standoff))
+      console->Print("  standoff (%.1f, %.1f, %.1f)\n", standoff.x, standoff.y,
+                     standoff.z);
+    else
+      console->Print("  standoff: none found\n");
   }
 }
