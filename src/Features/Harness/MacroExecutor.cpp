@@ -403,6 +403,19 @@ Fairness CheckFairness(ServerEnt* button, ServerEnt* cube, ServerEnt* player,
   return f;
 }
 
+// Teleport a free entity to an absolute origin + angles, zeroing its velocity.
+// One game-layer vfunc moves it, relinks it spatially, and resyncs vphysics.
+// The entity must already be free (drop a held cube first), or the grab
+// controller fights the move on the next tick. Main thread only.
+void SeatEntity(void* ent, const Vector& origin, const QAngle& angles) {
+  Vector zeroVel{0, 0, 0};
+  using _Teleport =
+      void(__rescall*)(void* ent, const Vector* pos, const QAngle* ang,
+                       const Vector* vel, bool slowAccurate);
+  _Teleport Teleport = Memory::VMT<_Teleport>(ent, Offsets::StartTouch + 11);
+  Teleport(ent, &origin, &angles, &zeroVel, true);
+}
+
 // Mark -> world-space aim point (OBB centre). Sets *code on a bad mark. Main
 // thread only.
 bool ResolveMarkCenter(int mark, Vector* outCenter, std::string* code) {
@@ -1528,6 +1541,14 @@ CON_COMMAND(sar_harness_seat_check,
   console->Print("  angles   (p%.1f y%.1f r%.1f)\n", s.angles.x, s.angles.y,
                  s.angles.z);
 
+  // Current press state -- the authoritative seated signal (cube m_bActivated,
+  // which flips in lockstep with the button). After seat_place + N ticks this
+  // shows the press latching, so it tells you the settle count the verb needs.
+  bool btnState = SE(binfo->m_pEntity)->field<bool>("m_bButtonState");
+  bool cubeAct = cube->field<bool>("m_bActivated");
+  console->Print("  press    button.m_bButtonState=%d  cube.m_bActivated=%d\n",
+                 btnState, cubeAct);
+
   // Fairness battery: would a clean hand-drop from here have reached this seat?
   Fairness f = CheckFairness(SE(binfo->m_pEntity), cube, pl, s);
   console->Print("  fair: %s\n", f.fair ? "YES" : "NO");
@@ -1553,4 +1574,62 @@ CON_COMMAND(sar_harness_seat_check,
     else
       console->Print("    standoff     none found\n");
   }
+}
+
+// Debug: snap the held (or given) cube onto a button mark via seat-find +
+// CBaseEntity::Teleport, with NO fairness or verify -- a spike to confirm the
+// teleport lands the cube dead-centre and the button presses. Mutates state
+// (moves the cube). Prefer a free cube-mark: a still-held cube gets yanked back
+// by the grab controller on the next tick.
+CON_COMMAND(
+    sar_harness_seat_place,
+    "sar_harness_seat_place <button-mark> [cube-mark] - teleport the "
+    "held (or given) cube onto a button (no fairness/verify). Moves the "
+    "cube.\n") {
+  if (args.ArgC() < 2) {
+    console->Print("usage: sar_harness_seat_place <button-mark> [cube-mark]\n");
+    return;
+  }
+  if (!server || !server->GetPlayer(1)) {
+    console->Print("seat_place: no player.\n");
+    return;
+  }
+  std::string code;
+  int buttonMark = std::atoi(args[1]);
+  CEntInfo* binfo = nullptr;
+  if (!ResolveMarkInfo(buttonMark, &binfo, &code)) {
+    console->Print("seat_place: button mark %d -> %s\n", buttonMark,
+                   code.c_str());
+    return;
+  }
+  ServerEnt* cube = nullptr;
+  if (args.ArgC() > 2) {
+    int cubeMark = std::atoi(args[2]);
+    CEntInfo* cinfo = nullptr;
+    if (!ResolveMarkInfo(cubeMark, &cinfo, &code)) {
+      console->Print("seat_place: cube mark %d -> %s\n", cubeMark,
+                     code.c_str());
+      return;
+    }
+    cube = SE(cinfo->m_pEntity);
+  } else if (!(cube = HeldCube())) {
+    console->Print("seat_place: not holding a cube (pass a cube mark)\n");
+    return;
+  } else {
+    console->Print(
+        "seat_place: WARNING using held cube -- the grab may yank it back; "
+        "mark a free cube instead.\n");
+  }
+
+  Seat s = ComputeSeat(SE(binfo->m_pEntity), cube);
+  if (!s.ok) {
+    console->Print("seat_place: no press surface under button mark %d\n",
+                   buttonMark);
+    return;
+  }
+  SeatEntity(cube, s.origin, s.angles);
+  console->Print(
+      "seat_place: teleported cube to (%.1f, %.1f, %.1f) ang (p%.1f y%.1f "
+      "r%.1f)\n",
+      s.origin.x, s.origin.y, s.origin.z, s.angles.x, s.angles.y, s.angles.z);
 }
