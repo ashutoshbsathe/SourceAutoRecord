@@ -641,3 +641,16 @@ remaining item is the later strip-or-keep decision on the dormant `sar_harness_*
   defers; hop 2 advances `kButtonRiseTicks`, re-finds the seat at the risen rest height, and seats the
   cube. **Both verified working** (near-button: flat centred seat; on-button: player blinks off, cube
   seats). **Still deferred:** the fairness *gate* (release seats onto any aimed button) → next.
+- **C6c -- fairness gate shipped (2026-06-21), builds clean.** `release` now gates the seat on
+  `CheckFairness().fair`: on failure the cube is left where the drop put it and the verb returns
+  `NOT_FAIR` with the first failing gate (`out-of-reach` / `not-flat` / `blocked-corridor` /
+  `blocked-sightline` / `seat-occupied`, via `FairnessFailReason`). A cube can only be placed where a
+  clean hand-drop from the player spot could reach -- no cross-room teleport-seats. *In-game verify
+  owed:* in reach -> `SEATED`; across the room -> `NOT_FAIR (out-of-reach); dropped instead`.
+  **Verified 2026-06-21:** across-the-room `release` -> `NOT_FAIR (out-of-reach)`.
+- **Reliable +use drop (2026-06-21), builds clean.** The `+use` drop edge intermittently misses a
+  single pulse (the long-standing "release twice to drop" flakiness), and the seat path trusted it.
+  `DropHeld` now confirms the hand is empty via the player `m_hAttachedObject` handle and re-pulses up
+  to `kDropTries` times. Used by both the seat path (a failed drop -> `NOT_SEATED` rather than
+  teleporting a still-grabbed cube) and the plain drop. **Verified working** -- drops first try, and
+  the across-the-room `NOT_FAIR` now actually leaves the cube on the floor.

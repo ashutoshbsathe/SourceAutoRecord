@@ -78,6 +78,8 @@ constexpr float kHeldDist = 80.0f;    // a held object rides within this of eye
 constexpr float kMinGrabMove = 8.0f;  // a real grab snaps it more than this
 constexpr float kReleasePitch = 75.0f;  // mark-less release: look-down pitch
 constexpr int kReleaseDropSettle = 4;   // ticks to free the grab before a seat
+constexpr int kDropTries =
+    3;  // +use drop pulses to retry if the hand stays full
 constexpr int kSeatSettle = 32;    // ticks for the press to register post-seat
 constexpr int kSeatDwellGap = 16;  // ticks between the two press reads
 constexpr int kButtonRiseTicks = 12;  // ticks for a button to rise once the
@@ -421,6 +423,16 @@ Fairness CheckFairness(ServerEnt* button, ServerEnt* cube, ServerEnt* player,
   return f;
 }
 
+// The first failing fairness gate, for a result detail. "" if all pass.
+std::string FairnessFailReason(const Fairness& f) {
+  if (!f.reach) return "out-of-reach";
+  if (!f.pressNormal) return "not-flat";
+  if (!f.corridor) return "blocked-corridor";
+  if (!f.eyeLine) return "blocked-sightline";
+  if (!f.seatClear && !f.selfOnSeat) return "seat-occupied";
+  return "";
+}
+
 // Teleport a free entity to an absolute origin + angles, zeroing its velocity.
 // One game-layer vfunc moves it, relinks it spatially, and resyncs vphysics.
 // The entity must already be free (drop a held cube first), or the grab
@@ -527,6 +539,24 @@ void PulseUse(int settle, QAngle view) {
     Scheduler::OnMainThread([view]() { ApplyAbsoluteView(view); });
     AdvanceTicksBlocking(batch);
   }
+}
+
+// Drop the held object via +use, confirming the hand is actually empty
+// afterwards (m_hAttachedObject clears) and re-pulsing if not -- the +use drop
+// edge intermittently misses on a single pulse. False if still holding after
+// the retries, or the stream dropped. gRPC thread only (advances ticks).
+bool DropHeld(grpc::ServerContext* context, QAngle view, int settle) {
+  for (int attempt = 0; attempt < kDropTries; ++attempt) {
+    PulseUse(settle, view);
+    auto holding = std::make_shared<bool>(true);
+    if (!RunOnMainThreadSync(context, [holding]() {
+          ServerEnt* pl = server->GetPlayer(1);
+          if (pl) *holding = (bool)pl->field<CBaseHandle>("m_hAttachedObject");
+        }))
+      return false;  // cancelled
+    if (!*holding) return true;
+  }
+  return false;
 }
 
 // "EDGE" if the floor drops away kStepAhead in front of the player, else "".
@@ -1420,10 +1450,11 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
 
   if (!seatPath) {
     // +use pulse drops the carried object, holding `view` so it lands where we
-    // aimed. Nothing to confirm. Caveat: +use is a context toggle, so a release
-    // issued while NOT holding (but stood on a grabbable) GRABS instead; the
-    // caller's held-tracking keeps intent aligned.
-    PulseUse(kSettle, view);
+    // aimed, retrying the edge until the hand is empty. Caveat: +use is a
+    // context toggle, so a release issued while NOT holding (but stood on a
+    // grabbable) grabs-then-drops; the caller's held-tracking keeps intent
+    // aligned.
+    DropHeld(context_, view, kSettle);
     portal2_harness::MacroResult r;
     r.set_ok(true);
     r.set_result_code("SUCCESS");
@@ -1435,13 +1466,22 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
   // Seat path: drop to free the grab. If the player stands in the seat, step it
   // off first (so the button rises and the cube has room), then teleport the
   // cube dead-centre, let the press register, and confirm it latched and stays.
-  PulseUse(kReleaseDropSettle, view);
+  if (!DropHeld(context_, view, kReleaseDropSettle)) {
+    portal2_harness::MacroResult r;
+    r.set_ok(false);
+    r.set_result_code("NOT_SEATED");
+    r.set_detail("release: could not drop the held cube for mark " +
+                 std::to_string(mark));
+    return r;
+  }
 
   // Hop 1: find the seat. If the player occupies it, displace the player and
   // defer seating until the button rises; otherwise seat the cube now.
   struct SeatStep {
     bool placed = false;     // cube is on the button
     bool displaced = false;  // player stepped off; seat after the button rises
+    bool fair = true;        // false => unfair seat; left as a plain drop
+    std::string reason;      // failing fairness gate (when !fair)
   };
   auto step = std::make_shared<SeatStep>();
   bool ran1 = RunOnMainThreadSync(context_, [step, heldKey, mark]() {
@@ -1453,9 +1493,16 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
     ServerEnt* button = SE(binfo->m_pEntity);
     Seat s = ComputeSeat(button, cube);
     if (!s.ok) return;
+    // Only seat what a clean hand-drop from here could have reached; otherwise
+    // leave the cube where the drop put it.
+    Fairness f = CheckFairness(button, cube, player, s);
+    if (!f.fair) {
+      step->fair = false;
+      step->reason = FairnessFailReason(f);
+      return;
+    }
     Vector standoff;
-    if (CheckFairness(button, cube, player, s).selfOnSeat &&
-        FindPlayerStandoff(button, player, &standoff)) {
+    if (f.selfOnSeat && FindPlayerStandoff(button, player, &standoff)) {
       SeatEntity(player, standoff, player->abs_angles());
       step->displaced = true;
       return;
@@ -1464,6 +1511,18 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
     step->placed = true;
   });
   if (!ran1) return cancelled();
+
+  if (!step->fair) {
+    // Unfair seat: the drop already put the cube down; finish its settle and
+    // report why we didn't place it.
+    AdvanceTicksBlocking(kSettle);
+    portal2_harness::MacroResult r;
+    r.set_ok(false);
+    r.set_result_code("NOT_FAIR");
+    r.set_detail("release: unfair seat on mark " + std::to_string(mark) + " (" +
+                 step->reason + "); dropped instead");
+    return r;
+  }
 
   // Hop 2 (only if displaced): the button has risen, so re-find the seat at the
   // rest height and place the cube there.
