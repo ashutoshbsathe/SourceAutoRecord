@@ -251,7 +251,7 @@ Seat ComputeSeat(ServerEnt* button, ServerEnt* cube) {
   s.normalZ = tr.plane.normal.z;
 
   // Cube world-space Z half-extent and its centre->origin offset, both from one
-  // collision-to-world matrix so a tilted (reflector) cube stays consistent.
+  // collision-to-world matrix so a tilted cube stays consistent.
   ICollideable& ccoll = cube->collision();
   Vector cmin = ccoll.OBBMins(), cmax = ccoll.OBBMaxs();
   Vector localCenter = (cmin + cmax) * 0.5f;
