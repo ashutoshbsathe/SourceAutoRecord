@@ -6,8 +6,8 @@ ray_tmp/
 *.trajectory
 *.trajectory.html
 # ...but keep this one archived run under version control
-!first_light/first_light.trajectory
-!first_light/first_light.trajectory.html
+!noteworthy_trajectories/*.trajectory
+!noteworthy_trajectories/*.trajectory.html
 
 .vscode/
 *.so
