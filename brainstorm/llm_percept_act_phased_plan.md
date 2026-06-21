@@ -113,6 +113,141 @@ Enables egocentric observation and *may* reduce per-tick cost. **Do not assume a
 
 ---
 
+## Track A2 — Annotation legibility pass (v2)
+
+> **Why now.** First/third light ran from annotated pixels, but inspecting the rendered
+> `third_light` frames exposes that the annotation is *present but not legible*: mark numbers are
+> **entirely missing** from the frame, and the A5 portal-placement reticle is an opaque red disc
+> blanketing the frame center. The annotator's job is an **honest, readable percept** — a marked
+> object the model can't read or refer to is a percept failure being silently charged to *reasoning*.
+> This track fixes legibility and completes the B1 occlusion predicate. (As-built note: the entity
+> annotator lives in `PuzzleAnnotate.cpp` + `MarkTable.cpp`; the A5 aim reticle lives in
+> `PortalPlacement.cpp`. The doc's older `HarnessAnnotate.cpp` name is stale.)
+
+**Two observed defects, root-caused in code:**
+
+1. **Marks fall off-screen → "grey blob, no number."** `PuzzleAnnotate.cpp` draws the label as a
+   *world-fixed* billboard at `origin + {0,0,maxs.z}` via `OverlayRender::addText`. `drawText`
+   (`OverlayRender.cpp:409,457`) faces the quad at the camera but **never projects or clamps** the
+   position — when the box top projects outside the viewport (close / large / partially-framed
+   entity), the quad is off-frame and never rasterized. There is no world→screen clamp anywhere in
+   the text path. `visibility_scale` only rescales size; it never repositions.
+2. **The A5 portal-placement reticle is an opaque red disc over the frame center.** The red ellipse at
+   the crosshair is *not* an entity box — it is the A5 portalable-surface aim indicator in
+   `PortalPlacement.cpp` (`ON_EVENT(RENDER)`, gated on `sar_harness_annotate`). `drawPortal`
+   (`PortalPlacement.cpp:165-194`) fills a 20-triangle portal-shaped ellipse (32×56u) at the crosshair
+   trace hit; `if (!(info.ePlacementResult<=2)) portalColor = red` turns it **red on a non-portalable
+   surface** (`INVALID_SURFACE` and friends), drawn at alpha `sar_pp_hud_opacity` (default
+   **100/255 ≈ 39%**). So it is a *filled, ~39%-opaque red disc sitting on the exact surface the agent
+   is aiming at* — it dominates and occludes the center of the percept. Two faults in one: (a) too
+   opaque, (b) a **filled disc is the wrong glyph** — it hides the very surface it annotates.
+   *(This corrects an earlier, wrong analysis in this doc that blamed the laser entity boxes —
+   `kClassColors` red — for the red; that was a misread of the frame.)*
+
+**Verified primitives (all already in-tree, zero new offsets):**
+- `Engine::PointToScreen(point, screen)` (`Engine.cpp:168`, wraps debugoverlay `ScreenPosition`) +
+  `Engine::GetScreenSize` — world→screen in px. **Live precedent:** `InspectionHud.cpp:43,50`
+  projects an entity origin then `surface->DrawTxt` at the screen px.
+- `Engine::TraceRay` (`Engine.hpp:90`) with the clean `Ray_t`/`CTraceFilterSimple` setup reused from
+  `AimPointHud.cpp:63-79` — for the B1 LOS cull.
+
+### The one architecture fork — where do mark labels live?
+
+The clamp fix needs labels in screen space. Two routes; they differ in risk, not in the math:
+
+- **(2D HUD layer) — strategically preferred.** A new `HarnessMarkHud` Paint pass: project each
+  anchor with `PointToScreen`, LOS-cull, clamp px into an inset rect, `surface->DrawTxt` the number +
+  optional leader line. Clean, constant-size, downscale-robust, and it is the **substrate the whole
+  backlog wants** (off-screen chevrons, glyph badges, legend, declutter, edge-tabs are all trivial in
+  2D). **Risk:** the SHM frame is grabbed via `videomode->ReadScreenPixels` (`Harness.cpp:360`); we
+  *know* the 3D OverlayRender pass lands in it, but whether VGui/HUD `DrawTxt` lands in it is
+  **unverified**. If it doesn't, marks vanish from the model's frame — strictly worse than today.
+- **(world-anchor clamp) — minimal / low-risk.** Stay inside the proven 3D overlay→SHM path: in
+  `drawText`, project the anchor (the `ViewSetup` is already in hand), clamp in NDC, re-derive a world
+  pos at a fixed distance in front of the camera, draw the billboard there. No new pass, no capture
+  risk; a bit more projection math and leader lines are clumsier in 3D.
+
+**Sequencing decision:** the reticle fix is route-independent (it's the A5 disc in
+`PortalPlacement.cpp`, not the mark label) → do it first. Then a **throwaway capture-timing probe**
+(does a HUD `DrawTxt` test string appear in the SHM frame?) decides the label route. If HUD is
+captured → build the 2D layer (unlocks the backlog); else → world-anchor clamp. This is the "quick
+result vs long-term investment" call to confirm with the user before P2.
+
+### Phases (small, C++-first, hand-verifiable)
+
+- **P0 — Tame the A5 portal-placement reticle (S).** In `PortalPlacement.cpp drawPortal`: the red
+  "can't-place-here" indicator is a filled ~39%-opaque disc over the crosshair. Make it subtle —
+  cheapest is lowering `sar_pp_hud_opacity` (zero code; could just live in the harness `autoexec.cfg`,
+  which already sets `sar_harness_annotate 1`). **Better:** render the *invalid* state as a thin
+  outline ring (or a small ✕) instead of a filled disc, so it stops occluding the surface it
+  describes; keep the valid (green) case equally light. Open design question for the brainstorm: is a
+  per-frame crosshair portalability cue even the right percept, or does it leak "where to portal"? — it
+  reports a frame-readable affordance (this surface is/ isn't portalable) at the aim point only, so
+  low-confound, but a filled center-disc is the wrong *form*. *Verify:* aim at a black/non-portalable
+  panel, `sar_harness_annotate 1`, confirm the red no longer blankets the frame center.
+- **P1 — Capture-timing probe (S, throwaway).** Confirm whether `surface->DrawTxt` lands in the SHM
+  `ReadScreenPixels` capture. Decides P2. Also do the **downscale check**: at the model's percept
+  resolution, are digits ≥ a few px? (`kMarkHeight` is tunable; constant-size 2D labels are the
+  robust answer.)
+- **P2 — Mark legibility layer (M).** Per the fork: project → **LOS-cull** → clamp-to-inset →
+  draw number (+ leader line when clamped). Labels become constant-size and **never leave the frame**.
+- **P3 — Complete B1: LOS occlusion cull for boxes *and* marks (S).** One `TraceRay` eye→entity;
+  skip/dim occluded entities. Replaces the depth-flag hack the `PuzzleAnnotate.cpp` comment flags
+  (sliced-by-wall vs x-ray). Shared predicate for box (3D) + mark (2D/clamped). This is B1, finished.
+- **P4 — Mark numbering hygiene (S).** Implement the A3-revision canonical/stable numbering the
+  shipped `MarkTable` skipped: re-bind a respawned entity (same class + origin within ε) to its
+  original mark, and compact the *displayed* range to dense 1..N while keeping the stable internal key
+  for macro resolution. Kills ballooning marks + respawn aliasing across a ReAct episode. Emit the
+  mark→identity table into the rollout header for auditability.
+
+### Backlog (ranked; prior-doc ideas + new), build after the primaries land
+
+*Legibility (low/no confound — make the percept honest, on by default):*
+- **Per-type glyph badges** (S–M, none): encode class as a *shape* next to the mark, not color-only —
+  several classes deliberately share a color (all buttons green, all laser parts red); robust to
+  downscale + LLM color-blindness. *new.*
+- **Off-frame direction+distance chevrons** (M, low): screen-edge arrow + mark# + *coarse* distance
+  bucket for entities behind/beside the camera. Bearing+bucketed-distance are facts, not the
+  solution. *new.*
+- **Label declutter + map-pin cluster dedup** (M, low): greedy screen-space separation; collapse
+  marks coincident along the view ray into a depth-ordered "+N" cluster. Solves the `frame_05`
+  pile-up. *new.* (Trivial once P2's 2D layer exists.)
+- **On-frame legend strip** (S, none): per-frame key of *only the types currently on screen* (glyph +
+  swatch + name) so the scheme is self-documenting, not a system-prompt prior. *new.*
+- **Ground-anchor rings for floor objects** (M, none): RTS-style disc under buttons/cubes — pins low
+  objects to a floor tile, survives steep camera angles better than a floating digit. *new.*
+- **Edge-tab marks for frame-straddling entities** (S, none): the partial-in-frame case the request
+  calls out — a pinned edge tab with a short leader to the visible sliver. *new.*
+- **Don't-flood filters** (S, none): exclude transient laser-beam *segment* ents (mark only the
+  emitter) and the dozen+ unnamed safety-net `trigger_catapult`s (mark only named/visible). From
+  `status_field_recon.md`.
+
+*Completeness (low confound — from `bsp_corpus_harness_improvements.md` §3/§6):*
+- **Folding-panel/stair + `func_movelinear` boxing** (M, low) — the highest-value completeness gap:
+  the agent stops trying to walk through un-annotated flip panels (offline targetname GT, rec #7).
+- **Gel / light-bridge surface quads** (M, low) — rec #8; narrow (bridges ~35% of maps, gel 1.8%).
+- **Status badges co-located with marks** (M, low) — button-pressed / catcher-powered / portal-linked
+  from resolved fields; needs the curated `[dm]` snapshotter registration (rec #9, gated on the
+  Status-fields work below). Door-open stays the deferred holdout.
+
+*Eval-science (measure before optimizing):*
+- **Annotation-legibility metric + percept-vs-reason ablation** (M, low): the renderer logs per-frame
+  counters (marks off-screen / overlapping label-pairs / occluded / mean glyph px) into the rollout,
+  plus a "perfect-percept" text oracle (type+position+bearing **facts only**, wiring withheld) that
+  isolates legibility from reasoning. *This is the measurement that makes every other item testable.*
+- **Golden-frame IoU QA** (S, none): assert box N actually covers entity N on every `PuzzleAnnotate`
+  change — today nobody validates the annotator; a mis-drawn box silently charges perception errors to
+  the model.
+- **Mark-robustness perturbations** (S, none): permute IDs / recolor / jitter — solve rate should be
+  invariant.
+
+*Hint-ablation dial (HIGH confound — experimenter-only / never default):* antlines-highlight (partial)
+→ full mark→mark wiring arrows → offline laser emitter→catcher pairs. Top of the
+`bsp_corpus_harness_improvements.md` dial (recs #10/#11); these *hand the solution* — reserved for the
+measured upper-bound oracle, never on in the default percept.
+
+---
+
 ## Track C — Macro grammar (C++ executor)
 
 > **→ Detailed, code-grounded build plan: [`macro_executor_impl_plan.md`](macro_executor_impl_plan.md)** (PR0–PR7
@@ -232,6 +367,7 @@ The §4 grammar gives the agent verbs; the **status fields** give it state ("is 
 ```
 A1→A2→A3→A4   A1→A5→(A6?)        ← Track A (hand-viewable)  ░ CHECKPOINT ░
 A2→B1→(B2?)                       ← Track B (optional/measured)
+A4→[P0 A5 reticle]→[P1 probe]→[P2 mark layer]→[P3 = B1 done]→[P4 numbering]  ← Track A2 (legibility v2)
 [checkpoint]→C1→C2→{C3, C4→{C5,C6}}   C1→{C8,C9}   A3+C1→C7   ← Track C (C++ macros)
 C7→D1→D2→D3(+C2..C6,C8)→D4         ← Track D (Python, last)
 ```

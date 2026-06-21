@@ -162,7 +162,7 @@ ON_EVENT(RENDER) {
 		auto green =  Color(  0, 255,   0, 255);
 		auto red =    Color(255,   0,   0, 255);
 
-		auto drawPortal = [&](Color portalColor, TracePortalPlacementInfo_t info) {
+		auto drawPortal = [&](Color portalColor, TracePortalPlacementInfo_t info, int alpha) {
 			Vector origin = info.finalPos;
 			QAngle angles = info.finalAngle;
 
@@ -174,7 +174,7 @@ ON_EVENT(RENDER) {
 			auto rot = Math::AngleMatrix({angles.x, angles.y, 0});
 
 			if (!(info.ePlacementResult<=2)) portalColor = red;
-			portalColor.a = (uint8_t)sar_pp_hud_opacity.GetInt();
+			portalColor.a = (uint8_t)alpha;
 
 			MeshId mesh = OverlayRender::createMesh(RenderCallback::constant(portalColor), RenderCallback::none);
 
@@ -193,11 +193,12 @@ ON_EVENT(RENDER) {
 			}
 		};
 
-		if (ppHud && sar_pp_hud_show_blue.GetBool()) drawPortal(blue, g_bluePlacementInfo);
-		if (ppHud && sar_pp_hud_show_orange.GetBool()) drawPortal(orange, g_orangePlacementInfo);
-		// A5 aim indicator: drawPortal swaps to red on an invalid result, so
-		// green here means the crosshair portal would land validly. Gate on
+		if (ppHud && sar_pp_hud_show_blue.GetBool()) drawPortal(blue, g_bluePlacementInfo, sar_pp_hud_opacity.GetInt());
+		if (ppHud && sar_pp_hud_show_orange.GetBool()) drawPortal(orange, g_orangePlacementInfo, sar_pp_hud_opacity.GetInt());
+		// Aim indicator: drawPortal swaps to red on an invalid result, so green
+		// here means the crosshair portal would land validly. Gate on
 		// g_hasPortalGun, else stale info draws a stray disc at the origin.
-		if (aim && g_hasPortalGun) drawPortal(green, g_bluePlacementInfo);
+		// Drawn near-transparent (alpha 5) so it doesn't blanket the surface.
+		if (aim && g_hasPortalGun) drawPortal(green, g_bluePlacementInfo, 5);
 	}
 }
