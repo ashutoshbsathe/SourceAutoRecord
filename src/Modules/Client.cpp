@@ -811,7 +811,7 @@ DETOUR(Client::DrawTranslucentRenderables, bool inSkybox, bool shadowDepth) {
 	g_DrawTranslucentRenderablesHook.Disable();
 	auto ret = Client::DrawTranslucentRenderables(thisptr, inSkybox, shadowDepth);
 	g_DrawTranslucentRenderablesHook.Enable();
-	OverlayRender::drawTranslucents(thisptr);
+	OverlayRender::drawTranslucents(thisptr, inSkybox || shadowDepth);
 	return ret;
 }
 Hook g_DrawTranslucentRenderablesHook(&Client::DrawTranslucentRenderables_Hook);

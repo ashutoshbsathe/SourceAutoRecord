@@ -11,22 +11,31 @@
 #include "Command.hpp"
 #include "Entity.hpp"
 #include "Event.hpp"
+#include "Features/Camera.hpp"
 #include "Features/EntityList.hpp"
 #include "Features/OverlayRender.hpp"
 #include "MarkTable.hpp"
 #include "Modules/Console.hpp"
+#include "Modules/Engine.hpp"
 #include "Modules/Server.hpp"
 #include "Offsets.hpp"
+#include "Utils/Math.hpp"
 #include "Utils/Memory.hpp"
 #include "Utils/SDK/Class.hpp"
+#include "Utils/SDK/Trace.hpp"
 #include "Variable.hpp"
 
 Variable sar_harness_annotate(
     "sar_harness_annotate", "0", 0, 1,
     "Draw wireframe annotation boxes around harness puzzle entities.\n");
 
+Variable sar_harness_annotate_los(
+    "sar_harness_annotate_los", "1", 0, 1,
+    "Cull annotation boxes/marks for entities the camera can't see (LOS).\n");
+
 // x_height of the mark label. Single digits, so keep it legible; tune freely.
-static constexpr float kMarkHeight = 6.0f;
+// Kept modest: oversized labels collide constantly and stack into tall columns.
+static constexpr float kMarkHeight = 4.0f;
 
 // classname -> annotation color. Membership here is also the "do we annotate
 // it?" test (one lookup gives both). Portals are special-cased at runtime to
@@ -68,6 +77,77 @@ bool IsHarnessMarkedClass(const char* className) {
   return className && kClassColors.find(className) != kClassColors.end();
 }
 
+// Trace filter that skips two entities: the player (the ray starts inside our
+// own hull) and the entity under test (so the ray doesn't stop on its own
+// surface). Without skipping the player, every ray hits us immediately.
+class SkipTwoEntities : public CTraceFilter {
+ public:
+  const void* a = nullptr;
+  const void* b = nullptr;
+  bool ShouldHitEntity(void* e, int) override { return e != a && e != b; }
+};
+
+// True if a ray from the eye to `target` is unobstructed by world geometry,
+// with the player and the tested entity skipped so neither self-occludes the
+// ray.
+static bool MarkVisible(const Vector& eye, void* player, void* ent,
+                        const Vector& target) {
+  Vector d = target - eye;
+  Ray_t ray;
+  ray.m_IsRay = true;
+  ray.m_IsSwept = true;
+  ray.m_Start = VectorAligned(eye.x, eye.y, eye.z);
+  ray.m_Delta = VectorAligned(d.x, d.y, d.z);
+  ray.m_StartOffset = VectorAligned();
+  ray.m_Extents = VectorAligned();
+  SkipTwoEntities filter;
+  filter.a = player;
+  filter.b = ent;
+  CGameTrace tr;
+  engine->TraceRay(engine->engineTrace->ThisPtr(), ray, MASK_OPAQUE, &filter,
+                   &tr);
+  return tr.fraction > 0.97f;
+}
+
+// Visible if any of the box's sample points (center + 8 OBB corners) has a
+// clear line to the eye -- robust to a thin occluder that happens to cross one
+// ray.
+static bool EntityVisible(const Vector& eye, void* player, void* ent,
+                          const Vector& origin, const Vector& mins,
+                          const Vector& maxs, const QAngle& angles) {
+  if (MarkVisible(eye, player, ent, origin)) return true;
+  auto rot = Math::AngleMatrix(angles);
+  for (int i = 0; i < 8; ++i) {
+    Vector corner{(i & 1) ? maxs.x : mins.x, (i & 2) ? maxs.y : mins.y,
+                  (i & 4) ? maxs.z : mins.z};
+    if (MarkVisible(eye, player, ent, origin + rot * corner)) return true;
+  }
+  return false;
+}
+
+// True if any of the box's sample points projects onto the screen -- i.e. the
+// entity is at least partly in the frame. Without this, the label clamp would
+// drag an entirely off-screen entity's number onto a screen edge.
+static bool InFrame(const Vector& origin, const Vector& mins,
+                    const Vector& maxs, const QAngle& angles) {
+  int sw = 0, sh = 0;
+  engine->GetScreenSize(nullptr, sw, sh);
+  if (sw <= 0 || sh <= 0) return true;
+  auto rot = Math::AngleMatrix(angles);
+  for (int i = 0; i <= 8; ++i) {
+    Vector p = origin;
+    if (i < 8) {
+      Vector c{(i & 1) ? maxs.x : mins.x, (i & 2) ? maxs.y : mins.y,
+               (i & 4) ? maxs.z : mins.z};
+      p = origin + rot * c;
+    }
+    Vector s;
+    if (engine->PointToScreen(p, s) != 0) continue;  // behind the camera
+    if (s.x >= 0 && s.x < sw && s.y >= 0 && s.y < sh) return true;
+  }
+  return false;
+}
+
 // Box + label every entity whose classname is in kClassColors, colored by
 // class. Iterates the server entity list directly (independent of any harness
 // session), matching the loop in EntitySnapshotter::Update.
@@ -80,6 +160,19 @@ ON_EVENT(RENDER) {
 
   if (!sar_harness_annotate.GetBool()) return;
   if (!server || !entityList) return;
+
+  // Eye + camera-right vector, computed once. Used both for the LOS cull and to
+  // place the left/right label candidates beside the box on screen.
+  Vector eye;
+  QAngle eyeAng;
+  bool haveEye = camera && camera->GetEyePos<false>(GET_SLOT(), eye, eyeAng);
+  Vector camRight{1, 0, 0};
+  if (haveEye) Math::AngleVectors(eyeAng, nullptr, &camRight, nullptr);
+  // The LOS cvar gates the cull only; the player is skipped by each trace so
+  // the ray doesn't hit our own hull at its start (the eye sits inside it).
+  bool los = sar_harness_annotate_los.GetBool();
+  void* player = los ? server->GetPlayer(GET_SLOT() + 1) : nullptr;
+  bool doCull = los && player && haveEye;
 
   for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
     auto info = entityList->GetEntityInfoByIndex(i);
@@ -103,22 +196,48 @@ ON_EVENT(RENDER) {
     Vector mins = se->collision().OBBMins();
     Vector maxs = se->collision().OBBMaxs();
     QAngle angles = se->abs_angles();
+    Vector anchor = origin + Vector{0, 0, maxs.z};
 
+    // Box is always drawn and depth-tested, so it occludes against world
+    // geometry naturally -- you see the visible part, nothing flashes in/out.
     OverlayRender::addBoxMesh(
         origin, mins, maxs, angles,
         RenderCallback::constant({color.r, color.g, color.b, 5}),
         RenderCallback::constant(color));
 
-    // Mark label, just above the box top, depth-tested to match the boxes.
-    // Neither depth flag is clean for a flat world-space quad: depth-tested
-    // gets sliced by a wall it sits against, on-top x-rays marks through walls.
-    // Real fix is an LOS predicate that culls marks for occluded entities.
+    // No number for an entity that isn't in the frame (else the clamp drags an
+    // off-screen entity's label onto a screen edge).
+    if (!InFrame(origin, mins, maxs, angles)) continue;
+
+    // The number is drawn on top (clamp_to_screen), so x-ray it only when the
+    // entity is actually visible -- otherwise marks for entities behind walls
+    // would float through. Sampling the whole box keeps a mostly-visible entity
+    // from being hidden by a thin occluder crossing a single ray.
+    if (doCull && !EntityVisible(eye, player, ent, origin, mins, maxs, angles))
+      continue;
+
+    // Mark label above the box. clamp_to_screen keeps the number in the
+    // viewport (a box whose top is off-screen still shows its label) and on top
+    // of geometry (no wall slicing).
     int mark =
         markTable.GetMark(i, static_cast<uint16_t>(info->m_SerialNumber));
-    OverlayRender::addText(origin + Vector{0, 0, maxs.z}, std::to_string(mark),
-                           kMarkHeight, /*visibility_scale*/ true,
-                           /*no_depth*/ false, OverlayRender::TextAlign::BOTTOM,
-                           color);
+    // Declutter candidates: the box bottom, then either side (offset along the
+    // camera's right axis past the box) so a crowded label can move sideways
+    // instead of only stacking.
+    std::vector<Vector> alts = {origin + Vector{0, 0, mins.z}};
+    if (haveEye) {
+      auto habs = [](float v) { return v < 0 ? -v : v; };
+      float ex = habs(mins.x) > habs(maxs.x) ? habs(mins.x) : habs(maxs.x);
+      float ey = habs(mins.y) > habs(maxs.y) ? habs(mins.y) : habs(maxs.y);
+      float radius = (ex > ey ? ex : ey) + 6.0f;
+      alts.push_back(origin + camRight * radius);
+      alts.push_back(origin - camRight * radius);
+    }
+    OverlayRender::addText(anchor, std::to_string(mark), kMarkHeight,
+                           /*visibility_scale*/ true, /*no_depth*/ false,
+                           OverlayRender::TextAlign::BOTTOM, color,
+                           /*bg_col*/ {0, 0, 0, 200}, /*clamp_to_screen*/ true,
+                           /*alts*/ alts);
   }
 }
 

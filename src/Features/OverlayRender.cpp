@@ -9,7 +9,9 @@
 #include "Features/Timer/PauseTimer.hpp"
 #include "Utils/FontAtlas.hpp"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <set>
 
 #define FONT_HPAD 48
@@ -99,6 +101,10 @@ struct OverlayText {
 	bool visibility_scale; // should we scale the text size to make it more visible from afar?
 	bool no_depth;
 	Color bg_col;
+	bool clamp_to_screen; // keep on-screen + on-top (see addText doc)
+	std::vector<Vector> alts; // extra declutter candidate spots (see addText)
+	float nudge_x = 0.0f;     // per-frame screen-space declutter offset, in NDC
+	float nudge_y = 0.0f;
 };
 
 static std::vector<OverlayText> g_text;
@@ -212,8 +218,8 @@ void OverlayRender::addBoxMesh(Vector origin, Vector mins, Vector maxs, QAngle a
 	}
 }
 
-void OverlayRender::addText(Vector pos, const std::string &text, float x_height, bool visibility_scale, bool no_depth, OverlayRender::TextAlign align, Color col, Color bg_col) {
-	g_text.push_back({pos, align, text, col, x_height, visibility_scale, no_depth, bg_col});
+void OverlayRender::addText(Vector pos, const std::string &text, float x_height, bool visibility_scale, bool no_depth, OverlayRender::TextAlign align, Color col, Color bg_col, bool clamp_to_screen, std::vector<Vector> alts) {
+	g_text.push_back({pos, align, text, col, x_height, visibility_scale, no_depth, bg_col, clamp_to_screen, std::move(alts)});
 }
 
 static IMaterial *createMaterial(KeyValues *kv, const char *name) {
@@ -406,7 +412,68 @@ static float drawTextLine(const char *str, Vector top_center, Color text_color, 
 	return (max_height - min_height + FONT_VPAD) * scale;
 }
 
+// Mark labels (clamp_to_screen) are projected into the view, kept inside a
+// screen-edge inset, decluttered, and placed at this fixed distance so they read
+// at a constant on-screen size and always draw on top.
+static const float kClampDist = 96.0f;
+// Pulled in from the very edge so a label's glyphs (which extend up/sideways from
+// the anchor) don't clip against the screen border.
+static const float kClampMargin = 0.84f;
+
+// Project a world point to normalized device coords [-1,1]. False if at/behind
+// the near plane.
+static bool projectNDC(ViewSetup *setup, const Vector &p, float &nx, float &ny) {
+	Vector fwd, right, up;
+	Math::AngleVectors(setup->angles, &fwd, &right, &up);
+	Vector d = p - setup->origin;
+	float along = d.x * fwd.x + d.y * fwd.y + d.z * fwd.z;
+	if (along <= setup->zNear) return false;
+	int sw = 0, sh = 0;
+	engine->GetScreenSize(nullptr, sw, sh);
+	float aspect = sh > 0 ? (float)sw / (float)sh : 16.0f / 9.0f;
+	float tanX = tanf(setup->fov * (float)(M_PI / 180.0) * 0.5f);
+	if (tanX <= 1e-4f) return false; // degenerate fov -> skip instead of NaN
+	float tanY = aspect > 0 ? tanX / aspect : tanX;
+	nx = (d.x * right.x + d.y * right.y + d.z * right.z) / (along * tanX);
+	ny = (d.x * up.x + d.y * up.y + d.z * up.z) / (along * tanY);
+	return true;
+}
+
+static void clampToMargin(float &nx, float &ny) {
+	nx = nx < -kClampMargin ? -kClampMargin : (nx > kClampMargin ? kClampMargin : nx);
+	ny = ny < -kClampMargin ? -kClampMargin : (ny > kClampMargin ? kClampMargin : ny);
+}
+
+// Inverse of projectNDC at a fixed distance in front of the camera.
+static Vector unprojectNDC(ViewSetup *setup, float nx, float ny, float dist) {
+	Vector fwd, right, up;
+	Math::AngleVectors(setup->angles, &fwd, &right, &up);
+	int sw = 0, sh = 0;
+	engine->GetScreenSize(nullptr, sw, sh);
+	float aspect = sh > 0 ? (float)sw / (float)sh : 16.0f / 9.0f;
+	float tanX = tanf(setup->fov * (float)(M_PI / 180.0) * 0.5f);
+	float tanY = aspect > 0 ? tanX / aspect : tanX;
+	return setup->origin + fwd * dist + right * (nx * tanX * dist) + up * (ny * tanY * dist);
+}
+
 static void drawText(ViewSetup *setup, OverlayText &t) {
+	// Effective position + depth. clamp_to_screen projects the anchor into the
+	// view, keeps it inside a screen-edge inset, applies the declutter nudge from
+	// layoutClampLabels, and places it at a fixed distance drawn on top -- so the
+	// label can't fall off-screen, get sliced by a wall, or stack on a neighbour.
+	Vector pos = t.pos;
+	bool no_depth = t.no_depth;
+	if (t.clamp_to_screen) {
+		float nx, ny;
+		if (!projectNDC(setup, t.pos, nx, ny)) return; // behind the camera
+		clampToMargin(nx, ny);
+		nx += t.nudge_x;
+		ny += t.nudge_y;
+		clampToMargin(nx, ny);
+		pos = unprojectNDC(setup, nx, ny, kClampDist);
+		no_depth = true;
+	}
+
 	std::vector<std::string> lines;
 	int height = FONT_VPAD;
 	int last_base_delta = 0;
@@ -443,8 +510,10 @@ static void drawText(ViewSetup *setup, OverlayText &t) {
 	}
 
 	float scale = t.x_height / (float)FONT_ATLAS_INFO['x'].height;
-	if (t.visibility_scale) {
-		float dist = (setup->origin - t.pos).Length();
+	// clamp_to_screen labels sit at a fixed distance; keep them a constant size so
+	// the declutter footprint stays accurate and edge labels don't grow.
+	if (t.visibility_scale && !t.clamp_to_screen) {
+		float dist = (setup->origin - pos).Length();
 		if (dist > 100) {
 			// this seems to work fairly well just from briefly messing around
 			scale *= sqrt((dist - 60) / 40);
@@ -454,7 +523,7 @@ static void drawText(ViewSetup *setup, OverlayText &t) {
 	Matrix rotation = createTextRotationMatrix(t.pos, setup);
 
 	// the top-center of the top line of text, including padding
-	Vector top_center = t.pos;
+	Vector top_center = pos;
 
 	switch (t.align) {
 	case OverlayRender::TextAlign::BOTTOM:
@@ -478,7 +547,7 @@ static void drawText(ViewSetup *setup, OverlayText &t) {
 		Vector br = top_center + rotation * Vector{ 0.0, (float)max_width * 0.5f + FONT_HPAD, -(float)height } * scale;
 		Vector tr = top_center + rotation * Vector{ 0.0, (float)max_width * 0.5f + FONT_HPAD, 0 } * scale;
 
-		MeshBuilder bg(t.no_depth ? g_mat_solid_alpha_noz : g_mat_solid_alpha, PrimitiveType::QUADS, 1);
+		MeshBuilder bg(no_depth ? g_mat_solid_alpha_noz : g_mat_solid_alpha, PrimitiveType::QUADS, 1);
 		bg.Position(bl); bg.Color(t.bg_col); bg.AdvanceVertex();
 		bg.Position(tl); bg.Color(t.bg_col); bg.AdvanceVertex();
 		bg.Position(tr); bg.Color(t.bg_col); bg.AdvanceVertex();
@@ -489,7 +558,7 @@ static void drawText(ViewSetup *setup, OverlayText &t) {
 	top_center -= rotation * Vector{ 0, 0, FONT_VPAD } * scale;
 
 	for (auto &line : lines) {
-		float draw_height = drawTextLine(line.c_str(), top_center, t.col, scale, rotation, t.no_depth);
+		float draw_height = drawTextLine(line.c_str(), top_center, t.col, scale, rotation, no_depth);
 		top_center -= rotation * Vector{ 0, 0, draw_height };
 	}
 }
@@ -503,9 +572,100 @@ void OverlayRender::drawOpaques(void *viewrender) {
 	}
 }
 
-void OverlayRender::drawTranslucents(void *viewrender) {
+// De-overlap clamp_to_screen labels by greedy placement. Project each into the
+// view, place them top-to-bottom, and drop any label that lands on an already-
+// placed one straight down to a free row. Placed labels never move, so a cluster
+// opens cleanly downward -- unlike symmetric pairwise nudging, which seizes up
+// (a label pushed equally from both sides nets zero movement). Writes the per-
+// label NDC nudge consumed by drawText.
+static void layoutClampLabels(ViewSetup *setup) {
+	struct L {
+		OverlayText *t;
+		float tx, ty;       // primary (box-top) candidate ndc; also the nudge base
+		float ax[4], ay[4]; // alternate candidate ndc positions
+		int na;             // number of valid alternates
+		float x, y;         // placed ndc
+		float w, h;         // ndc footprint (full width / height of the label)
+	};
+	std::vector<L> ls;
+	int sw = 0, sh = 0;
+	engine->GetScreenSize(nullptr, sw, sh);
+	float aspect = sh > 0 ? (float)sw / (float)sh : 16.0f / 9.0f;
+	float tanX = tanf(setup->fov * (float)(M_PI / 180.0) * 0.5f);
+	float tanY = aspect > 0 ? tanX / aspect : tanX;
+	for (auto &t : g_text) {
+		t.nudge_x = 0.0f;
+		t.nudge_y = 0.0f;
+		if (!t.clamp_to_screen) continue;
+		float tx, ty;
+		if (!projectNDC(setup, t.pos, tx, ty)) continue;
+		clampToMargin(tx, ty);
+		// Footprint tracks the actual label size at the fixed clamp distance, so
+		// the spacing stays correct if the label height or fov changes.
+		float h = (t.x_height * 1.7f) / (kClampDist * tanY);
+		float w = (t.x_height * 0.7f * (float)t.text.size()) / (kClampDist * tanX);
+		L l{ &t, tx, ty, {}, {}, 0, tx, ty, w, h };
+		// Project the caller's alternate spots (the box's other sides) that land
+		// in view; the placement below prefers them over stacking.
+		for (auto &a : t.alts) {
+			if (l.na >= 4) break;
+			float nx, ny;
+			if (projectNDC(setup, a, nx, ny)) {
+				clampToMargin(nx, ny);
+				l.ax[l.na] = nx;
+				l.ay[l.na] = ny;
+				++l.na;
+			}
+		}
+		ls.push_back(l);
+	}
+	std::sort(ls.begin(), ls.end(), [](const L &a, const L &b) {
+		return a.ty != b.ty ? a.ty > b.ty : a.tx < b.tx;
+	});
+	const float gap = 0.012f; // extra ndc breathing room between rows
+	auto collides = [&](size_t i, float x, float y) {
+		for (size_t j = 0; j < i; ++j) {
+			float needX = (ls[i].w + ls[j].w) * 0.5f;
+			float needY = (ls[i].h + ls[j].h) * 0.5f + gap;
+			if (fabsf(x - ls[j].x) < needX && fabsf(y - ls[j].y) < needY) return true;
+		}
+		return false;
+	};
+	for (size_t i = 0; i < ls.size(); ++i) {
+		if (!collides(i, ls[i].tx, ls[i].ty)) {
+			ls[i].x = ls[i].tx; // preferred spot (box top) is free
+			ls[i].y = ls[i].ty;
+			continue;
+		}
+		bool placed = false;
+		for (int k = 0; k < ls[i].na; ++k) {
+			if (!collides(i, ls[i].ax[k], ls[i].ay[k])) {
+				ls[i].x = ls[i].ax[k]; // a box side is free
+				ls[i].y = ls[i].ay[k];
+				placed = true;
+				break;
+			}
+		}
+		if (!placed) {
+			ls[i].x = ls[i].tx; // every candidate taken: stack down from the top
+			ls[i].y = ls[i].ty;
+			for (int guard = 0; guard < 256 && collides(i, ls[i].x, ls[i].y); ++guard)
+				ls[i].y -= ls[i].h + gap;
+		}
+	}
+	for (auto &l : ls) {
+		l.t->nudge_x = l.x - l.tx;
+		l.t->nudge_y = l.y - l.ty;
+	}
+}
+
+void OverlayRender::drawTranslucents(void *viewrender, bool secondaryPass) {
 	// CRendering3dView inherits CViewSetup! this is handy
 	auto setup = ViewSetupCreate((CViewSetup *)((uintptr_t)viewrender + 8));
+
+	// The clamp/declutter layout is for the main view only; skip it (and the
+	// labels themselves, below) in skybox/shadow passes so they don't stray.
+	if (!secondaryPass) layoutClampLabels(setup);
 
 	// Order meshes!
 	struct MeshCompare {
@@ -545,7 +705,11 @@ void OverlayRender::drawTranslucents(void *viewrender) {
 
 	for (auto mesh : meshes) {
 		if (mesh.first) {
-			drawText(setup, *(OverlayText *)mesh.second);
+			OverlayText *t = (OverlayText *)mesh.second;
+			// On-top clamp labels belong to the main view only; a secondary pass
+			// would project them through its own camera and stray onto the screen.
+			if (secondaryPass && t->clamp_to_screen) continue;
+			drawText(setup, *t);
 		} else {
 			drawMesh(setup, *(OverlayMesh *)mesh.second, true);
 		}

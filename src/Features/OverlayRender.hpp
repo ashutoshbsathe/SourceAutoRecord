@@ -4,6 +4,7 @@
 #include <string>
 #include <climits>
 #include <functional>
+#include <vector>
 
 // A callback to determine the rendering parameters for a mesh based on
 // a given ViewSetup.
@@ -30,7 +31,7 @@ typedef size_t MeshId;
 namespace OverlayRender {
 	// INTERNAL FUNCTIONS - DO NOT USE
 	void drawOpaques(void *viewrender);
-	void drawTranslucents(void *viewrender);
+	void drawTranslucents(void *viewrender, bool secondaryPass = false);
 	void initMaterials();
 
 	// Every primitive has to be within a mesh
@@ -50,5 +51,11 @@ namespace OverlayRender {
 
 	// Standalone overlay functions - don't use these within a mesh
 	void addBoxMesh(Vector origin, Vector mins, Vector maxs, QAngle ang, RenderCallback solid, RenderCallback wireframe);
-	void addText(Vector pos, const std::string &text, float x_height, bool visibility_scale, bool no_depth = false, TextAlign align = TextAlign::BASELINE, Color col = {255,255,255}, Color bg_col = {0,0,0,200});
+	// clamp_to_screen: keep the label inside the viewport and draw it on top of
+		// geometry. If the anchor projects off-screen it is clamped to a screen-edge
+		// inset; on-screen labels stay put. Either way the label renders no-depth so a
+		// wall can't slice it. Ignores no_depth (always on top) when set.
+		// alts: extra candidate spots (e.g. the box's other sides) the declutter
+		// may use instead of stacking, when clamp_to_screen is set.
+		void addText(Vector pos, const std::string &text, float x_height, bool visibility_scale, bool no_depth = false, TextAlign align = TextAlign::BASELINE, Color col = {255,255,255}, Color bg_col = {0,0,0,200}, bool clamp_to_screen = false, std::vector<Vector> alts = {});
 }
