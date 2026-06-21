@@ -588,3 +588,30 @@ remaining item is the later strip-or-keep decision on the dormant `sar_harness_*
   `on-button: ground=/geo=` and the chosen `standoff` (no teleport yet — C4 wires the moves: displace
   player → drop → seat cube). *In-game verify owed:* stand on the button holding a cube, run
   `seat_check` → expect `on-button ground=Y` (or `geo=Y`) and a sane `standoff` just off the button.
+  **Verified 2026-06-21:** `ground=Y geo=Y` on a `prop_floor_button`; `standoff (823,704,0)` valid (off
+  the button on floor). Ground-entity detector is reliable.
+- **C3 shipped read-only (2026-06-21), builds clean.** `CheckFairness(button, cube, player, seat)` runs
+  all five static gates and `seat_check` prints each verdict + raw measurement: **reach**
+  (`dist(eye,seat) ≤ kGrabRange`), **press-normal** (`normalZ > 0.7`), **corridor** (cube-hull drop
+  sweep settles within `kCorridorSlack` of the seat — catches grate/fizzler/geometry), **eye-line**
+  (clear ray eye→seat, rejects glass), **seat-occupancy** (zero-len cube hull at the seat skipping the
+  button: `CLEAR` / `SELF`→displace / `OCCUPIED by <class>`). `TraceSkip2` filter skips both placer and
+  placed cube so neither self-blocks. Overall `fair = reach && press-normal && corridor && eye-line &&
+  (seatClear || selfOnSeat)`. **Consolidation:** fairness #4 `SELF` (player hull overlaps the seat
+  volume) replaced the earlier ground/geo on-button print — it is the precise displacement trigger
+  (only fires when the player is actually *in the seat*, not merely standing on the button); standoff
+  now prints under `SELF`. Thresholds are doc defaults, printed raw for calibration. *In-game verify
+  owed:* (a) stand-on-button + held cube → `fair: YES`, `seat SELF`, standoff printed; (b) a wall/steep
+  button → `press-normal N`; (c) fizzler/glass between → `corridor`/`eye-line N`; (d) a stray cube on
+  the button → `seat OCCUPIED`.
+  **Verified + bugfix 2026-06-21:** on-button → `fair: YES seat SELF standoff (823,704,0)` ✓. Far-away
+  exposed a bug: seat read `OCCUPIED by prop_floor_button` because the seat dips `kSeatBias` *into* the
+  button and the button-skip filter didn't exclude the started-inside entity from `startsolid`'s
+  `m_pEnt`. **Fixed:** the occupancy hull now rests `kSeatBias + kOccupancyLift` above the seat (clear of
+  the button), so only foreign occupants register. On-button `SELF` still detected (player overlaps the
+  lifted box).
+- **C4 sequencing note (from the verify):** `surface.z` is **21.68 when the button is at rest** vs
+  **14.39 when the player stands on it** — `prop_floor_button` physically depresses ~7u under weight. So
+  C4 must **displace the player first, then (re)compute the seat at rest height**; seating at the
+  pressed-down Z would place the cube too low once the button rises. The cube's own weight re-presses it;
+  the C5 dwell observes the settled state.

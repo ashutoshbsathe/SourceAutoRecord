@@ -90,6 +90,14 @@ constexpr float kStandoffMargin =
 constexpr int kStandoffBearings = 16;  // directions probed around the button
 constexpr float kStandoffLift =
     2.0f;  // lift the player-fit hull test off the floor
+constexpr float kPressNormalMin =
+    0.7f;  // press surface must face up at least this much (1 = flat)
+constexpr float kCorridorSlack =
+    8.0f;  // drop sweep may settle at most this far above the seat
+constexpr float kEyeLineSlack =
+    8.0f;  // eye->seat ray may stop at most this short of the seat
+constexpr float kOccupancyLift =
+    2.0f;  // raise the seat-occupancy hull this far clear of the button
 
 int Slot() { return GET_SLOT(); }
 
@@ -284,6 +292,115 @@ bool FindPlayerStandoff(ServerEnt* button, ServerEnt* player, Vector* out) {
     return true;
   }
   return false;
+}
+
+// Trace filter that ignores two entities (e.g. the placer and the cube being
+// placed) so neither registers as a blocker in the drop path or at the seat.
+struct TraceSkip2 : public CTraceFilterSimple {
+  const void* skip2 = nullptr;
+  bool ShouldHitEntity(void* ent, int mask) override {
+    return CTraceFilterSimple::ShouldHitEntity(ent, mask) && ent != skip2;
+  }
+};
+
+// Whether placing the held cube on this seat is something a clean hand-drop
+// from where the player stands could have done -- a battery of static traces,
+// each a prove-or-refuse gate. selfOnSeat is the one occupant that stays fair:
+// the player is in the seat itself, which a displacement step clears. All
+// read-only -- traces + field reads. Main thread (live entities).
+struct Fairness {
+  bool reach = false;        // eye close enough to the seat to have placed it
+  bool pressNormal = false;  // press surface faces up, not a wall/steep button
+  bool corridor = false;     // a drop from above reaches the seat unobstructed
+  bool eyeLine = false;      // clear line of sight from the eye to the seat
+  bool seatClear = false;    // nothing foreign already in the seat
+  bool selfOnSeat = false;   // the only seat occupant is the player (displace)
+  bool fair = false;
+  float reachDist = 0;    // eye -> seat distance
+  float corridorGap = 0;  // how far above the seat the drop sweep settled
+  float eyeGap = 0;       // eye -> seat distance still uncovered at a block
+  std::string occupant;   // seat occupant class (empty if clear/self)
+  std::string eyeHit;     // eye-line blocker class (empty if clear)
+};
+Fairness CheckFairness(ServerEnt* button, ServerEnt* cube, ServerEnt* player,
+                       const Seat& seat) {
+  Fairness f;
+  const void* pl = player;
+  const void* cu = cube;
+  const void* bt = button;
+
+  Vector eye;
+  PlayerEye(&eye);
+
+  // 1. Reach: the player must already be next to the seat (no cross-room snap).
+  f.reachDist = (seat.center - eye).Length();
+  f.reach = f.reachDist <= kGrabRange;
+
+  // 2. Press surface faces up -- a wall or steep button can't hold a dropped
+  // cube even though the bbox would technically overlap the trigger.
+  f.pressNormal = seat.normalZ > kPressNormalMin;
+
+  ICollideable& ccoll = cube->collision();
+  Vector cmin = ccoll.OBBMins(), cmax = ccoll.OBBMaxs();
+  float cubeH = cmax.z - cmin.z;
+
+  // 3. Drop corridor: sweep the cube hull straight down from one cube-height
+  // above the seat, skipping the player and the cube. It must settle on the
+  // press surface, not catch on geometry/grate/fizzler in the path.
+  {
+    TraceSkip2 filter;
+    filter.SetPassEntity(pl);
+    filter.skip2 = cu;
+    Vector top = seat.center + Vector{0, 0, cubeH}, bot = seat.center;
+    CGameTrace tr;
+    engine->TraceHull(top, bot, cmin, cmax, MASK_PLAYERSOLID, filter, tr);
+    f.corridorGap = tr.endpos.z - seat.center.z;
+    f.corridor = !tr.startsolid && f.corridorGap <= kCorridorSlack;
+  }
+
+  // 4. Seat occupancy: a zero-length cube hull resting ON the press surface --
+  // lifted clear of the button the seat dips into, so the button it sits on
+  // never reads as the occupant. The player in the seat is self (still fair --
+  // displace it off); any other solid is a foreign occupant we won't disturb.
+  {
+    TraceSkip2 filter;
+    filter.SetPassEntity(bt);
+    filter.skip2 = cu;
+    Vector occ = seat.center + Vector{0, 0, kSeatBias + kOccupancyLift};
+    CGameTrace tr;
+    engine->TraceHull(occ, occ, cmin, cmax, MASK_PLAYERSOLID, filter, tr);
+    if (!tr.startsolid) {
+      f.seatClear = true;
+    } else {
+      const char* oc =
+          tr.m_pEnt ? server->GetEntityClassName(tr.m_pEnt) : "world";
+      f.occupant = oc ? oc : "world";
+      f.selfOnSeat = f.occupant == "player";
+    }
+  }
+
+  // 5. Eye line: a clear ray from the eye to the seat, skipping the player and
+  // the cube, rejects "in reach but walled off behind glass".
+  {
+    TraceSkip2 filter;
+    filter.SetPassEntity(pl);
+    filter.skip2 = cu;
+    Vector d = seat.center - eye, up{0, 0, 1};
+    float dist = d.Length();
+    QAngle ang{0, 0, 0};
+    Math::VectorAngles(d, up, &ang);
+    Vector from = eye;
+    CGameTrace tr;
+    bool hit = engine->Trace(from, ang, dist, MASK_PLAYERSOLID, filter, tr);
+    f.eyeGap = hit ? (1.0f - tr.fraction) * dist : 0.0f;
+    f.eyeLine = !hit || f.eyeGap <= kEyeLineSlack;
+    if (!f.eyeLine)
+      f.eyeHit = tr.m_pEnt ? server->GetEntityClassName(tr.m_pEnt) : "world";
+  }
+
+  f.fair = f.reach && f.pressNormal && f.corridor && f.eyeLine &&
+           (f.seatClear || f.selfOnSeat);
+  return f;
 }
 
 // Mark -> world-space aim point (OBB centre). Sets *code on a bad mark. Main
@@ -1411,34 +1528,29 @@ CON_COMMAND(sar_harness_seat_check,
   console->Print("  angles   (p%.1f y%.1f r%.1f)\n", s.angles.x, s.angles.y,
                  s.angles.z);
 
-  // Player standing on the target button while holding the cube: an
-  // unambiguously fair seat, but the player has to step off first. Report
-  // whether that is the case and where the player would go (no teleport yet).
-  auto [bIdx, bSer] = markTable.GetEntityFromMark(buttonMark);
-  CBaseHandle ground = pl->ground_entity();
-  bool grounded = (bool)ground;
-  int groundIdx = grounded ? ground.GetEntryIndex() : -1;
-  CEntInfo* ginfo =
-      grounded ? entityList->GetEntityInfoByIndex(groundIdx) : nullptr;
-  const char* gcls = (ginfo && ginfo->m_pEntity)
-                         ? server->GetEntityClassName(ginfo->m_pEntity)
-                         : "(air)";
-  ICollideable& bcoll = SE(binfo->m_pEntity)->collision();
-  Vector bmin = bcoll.OBBMins(), bmax = bcoll.OBBMaxs();
-  float bHalfW = 0.5f * Vector{bmax.x - bmin.x, bmax.y - bmin.y, 0}.Length2D();
-  Vector feet = pl->abs_origin();
-  float dxy = Vector{feet.x - s.center.x, feet.y - s.center.y, 0}.Length2D();
-  bool onGround = grounded && groundIdx == bIdx;
-  bool onGeo = grounded && dxy < bHalfW + kStandoffMargin &&
-               std::fabs(feet.z - s.surface.z) < kProbeHeight;
-  console->Print("  player   ground=%s  on-button: ground=%s geo=%s\n", gcls,
-                 onGround ? "Y" : "N", onGeo ? "Y" : "N");
-  if (onGround || onGeo) {
+  // Fairness battery: would a clean hand-drop from here have reached this seat?
+  Fairness f = CheckFairness(SE(binfo->m_pEntity), cube, pl, s);
+  console->Print("  fair: %s\n", f.fair ? "YES" : "NO");
+  console->Print("    reach        %s  (d=%.1f <= %.0f)\n", f.reach ? "Y" : "N",
+                 f.reachDist, kGrabRange);
+  console->Print("    press-normal %s  (nz=%.3f > %.2f)\n",
+                 f.pressNormal ? "Y" : "N", s.normalZ, kPressNormalMin);
+  console->Print("    corridor     %s  (gap=%.1f)\n", f.corridor ? "Y" : "N",
+                 f.corridorGap);
+  console->Print("    eye-line     %s%s%s\n", f.eyeLine ? "Y" : "N",
+                 f.eyeLine ? "" : "  blocked by ", f.eyeHit.c_str());
+  if (f.seatClear)
+    console->Print("    seat         CLEAR\n");
+  else if (f.selfOnSeat)
+    console->Print("    seat         SELF (player on seat -> displace)\n");
+  else
+    console->Print("    seat         OCCUPIED by %s\n", f.occupant.c_str());
+  if (f.selfOnSeat) {
     Vector standoff;
     if (FindPlayerStandoff(SE(binfo->m_pEntity), pl, &standoff))
-      console->Print("  standoff (%.1f, %.1f, %.1f)\n", standoff.x, standoff.y,
-                     standoff.z);
+      console->Print("    standoff     (%.1f, %.1f, %.1f)\n", standoff.x,
+                     standoff.y, standoff.z);
     else
-      console->Print("  standoff: none found\n");
+      console->Print("    standoff     none found\n");
   }
 }
