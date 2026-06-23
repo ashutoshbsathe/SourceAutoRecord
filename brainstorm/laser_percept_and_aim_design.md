@@ -8,6 +8,22 @@
 > its verb design with the teleport-aim insight), [release_place_on_button_design.md](release_place_on_button_design.md)
 > (the place-on-button teleport spine we reuse), and [status_field_recon.md](status_field_recon.md)
 > (the catcher/relay/target field findings).
+>
+> **Update (2026-06-22): L0 recon done — results in §B.1.** The load-bearing unknowns are answered
+> (free cube redirects; exit = cube local +X, closed-form; ~1–3° tolerance; `m_hMoveParent` gives the
+> exact catcher↔target link). Held-aim is mechanically validated, which **flips the §B.2 verb lean**:
+> held-aim is the primary, eval-faithful verb; the teleport (`aim_laser`) is demoted to a deterministic
+> oracle/fallback. The held coupling is also known — the held cube tracks the player view *exactly*
+> (64-tick settle) — so scripted held-aim is deterministic. No gaps remain; L0 is closed.
+>
+> **Update (2026-06-23): verb design REVISED + moved.** A 12-agent brainstorm **reversed the held-aim
+> lean — teleport is now primary, held-aim is the oracle** — and resolved the verb surface
+> (`interpose` + `power_with` + `redirect_to`; `aim_at` stays camera-only). The authoritative verb
+> design + phased plan now live in [laser_redirect_verb_design.md](laser_redirect_verb_design.md);
+> §B.2–B.6 below are **superseded** (kept for history; §B.0 mechanics + §B.1 L0 results stand). §A is
+> also revised: **mark `point_laser_target` only** (it carries `m_bPowered` and is the aim point) —
+> drop the catcher/relay marks, no resolver. Gated on the interception spike
+> `sar_harness_laser_intercept_spike` (built).
 
 ---
 
@@ -152,24 +168,50 @@ grab controller), then `Teleport` it to the orientation that aims the beam — c
 held-coupling unknown evaporates; we only need to know the cube's redirect axis in its **local frame**
 (a single constant), which one spike measures.
 
-### B.1 — L0 recon spike (the gateway, do FIRST) — *what we still have to find out*
+### B.1 — L0 recon RESULTS (done 2026-06-22)
 
-The percept "child thing" is already answered; **this** is the part that isn't. On a laser chamber,
-with the existing recon discipline (`sar_harness_dump_fields` / `macro_repl`):
-1. **Does a *free* (dropped) reflector cube redirect a beam?** (Leading assumption: yes — the canonical
-   "place a cube to hold the beam" mechanic. Must confirm — the whole teleport approach rests on it.)
-2. **The local redirect axis.** Drop the cube at known orientations; trace the re-emitted
-   `env_portal_laser` segment; back out which **local axis** the beam exits along (e.g. +X / lens
-   normal). → the constant the aim math needs.
-3. **Is redirect independent of the incoming direction?** ("routes out a face" ⇒ yes; if it's actually
-   a reflection, the math takes the incoming beam too). 
-4. **Position tolerance.** How far off the beam centerline can the cube sit and still redirect? → sets
-   how precise the placement must be.
-5. **Is `point_laser_target.m_bPowered` a dense-enough signal**, or do we need to trace the beam
-   endpoint for a gradient? (Binary `powered` can't hill-climb; see B.4.)
+Run on a single emitter/cube/catcher chamber via a read-only `sar_harness_laser_probe` command
+(in [PuzzleAnnotate.cpp](../src/Features/Harness/PuzzleAnnotate.cpp): origin/angles/forward + the
+on/powered/cubetype bit + the target's parent handles for every laser entity & cube).
 
-Deliverable: a short write-up like `status_field_recon.md`. **This decides whether B is "one
-closed-form teleport" (B3) or "a hill-climbing loop" (B4).**
+1. **A free/dropped cube redirects — YES.** Drop a reflector cube into the beam; `m_bPowered` flips
+   true and stays true after release.
+2. **Local redirect axis = cube local +X (its forward).** In a powered config the cube's `fwd` and
+   `normalize(catcher − cube)` had dot product **1.000** (0° error). No incoming term ⇒ a **routed
+   lens face, not a mirror**. Aim is closed-form: `world exit = R(cube_angles)·(1,0,0)`; flat
+   horizontal beam ⇒ pure yaw, `yaw = atan2(dy, dx)`, pitch=roll=0.
+3. **Incoming-independent** — exit depends only on cube orientation. (Caveat: one in-chamber emitter,
+   so all samples shared a +Y incoming; the routed-face model is clean, a multi-emitter check would
+   make it airtight.)
+4. **Tolerance is tight (~1–3°).** Works at ~0.5° error; an 18° yaw error misses by ~208u and drops
+   `m_bPowered`. Open-loop aim must be accurate **and** confirmed.
+5. **`m_bPowered` is binary/sharp** — no gradient. A closed loop must hill-climb a *predicted-exit*
+   surrogate (exit = cube +X, computed), **not** the bit, and **not** the beam segment (gotcha below).
+6. **Held cube tracks the view EXACTLY, 64-tick settle.** `pick_up` uses the real engine `+use` carry;
+   the held cube's orientation follows the player view 1:1 (full orientation, not just yaw) and
+   converges ~64 ticks after a view change. So scripted held-aim is deterministic: command the view,
+   `wait ~64`, the cube's +X (= exit beam) lands where the view points. **Parallax matters** at this
+   tolerance — aim from the *cube* position, not the eye: view dir = `normalize(catcher_center − cube_pos)`.
+
+**Held-aim is validated + scripted-feasible.** Held yaw 29.8 (powered) → dropped → yaw 29.8 preserved,
+still powered. For a **horizontal** beam the solution is pure yaw, so the current `release` (which zeroes
+pitch/roll) already preserves it; the §B.5 orientation-preserving release is only needed for
+**tilted/vertical** beams (where view-pitch tracking aims them). **This flips the §B.2 lean:** held-aim
+is the primary, eval-faithful verb (point the view from the cube at the catcher → `wait 64` → confirm
+`m_bPowered` → release); the teleport (`aim_laser`, instant, no settle) is demoted to a deterministic
+**oracle/fallback**.
+
+**Part A is settled too:** `point_laser_target.m_hMoveParent` points at the catcher → use the exact
+parent handle (A2), no proximity.
+
+**GOTCHA — the transient beam segment transform is bogus.** The redirected `env_portal_laser
+"<no name>"` segment reads origin (0,0,0)/identity angles — its entity transform is NOT the beam
+geometry. Never scrape it for the exit direction (predict from the cube). Confirms §A.3: mark only the
+**named** emitter, filter the nameless segments.
+
+Raw (powered P2 / dropped P3 / knocked-out P4): cube[279] (454.8,372.4,28.2) yaw29.8 fwd(0.868,0.497,0)
+→ (454.5,370.5,18.5) yaw29.8 → (466.8,379.1,18.5) yaw12.0; emitter[296] (448,−16,32) fwd(0,1,0);
+catcher[261] (1040,704,32); target[534] (1024,704,32) m_hMoveParent→[261].
 
 ### B.2 — the verb shape: new verb vs overload `aim_at`/`release`
 
@@ -271,19 +313,18 @@ Net-new vs place-on-button: the **redirect-axis rotation** (B3) + the **out-line
 
 ---
 
-## Forks for you to decide (before this becomes a plan)
+## Forks — resolved by L0 recon (see §B.1)
 
-1. **Association (A.1):** proximity baseline (A1) now, parent-handle (A2) as a spike-gated upgrade —
-   or go straight for the parent handle? *(Lean: A1 now, A2 if the spike shows parenting.)*
-2. **Display (A.2):** merge the target's bit into the catcher mark + drop the target mark, or show
-   both? *(Lean: merge.)*
-3. **Verb shape (B.2):** one new `aim_laser <catcher>` verb (deterministic teleport), or the
-   two-verb hand-aim split (B5)? *(Lean: one verb; B5 only as a validation experiment.)*
-4. **Aim path (B.3 vs B.4):** open-loop closed-form teleport first, hill-climb only if it misses —
-   or build the closed loop up front? *(Lean: open-loop first; the spike decides.)*
-5. **Position (B.3):** v0 "orient in place" (agent positions the cube), or solve the in-beam point
-   too? *(Lean: orient-in-place for v0.)*
+1. **Association (A.1):** ✅ **A2 parent handle** — `m_hMoveParent` points at the catcher. No proximity.
+2. **Display (A.2):** merge `m_bPowered` onto the catcher mark, drop the target mark, filter nameless
+   beam segments (§A.3). *(merge.)*
+3. **Verb shape (B.2):** ✅ flipped — **held-aim is primary**: point the view from the cube at the
+   catcher (parallax-correct) → `wait ~64` for the carry to settle → confirm → release (orientation-
+   preserving for tilted beams). Teleport `aim_laser` = deterministic oracle/fallback.
+4. **Aim path:** scripted open-loop is viable (exact view coupling); wrap with a confirm-and-nudge for
+   the ~1–3° tolerance. Full hill-climb (B.4) only if needed.
+5. **Position (B.3):** orient-in-place for v0 (the agent walks the cube into the beam).
 
-A proposed phased build (L0 spike → A-resolver + percept → B reflector-aim verb → Python grammar)
-follows the many-small-phases / C++-before-Python pattern once you pick the forks — I left it out
-deliberately so we align on the design first.
+L0 is closed. **Next: the phased build** — Part A percept resolver (parent-handle → `powered` on the
+catcher mark + segment filter) → held-aim verb (aim-from-cube + `wait 64` + confirm) → Python grammar.
+Many-small-phases, C++-before-Python.

@@ -443,3 +443,246 @@ CON_COMMAND(sar_harness_dump_fields,
         "recon dump: %d status field(s) across the matched puzzle entities.\n",
         (int)g_reconBaseline.size());
 }
+
+// ---------------------------------------------------------------------------
+// Recon: geometry + state for laser entities and weighted cubes. Diagnostic for
+// the reflector cube's redirect: dump the cube's angles alongside the
+// re-emitted beam segment's forward vector to back out the cube-local axis the
+// beam exits along. Read-only -- field reads only, mutates nothing.
+
+static bool IsLaserProbeClass(const char* c) {
+  return !std::strcmp(c, "env_portal_laser") ||
+         !std::strcmp(c, "prop_laser_catcher") ||
+         !std::strcmp(c, "prop_laser_relay") ||
+         !std::strcmp(c, "point_laser_target") ||
+         !std::strcmp(c, "prop_weighted_cube");
+}
+
+// Decode an EHANDLE field to its live entity index, or -1 if absent/invalid.
+static int ReconReadHandleIndex(void* ent, const char* name) {
+  auto val = EntField::getServerOffset(ent, name);
+  if (val.first == 0 || val.second == EntField::Type::NONE) return -1;
+  unsigned int raw = *(unsigned int*)((char*)ent + val.first);
+  if (raw == 0xFFFFFFFFu) return -1;
+  return (int)(raw & (Offsets::NUM_ENT_ENTRIES - 1));
+}
+
+CON_COMMAND(
+    sar_harness_laser_probe,
+    "sar_harness_laser_probe - world origin, angles, forward vector, the "
+    "on/powered/cubetype bit, and the target's parent/owner handles for "
+    "every laser entity (emitter/segment/catcher/relay/target) and "
+    "weighted cube. Read-only recon for the reflector-cube redirect "
+    "axis: run it while a dropped cube redirects the beam.\n") {
+  if (!server || !entityList) {
+    console->Print(
+        "laser probe: no server/entity list yet — load a map first.\n");
+    return;
+  }
+
+  int n = 0;
+  for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
+    auto info = entityList->GetEntityInfoByIndex(i);
+    if (!info || !info->m_pEntity) continue;
+    auto ent = info->m_pEntity;
+    const char* className = server->GetEntityClassName(ent);
+    if (!className || !IsLaserProbeClass(className)) continue;
+
+    auto se = SE(ent);
+    Vector o = se->abs_origin();
+    QAngle a = se->abs_angles();
+    Vector fwd;
+    Math::AngleVectors(a, &fwd);
+    const char* name = server->GetEntityName(ent);
+
+    console->Print("[%d] %s \"%s\"\n", i, className,
+                   (name && *name) ? name : "<no name>");
+    console->Msg(
+        "    origin %.1f %.1f %.1f  ang(p/y/r) %.1f %.1f %.1f  fwd %.3f %.3f "
+        "%.3f\n",
+        o.x, o.y, o.z, a.x, a.y, a.z, fwd.x, fwd.y, fwd.z);
+
+    for (const char* f : {"m_bLaserOn", "m_bPowered", "m_nCubeType"}) {
+      std::string v = ReconReadField(ent, f);
+      if (!v.empty()) console->Msg("    %s = %s\n", f, v.c_str());
+    }
+
+    if (!std::strcmp(className, "point_laser_target")) {
+      for (const char* h : {"m_hMoveParent", "m_hOwnerEntity"}) {
+        int idx = ReconReadHandleIndex(ent, h);
+        if (idx < 0) continue;
+        auto pInfo = entityList->GetEntityInfoByIndex(idx);
+        const char* pc = (pInfo && pInfo->m_pEntity)
+                             ? server->GetEntityClassName(pInfo->m_pEntity)
+                             : "?";
+        console->Msg("    %s -> [%d] %s\n", h, idx, pc ? pc : "?");
+      }
+    }
+    ++n;
+  }
+  console->Print("laser probe: %d entit%s.\n", n, n == 1 ? "y" : "ies");
+}
+
+// ---------------------------------------------------------------------------
+// Mutating recon: teleport the free reflector cube onto a COMPUTED point of a
+// chosen emitter's beam ray (param t along the ray + optional lateral offset),
+// oriented so its local +X redirect axis aims at a chosen target. Then read
+// m_bPowered (sar_harness_laser_probe, or watch the catcher). Tests whether
+// beam interception is pure hull-overlaps-ray -- no pre-walk, no contact
+// constraint. Sweep t + lateral to map the interception envelope and capture
+// radius; rerun with a second emitter index to confirm the +X exit is
+// incoming-independent. Throwaway session; the cube must not be held; reload
+// to reset.
+
+static void ReconTeleportFree(void* ent, const Vector& origin,
+                              const QAngle& angles) {
+  Vector zeroVel{0, 0, 0};
+  using _Teleport = void(__rescall*)(void*, const Vector*, const QAngle*,
+                                     const Vector*, bool);
+  _Teleport Teleport = Memory::VMT<_Teleport>(ent, Offsets::StartTouch + 11);
+  Teleport(ent, &origin, &angles, &zeroVel, true);
+}
+
+// Fraction of the from->to segment that is unobstructed (1.0 = clear). A proxy
+// for "does the beam reach here" -- the real beam trace mask may differ. Skips
+// both endpoints' entities so neither self-stops the ray at fraction 0.
+static float ReconLineClear(const Vector& from, const Vector& to, void* skipA,
+                            void* skipB) {
+  Vector d = to - from;
+  Ray_t ray;
+  ray.m_IsRay = true;
+  ray.m_IsSwept = true;
+  ray.m_Start = VectorAligned(from.x, from.y, from.z);
+  ray.m_Delta = VectorAligned(d.x, d.y, d.z);
+  ray.m_StartOffset = VectorAligned();
+  ray.m_Extents = VectorAligned();
+  SkipTwoEntities filter;
+  filter.a = skipA;
+  filter.b = skipB;
+  CGameTrace tr;
+  engine->TraceRay(engine->engineTrace->ThisPtr(), ray, MASK_OPAQUE, &filter,
+                   &tr);
+  return tr.fraction;
+}
+
+CON_COMMAND(
+    sar_harness_laser_intercept_spike,
+    "sar_harness_laser_intercept_spike <emitter_idx> <target_idx> <cube_idx> "
+    "[t] [lateral] - rest cube_idx on the floor under emitter_idx's beam ray "
+    "at "
+    "(origin + t*fwd + lateral*perp), aimed +X at target_idx. <3 args: list "
+    "selectable emitters/targets/cubes. Mutating recon; read m_bPowered "
+    "after it settles.\n") {
+  if (!server || !entityList) {
+    console->Print("intercept spike: no server/entity list yet.\n");
+    return;
+  }
+
+  if (args.ArgC() < 4) {
+    console->Print(
+        "usage: sar_harness_laser_intercept_spike <emitter_idx> <target_idx> "
+        "<cube_idx> [t] [lateral]  (omit t to snap the cube perpendicular onto "
+        "the beam)\n");
+    for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
+      auto info = entityList->GetEntityInfoByIndex(i);
+      if (!info || !info->m_pEntity) continue;
+      auto ent = info->m_pEntity;
+      const char* cn = server->GetEntityClassName(ent);
+      if (!cn) continue;
+      bool isEmitter = !std::strcmp(cn, "env_portal_laser");
+      bool isTarget = !std::strcmp(cn, "point_laser_target");
+      bool isCube = !std::strcmp(cn, "prop_weighted_cube");
+      if (!isEmitter && !isTarget && !isCube) continue;
+      Vector o = SE(ent)->abs_origin();
+      if (isEmitter) {
+        QAngle a = SE(ent)->abs_angles();
+        Vector f;
+        Math::AngleVectors(a, &f);
+        const char* nm = server->GetEntityName(ent);
+        console->Msg(
+            "  emitter [%d] \"%s\" origin %.0f %.0f %.0f fwd %.2f %.2f %.2f\n",
+            i, (nm && *nm) ? nm : "<unnamed>", o.x, o.y, o.z, f.x, f.y, f.z);
+      } else if (isTarget) {
+        console->Msg("  target  [%d] origin %.0f %.0f %.0f m_bPowered=%s\n", i,
+                     o.x, o.y, o.z, ReconReadField(ent, "m_bPowered").c_str());
+      } else {
+        console->Msg("  cube    [%d] origin %.0f %.0f %.0f m_nCubeType=%s\n", i,
+                     o.x, o.y, o.z, ReconReadField(ent, "m_nCubeType").c_str());
+      }
+    }
+    return;
+  }
+
+  int emIdx = std::atoi(args[1]);
+  int tgtIdx = std::atoi(args[2]);
+  int cubeIdx = std::atoi(args[3]);
+
+  auto getEnt = [&](int idx) -> void* {
+    if (idx < 0 || idx >= Offsets::NUM_ENT_ENTRIES) return nullptr;
+    auto info = entityList->GetEntityInfoByIndex(idx);
+    return (info && info->m_pEntity) ? info->m_pEntity : nullptr;
+  };
+  void* emitter = getEnt(emIdx);
+  void* target = getEnt(tgtIdx);
+  void* cube = getEnt(cubeIdx);
+  if (!emitter || !target || !cube) {
+    console->Print("intercept spike: bad emitter/target/cube index.\n");
+    return;
+  }
+
+  Vector E = SE(emitter)->abs_origin();
+  QAngle ea = SE(emitter)->abs_angles();
+  Vector F;
+  Math::AngleVectors(ea, &F);
+  Vector perp{F.y, -F.x, 0};
+  Math::VectorNormalize(perp);
+
+  // Default t (no arg): the cube's current position projected onto the ray --
+  // a perpendicular "snap onto the beam" from where it sits. An explicit t is
+  // a world-unit distance along the ray from the emitter (for envelope sweeps).
+  Vector rel = SE(cube)->abs_origin() - E;
+  float t = args.ArgC() >= 5 ? (float)std::atof(args[4])
+                             : rel.x * F.x + rel.y * F.y + rel.z * F.z;
+  float lateral = args.ArgC() >= 6 ? (float)std::atof(args[5]) : 0.0f;
+  Vector P = E + F * t + perp * lateral;
+
+  // Rest the cube on the floor under P (down-trace) instead of dropping it in
+  // mid-air: a fall tumbles the yaw past the redirect tolerance. Flat
+  // (yaw-only) placement, so the world Z half-extent is the local one.
+  ICollideable& cc = SE(cube)->collision();
+  Vector cmin = cc.OBBMins(), cmax = cc.OBBMaxs();
+  float halfH = (cmax.z - cmin.z) * 0.5f;
+  Vector dStart{P.x, P.y, P.z + 64.0f};
+  QAngle down{90, 0, 0};
+  CTraceFilterSimple floorFilter;
+  floorFilter.SetPassEntity(cube);
+  CGameTrace floorTr;
+  if (engine->Trace(dStart, down, 256.0f, MASK_PLAYERSOLID, floorFilter,
+                    floorTr))
+    P.z = floorTr.endpos.z + halfH;
+
+  Vector tgtC = SE(target)->abs_origin();
+  Vector aim = tgtC - P;
+  Math::VectorNormalize(aim);
+  Vector up{0, 0, 1};
+  QAngle cubeAng{0, 0, 0};
+  Math::VectorAngles(aim, up, &cubeAng);
+  cubeAng.z = 0;
+
+  float inClear = ReconLineClear(E, P, emitter, cube);
+  float outClear = ReconLineClear(P, tgtC, cube, target);
+
+  ReconTeleportFree(cube, P, cubeAng);
+
+  console->Print("intercept spike: cube [%d] -> (%.1f %.1f %.1f) yaw %.1f\n",
+                 cubeIdx, P.x, P.y, P.z, cubeAng.y);
+  console->Msg("  t=%.2f lateral=%.1f  +X aims %.2f %.2f %.2f at target [%d]\n",
+               t, lateral, aim.x, aim.y, aim.z, tgtIdx);
+  console->Msg(
+      "  emitter->cube clear=%.2f  cube->target clear=%.2f  (1.00 = "
+      "unobstructed)\n",
+      inClear, outClear);
+  console->Msg(
+      "  rested on floor; read m_bPowered: sar_harness_laser_probe (or watch "
+      "the catcher).\n");
+}
