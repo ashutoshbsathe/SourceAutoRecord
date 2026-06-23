@@ -13,8 +13,32 @@
 > (2) actuator is **teleport-primary**, held-aim demoted to a documented oracle; (3) verb surface =
 > **`interpose` + `power_with` + `redirect_to`** (all teleport-driven), **`aim_at` stays camera-only**;
 > (4) **laser-first**, funnels generalize via `interpose` later.
-> **Everything below is GATED on the interception recon spike** (built:
-> `sar_harness_laser_intercept_spike`). Do not write the verbs until Spike 1 passes.
+> **Spike 1 PASSED** (2026-06-23) — computed-point teleport interception validated. See the handoff
+> block below for current status + the independent-vs-frontier next directions.
+
+---
+
+## Status & next directions (handoff — 2026-06-23)
+
+**Done:** L0 recon closed; `sar_harness_laser_intercept_spike` PROVED computed-point teleport
+interception (down-trace rest, ±24u capture radius, no drift, no freeze). Verb design + the
+fairness/legality spec are brainstormed (this doc). **Decision: invest in fuller reachability** — extend
+`GoToPlanner` (stepped-floor + portal edges) rather than scope lasers to flat/true-void chambers.
+
+**Independent — a fresh session can pick up ANY of these now (no dependency):**
+- **Part A percept** (small): drop `prop_laser_catcher`/`prop_laser_relay` from `kClassColors`; add the
+  named-emitter mark filter; Python `_project_state` → `point_laser_target {powered}`. (§ Phased plan.)
+- **Reachability recon** `sar_harness_laser_reachability_test`: prove the gap produces BLOCKED cells at
+  the player's *current* refZ + profile per-verb `Plan()` cost. Gates the fairness layer. (§ Fairness.)
+- **2-emitter incoming-independence** rerun of the intercept spike (needs a 2-emitter map).
+- Fix the spike's mid-air-on-miss (should reject `NO_FLOOR`, not place at beam height).
+
+**The chosen frontier — extend `GoToPlanner` (gates the verbs' fairness layer; also upgrades `go_to`):**
+stepped-floor reachability (per-cell `floorZ`-seam, multi-refZ) + a **portal-teleport edge**
+(`m_hLinkedPortal` is never consulted today); z-anchor `FindPlayerStandoff` at the cube floor. Needs its
+own recon/validation on stacked + portal-bridged chambers. → § Fairness (load-bearing correction).
+
+**The verbs (Part B)** depend on the reachability layer + the recon — build after.
 
 ---
 
@@ -178,6 +202,108 @@ hull-overlap, proceed; else rethink positioning before any verb.
 **Funnel-lift (deferred).** `interpose` is the funnel verb verbatim — `prop_tractor_beam` needs only
 the confirm swapped to point-in-volume. **Zero tractor telemetry exists today**; recon it as a separate
 pass (direction field, OBB-vs-trigger volume, on/off state, carry-through) when funnels come up.
+
+---
+
+## Fairness / legality of the placement (14-agent synthesis + adversarial corrections, 2026-06-23)
+
+A brainstorm (5 fairness ideators + 5 reachability/code scavengers + synthesizer + 3 adversarial
+critics) on *when is a teleport-placement legal?* **The philosophy survived; the feasibility story did
+not** — the corrections below are folded in (the rosy "structurally impossible" synthesis is wrong).
+
+### The contract (sound)
+
+The legal placement set must equal **what the player could currently do by hand**: hold the cube
+(gated at `pick_up`), walk to a spot reachable *from their current position*, set it down. So legality
+= **possession + reachability**, not geometry alone. The verb samples points along the beam, keeps the
+**reachable + physically-valid** ones, places at the cheapest, else fails gracefully. The LLM supplies
+intent (which target); the verb owns the geometry. A cube can never land on an island the player can't
+currently walk to — **iff reachability is judged correctly (see the load-bearing correction).**
+
+### Conditions (corrected; status = HAVE / BUILD / RECON)
+
+| id | condition | sev | status |
+|----|-----------|-----|--------|
+| F1 | possession-gated (holding the reflector); **no** seat-reach gate (`pick_up` owns reach) | blocking | HAVE |
+| F2 | ray read only from a **transform-sane** emitter (reject origin==(0,0,0)/identity) — *not* "named-only" (a legit unnamed re-emitter in a chain must still address) | blocking | HAVE (fix discriminator) |
+| F3 | beam on (`m_bLaserOn`) + in-line clear E→P; `t` bounded by an **open forward ray** E→firstWorldHit | blocking | **BUILD** (that forward ray doesn't exist; spike only does point-to-point) |
+| F4 | down-trace rest: solid up-facing floor (normalZ>0.7), supported; **reject on miss** (pit/void) | blocking | HAVE (+ fix the spike leaving P mid-air on a miss) |
+| F5 | **reachable**: a walkable cell *touching P's footprint* is A*-reachable from current feet | blocking | **BUILD + RECON** (the hardest gate; see below) |
+| F6 | interception: the **settled** cube hull overlaps the ray (re-trace, not pre-placement math) | blocking | BUILD |
+| F7 | out-line clear cube→target (hard gate for `power_with`/`redirect_to`; informational for `interpose`) | soft/gate | HAVE |
+| F8 | seat clear / not in hazard / not in wall — but **flush-against-world is legal** (don't auto-reject startsolid-vs-brush; epsilon-deflate) | blocking | HAVE (+ rewire filter: no button to pass) |
+| F9 | player not forced to **sustain** lethal-beam occupancy — gate the **transit**, not a frozen terminal standoff | soft | BUILD |
+| F10 | dwell-confirm `m_bPowered` **read directly off the marked `point_laser_target`** (no `m_hMoveParent` follow — that's display-only) | blocking | HAVE |
+| F11 | **cube-carry survives the route**: sweep the carried-cube hull along the A* path through fizzler/laserfield; reject if it crosses one (the planner models the *player*, never the carried cube) | blocking | BUILD (new) |
+
+### Load-bearing correction — "2-island handled by construction" is FALSE as written
+
+`GoToPlanner` is **single-refZ, flat 2.5D**: built from the player's *current feet*, it floor-probes
+each cell in `[refZ+40 … refZ−128]` and marks BLOCKED only on a down-trace **miss** in that window. So
+it's a *"floor >128u below my feet"* detector, **not a gap detector**:
+
+- ✅ **Safe** when the gap is a true void >128u deep and the far island is near the player's z.
+- ❌ **FALSE-LEGALIZES** a *shallow* gap (goo moat, lower walkway, ~100u chasm with floor beneath,
+  light-bridge gap): those cells read WALKABLE, A* routes across, the cube lands on the "unreachable"
+  island → **the exact trivialization the verb exists to prevent.**
+- ❌ **FALSE-REJECTS** a legal near placement whose beam floor steps below/above the player (>40u up /
+  >128u down) — both the planner *and* `FindPlayerStandoff` anchor to the player's feet z, not P's.
+
+**Corrections promoted to BLOCKING (were "deferred"):**
+1. **floorZ-seam check** — reject any A* leg whose two cells' `floorZ` differ by more than `kStepDownMax`,
+   and gate the chosen stand-cell `floorZ` against the rested-point floor (refuses a shallow-gap cross).
+2. **z-anchor the standoff search at P's floor**, not player feet (a rewrite of `FindPlayerStandoff`,
+   not a rename) — and use the same z-window the planner uses so the two halves agree.
+3. **Reachability frontier (CHOSEN investment, 2026-06-23):** rather than scope lasers to flat/true-void
+   chambers, **extend `GoToPlanner`** — stepped-floor reachability (per-cell `floorZ`-seam, multi-refZ)
+   + a **portal-teleport edge** (`m_hLinkedPortal` is never consulted today), and z-anchor
+   `FindPlayerStandoff` at the cube floor. This is the gating workstream for the fairness layer and it
+   *also upgrades `go_to`* (height changes + portals). Needs its own recon/validation on stacked +
+   portal-bridged chambers. The `floorZ`-seam check is a blocking safety gate regardless (it's what
+   refuses the shallow-gap false-legalize).
+
+### Perf is the real blocker
+
+~1000u beam / 16u ≈ 60 candidates; each survivor = a standoff ring (~32 traces) + an A* `Plan()`
+(≤400 cells, each a hull-sweep), on the **main thread in one `PRE_TICK`**. The lazy grid caches the
+grid, **not** the standoff rings or per-goal A*. Worst case = tens of thousands of traces/verb → stall.
+**Mandatory:** one `RunOnMainThreadSync` that builds the planner and loops *all* candidates inside it
+(cross the boundary once, not N×); and **profile** before trusting any reachability claim. If it doesn't
+fit the budget → cap candidates and **document** that the cap can produce false `NOT_REACHABLE`.
+
+### Recon gate — `sar_harness_laser_reachability_test` (run before writing the verb)
+
+Per candidate far-P, print: (a) does `Probe` mark the gap cells BLOCKED **at the player's current
+refZ**, and (b) **why** (down-trace miss vs hull-startsolid vs obstacle stamp) — *prove* the gap severs
+reachability, don't assume it. Plus: reconcile MASK_OPAQUE (beam) vs MASK_PLAYERSOLID (floor / planner /
+standoff) on glass/grate; confirm `env_portal_laser` is **mark-addressable in the percept path** (not
+just recon-readable); the multi-emitter incoming-independence rerun; the goo/water class (CONTENTS_SLIME
+is outside MASK_PLAYERSOLID → a cube can be seated submerged undetected); `kPlanMaxCells=400` horizon vs
+real beam-walk distances.
+
+### Failure reporting (so the LLM reasons, never fiddles)
+
+Distinct codes the model can act on: `NOT_HOLDING`, `NO_BEAM` / `BEAM_BLOCKED`, `NO_FLOOR`,
+`NOT_REACHABLE` (with the reachable beam fraction — "bridge to the far island first"), `NOT_INTERCEPTING`,
+`OUT_LINE_BLOCKED` (blocker class), `PLAYER_IN_BEAM`, `NOT_POWERED`. `NOT_REACHABLE` (gap) must be
+distinguishable from the `kPlanMaxCells` horizon (long-but-walkable) so the LLM doesn't misread it.
+
+### Over-restrictions — fix vs accept
+
+- **Fix:** flush-against-wall reject (F8); the F1↔F5 reach-anchor contradiction (require a route to a
+  cell *touching* P's footprint — drop the 96u ring radius F5 silently re-imposed); F9 frozen-player
+  (gate transit, not terminal standoff).
+- **Accept + document (v0):** portal-bridged islands refused (under-permit — common on Portal 2, a real
+  limitation); elevated / ledge / stacked placements refused (floor-only v0, `NOT_INTERCEPTING`);
+  `kPlanMaxCells` horizon on very large chambers.
+
+### Bottom line
+
+Build order shifts: **Part A (percept) and the basic placement spine are still go**, but the
+**reachability/fairness layer (F5 + F11 + the floorZ-seam + standoff z-anchor) is gated on the
+`sar_harness_laser_reachability_test` recon + a perf profile**. Per the 2026-06-23 decision we **invest
+in extending `GoToPlanner`** (stepped-floor + portal edges) so the verbs aren't limited to flat/true-void
+chambers — that reachability work is the critical path for Part B, and it pays off for `go_to` too.
 
 ---
 

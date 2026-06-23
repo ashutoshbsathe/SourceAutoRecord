@@ -60,8 +60,12 @@ the dormant `sar_harness_seat_*` commands.
 2. **The benchmark + the result.** Turn the ad-hoc "lights" into a measured suite: N annotated chambers ×
    difficulty tiers × multi-model, scored on solve-rate / steps / tokens. The third-vs-first ablation is
    the template metric. Capitalises on the win now; feeds M4 + the M5 talk.
-3. **Lasers (M3, on deck).** Reflector-cube redirection — the place-on-button teleport is its prototype
-   spine (`aim_laser` ≈ place + orient a reflector). → `locomotion_tech.md` §5.
+3. **Lasers (M3) — recon DONE; verb design + fairness brainstormed.** `sar_harness_laser_intercept_spike`
+   PROVED computed-point teleport interception (down-trace rest, ±24u capture radius, no drift). Verbs =
+   `interpose`/`power_with`/`redirect_to` (teleport-driven; held-aim demoted to oracle); mark
+   `point_laser_target` only. **Next directions — independent (Part A percept, reachability recon) vs the
+   chosen frontier (extend `GoToPlanner`: stepped-floor + portal edges, also upgrades `go_to`) — are in
+   the handoff block at the top of** → [laser_redirect_verb_design.md](laser_redirect_verb_design.md).
 4. **Percept enrichment — the I/O causal graph.** The button→door wiring is statically recoverable
    (`bsp_corpus_harness_improvements.md`). Feeding it to the agent unlocks multi-element, sequenced
    puzzles (which button opens which door) — the reasoning ladder past a single cube→button→door.
