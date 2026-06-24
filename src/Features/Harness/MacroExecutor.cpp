@@ -1811,3 +1811,140 @@ CON_COMMAND(
       "r%.1f)\n",
       s.origin.x, s.origin.y, s.origin.z, s.angles.x, s.angles.y, s.angles.z);
 }
+
+// Debug: the dual-role placement spike. Seat a free cube on a button via
+// ComputeSeat, yaw-only aim the cube's +X at a laser target, and dump the
+// button geometry so a float is diagnosable: the press TRIGGER z-band vs where
+// the cube bottom lands. Answers the blocking questions before any verb code:
+// is the button inside the beam's lateral capture radius, does the seat land
+// the cube in the trigger band (or float above it), and does a yaw-only aim
+// (pitch never touched) reach the target. The cube is left FREE (grabbable);
+// the press + power are sim-tick events, so read them AFTER with
+// sar_harness_dump_fields + sar_harness_laser_probe. Mutates (moves the cube);
+// use a free cube mark and reload between runs.
+CON_COMMAND(
+    sar_harness_dual_seat_spike,
+    "sar_harness_dual_seat_spike <emitter-mark> <target-mark> <cube-mark> "
+    "<button-mark> - seat a free cube on the button and yaw-only aim +X at the "
+    "target; print the beam lateral offset, the button trigger band vs the "
+    "cube "
+    "bottom (float check), and the aim. Read press/power AFTER with "
+    "dump_fields "
+    "+ laser_probe. Moves the cube.\n") {
+  if (args.ArgC() < 5) {
+    console->Print(
+        "usage: sar_harness_dual_seat_spike <emitter-mark> <target-mark> "
+        "<cube-mark> <button-mark>\n");
+    return;
+  }
+  if (!server || !server->GetPlayer(1)) {
+    console->Print("dual_seat_spike: no player.\n");
+    return;
+  }
+
+  std::string code;
+  CEntInfo *einfo = nullptr, *tinfo = nullptr, *cinfo = nullptr,
+           *binfo = nullptr;
+  int em = std::atoi(args[1]), tg = std::atoi(args[2]), cb = std::atoi(args[3]),
+      bt = std::atoi(args[4]);
+  struct Arg {
+    const char* what;
+    int mark;
+    CEntInfo** out;
+  };
+  for (const Arg& a : {Arg{"emitter", em, &einfo}, Arg{"target", tg, &tinfo},
+                       Arg{"cube", cb, &cinfo}, Arg{"button", bt, &binfo}}) {
+    if (!ResolveMarkInfo(a.mark, a.out, &code)) {
+      console->Print("dual_seat_spike: %s mark %d -> %s\n", a.what, a.mark,
+                     code.c_str());
+      return;
+    }
+  }
+
+  ServerEnt* emitter = SE(einfo->m_pEntity);
+  ServerEnt* target = SE(tinfo->m_pEntity);
+  ServerEnt* cube = SE(cinfo->m_pEntity);
+  ServerEnt* button = SE(binfo->m_pEntity);
+  const char* bcls = server->GetEntityClassName(binfo->m_pEntity);
+
+  Seat s = ComputeSeat(button, cube);
+  if (!s.ok) {
+    console->Print("dual_seat_spike: no press surface under button mark %d\n",
+                   bt);
+    return;
+  }
+
+  // Lateral offset: the button trigger centre vs the un-bent emitter ray, in
+  // the horizontal plane. Beyond the beam's ~24u capture radius, one rigid seat
+  // cannot both press the button and intercept the beam.
+  Vector E = emitter->abs_origin();
+  Vector fwd;
+  Math::AngleVectors(emitter->abs_angles(), &fwd);
+  float fwdLen = std::sqrt(fwd.x * fwd.x + fwd.y * fwd.y);
+  Vector fwdH =
+      fwdLen > 0 ? Vector{fwd.x / fwdLen, fwd.y / fwdLen, 0} : Vector{1, 0, 0};
+  Vector relH{s.center.x - E.x, s.center.y - E.y, 0};
+  float along = relH.x * fwdH.x + relH.y * fwdH.y;
+  Vector perp{relH.x - fwdH.x * along, relH.y - fwdH.y * along, 0};
+  float lateral = std::sqrt(perp.x * perp.x + perp.y * perp.y);
+
+  // Yaw-only aim: +X at the target from the seat centre; pitch stays flat. The
+  // target's elevation off horizontal is the error a yaw-only aim cannot fix.
+  Vector tc = EntityCenter(target);
+  float yaw =
+      NormalizeYaw(RAD2DEG(std::atan2(tc.y - s.center.y, tc.x - s.center.x)));
+  Vector d = tc - s.center;
+  float horiz = std::sqrt(d.x * d.x + d.y * d.y);
+  float pitchErr = RAD2DEG(std::atan2(d.z, horiz));
+
+  SeatEntity(cube, s.origin, QAngle{0, yaw, 0});
+
+  // Button geometry, to explain a float: where the press TRIGGER volume sits vs
+  // the surface ComputeSeat's player-only down-trace hit vs the surface under
+  // the button (skipping it). The cube bottom lands at surface - kSeatBias; if
+  // that is above the trigger top, the cube floats and never presses.
+  ICollideable& bcoll = button->collision();
+  Vector bMin = bcoll.OBBMins(), bMax = bcoll.OBBMaxs();
+  Vector trigMin = button->abs_origin(), trigMax = button->abs_origin();
+  bcoll.WorldSpaceTriggerBounds(&trigMin, &trigMax);
+  Vector probeStart{s.center.x, s.center.y,
+                    button->abs_origin().z + bMax.z + 64.0f};
+  QAngle probeDown{90, 0, 0};
+  TraceSkip2 skipPB;
+  skipPB.SetPassEntity(server->GetPlayer(1));
+  skipPB.skip2 = button;
+  CGameTrace underTr;
+  bool underHit = engine->Trace(probeStart, probeDown, 256.0f, MASK_PLAYERSOLID,
+                                skipPB, underTr);
+  float cubeBottom = s.surface.z - kSeatBias;
+  bool inTrigger = cubeBottom <= trigMax.z && (s.center.z) >= trigMin.z;
+  int cubeType = cube->field<int>("m_nCubeType");
+
+  console->Print(
+      "dual_seat_spike: emitter %d  target %d  cube %d  button %d (%s)\n", em,
+      tg, cb, bt, bcls);
+  console->Print("  beam lateral offset = %.1fu  %s\n", lateral,
+                 lateral <= 24.0f ? "[within +-24u capture radius]"
+                                  : "[OFF-RAY -> one seat may not do both]");
+  console->Print(
+      "  button origin.z=%.2f  OBB z=[%.2f,%.2f]  TRIGGER z=[%.2f,%.2f]\n",
+      button->abs_origin().z, button->abs_origin().z + bMin.z,
+      button->abs_origin().z + bMax.z, trigMin.z, trigMax.z);
+  console->Print(
+      "  down-trace player-only=%.2f  under-button=%.2f%s  cube bottom=%.2f\n",
+      s.surface.z, underHit ? underTr.endpos.z : 0.0f,
+      underHit ? "" : " (miss)", cubeBottom);
+  console->Print("  seat center (%.1f %.1f %.1f)  m_nCubeType=%d  FLOAT: %s\n",
+                 s.center.x, s.center.y, s.center.z, cubeType,
+                 inTrigger ? "cube spans the trigger band"
+                           : "cube ABOVE the trigger -> floats, no press");
+  console->Print(
+      "  yaw-only aim yaw=%.1f  target pitch err=%.1f  %s\n", yaw, pitchErr,
+      std::fabs(pitchErr) <= 3.0f ? "[yaw-only reaches it]"
+                                  : "[non-coplanar -> yaw-only may miss]");
+  console->Print(
+      "  cube is FREE (grabbable, will settle). press/power are sim-tick "
+      "events "
+      "-- read button.m_bButtonState / target.m_bPowered with "
+      "sar_harness_dump_fields + sar_harness_laser_probe after a moment.\n");
+}

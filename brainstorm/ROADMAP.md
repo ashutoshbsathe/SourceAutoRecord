@@ -18,6 +18,35 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 
 ---
 
+## Top of mind (2026-06-24) — lasers work mechanically; the VERB SURFACE needs a rethink
+
+Lasers are **mechanically solved** at the SAR level. Part A percept shipped (transform-sane mark gate,
+`point_laser_target {powered}`), the redirect spike PROVED computed-point teleport interception, and the
+**dual-role cube P0 PASSED** — one cube presses a button sitting on the beam *and* redirects that beam to a
+target, both catcher and relay, confirmed in-engine. SAR can clearly do a *lot* of powerful laser
+manipulation (teleport-seat, closed-form +X aim, faithful button press, confirm-and-correct against ~2%
+settling jank). → [laser_dual_role_cube_design.md](laser_dual_role_cube_design.md) (P0 RESULTS).
+
+**The open problem is no longer "can SAR do it" — it's "what verbs expose it."** Both remaining laser
+workstreams force a **verb-surface rethink before more code**:
+
+- **A — build the laser verbs** (`interpose`/`redirect_to`/`power_with`, dual-role doc P1–P8). The sketch
+  predates seeing how powerful *and* fiddly the mechanics are (dual-role, the jank loop, pitch-lock, the
+  opportunistic-press NO-OP). Is this the right surface, or are we accreting verbs?
+- **B — reachability/fairness layer** (`GoToPlanner` stepped-floor + portal frontier). Where a cube may
+  *legally* be placed is its own can of worms and interacts with the verb semantics.
+
+**Under-served bar: palatability to BOTH a frozen LLM AND a human baseline.** The human player is our
+control arm — if a verb is awkward for a *person* to drive, it's a bad abstraction, not just a bad prompt.
+Rethink the laser verb surface against *both* audiences before committing to P1–P8.
+
+Docs: [laser_dual_role_cube_design.md](laser_dual_role_cube_design.md) (P0 results + verb sketch),
+[laser_redirect_verb_design.md](laser_redirect_verb_design.md) (redirect surface + fairness),
+[laser_percept_and_aim_design.md](laser_percept_and_aim_design.md) (L0 recon facts). Commits `68cd668e`
+(Part A) + `271578a8` (dual-role recon + design).
+
+---
+
 ## Top of mind (2026-06-21) — next steps
 
 ### ⭐ FIRST LIGHT ACHIEVED — third light SOLVED + what the robust verbs bought
