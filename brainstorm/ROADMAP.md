@@ -40,6 +40,19 @@ workstreams force a **verb-surface rethink before more code**:
 control arm — if a verb is awkward for a *person* to drive, it's a bad abstraction, not just a bad prompt.
 Rethink the laser verb surface against *both* audiences before committing to P1–P8.
 
+**RESOLVED (2026-06-24) — verb-surface rethink.** A 26-agent fan-out (7 competing grammars → critique
+→ judge → synth → verify) plus a recovery-lens follow-up both selected **navigate/act-split**: one
+free, capability-*fenced* `navigate()` over existing topology; every graph-*edit* (`place_portal` /
+`paint` / `press` / the laser family) is its own explicit verb; ballistic *player* traversal is
+SIMULATED (teleport reserved for inert objects); `fling` + faith-plate + gel-bounce collapse into one
+`launch(via)`. The line: *free if it consumes an affordance, puzzle if it creates or changes one.* This
+supersedes the "is this the right surface" question for **both** workstreams — A's laser verbs slot
+into the table unchanged; B (`GoToPlanner` stepped-floor + portal edges) is build-order step 2. The
+one open caveat: `redirect_to` absorbs beam-geometry feasibility, so crossfire-style chambers test
+gate-identity + reflector choice but under-test spatial-feasibility (lever: make the model supply the
+interposition point). → [verb_grammar_rethink.md](verb_grammar_rethink.md) (design + verb table + build
+order), [verb_grammar_transcripts.md](verb_grammar_transcripts.md) (per-grammar try→fail→realign).
+
 Docs: [laser_dual_role_cube_design.md](laser_dual_role_cube_design.md) (P0 results + verb sketch),
 [laser_redirect_verb_design.md](laser_redirect_verb_design.md) (redirect surface + fairness),
 [laser_percept_and_aim_design.md](laser_percept_and_aim_design.md) (L0 recon facts). Commits `68cd668e`
@@ -228,6 +241,8 @@ has crept into `py/` (and likely `src/`). Fix in passing, don't make a project o
 | `llm_act_grammar_altitude.md` | **why closed verbs over Voyager-style code-as-action** (industry sweep + decision) |
 | `llm_percept_act_phased_plan.md` | the **build order** (tracks A–D, phase-by-phase) |
 | `macro_executor_impl_plan.md` | **code-grounded PR plan** for the macro executor + driver (Track C/D detail, PR0–PR7 to first light) |
+| `verb_grammar_rethink.md` | **the chosen v0→M3 verb grammar** — navigate/act-split backbone, the locomotion-vs-puzzle cut, the full verb table (`navigate`/`ride`/`launch`/`place_portal`/`paint`/`press` + laser family), crux decisions (simulate-body/teleport-object), and the SAR-first build order. Read before building any traversal/element verb. |
+| `verb_grammar_transcripts.md` | **per-grammar ReAct transcripts** (third_light + laser + the baited "crossfire" try→fail→realign chamber) for all 7 candidate grammars + the recovery-lens comparison. Read for *why* navigate/act-split wins on failure-legibility + realign-cost. |
 | `locomotion_tech.md` | **`go_to` pathfinding (local controller + A*) + reliable place-on-button + the laser-routing frontier** — phased plan, substrate recon, ROADMAP #2 |
 | `astar_routing_design.md` | **A\* global routing for `go_to`** (lazy hull-probed grid) + why save/restore tree-search is parked at the puzzle layer (C9), not locomotion |
 | `release_place_on_button_design.md` | **gated-fair central-teleport `release` onto a button** (the P-manip place-on-button design + phased plan C1–D9) — button taxonomy, static-trace fairness check, FCPS `Teleport` reuse, dwell-verify; orientation = preserve-only |
