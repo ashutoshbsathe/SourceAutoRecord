@@ -85,6 +85,15 @@ FULL = gs(
             mark=4,
             fields={'m_nSequence': 0},
         ),
+        ent(
+            7,
+            1,
+            'point_laser_target',
+            'catcher_1',
+            (256, 400, 96),
+            mark=5,
+            fields={'m_bPowered': True},
+        ),
         ent(6, 1, 'func_brush', '', (0, 0, 0), mark=0),  # unmarked -> dropped
     ]
 )
@@ -104,11 +113,12 @@ def check(cond, msg):
 def test_projection():
     """parse_snapshot projects per-class semantic state and drops unmarked ents."""
     m = by_mark(parse_snapshot(FULL))
-    check(set(m) == {1, 2, 3, 4}, f'marks {sorted(m)} (unmarked leaked?)')
+    check(set(m) == {1, 2, 3, 4, 5}, f'marks {sorted(m)} (unmarked leaked?)')
     check(m[1]['state'] == {'cube_type': 'standard', 'on_button': True}, m[1]['state'])
     check(m[2]['state'] == {'pressed': False}, m[2]['state'])
     check(m[3]['state'] == {}, m[3]['state'])  # door: no server open-state field
     check(m[4]['state'] == {'pressed': False}, m[4]['state'])  # m_nSequence 0 != 3
+    check(m[5]['state'] == {'powered': True}, m[5]['state'])  # laser target catcher
     # player at origin facing yaw 0; cube at +x 256 -> bearing ~0, horizontal dist 256.
     check(abs(m[1]['bearing']) < 0.1, f'cube bearing {m[1]["bearing"]}')
     check(round(m[1]['dist']) == 256, f'cube dist {m[1]["dist"]}')
@@ -145,7 +155,7 @@ def test_delta_merge():
         full=False,
     )
     m = by_mark(wv.observe(delta))
-    check(set(m) == {1, 2, 3, 4}, f'static entities lost across delta: {sorted(m)}')
+    check(set(m) == {1, 2, 3, 4, 5}, f'static entities lost across delta: {sorted(m)}')
     check(m[1]['state']['cube_type'] == 'standard', 'm_nCubeType did not persist')
     check(m[1]['state']['on_button'] is True, 'cube on_button not updated')
     check(m[1]['pos'] == [256.0, 205.0, 64.0], f'cube pos not updated: {m[1]["pos"]}')

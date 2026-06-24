@@ -36,6 +36,8 @@ def _project_state(class_name, fields):
             'cube_type': _CUBE_TYPES.get(fields.get('m_nCubeType'), 'standard'),
             'on_button': bool(fields.get('m_bActivated', False)),
         }
+    if class_name == 'point_laser_target':  # catcher/relay sensor
+        return {'powered': bool(fields.get('m_bPowered', False))}
     if class_name == 'prop_button':  # pedestal: pressed == anim sequence 3
         return {'pressed': fields.get('m_nSequence') == 3}
     if 'button' in class_name:  # floor / weight buttons: a clean networked bool

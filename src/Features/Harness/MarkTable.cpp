@@ -29,7 +29,7 @@ void MarkTable::RebuildFromWorld() {
     auto info = entityList->GetEntityInfoByIndex(i);
     if (!info || !info->m_pEntity) continue;
     const char* className = server->GetEntityClassName(info->m_pEntity);
-    if (!IsHarnessMarkedClass(className)) continue;
+    if (!IsHarnessMarkedEntity(info->m_pEntity, className)) continue;
     Vector o = SE(info->m_pEntity)->abs_origin();
     uint32_t key = (static_cast<uint32_t>(i) << 16) |
                    static_cast<uint16_t>(info->m_SerialNumber);

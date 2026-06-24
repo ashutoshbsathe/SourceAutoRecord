@@ -54,9 +54,9 @@ static const std::unordered_map<std::string, Color> kClassColors = {
     {"prop_floor_ball_button", {64, 220, 64}},   // ball-only
     {"prop_testchamber_door", {255, 255, 255}},  // white
     {"env_portal_laser", {255, 40, 40}},         // red - laser emitter
-    {"prop_laser_catcher", {255, 40, 40}},       // red - laser chain
-    {"prop_laser_relay", {255, 40, 40}},         // red - laser chain
     {"point_laser_target", {255, 0, 255}},       // magenta - the goal surface
+    // Laser catcher/relay are deliberately unmarked: the goal predicate
+    // m_bPowered is read straight off point_laser_target, so they are noise.
     // The player is deliberately absent: it's the agent, not an addressable
     // target, so it gets neither a mark nor a (self-occluding) first-person
     // box.
@@ -75,6 +75,20 @@ static const std::unordered_map<std::string, Color> kClassColors = {
 // consults this so the marked set matches the annotated set drawn below.
 bool IsHarnessMarkedClass(const char* className) {
   return className && kClassColors.find(className) != kClassColors.end();
+}
+
+// Per-entity mark gate: class membership plus transform sanity. A redirected
+// laser re-emits transient env_portal_laser segments at the world origin with
+// an identity transform; marking those churns the mark table and pollutes the
+// percept, so any env_portal_laser at (0,0,0) is rejected. A real emitter --
+// even an unnamed re-emitter mid-chain -- has a true origin.
+bool IsHarnessMarkedEntity(void* ent, const char* className) {
+  if (!IsHarnessMarkedClass(className)) return false;
+  if (!std::strcmp(className, "env_portal_laser")) {
+    Vector o = SE(ent)->abs_origin();
+    if (o.x == 0.0f && o.y == 0.0f && o.z == 0.0f) return false;
+  }
+  return true;
 }
 
 // Trace filter that skips two entities: the player (the ray starts inside our
@@ -180,9 +194,8 @@ ON_EVENT(RENDER) {
 
     auto ent = info->m_pEntity;
     const char* className = server->GetEntityClassName(ent);
-    if (!className) continue;
-    auto colorIt = kClassColors.find(className);
-    if (colorIt == kClassColors.end()) continue;
+    if (!className || !IsHarnessMarkedEntity(ent, className)) continue;
+    auto colorIt = kClassColors.find(className);  // gate above guarantees a hit
 
     auto se = SE(ent);
     Color color = colorIt->second;
@@ -400,8 +413,13 @@ CON_COMMAND(sar_harness_dump_fields,
 
     auto ent = info->m_pEntity;
     const char* className = server->GetEntityClassName(ent);
-    if (!className || kClassColors.find(className) == kClassColors.end())
-      continue;
+    if (!className) continue;
+    // kClassColors is the mark/annotate set; recon also wants the laser chain
+    // props (catcher/relay) it intentionally no longer contains.
+    bool reconClass = kClassColors.find(className) != kClassColors.end() ||
+                      !std::strcmp(className, "prop_laser_catcher") ||
+                      !std::strcmp(className, "prop_laser_relay");
+    if (!reconClass) continue;
 
     const char* targetName = server->GetEntityName(ent);
     bool headerPrinted = false;
@@ -657,9 +675,15 @@ CON_COMMAND(
   CTraceFilterSimple floorFilter;
   floorFilter.SetPassEntity(cube);
   CGameTrace floorTr;
-  if (engine->Trace(dStart, down, 256.0f, MASK_PLAYERSOLID, floorFilter,
-                    floorTr))
-    P.z = floorTr.endpos.z + halfH;
+  if (!engine->Trace(dStart, down, 256.0f, MASK_PLAYERSOLID, floorFilter,
+                     floorTr)) {
+    console->Print(
+        "intercept spike: NO_FLOOR under (%.1f %.1f %.1f) -- pit/void; "
+        "refusing to place the cube mid-air.\n",
+        P.x, P.y, P.z);
+    return;
+  }
+  P.z = floorTr.endpos.z + halfH;
 
   Vector tgtC = SE(target)->abs_origin();
   Vector aim = tgtC - P;

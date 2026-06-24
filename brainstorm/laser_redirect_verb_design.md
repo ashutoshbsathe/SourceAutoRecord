@@ -18,20 +18,30 @@
 
 ---
 
-## Status & next directions (handoff — 2026-06-23)
+## Status & next directions (handoff — 2026-06-24)
 
 **Done:** L0 recon closed; `sar_harness_laser_intercept_spike` PROVED computed-point teleport
 interception (down-trace rest, ±24u capture radius, no drift, no freeze). Verb design + the
 fairness/legality spec are brainstormed (this doc). **Decision: invest in fuller reachability** — extend
 `GoToPlanner` (stepped-floor + portal edges) rather than scope lasers to flat/true-void chambers.
+**Part A (percept) SHIPPED (2026-06-24)** + the spike mid-air-on-miss fix — see below.
+
+**SHIPPED 2026-06-24 (Part A + spike fix; builds clean, percept smoke 6/6):**
+- **Part A percept:** dropped `prop_laser_catcher`/`prop_laser_relay` from `kClassColors`; added the
+  per-entity `IsHarnessMarkedEntity` gate (PuzzleAnnotate) — the **transform-sane discriminator**
+  (reject `env_portal_laser` at origin (0,0,0)), **not** named-only per fairness F2, so an unnamed
+  re-emitter mid-chain stays addressable. Wired into MarkTable (percept) + the RENDER loop (overlay).
+  Python `_project_state` → `point_laser_target {powered}`; asserted in `percept_grammar_smoke.py`.
+- **Spike mid-air-on-miss fix:** `sar_harness_laser_intercept_spike` now rejects with `NO_FLOOR` (pit/void)
+  instead of placing the cube at beam height.
+- **Pending in-engine visual check (next game session):** percept shows `point_laser_target {powered}`,
+  no catcher/relay marks, no transient (0,0,0) segment marks, beam holds after a redirect.
 
 **Independent — a fresh session can pick up ANY of these now (no dependency):**
-- **Part A percept** (small): drop `prop_laser_catcher`/`prop_laser_relay` from `kClassColors`; add the
-  named-emitter mark filter; Python `_project_state` → `point_laser_target {powered}`. (§ Phased plan.)
+- **2-emitter incoming-independence** rerun of the intercept spike — **now unblocked** (2-emitter map in
+  hand). Confirms the +X re-emit is incoming-independent beyond L0's single-direction `dot=1.000`.
 - **Reachability recon** `sar_harness_laser_reachability_test`: prove the gap produces BLOCKED cells at
   the player's *current* refZ + profile per-verb `Plan()` cost. Gates the fairness layer. (§ Fairness.)
-- **2-emitter incoming-independence** rerun of the intercept spike (needs a 2-emitter map).
-- Fix the spike's mid-air-on-miss (should reject `NO_FLOOR`, not place at beam height).
 
 **The chosen frontier — extend `GoToPlanner` (gates the verbs' fairness layer; also upgrades `go_to`):**
 stepped-floor reachability (per-cell `floorZ`-seam, multi-refZ) + a **portal-teleport edge**
