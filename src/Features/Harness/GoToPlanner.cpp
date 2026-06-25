@@ -91,6 +91,7 @@ GoToPlanner::Cell GoToPlanner::Probe(int cx, int cy) const {
   if (!engine->Trace(top, down, kProbeUp + kProbeDown, MASK_PLAYERSOLID, filter,
                      floorTr)) {
     c.state = BLOCKED;
+    c.reason = NO_FLOOR;
     return c;
   }
   c.floorZ = floorTr.endpos.z;
@@ -103,6 +104,7 @@ GoToPlanner::Cell GoToPlanner::Probe(int cx, int cy) const {
   if (engine->TraceHull(at, at, mins_, maxs_, MASK_PLAYERSOLID, filter,
                         hullTr)) {
     c.state = BLOCKED;
+    c.reason = IN_WALL;
     return c;
   }
 
@@ -113,6 +115,7 @@ GoToPlanner::Cell GoToPlanner::Probe(int cx, int cy) const {
     float dx = x - o.x, dy = y - o.y;
     if (dx * dx + dy * dy < o.r * o.r) {
       c.state = BLOCKED;
+      c.reason = OBSTACLE;
       return c;
     }
   }
@@ -266,6 +269,110 @@ CON_COMMAND(sar_harness_probe_cells,
       row += (dx == 0 && dy == 0)               ? '@'
              : c.state == GoToPlanner::WALKABLE ? '.'
                                                 : '#';
+    }
+    console->Print("%s\n", row.c_str());
+  }
+}
+
+// Recon: probe_cells split into WHY a cell is blocked (down-trace miss / hull-
+// startsolid / obstacle stamp) + whether a walkable cell is actually
+// A*-reachable from the player's feet, alongside a floorZ-delta map. The
+// pairing is the point: a shallow gap (goo moat, lower walkway) reads '.' and
+// reachable in [A] yet shows a floor drop in [B] -- the false-legalize the
+// reachability gate must catch. Eyeball both against the visible chamber.
+CON_COMMAND(sar_harness_laser_reachability_test,
+            "sar_harness_laser_reachability_test [radius] - print the go_to "
+            "planner's per-cell block reason, reachability-from-feet, and "
+            "floorZ delta around the player. Default radius 6 cells.\n") {
+  ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
+  if (!pl) {
+    console->Print("reachability_test: no player (load a map first).\n");
+    return;
+  }
+  int radius = args.ArgC() > 1 ? std::atoi(args[1]) : 6;
+  if (radius < 1) radius = 1;
+  if (radius > 32) radius = 32;
+
+  Vector feet = pl->abs_origin();
+  ICollideable& coll = pl->collision();
+  GoToPlanner planner(coll.OBBMins(), coll.OBBMaxs(), feet.z);
+  int pcx = GoToPlanner::CellX(feet.x), pcy = GoToPlanner::CellY(feet.y);
+
+  // BFS the reachable set from the player cell, bounded to the window. Passable
+  // gates only the destination (mirrors A*), so the start seeds even if it
+  // probes BLOCKED (you're standing on it).
+  static const int dxs[8] = {1, -1, 0, 0, 1, 1, -1, -1};
+  static const int dys[8] = {0, 0, 1, -1, 1, -1, 1, -1};
+  struct QCell {
+    int cx, cy;
+  };
+  std::unordered_set<uint32_t> reachable;
+  std::queue<QCell> bfs;
+  reachable.insert(GoToPlanner::CellKey(pcx, pcy));
+  bfs.push({pcx, pcy});
+  while (!bfs.empty()) {
+    QCell q = bfs.front();
+    bfs.pop();
+    for (int k = 0; k < 8; ++k) {
+      int nx = q.cx + dxs[k], ny = q.cy + dys[k];
+      if (std::abs(nx - pcx) > radius || std::abs(ny - pcy) > radius) continue;
+      uint32_t nKey = GoToPlanner::CellKey(nx, ny);
+      if (reachable.count(nKey)) continue;
+      if (!planner.Passable(q.cx, q.cy, nx, ny)) continue;
+      reachable.insert(nKey);
+      bfs.push({nx, ny});
+    }
+  }
+
+  console->Print("reachability_test: %dx%d cells @ %.0fu, feet z=%.0f (^=+y)\n",
+                 2 * radius + 1, 2 * radius + 1, GoToPlanner::kCellSize,
+                 feet.z);
+  console->Print(
+      "[A] @ you  . reachable  x severed  _ pit  # wall  O obstacle\n");
+  for (int dy = radius; dy >= -radius; --dy) {
+    std::string row;
+    for (int dx = -radius; dx <= radius; ++dx) {
+      int cx = pcx + dx, cy = pcy + dy;
+      const GoToPlanner::Cell& c = planner.At(cx, cy);
+      char ch;
+      if (dx == 0 && dy == 0)
+        ch = '@';
+      else if (c.state == GoToPlanner::WALKABLE)
+        ch = reachable.count(GoToPlanner::CellKey(cx, cy)) ? '.' : 'x';
+      else if (c.reason == GoToPlanner::NO_FLOOR)
+        ch = '_';
+      else if (c.reason == GoToPlanner::IN_WALL)
+        ch = '#';
+      else
+        ch = 'O';
+      row += ch;
+    }
+    console->Print("%s\n", row.c_str());
+  }
+
+  console->Print(
+      "[B] floorZ vs feet:  . level  u/U up  d/D down  (sp) no floor\n");
+  for (int dy = radius; dy >= -radius; --dy) {
+    std::string row;
+    for (int dx = -radius; dx <= radius; ++dx) {
+      int cx = pcx + dx, cy = pcy + dy;
+      const GoToPlanner::Cell& c = planner.At(cx, cy);
+      char ch;
+      if (dx == 0 && dy == 0) {
+        ch = '@';
+      } else if (c.state == GoToPlanner::BLOCKED &&
+                 c.reason == GoToPlanner::NO_FLOOR) {
+        ch = ' ';
+      } else {
+        float d = c.floorZ - feet.z;
+        if (d > -8.0f && d < 8.0f)
+          ch = '.';
+        else if (d >= 8.0f)
+          ch = (d < 32.0f) ? 'u' : 'U';
+        else
+          ch = (d > -32.0f) ? 'd' : 'D';
+      }
+      row += ch;
     }
     console->Print("%s\n", row.c_str());
   }

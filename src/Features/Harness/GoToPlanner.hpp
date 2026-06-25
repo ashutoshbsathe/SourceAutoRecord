@@ -19,8 +19,10 @@ class GoToPlanner {
   static constexpr float kCellSize = 16.0f;  // ~half player hull; 128/8 divisor
 
   enum CellState : uint8_t { UNKNOWN = 0, WALKABLE, BLOCKED };
+  enum BlockReason : uint8_t { OPEN = 0, NO_FLOOR, IN_WALL, OBSTACLE };
   struct Cell {
     uint8_t state = UNKNOWN;
+    uint8_t reason = OPEN;  // why BLOCKED; recon-only, A* never reads it
     float floorZ = 0;
   };
 
