@@ -943,6 +943,22 @@ std::string InterposeGate(void* emitter, void* cube, float percent,
   return "SEAT_OK";
 }
 
+// True if the seated cube actually catches the beam: re-trace and check the
+// beam now terminates within the cube's hull (the authoritative interception
+// test, not pre-placement math). Main thread only.
+bool ConfirmInterception(void* emitter, const Vector& seat, void* cube) {
+  constexpr float kInterceptSlack =
+      8.0f;  // beam end this close to seat = a hit
+  Vector E, F, hit;
+  float len;
+  ComputeBeamSegment(emitter, &E, &F, &hit, &len);
+  ICollideable& cc = SE(cube)->collision();
+  Vector cmin = cc.OBBMins(), cmax = cc.OBBMaxs();
+  float cubeR =
+      0.5f * Vector{cmax.x - cmin.x, cmax.y - cmin.y, cmax.z - cmin.z}.Length();
+  return (hit - seat).Length() < cubeR + kInterceptSlack;
+}
+
 }  // namespace
 
 // Hands start empty each episode; a stale key would match the reloaded cube.
@@ -987,40 +1003,115 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
   int emitterMark = req.mark();
   float percent = req.percent();
 
-  // 2.3: resolve + every seat/reachability gate in one main-thread hop. No
-  // carry or teleport yet (2.4) -- returns SEAT_OK or the first failing reject.
-  struct Out {
+  auto cancelled = []() {
+    portal2_harness::MacroResult c;
+    c.set_ok(false);
+    c.set_result_code("CANCELLED");
+    return c;
+  };
+
+  // 1. Gate (main thread): resolve the emitter mark + held cube, compute the
+  // seat + march start, or bail with the first failing reject.
+  struct Gate {
     std::string code = "BAD_MARK";
     Vector seat{0, 0, 0};
     float beamLen = 0;
+    Vector startFeet{0, 0, 0};
+    float initialDist = 0;
   };
-  auto out = std::make_shared<Out>();
-  bool ran = RunOnMainThreadSync(context_, [out, emitterMark, percent]() {
+  auto g = std::make_shared<Gate>();
+  bool ran = RunOnMainThreadSync(context_, [g, emitterMark, percent]() {
     ServerEnt* cube = HeldCube();
     if (!cube) {
-      out->code = "NOT_HOLDING";
+      g->code = "NOT_HOLDING";
       return;
     }
     CEntInfo* eInfo = nullptr;
-    if (!ResolveMarkInfo(emitterMark, &eInfo, &out->code)) return;
-    out->code = InterposeGate(eInfo->m_pEntity, (void*)cube, percent,
-                              &out->seat, &out->beamLen);
+    if (!ResolveMarkInfo(emitterMark, &eInfo, &g->code)) return;
+    g->code = InterposeGate(eInfo->m_pEntity, (void*)cube, percent, &g->seat,
+                            &g->beamLen);
+    if (g->code != "SEAT_OK") return;
+    Vector feet = server->GetPlayer(1)->abs_origin();
+    g->startFeet = feet;
+    g->initialDist =
+        Vector{g->seat.x - feet.x, g->seat.y - feet.y, 0}.Length2D();
   });
-  if (!ran) {
+  if (!ran) return cancelled();
+  if (g->code != "SEAT_OK") {
     r.set_ok(false);
-    r.set_result_code("CANCELLED");
+    r.set_result_code(g->code);
+    r.set_detail("interpose: " + g->code);
     return r;
   }
-  bool ok = out->code == "SEAT_OK";
-  r.set_ok(ok);
-  r.set_result_code(out->code);
-  if (ok)
+
+  // 2. Carry the held cube to the seat (go_to backend; skip the carried cube in
+  // the obstacle histogram).
+  uint32_t heldKey = g_heldEntityKey.load();
+  MarchOutcome m = MarchTo(context_, g->seat, kReachRadius, kGoToMaxTicks, 0,
+                           heldKey, g->startFeet, g->initialDist);
+  if (!m.cancelled && m.code == "BLOCKED")
+    m = RouteAround(context_, g->seat, 0, heldKey, m.dist);
+  if (m.cancelled) return cancelled();
+  Scheduler::OnMainThread([]() { ClearFramebulk(); });
+  AdvanceTicksBlocking(kGoToSettle);
+  if (!m.reached) {
+    r.set_ok(false);
+    r.set_result_code("BLOCKED");
     r.set_detail(Utils::ssprintf(
-        "seat (%.0f %.0f %.0f) on beam (len %.0f), reachable -- carry+snap "
-        "pending (2.4)",
-        out->seat.x, out->seat.y, out->seat.z, out->beamLen));
-  else
-    r.set_detail("interpose: " + out->code);
+        "interpose: carry blocked %.0fu short of the seat", m.dist));
+    return r;
+  }
+
+  // 3. Free the +use grab (a held cube fights the teleport) -- look down to
+  // drop, the teleport overrides where it lands -- then snap it onto the beam.
+  g_heldEntityKey = 0;  // hands empty for the drop + seat
+  auto view = std::make_shared<QAngle>();
+  bool ranV = RunOnMainThreadSync(context_, [view]() {
+    QAngle cur = engine->GetAngles(Slot());
+    *view = ApplyAbsoluteView(QAngle{kReleasePitch, cur.y, 0});
+  });
+  if (!ranV) return cancelled();
+  if (!DropHeld(context_, *view, kReleaseDropSettle)) {
+    r.set_ok(false);
+    r.set_result_code("NOT_INTERCEPTING");
+    r.set_detail("interpose: could not free the held cube to snap it");
+    return r;
+  }
+  auto snapped = std::make_shared<bool>(false);
+  bool ranS = RunOnMainThreadSync(context_, [snapped, g, heldKey]() {
+    ServerEnt* cube = EntFromKey(heldKey);
+    if (!cube) return;
+    SeatEntity((void*)cube, g->seat, QAngle{0, 0, 0});  // teleport-snap
+    *snapped = true;
+  });
+  if (!ranS) return cancelled();
+  if (!*snapped) {
+    r.set_ok(false);
+    r.set_result_code("NOT_INTERCEPTING");
+    r.set_detail("interpose: lost the cube before the snap");
+    return r;
+  }
+
+  // 4. Settle, then confirm the seated hull actually catches the beam.
+  AdvanceTicksBlocking(kSeatSettle);
+  auto intercept = std::make_shared<bool>(false);
+  bool ranC =
+      RunOnMainThreadSync(context_, [intercept, g, heldKey, emitterMark]() {
+        ServerEnt* cube = EntFromKey(heldKey);
+        CEntInfo* eInfo = nullptr;
+        std::string code;
+        if (!cube || !ResolveMarkInfo(emitterMark, &eInfo, &code)) return;
+        *intercept =
+            ConfirmInterception(eInfo->m_pEntity, g->seat, (void*)cube);
+      });
+  if (!ranC) return cancelled();
+
+  bool ok = *intercept;
+  r.set_ok(ok);
+  r.set_result_code(ok ? "ON_BEAM" : "NOT_INTERCEPTING");
+  r.set_detail(Utils::ssprintf("interpose: cube %s at (%.0f %.0f %.0f)",
+                               ok ? "on beam" : "snapped, not intercepting",
+                               g->seat.x, g->seat.y, g->seat.z));
   return r;
 }
 
@@ -2066,4 +2157,49 @@ CON_COMMAND(sar_harness_interpose_dryrun,
   if (code == "SEAT_OK")
     console->Msg("  seat (%.1f %.1f %.1f)  beam len %.1f  percent %.2f\n",
                  seat.x, seat.y, seat.z, beamLen, percent);
+}
+
+// Run interpose's snap end-to-end in-console (2.4 test): gate + teleport-snap +
+// interception re-trace, on a FREE cube by raw index (no carry -- that needs
+// the harness/Python). percent in [0,1]; read the settled result with
+// sar_harness_laser_probe.
+CON_COMMAND(
+    sar_harness_interpose_run,
+    "sar_harness_interpose_run <emitter_idx> <cube_idx> <percent> - gate "
+    "+ teleport-snap a FREE cube onto the beam + confirm interception "
+    "(no carry). Raw entity indices; percent in [0,1].\n") {
+  if (!server || !entityList) {
+    console->Print("interpose run: no server/entity list yet.\n");
+    return;
+  }
+  if (args.ArgC() < 4) {
+    console->Print(
+        "usage: sar_harness_interpose_run <emitter_idx> <cube_idx> "
+        "<percent>\n");
+    return;
+  }
+  auto getEnt = [](int idx) -> void* {
+    if (idx < 0 || idx >= Offsets::NUM_ENT_ENTRIES) return nullptr;
+    auto info = entityList->GetEntityInfoByIndex(idx);
+    return (info && info->m_pEntity) ? info->m_pEntity : nullptr;
+  };
+  void* emitter = getEnt(std::atoi(args[1]));
+  void* cube = getEnt(std::atoi(args[2]));
+  if (!emitter || !cube) {
+    console->Print("interpose run: bad emitter/cube index.\n");
+    return;
+  }
+  float percent = (float)std::atof(args[3]);
+  Vector seat{0, 0, 0};
+  float beamLen = 0;
+  std::string code = InterposeGate(emitter, cube, percent, &seat, &beamLen);
+  if (code != "SEAT_OK") {
+    console->Print("interpose run: %s (no placement)\n", code.c_str());
+    return;
+  }
+  SeatEntity(cube, seat, QAngle{0, 0, 0});  // teleport-snap (free cube)
+  bool intercept = ConfirmInterception(emitter, seat, cube);
+  console->Print("interpose run: snapped to (%.1f %.1f %.1f) len %.1f -> %s\n",
+                 seat.x, seat.y, seat.z, beamLen,
+                 intercept ? "ON_BEAM" : "NOT_INTERCEPTING");
 }
