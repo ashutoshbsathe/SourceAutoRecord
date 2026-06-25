@@ -14,6 +14,7 @@
 #include "Features/Camera.hpp"
 #include "Features/EntityList.hpp"
 #include "Features/OverlayRender.hpp"
+#include "LaserGeometry.hpp"
 #include "MarkTable.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
@@ -90,16 +91,6 @@ bool IsHarnessMarkedEntity(void* ent, const char* className) {
   }
   return true;
 }
-
-// Trace filter that skips two entities: the player (the ray starts inside our
-// own hull) and the entity under test (so the ray doesn't stop on its own
-// surface). Without skipping the player, every ray hits us immediately.
-class SkipTwoEntities : public CTraceFilter {
- public:
-  const void* a = nullptr;
-  const void* b = nullptr;
-  bool ShouldHitEntity(void* e, int) override { return e != a && e != b; }
-};
 
 // True if a ray from the eye to `target` is unobstructed by world geometry,
 // with the player and the tested entity skipped so neither self-occludes the
@@ -485,30 +476,6 @@ static int ReconReadHandleIndex(void* ent, const char* name) {
   return (int)(raw & (Offsets::NUM_ENT_ENTRIES - 1));
 }
 
-// Forward beam ray: trace from the emitter along its facing to the first opaque
-// world/prop hit. E->hit is the segment a beam-% addresses (MASK_OPAQUE matches
-// the beam, not the floor's MASK_PLAYERSOLID). Returns false when nothing is
-// hit within range (beam exits the map). The authoritative interception is a
-// re-trace after the cube seats -- never this geometric ray.
-static bool ComputeBeamSegment(void* emitter, Vector* E, Vector* fwd,
-                               Vector* hit, float* length) {
-  constexpr float kBeamMax = 16384.0f;
-  *E = SE(emitter)->abs_origin();
-  QAngle ea = SE(emitter)->abs_angles();
-  Math::AngleVectors(ea, fwd);
-  CTraceFilterSimple filter;
-  filter.SetPassEntity(emitter);
-  CGameTrace tr;
-  if (!engine->Trace(*E, ea, kBeamMax, MASK_OPAQUE, filter, tr)) {
-    *hit = *E + *fwd * kBeamMax;
-    *length = kBeamMax;
-    return false;
-  }
-  *hit = tr.endpos;
-  *length = (*hit - *E).Length();
-  return true;
-}
-
 CON_COMMAND(
     sar_harness_laser_probe,
     "sar_harness_laser_probe - world origin, angles, forward vector, the "
@@ -593,28 +560,6 @@ static void ReconTeleportFree(void* ent, const Vector& origin,
   Teleport(ent, &origin, &angles, &zeroVel, true);
 }
 
-// Fraction of the from->to segment that is unobstructed (1.0 = clear). A proxy
-// for "does the beam reach here" -- the real beam trace mask may differ. Skips
-// both endpoints' entities so neither self-stops the ray at fraction 0.
-static float ReconLineClear(const Vector& from, const Vector& to, void* skipA,
-                            void* skipB) {
-  Vector d = to - from;
-  Ray_t ray;
-  ray.m_IsRay = true;
-  ray.m_IsSwept = true;
-  ray.m_Start = VectorAligned(from.x, from.y, from.z);
-  ray.m_Delta = VectorAligned(d.x, d.y, d.z);
-  ray.m_StartOffset = VectorAligned();
-  ray.m_Extents = VectorAligned();
-  SkipTwoEntities filter;
-  filter.a = skipA;
-  filter.b = skipB;
-  CGameTrace tr;
-  engine->TraceRay(engine->engineTrace->ThisPtr(), ray, MASK_OPAQUE, &filter,
-                   &tr);
-  return tr.fraction;
-}
-
 CON_COMMAND(
     sar_harness_laser_intercept_spike,
     "sar_harness_laser_intercept_spike <emitter_idx> <target_idx> <cube_idx> "
@@ -697,36 +642,24 @@ CON_COMMAND(
   Vector P = E + F * t + perp * lateral;
 
   // Rest the cube on the floor under P (down-trace) instead of dropping it in
-  // mid-air: a fall tumbles the yaw past the redirect tolerance. Flat
-  // (yaw-only) placement, so the world Z half-extent is the local one.
-  ICollideable& cc = SE(cube)->collision();
-  Vector cmin = cc.OBBMins(), cmax = cc.OBBMaxs();
-  float halfH = (cmax.z - cmin.z) * 0.5f;
-  Vector dStart{P.x, P.y, P.z + 64.0f};
-  QAngle down{90, 0, 0};
-  CTraceFilterSimple floorFilter;
-  floorFilter.SetPassEntity(cube);
-  CGameTrace floorTr;
-  if (!engine->Trace(dStart, down, 256.0f, MASK_PLAYERSOLID, floorFilter,
-                     floorTr)) {
+  // mid-air: a fall tumbles the yaw past the redirect tolerance.
+  Vector seat;
+  if (!DownTraceRest(P, cube, &seat)) {
     console->Print(
         "intercept spike: NO_FLOOR under (%.1f %.1f %.1f) -- pit/void; "
         "refusing to place the cube mid-air.\n",
         P.x, P.y, P.z);
     return;
   }
-  P.z = floorTr.endpos.z + halfH;
+  P = seat;
 
   Vector tgtC = SE(target)->abs_origin();
+  QAngle cubeAng = ComputeRedirectYaw(P, tgtC);
   Vector aim = tgtC - P;
-  Math::VectorNormalize(aim);
-  Vector up{0, 0, 1};
-  QAngle cubeAng{0, 0, 0};
-  Math::VectorAngles(aim, up, &cubeAng);
-  cubeAng.z = 0;
+  Math::VectorNormalize(aim);  // recomputed only for the recon print below
 
-  float inClear = ReconLineClear(E, P, emitter, cube);
-  float outClear = ReconLineClear(P, tgtC, cube, target);
+  float inClear = LaserLineClear(E, P, emitter, cube);
+  float outClear = LaserLineClear(P, tgtC, cube, target);
 
   ReconTeleportFree(cube, P, cubeAng);
 
