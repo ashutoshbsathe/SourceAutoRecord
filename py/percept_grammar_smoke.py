@@ -268,6 +268,12 @@ def test_examples_validate():
             mark = int(tokens[1])  # emitter mark (spec.mark is unset for interpose)
             held = 99  # interpose requires a held cube
             ents = [synth(mark, 'env_portal_laser')]
+        elif verb == 'redirect_to':
+            mark = int(tokens[1])  # cube mark
+            ents = [
+                synth(mark, 'prop_weighted_cube'),
+                synth(int(tokens[2]), 'point_laser_target'),
+            ]
         elif spec.mark:
             ents = [synth(mark, 'prop_floor_button')]
         else:

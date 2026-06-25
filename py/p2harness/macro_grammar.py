@@ -104,6 +104,14 @@ VERB_SPECS = {
         'holding a cube, seat it halfway (0.5) along laser-emitter mark 4 to '
         'block the beam; add a third mark to redirect at a target.',
     ),
+    'redirect_to': Verb(
+        'Aim a cube ALREADY seated on a laser beam so it redirects the beam to a '
+        'target and powers it. The cube must already be on a beam (interpose it '
+        'first) -- else NOT_SEATED; NOT_POWERED if the aim cannot reach.',
+        'redirect_to 6 9',
+        'a reflector cube already on a beam (mark 6): aim it at laser-target mark '
+        '9 to power it; interpose it onto the beam first.',
+    ),
     'move': Verb(
         'Hold a movement direction for N ticks.',
         'move forward 10',
@@ -151,6 +159,9 @@ def build_macro(verb, args):
         m.percent = float(args[1])
         if len(args) > 2:
             m.target_mark = int(args[2])
+    elif verb == 'redirect_to':
+        m.mark = int(args[0])  # the seated cube
+        m.target_mark = int(args[1])  # the target to power
     elif verb == 'move':
         m.dir = args[0]
         m.ticks = int(args[1])
@@ -201,6 +212,28 @@ def _check_interpose(req, held_mark, by_mark):
     return req
 
 
+def _check_redirect(req, by_mark):
+    """redirect_to checks: a placed reflector cube + a laser-target mark. Error
+    string or the ready req."""
+    cube = by_mark.get(req.mark)
+    if cube is None:
+        return (
+            f'redirect_to: no entity with cube mark {req.mark}; '
+            f'marks present: {sorted(by_mark)}'
+        )
+    if cube['class'] != 'prop_weighted_cube':
+        return f'redirect_to: mark {req.mark} is a {cube["class"]}, not a cube'
+    tgt = by_mark.get(req.target_mark)
+    if tgt is None:
+        return f'redirect_to: no entity with target mark {req.target_mark}'
+    if tgt['class'] != 'point_laser_target':
+        return (
+            f'redirect_to: mark {req.target_mark} is a {tgt["class"]}, '
+            f'not a laser target'
+        )
+    return req
+
+
 def validate(text, entities, held_mark=None):
     """Parse a command string ('go_to 7') and check it against grammar + percept.
 
@@ -224,6 +257,8 @@ def validate(text, entities, held_mark=None):
     by_mark = {e['mark']: e for e in entities}
     if verb == 'interpose':
         return _check_interpose(req, held_mark, by_mark)
+    if verb == 'redirect_to':
+        return _check_redirect(req, by_mark)
     if spec.mark:
         err = _check_mark(verb, spec, req.mark, by_mark)
         if err:
@@ -246,6 +281,8 @@ def _signature(verb, spec):
     """Plain-command form 'verb <arg>' -- the surface the model types."""
     if verb == 'interpose':
         return 'interpose <emitter> <percent 0-1> [target]'
+    if verb == 'redirect_to':
+        return 'redirect_to <cube> <target>'
     args = []
     if spec.mark == 'optional':
         args.append('[mark]')

@@ -485,6 +485,76 @@ def check_interpose(ctx):
     )
 
 
+def check_redirect(ctx):
+    """redirect_to aims a beam-seated cube at a target to power it: interpose a
+    cube onto a beam, then redirect_to a laser target. Asserts a redirect code --
+    POWERED when the cube redirects to the target, or NOT_POWERED/NOT_SEATED when
+    geometry or interpose-ordering prevents it. A NOT_IMPLEMENTED/BAD_MARK would
+    be a wiring regression. Needs a cube, a laser emitter, and a laser target."""
+    reset_to_spawn(ctx)
+    ctx.harness.start_agent_loop()
+    try:
+        env = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(verb='wait', ticks=1)
+            ),
+            timeout=30.0,
+        )
+        cube = emitter = target = None
+        for e in env.state.entity_snapshot.entities:
+            if e.mark <= 0:
+                continue
+            if cube is None and e.class_name in _GRABBABLE:
+                cube = e
+            if emitter is None and e.class_name == 'env_portal_laser':
+                emitter = e
+            if target is None and e.class_name == 'point_laser_target':
+                target = e
+        require(cube is not None, 'no grabbable cube mark (need a laser chamber)')
+        require(emitter is not None, 'no laser emitter mark (need a laser chamber)')
+        require(target is not None, 'no point_laser_target mark (need a laser chamber)')
+
+        def run(macro, timeout):
+            return ctx.harness.step_agent_loop(
+                harness_pb2.AgentMessage(macro=macro), timeout=timeout
+            )
+
+        run(harness_pb2.MacroRequest(verb='go_to', mark=cube.mark), 90.0)
+        grab = run(harness_pb2.MacroRequest(verb='pick_up', mark=cube.mark), 30.0)
+        require(
+            grab.macro_result.result_code == 'SUCCESS',
+            f'pick_up cube mark={cube.mark} failed: '
+            f'{grab.macro_result.result_code} -- cannot test redirect_to',
+        )
+        run(
+            harness_pb2.MacroRequest(verb='interpose', mark=emitter.mark, percent=0.5),
+            90.0,
+        )
+        env = run(
+            harness_pb2.MacroRequest(
+                verb='redirect_to', mark=cube.mark, target_mark=target.mark
+            ),
+            60.0,
+        )
+    finally:
+        ctx.harness.stop_agent_loop()
+    require(env.success, f'redirect_to step RPC failed: {env.error_message}')
+    require(env.HasField('macro_result'), 'no macro_result on redirect_to')
+    mr = env.macro_result
+    ctx.observations.append(
+        gamestate_dict(env.state, f'macro.redirect_to[{target.mark}]')
+    )
+    require(
+        mr.result_code in ('POWERED', 'NOT_POWERED', 'NOT_SEATED'),
+        f'redirect_to gave {mr.result_code!r}, not a redirect outcome -- '
+        f'dispatch/arg regression?',
+    )
+    return (
+        f'redirect_to cube {cube.mark} -> target {target.mark} -> '
+        f'{mr.result_code} ({mr.detail})'
+    )
+
+
 def check_client(ctx):
     """The Python macro client end to end: merge the streamed percept into
     marked-entity dicts (WorldView), validate an action locally against that
@@ -572,6 +642,7 @@ CHECKS = [
     ('go_to', check_go_to),
     ('place_on_button', check_place_on_button),
     ('interpose', check_interpose),
+    ('redirect_to', check_redirect),
     ('client', check_client),
     ('pixels', check_pixels),
     ('execute_command', check_execute_command),

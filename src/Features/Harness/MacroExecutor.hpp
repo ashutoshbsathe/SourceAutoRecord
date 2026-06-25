@@ -32,4 +32,11 @@ class MacroExecutor {
   portal2_harness::MacroResult Interact(int mark);
   portal2_harness::MacroResult Interpose(
       const portal2_harness::MacroRequest& req);
+  // Yaw a seated cube's +X at a target + confirm power, re-seating to re-roll
+  // the ~2% settle jank. POWERED / NOT_POWERED / CANCELLED; *residual = degrees
+  // the cube's +X ends off the target.
+  std::string RedirectConfirm(uint32_t cubeKey, int targetMark,
+                              float* residual);
+  portal2_harness::MacroResult RedirectTo(
+      const portal2_harness::MacroRequest& req);
 };

@@ -83,6 +83,8 @@ constexpr int kDropTries =
     3;  // +use drop pulses to retry if the hand stays full
 constexpr int kSeatSettle = 32;    // ticks for the press to register post-seat
 constexpr int kSeatDwellGap = 16;  // ticks between the two press reads
+constexpr int kRedirectTries =
+    3;  // redirect re-seat attempts (re-rolls ~2% jank)
 constexpr int kButtonRiseTicks = 12;  // ticks for a button to rise once the
                                       // player steps off it
 // TODO: bisect kSeatSettle / kSeatDwellGap / kButtonRiseTicks to their
@@ -959,6 +961,25 @@ bool ConfirmInterception(void* emitter, const Vector& seat, void* cube) {
   return (hit - seat).Length() < cubeR + kInterceptSlack;
 }
 
+// True if `cube` is currently catching any live emitter's beam (the seated gate
+// for redirect_to). Scans emitters, skipping the transient (0,0,0) re-emit
+// segments. Main thread only.
+bool CubeOnAnyBeam(void* cube) {
+  Vector cpos = SE(cube)->abs_origin();
+  for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
+    CEntInfo* info = entityList->GetEntityInfoByIndex(i);
+    if (!info || !info->m_pEntity || info->m_pEntity == cube) continue;
+    void* em = info->m_pEntity;
+    const char* cls = server->GetEntityClassName(em);
+    if (!cls || std::strcmp(cls, "env_portal_laser")) continue;
+    Vector eo = SE(em)->abs_origin();
+    if (eo.x == 0 && eo.y == 0 && eo.z == 0) continue;  // transient re-emit seg
+    if (!SE(em)->field<bool>("m_bLaserOn")) continue;
+    if (ConfirmInterception(em, cpos, cube)) return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 // Hands start empty each episode; a stale key would match the reloaded cube.
@@ -989,12 +1010,57 @@ portal2_harness::MacroResult MacroExecutor::Execute(
   if (verb == "release") return Release(req.mark());
   if (verb == "interact") return Interact(req.mark());
   if (verb == "interpose") return Interpose(req);
+  if (verb == "redirect_to") return RedirectTo(req);
 
   // press (a pedestal-button alias of interact) is not wired yet.
   r.set_ok(false);
   r.set_result_code("NOT_IMPLEMENTED");
   r.set_detail("verb '" + verb + "' not implemented yet");
   return r;
+}
+
+std::string MacroExecutor::RedirectConfirm(uint32_t cubeKey, int targetMark,
+                                           float* residual) {
+  *residual = 0;
+  for (int attempt = 0; attempt < kRedirectTries; ++attempt) {
+    // Yaw the cube's +X at the target (in place), then settle so the beam
+    // re-propagates and the target latches.
+    if (!RunOnMainThreadSync(context_, [cubeKey, targetMark]() {
+          ServerEnt* cube = EntFromKey(cubeKey);
+          CEntInfo* tInfo = nullptr;
+          std::string code;
+          if (!cube || !ResolveMarkInfo(targetMark, &tInfo, &code)) return;
+          Vector pos = cube->abs_origin();
+          QAngle yaw =
+              ComputeRedirectYaw(pos, EntityCenter(SE(tInfo->m_pEntity)));
+          SeatEntity((void*)cube, pos, yaw);
+        }))
+      return "CANCELLED";
+    AdvanceTicksBlocking(kSeatSettle);
+    auto powered = std::make_shared<bool>(false);
+    auto res = std::make_shared<float>(0.0f);
+    if (!RunOnMainThreadSync(context_, [powered, res, cubeKey, targetMark]() {
+          ServerEnt* cube = EntFromKey(cubeKey);
+          CEntInfo* tInfo = nullptr;
+          std::string code;
+          if (!cube || !ResolveMarkInfo(targetMark, &tInfo, &code)) return;
+          ServerEnt* target = SE(tInfo->m_pEntity);
+          *powered = target->field<bool>("m_bPowered");
+          // residual: the cube's +X (its redirect axis) vs the ideal direction.
+          Vector fwd;
+          Math::AngleVectors(cube->abs_angles(), &fwd);
+          Vector ideal = EntityCenter(target) - cube->abs_origin();
+          Math::VectorNormalize(ideal);
+          float dot = fwd.x * ideal.x + fwd.y * ideal.y + fwd.z * ideal.z;
+          dot = std::max(-1.0f, std::min(1.0f, dot));
+          *res = std::acos(dot) * 57.2958f;
+        }))
+      return "CANCELLED";
+    *residual = *res;
+    if (*powered) return "POWERED";
+    // else re-apply next iteration (re-rolls the ~2% settle jank)
+  }
+  return "NOT_POWERED";
 }
 
 portal2_harness::MacroResult MacroExecutor::Interpose(
@@ -1106,12 +1172,94 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
       });
   if (!ranC) return cancelled();
 
-  bool ok = *intercept;
-  r.set_ok(ok);
-  r.set_result_code(ok ? "ON_BEAM" : "NOT_INTERCEPTING");
-  r.set_detail(Utils::ssprintf("interpose: cube %s at (%.0f %.0f %.0f)",
-                               ok ? "on beam" : "snapped, not intercepting",
+  if (!*intercept) {
+    r.set_ok(false);
+    r.set_result_code("NOT_INTERCEPTING");
+    r.set_detail(Utils::ssprintf(
+        "interpose: cube snapped but not intercepting at (%.0f %.0f %.0f)",
+        g->seat.x, g->seat.y, g->seat.z));
+    return r;
+  }
+  // 5. target= -> also aim the redirect at it and confirm power (power_with).
+  if (req.target_mark()) {
+    float residual = 0;
+    std::string code = RedirectConfirm(heldKey, req.target_mark(), &residual);
+    if (code == "CANCELLED") return cancelled();
+    r.set_ok(code == "POWERED");
+    r.set_result_code(code);
+    r.set_detail(
+        code == "POWERED"
+            ? Utils::ssprintf(
+                  "interpose: cube on beam at (%.0f %.0f %.0f), target powered",
+                  g->seat.x, g->seat.y, g->seat.z)
+            : Utils::ssprintf(
+                  "interpose: on beam but target dark (%.1f deg off)",
+                  residual));
+    return r;
+  }
+  r.set_ok(true);
+  r.set_result_code("ON_BEAM");
+  r.set_detail(Utils::ssprintf("interpose: cube on beam at (%.0f %.0f %.0f)",
                                g->seat.x, g->seat.y, g->seat.z));
+  return r;
+}
+
+portal2_harness::MacroResult MacroExecutor::RedirectTo(
+    const portal2_harness::MacroRequest& req) {
+  portal2_harness::MacroResult r;
+  int cubeMark = req.mark();
+  int targetMark = req.target_mark();
+
+  // Gate (main thread): the object must be a type-2 reflector cube currently
+  // catching a beam; the target must resolve. No movement -- yaw-only atom.
+  struct Gate {
+    std::string code = "BAD_MARK";
+    uint32_t cubeKey = 0;
+  };
+  auto g = std::make_shared<Gate>();
+  bool ran = RunOnMainThreadSync(context_, [g, cubeMark, targetMark]() {
+    CEntInfo* cInfo = nullptr;
+    CEntInfo* tInfo = nullptr;
+    if (!ResolveMarkInfo(cubeMark, &cInfo, &g->code)) return;
+    if (!ResolveMarkInfo(targetMark, &tInfo, &g->code)) return;
+    void* cube = cInfo->m_pEntity;
+    if (SE(cube)->field<int>("m_nCubeType") != 2) {
+      g->code = "NOT_REFLECTOR";
+      return;
+    }
+    if (!CubeOnAnyBeam(cube)) {
+      g->code = "NOT_SEATED";  // not catching a beam -> interpose first
+      return;
+    }
+    auto [idx, ser] = markTable.GetEntityFromMark(cubeMark);
+    g->cubeKey = PackEntKey(idx, static_cast<uint16_t>(ser));
+    g->code = "SEAT_OK";
+  });
+  if (!ran) {
+    r.set_ok(false);
+    r.set_result_code("CANCELLED");
+    return r;
+  }
+  if (g->code != "SEAT_OK") {
+    r.set_ok(false);
+    r.set_result_code(g->code);
+    r.set_detail("redirect_to: " + g->code);
+    return r;
+  }
+
+  float residual = 0;
+  std::string code = RedirectConfirm(g->cubeKey, targetMark, &residual);
+  if (code == "CANCELLED") {
+    r.set_ok(false);
+    r.set_result_code("CANCELLED");
+    return r;
+  }
+  r.set_ok(code == "POWERED");
+  r.set_result_code(code);
+  r.set_detail(code == "POWERED"
+                   ? "redirect_to: target powered"
+                   : Utils::ssprintf("redirect_to: target dark (%.1f deg off)",
+                                     residual));
   return r;
 }
 
@@ -2165,9 +2313,11 @@ CON_COMMAND(sar_harness_interpose_dryrun,
 // sar_harness_laser_probe.
 CON_COMMAND(
     sar_harness_interpose_run,
-    "sar_harness_interpose_run <emitter_idx> <cube_idx> <percent> - gate "
-    "+ teleport-snap a FREE cube onto the beam + confirm interception "
-    "(no carry). Raw entity indices; percent in [0,1].\n") {
+    "sar_harness_interpose_run <emitter_idx> <cube_idx> <percent> [target_idx] "
+    "- "
+    "gate + teleport-snap a FREE cube onto the beam + confirm interception (no "
+    "carry); optional target_idx yaws the cube at it. Raw indices; percent "
+    "[0,1].\n") {
   if (!server || !entityList) {
     console->Print("interpose run: no server/entity list yet.\n");
     return;
@@ -2197,9 +2347,20 @@ CON_COMMAND(
     console->Print("interpose run: %s (no placement)\n", code.c_str());
     return;
   }
-  SeatEntity(cube, seat, QAngle{0, 0, 0});  // teleport-snap (free cube)
+  // Optional 4th arg: a target index -> yaw the cube's +X at it. m_bPowered is
+  // a sim-tick event the console can't AdvanceTicks for; read it after with
+  // sar_harness_laser_probe.
+  void* target = args.ArgC() > 4 ? getEnt(std::atoi(args[4])) : nullptr;
+  QAngle yaw = target ? ComputeRedirectYaw(seat, SE(target)->abs_origin())
+                      : QAngle{0, 0, 0};
+  SeatEntity(cube, seat, yaw);  // teleport-snap, aimed if a target was given
   bool intercept = ConfirmInterception(emitter, seat, cube);
-  console->Print("interpose run: snapped to (%.1f %.1f %.1f) len %.1f -> %s\n",
-                 seat.x, seat.y, seat.z, beamLen,
-                 intercept ? "ON_BEAM" : "NOT_INTERCEPTING");
+  console->Print(
+      "interpose run: snapped to (%.1f %.1f %.1f) len %.1f%s -> %s\n", seat.x,
+      seat.y, seat.z, beamLen, target ? " (aimed)" : "",
+      intercept ? "ON_BEAM" : "NOT_INTERCEPTING");
+  if (target)
+    console->Msg(
+        "  yawed at target [%d]; read m_bPowered via sar_harness_laser_probe\n",
+        std::atoi(args[4]));
 }
