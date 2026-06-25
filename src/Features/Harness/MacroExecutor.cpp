@@ -937,11 +937,21 @@ portal2_harness::MacroResult MacroExecutor::Execute(
   if (verb == "pick_up") return PickUp(req.mark());
   if (verb == "release") return Release(req.mark());
   if (verb == "interact") return Interact(req.mark());
+  if (verb == "interpose") return Interpose(req);
 
   // press (a pedestal-button alias of interact) is not wired yet.
   r.set_ok(false);
   r.set_result_code("NOT_IMPLEMENTED");
   r.set_detail("verb '" + verb + "' not implemented yet");
+  return r;
+}
+
+portal2_harness::MacroResult MacroExecutor::Interpose(
+    const portal2_harness::MacroRequest& req) {
+  portal2_harness::MacroResult r;
+  r.set_ok(false);
+  r.set_result_code("NOT_IMPLEMENTED");
+  r.set_detail("interpose: seat-only verb pending (phase 2.3)");
   return r;
 }
 

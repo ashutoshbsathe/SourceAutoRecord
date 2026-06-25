@@ -70,13 +70,17 @@ message EnvironmentMessage {
 // See brainstorm/macro_executor_impl_plan.md and llm_percept_act_grammar.md.
 
 message MacroRequest {
-  string verb = 1;  // aim_at|look|go_to|move|pick_up|release|interact|wait|done
-  int32 mark = 2;   // anchored verbs: target mark (0 = unset)
+  string verb =
+      1;  // aim_at|look|go_to|move|pick_up|release|interact|interpose|wait|done
+  int32 mark =
+      2;  // anchored verbs: target mark (0 = unset); interpose: emitter
   int32 ticks = 3;  // wait() AND move(): hold duration in ticks
   string dir = 4;   // move(): forward|back|left|right (relative to facing)
   int32 yaw = 5;    // look(): signed degrees, lexer-snapped to 15
   int32 pitch =
       6;  // look(): signed degrees, lexer-snapped to 15, engine-clamped
+  float percent = 7;      // interpose: position along the beam [0,1]
+  int32 target_mark = 8;  // interpose: optional redirect aim (0 = unset)
   // later (portals/nav): string color; Vector3 point; string direction;
 }
 

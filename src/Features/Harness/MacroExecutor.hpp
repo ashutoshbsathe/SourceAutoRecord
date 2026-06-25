@@ -30,4 +30,6 @@ class MacroExecutor {
   portal2_harness::MacroResult PickUp(int mark);
   portal2_harness::MacroResult Release(int mark);
   portal2_harness::MacroResult Interact(int mark);
+  portal2_harness::MacroResult Interpose(
+      const portal2_harness::MacroRequest& req);
 };

@@ -1723,6 +1723,8 @@ class MacroRequest final : public ::google::protobuf::Message
     kTicksFieldNumber = 3,
     kYawFieldNumber = 5,
     kPitchFieldNumber = 6,
+    kPercentFieldNumber = 7,
+    kTargetMarkFieldNumber = 8,
   };
   // string verb = 1;
   void clear_verb() ;
@@ -1794,12 +1796,32 @@ class MacroRequest final : public ::google::protobuf::Message
   void _internal_set_pitch(::int32_t value);
 
   public:
+  // float percent = 7;
+  void clear_percent() ;
+  float percent() const;
+  void set_percent(float value);
+
+  private:
+  float _internal_percent() const;
+  void _internal_set_percent(float value);
+
+  public:
+  // int32 target_mark = 8;
+  void clear_target_mark() ;
+  ::int32_t target_mark() const;
+  void set_target_mark(::int32_t value);
+
+  private:
+  ::int32_t _internal_target_mark() const;
+  void _internal_set_target_mark(::int32_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:portal2_harness.MacroRequest)
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<3, 6,
-                                   0, 44,
+  static const ::google::protobuf::internal::TcParseTable<3, 8,
+                                   0, 52,
                                    2>
       _table_;
 
@@ -1826,6 +1848,8 @@ class MacroRequest final : public ::google::protobuf::Message
     ::int32_t ticks_;
     ::int32_t yaw_;
     ::int32_t pitch_;
+    float percent_;
+    ::int32_t target_mark_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -6340,6 +6364,54 @@ inline ::int32_t MacroRequest::_internal_pitch() const {
 inline void MacroRequest::_internal_set_pitch(::int32_t value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.pitch_ = value;
+}
+
+// float percent = 7;
+inline void MacroRequest::clear_percent() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.percent_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000040u;
+}
+inline float MacroRequest::percent() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.percent)
+  return _internal_percent();
+}
+inline void MacroRequest::set_percent(float value) {
+  _internal_set_percent(value);
+  _impl_._has_bits_[0] |= 0x00000040u;
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.percent)
+}
+inline float MacroRequest::_internal_percent() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.percent_;
+}
+inline void MacroRequest::_internal_set_percent(float value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.percent_ = value;
+}
+
+// int32 target_mark = 8;
+inline void MacroRequest::clear_target_mark() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.target_mark_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000080u;
+}
+inline ::int32_t MacroRequest::target_mark() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.target_mark)
+  return _internal_target_mark();
+}
+inline void MacroRequest::set_target_mark(::int32_t value) {
+  _internal_set_target_mark(value);
+  _impl_._has_bits_[0] |= 0x00000080u;
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.target_mark)
+}
+inline ::int32_t MacroRequest::_internal_target_mark() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.target_mark_;
+}
+inline void MacroRequest::_internal_set_target_mark(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.target_mark_ = value;
 }
 
 // -------------------------------------------------------------------

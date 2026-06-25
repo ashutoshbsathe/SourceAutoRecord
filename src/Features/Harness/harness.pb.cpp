@@ -225,7 +225,9 @@ inline constexpr MacroRequest::Impl_::Impl_(
       mark_{0},
       ticks_{0},
       yaw_{0},
-      pitch_{0} {}
+      pitch_{0},
+      percent_{0},
+      target_mark_{0} {}
 
 template <typename>
 PROTOBUF_CONSTEXPR MacroRequest::MacroRequest(::_pbi::ConstantInitialized)
@@ -756,19 +758,24 @@ const ::uint32_t
         0x081,  // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest,
                               _impl_._has_bits_),
-        9,  // hasbit index offset
+        11,  // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.verb_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.mark_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.ticks_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.dir_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.yaw_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.pitch_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.percent_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest,
+                              _impl_.target_mark_),
         0,
         2,
         3,
         1,
         4,
         5,
+        6,
+        7,
         0x081,  // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroResult,
                               _impl_._has_bits_),
@@ -1076,24 +1083,24 @@ static const ::_pbi::MigrationSchema schemas[] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     {9, sizeof(::portal2_harness::AgentMessage)},
     {18, sizeof(::portal2_harness::EnvironmentMessage)},
     {29, sizeof(::portal2_harness::MacroRequest)},
-    {44, sizeof(::portal2_harness::MacroResult)},
-    {63, sizeof(::portal2_harness::EntityField)},
-    {82, sizeof(::portal2_harness::EntityState)},
-    {105, sizeof(::portal2_harness::EntitySnapshot)},
-    {114, sizeof(::portal2_harness::GameState)},
-    {135, sizeof(::portal2_harness::ActionRequest)},
-    {166, sizeof(::portal2_harness::ActionResponse)},
-    {173, sizeof(::portal2_harness::CommandRequest)},
-    {178, sizeof(::portal2_harness::CommandResponse)},
-    {185, sizeof(::portal2_harness::ResetRequest)},
-    {190, sizeof(::portal2_harness::ResetResponse)},
-    {199, sizeof(::portal2_harness::HandshakeRequest)},
-    {206, sizeof(::portal2_harness::HandshakeResponse)},
-    {221, sizeof(::portal2_harness::RolloutHeader)},
-    {234, sizeof(::portal2_harness::RolloutStep)},
-    {243, sizeof(::portal2_harness::Empty)},
-    {244, sizeof(::portal2_harness::RenderDemoRequest)},
-    {253, sizeof(::portal2_harness::RenderDemoResponse)},
+    {48, sizeof(::portal2_harness::MacroResult)},
+    {67, sizeof(::portal2_harness::EntityField)},
+    {86, sizeof(::portal2_harness::EntityState)},
+    {109, sizeof(::portal2_harness::EntitySnapshot)},
+    {118, sizeof(::portal2_harness::GameState)},
+    {139, sizeof(::portal2_harness::ActionRequest)},
+    {170, sizeof(::portal2_harness::ActionResponse)},
+    {177, sizeof(::portal2_harness::CommandRequest)},
+    {182, sizeof(::portal2_harness::CommandResponse)},
+    {189, sizeof(::portal2_harness::ResetRequest)},
+    {194, sizeof(::portal2_harness::ResetResponse)},
+    {203, sizeof(::portal2_harness::HandshakeRequest)},
+    {210, sizeof(::portal2_harness::HandshakeResponse)},
+    {225, sizeof(::portal2_harness::RolloutHeader)},
+    {238, sizeof(::portal2_harness::RolloutStep)},
+    {247, sizeof(::portal2_harness::Empty)},
+    {248, sizeof(::portal2_harness::RenderDemoRequest)},
+    {257, sizeof(::portal2_harness::RenderDemoResponse)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::portal2_harness::_Vector3_default_instance_._instance,
@@ -1134,121 +1141,126 @@ const char
         "e\022\017\n\007success\030\002 "
         "\001(\010\022\025\n\rerror_message\030\003 \001("
         "\t\0222\n\014macro_result\030\004 \001(\0132\034.portal2_harnes"
-        "s.MacroResult\"b\n\014MacroRequest\022\014\n\004verb\030\001 "
-        "\001(\t\022\014\n\004mark\030\002 \001(\005\022\r\n\005ticks\030\003 "
-        "\001(\005\022\013\n\003dir\030"
-        "\004 \001(\t\022\013\n\003yaw\030\005 "
-        "\001(\005\022\r\n\005pitch\030\006 \001(\005\"\233\001\n\013Ma"
-        "croResult\022\n\n\002ok\030\001 "
-        "\001(\010\022\023\n\013result_code\030\002 \001"
-        "(\t\022\016\n\006detail\030\003 \001(\t\022\017\n\007reached\030\004 "
-        "\001(\010\022\022\n\nf"
-        "inal_dist\030\005 \001(\002\022\022\n\nmoved_dist\030\006 "
-        "\001(\002\022\021\n\ta"
-        "im_pitch\030\007 \001(\002\022\017\n\007aim_yaw\030\010 "
-        "\001(\002\"\272\001\n\013Enti"
-        "tyField\022\014\n\004name\030\001 "
-        "\001(\t\022\023\n\tfloat_val\030\002 \001(\002"
-        "H\000\022\021\n\007int_val\030\003 "
-        "\001(\005H\000\022,\n\010vec3_val\030\004 \001(\0132"
-        "\030.portal2_harness.Vector3H\000\022\022\n\010bool_val\030"
-        "\005 \001(\010H\000\022\024\n\nstring_val\030\006 "
-        "\001(\tH\000\022\024\n\nhandle_"
-        "val\030\007 "
+        "s.MacroResult\"\210\001\n\014MacroRequest\022\014\n\004verb\030\001"
+        " \001(\t\022\014\n\004mark\030\002 \001(\005\022\r\n\005ticks\030\003 "
+        "\001(\005\022\013\n\003dir"
+        "\030\004 \001(\t\022\013\n\003yaw\030\005 "
+        "\001(\005\022\r\n\005pitch\030\006 \001(\005\022\017\n\007pe"
+        "rcent\030\007 \001(\002\022\023\n\013target_mark\030\010 "
+        "\001(\005\"\233\001\n\013Mac"
+        "roResult\022\n\n\002ok\030\001 "
+        "\001(\010\022\023\n\013result_code\030\002 \001("
+        "\t\022\016\n\006detail\030\003 \001(\t\022\017\n\007reached\030\004 "
+        "\001(\010\022\022\n\nfi"
+        "nal_dist\030\005 \001(\002\022\022\n\nmoved_dist\030\006 "
+        "\001(\002\022\021\n\tai"
+        "m_pitch\030\007 \001(\002\022\017\n\007aim_yaw\030\010 "
+        "\001(\002\"\272\001\n\013Entit"
+        "yField\022\014\n\004name\030\001 \001(\t\022\023\n\tfloat_val\030\002 "
+        "\001(\002H"
+        "\000\022\021\n\007int_val\030\003 "
+        "\001(\005H\000\022,\n\010vec3_val\030\004 \001(\0132\030"
+        ".portal2_harness.Vector3H\000\022\022\n\010bool_val\030\005"
+        " \001(\010H\000\022\024\n\nstring_val\030\006 "
+        "\001(\tH\000\022\024\n\nhandle_v"
+        "al\030\007 "
         "\001("
-        "\005H\000B\007\n\005value\"\262\002\n\013EntityState\022\024\n\014"
-        "entity_index\030\001 \001(\005\022\025\n\rserial_number\030\002 \001("
-        "\005\022\022\n\nclass_name\030\003 "
-        "\001(\t\022\023\n\013target_name\030\004 \001"
-        "(\t\022*\n\010position\030\005 \001(\0132\030.portal2_harness.V"
-        "ector3\022(\n\006angles\030\006 \001(\0132\030.portal2_harness"
-        ".Vector3\022*\n\010velocity\030\007 \001(\0132\030.portal2_har"
-        "ness.Vector3\022,\n\006fields\030\010 \003(\0132\034.portal2_h"
-        "arness.EntityField\022\017\n\007deleted\030\t \001(\010\022\014\n\004m"
-        "ark\030\n \001(\005\"h\n\016EntitySnapshot\022.\n\010entities\030"
-        "\001 \003(\0132\034.portal2_harness.EntityState\022\030\n\020i"
-        "s_full_snapshot\030\002 \001(\010\022\014\n\004tick\030\003 "
-        "\001(\005\"\266\002\n\t"
-        "GameState\022*\n\010position\030\001 \001(\0132\030.portal2_ha"
-        "rness.Vector3\022*\n\010velocity\030\002 \001(\0132\030.portal"
-        "2_harness.Vector3\022(\n\006camera\030\003 \001(\0132\030.port"
-        "al2_harness.Vector3\022\016\n\006health\030\004 "
-        "\001(\005\022\024\n\014i"
-        "s_crouching\030\005 \001(\010\022\023\n\013server_tick\030\006 "
-        "\001(\005\0228"
-        "\n\017entity_snapshot\030\007 \001(\0132\037.portal2_harnes"
-        "s.EntitySnapshot\022\030\n\020chamber_complete\030\010 \001"
-        "(\010\022\030\n\020exit_signal_mask\030\t "
-        "\001(\005\"\250\002\n\rActionR"
-        "equest\022\021\n\tnum_ticks\030\001 \001(\005\022\023\n\013key_forward"
-        "\030\002 \001(\010\022\020\n\010key_left\030\003 "
-        "\001(\010\022\024\n\014key_backward"
-        "\030\004 \001(\010\022\021\n\tkey_right\030\005 "
-        "\001(\010\022\017\n\007key_use\030\006 \001"
-        "(\010\022\022\n\nkey_zoomin\030\007 "
-        "\001(\010\022\023\n\013key_zoomout\030\010 "
-        "\001(\010\022\022\n\nkey_crouch\030\t "
-        "\001(\010\022\026\n\016portal_primar"
-        "y\030\n \001(\010\022\030\n\020portal_secondary\030\013 "
-        "\001(\010\022\020\n\010key"
-        "_jump\030\014 \001(\010\022\020\n\010mouse_dx\030\r "
-        "\001(\002\022\020\n\010mouse_d"
-        "y\030\016 "
-        "\001(\002\"8\n\016ActionResponse\022\017\n\007success\030\001 \001"
-        "(\010\022\025\n\rerror_message\030\002 \001(\t\"!\n\016CommandRequ"
-        "est\022\017\n\007command\030\001 \001(\t\"9\n\017CommandResponse\022"
-        "\017\n\007success\030\001 \001(\010\022\025\n\rerror_message\030\002 "
-        "\001(\t\""
-        " \n\014ResetRequest\022\020\n\010map_name\030\001 \001(\t\"j\n\rRes"
-        "etResponse\022\017\n\007success\030\001 \001(\010\022\025\n\rerror_mes"
-        "sage\030\002 \001(\t\0221\n\rinitial_state\030\003 \001(\0132\032.port"
-        "al2_harness.GameState\"=\n\020HandshakeReques"
-        "t\022\026\n\016client_version\030\001 "
-        "\001(\t\022\021\n\tclient_id\030\002"
-        " \001(\t\"\206\001\n\021HandshakeResponse\022\024\n\014game_versi"
-        "on\030\001 \001(\t\022\020\n\010map_name\030\002 "
-        "\001(\t\022\021\n\tshm_width\030"
-        "\003 \001(\005\022\022\n\nshm_height\030\004 "
-        "\001(\005\022\020\n\010shm_size\030\005 "
-        "\001(\005\022\020\n\010shm_name\030\006 "
-        "\001(\t\"l\n\rRolloutHeader\022\020"
-        "\n\010map_name\030\001 \001(\t\022\021\n\tshm_width\030\002 "
-        "\001(\005\022\022\n\ns"
-        "hm_height\030\003 \001(\005\022\020\n\010tickrate\030\004 "
-        "\001(\002\022\020\n\010shm"
-        "_name\030\005 \001(\t\"|\n\013RolloutStep\022)\n\005state\030\001 "
-        "\001("
-        "\0132\032.portal2_harness.GameState\022.\n\006action\030"
-        "\002 \001(\0132\036.portal2_harness.ActionRequest\022\022\n"
-        "\nimage_data\030\003 \001(\014\"\007\n\005Empty\"S\n\021RenderDemo"
-        "Request\022\021\n\tdemo_path\030\001 \001(\t\022\023\n\013output_pat"
-        "h\030\002 \001(\t\022\026\n\016capture_pixels\030\003 "
-        "\001(\010\"\204\001\n\022Rend"
-        "erDemoResponse\022\017\n\007success\030\001 \001(\010\022\025\n\rerror"
-        "_message\030\002 \001(\t\022\031\n\021final_output_path\030\003 \001("
-        "\t\022\026\n\016recorded_ticks\030\004 "
-        "\001(\005\022\023\n\013total_bytes"
-        "\030\005 \001(\0032\273\004\n\016Portal2Harness\022Y\n\020InitialHand"
-        "shake\022!.portal2_harness.HandshakeRequest"
-        "\032\".portal2_harness.HandshakeResponse\022=\n\007"
-        "Observe\022\026.portal2_harness.Empty\032\032.portal"
-        "2_harness.GameState\022F\n\003Act\022\036.portal2_har"
-        "ness.ActionRequest\032\037.portal2_harness.Act"
-        "ionResponse\022S\n\016ExecuteCommand\022\037.portal2_"
-        "harness.CommandRequest\032 .portal2_harness"
-        ".CommandResponse\022F\n\005Reset\022\035.portal2_harn"
-        "ess.ResetRequest\032\036.portal2_harness.Reset"
-        "Response\022S\n\tAgentLoop\022\035.portal2_harness."
-        "AgentMessage\032#.portal2_harness.Environme"
-        "ntMessage(\0010\001\022U\n\nRenderDemo\022\".portal2_ha"
-        "rness.RenderDemoRequest\032#.portal2_harnes"
-        "s.RenderDemoResponseb\006proto3"};
+        "\005H\000B\007\n\005value\"\262\002\n\013EntityState\022\024\n\014e"
+        "ntity_index\030\001 \001(\005\022\025\n\rserial_number\030\002 "
+        "\001(\005"
+        "\022\022\n\nclass_name\030\003 "
+        "\001(\t\022\023\n\013target_name\030\004 \001("
+        "\t\022*\n\010position\030\005 \001(\0132\030.portal2_harness.Ve"
+        "ctor3\022(\n\006angles\030\006 \001(\0132\030.portal2_harness."
+        "Vector3\022*\n\010velocity\030\007 \001(\0132\030.portal2_harn"
+        "ess.Vector3\022,\n\006fields\030\010 \003(\0132\034.portal2_ha"
+        "rness.EntityField\022\017\n\007deleted\030\t \001(\010\022\014\n\004ma"
+        "rk\030\n \001(\005\"h\n\016EntitySnapshot\022.\n\010entities\030\001"
+        " \003(\0132\034.portal2_harness.EntityState\022\030\n\020is"
+        "_full_snapshot\030\002 \001(\010\022\014\n\004tick\030\003 "
+        "\001(\005\"\266\002\n\tG"
+        "ameState\022*\n\010position\030\001 \001(\0132\030.portal2_har"
+        "ness.Vector3\022*\n\010velocity\030\002 \001(\0132\030.portal2"
+        "_harness.Vector3\022(\n\006camera\030\003 \001(\0132\030.porta"
+        "l2_harness.Vector3\022\016\n\006health\030\004 "
+        "\001(\005\022\024\n\014is"
+        "_crouching\030\005 \001(\010\022\023\n\013server_tick\030\006 "
+        "\001(\005\0228\n"
+        "\017entity_snapshot\030\007 \001(\0132\037.portal2_harness"
+        ".EntitySnapshot\022\030\n\020chamber_complete\030\010 \001("
+        "\010\022\030\n\020exit_signal_mask\030\t "
+        "\001(\005\"\250\002\n\rActionRe"
+        "quest\022\021\n\tnum_ticks\030\001 "
+        "\001(\005\022\023\n\013key_forward\030"
+        "\002 \001(\010\022\020\n\010key_left\030\003 "
+        "\001(\010\022\024\n\014key_backward\030"
+        "\004 \001(\010\022\021\n\tkey_right\030\005 "
+        "\001(\010\022\017\n\007key_use\030\006 \001("
+        "\010\022\022\n\nkey_zoomin\030\007 "
+        "\001(\010\022\023\n\013key_zoomout\030\010 \001"
+        "(\010\022\022\n\nkey_crouch\030\t "
+        "\001(\010\022\026\n\016portal_primary"
+        "\030\n \001(\010\022\030\n\020portal_secondary\030\013 "
+        "\001(\010\022\020\n\010key_"
+        "jump\030\014 \001(\010\022\020\n\010mouse_dx\030\r "
+        "\001(\002\022\020\n\010mouse_dy"
+        "\030\016 "
+        "\001(\002\"8\n\016ActionResponse\022\017\n\007success\030\001 \001("
+        "\010\022\025\n\rerror_message\030\002 \001(\t\"!\n\016CommandReque"
+        "st\022\017\n\007command\030\001 "
+        "\001(\t\"9\n\017CommandResponse\022\017"
+        "\n\007success\030\001 \001(\010\022\025\n\rerror_message\030\002 "
+        "\001(\t\" "
+        "\n\014ResetRequest\022\020\n\010map_name\030\001 \001(\t\"j\n\rRese"
+        "tResponse\022\017\n\007success\030\001 \001(\010\022\025\n\rerror_mess"
+        "age\030\002 \001(\t\0221\n\rinitial_state\030\003 \001(\0132\032.porta"
+        "l2_harness.GameState\"=\n\020HandshakeRequest"
+        "\022\026\n\016client_version\030\001 "
+        "\001(\t\022\021\n\tclient_id\030\002 "
+        "\001(\t\"\206\001\n\021HandshakeResponse\022\024\n\014game_versio"
+        "n\030\001 \001(\t\022\020\n\010map_name\030\002 "
+        "\001(\t\022\021\n\tshm_width\030\003"
+        " \001(\005\022\022\n\nshm_height\030\004 "
+        "\001(\005\022\020\n\010shm_size\030\005 \001"
+        "(\005\022\020\n\010shm_name\030\006 "
+        "\001(\t\"l\n\rRolloutHeader\022\020\n"
+        "\010map_name\030\001 \001(\t\022\021\n\tshm_width\030\002 "
+        "\001(\005\022\022\n\nsh"
+        "m_height\030\003 \001(\005\022\020\n\010tickrate\030\004 "
+        "\001(\002\022\020\n\010shm_"
+        "name\030\005 \001(\t\"|\n\013RolloutStep\022)\n\005state\030\001 "
+        "\001(\013"
+        "2\032.portal2_harness.GameState\022.\n\006action\030\002"
+        " \001(\0132\036.portal2_harness.ActionRequest\022\022\n\n"
+        "image_data\030\003 \001(\014\"\007\n\005Empty\"S\n\021RenderDemoR"
+        "equest\022\021\n\tdemo_path\030\001 \001(\t\022\023\n\013output_path"
+        "\030\002 \001(\t\022\026\n\016capture_pixels\030\003 "
+        "\001(\010\"\204\001\n\022Rende"
+        "rDemoResponse\022\017\n\007success\030\001 \001(\010\022\025\n\rerror_"
+        "message\030\002 \001(\t\022\031\n\021final_output_path\030\003 \001(\t"
+        "\022\026\n\016recorded_ticks\030\004 "
+        "\001(\005\022\023\n\013total_bytes\030"
+        "\005 \001(\0032\273\004\n\016Portal2Harness\022Y\n\020InitialHands"
+        "hake\022!.portal2_harness.HandshakeRequest\032"
+        "\".portal2_harness.HandshakeResponse\022=\n\007O"
+        "bserve\022\026.portal2_harness.Empty\032\032.portal2"
+        "_harness.GameState\022F\n\003Act\022\036.portal2_harn"
+        "ess.ActionRequest\032\037.portal2_harness.Acti"
+        "onResponse\022S\n\016ExecuteCommand\022\037.portal2_h"
+        "arness.CommandRequest\032 .portal2_harness."
+        "CommandResponse\022F\n\005Reset\022\035.portal2_harne"
+        "ss.ResetRequest\032\036.portal2_harness.ResetR"
+        "esponse\022S\n\tAgentLoop\022\035.portal2_harness.A"
+        "gentMessage\032#.portal2_harness.Environmen"
+        "tMessage(\0010\001\022U\n\nRenderDemo\022\".portal2_har"
+        "ness.RenderDemoRequest\032#.portal2_harness"
+        ".RenderDemoResponseb\006proto3"};
 static ::absl::once_flag descriptor_table_harness_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable
     descriptor_table_harness_2eproto = {
         false,
         false,
-        3388,
+        3427,
         descriptor_table_protodef_harness_2eproto,
         "harness.proto",
         &descriptor_table_harness_2eproto_once,
@@ -1358,57 +1370,57 @@ PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData*
   return Vector3_class_data_.base();
 }
 PROTOBUF_CONSTINIT
-PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<2, 3, 0, 0, 2>
-    Vector3::_table_ = {
-        {
-            PROTOBUF_FIELD_OFFSET(Vector3, _impl_._has_bits_),
-            0,  // no _extensions_
-            3,
-            24,  // max_field_number, fast_idx_mask
-            offsetof(decltype(_table_), field_lookup_table),
-            4294967288,  // skipmap
-            offsetof(decltype(_table_), field_entries),
-            3,                                         // num_field_entries
-            0,                                         // num_aux_entries
-            offsetof(decltype(_table_), field_names),  // no aux_entries
-            Vector3_class_data_.base(),
-            nullptr,                            // post_loop_handler
-            ::_pbi::TcParser::GenericFallback,  // fallback
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<2, 3, 0, 0, 2>
+        Vector3::_table_ = {
+            {
+                PROTOBUF_FIELD_OFFSET(Vector3, _impl_._has_bits_),
+                0,  // no _extensions_
+                3,
+                24,  // max_field_number, fast_idx_mask
+                offsetof(decltype(_table_), field_lookup_table),
+                4294967288,  // skipmap
+                offsetof(decltype(_table_), field_entries),
+                3,                                         // num_field_entries
+                0,                                         // num_aux_entries
+                offsetof(decltype(_table_), field_names),  // no aux_entries
+                Vector3_class_data_.base(),
+                nullptr,                            // post_loop_handler
+                ::_pbi::TcParser::GenericFallback,  // fallback
 #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
-            ::_pbi::TcParser::GetTable<
-                ::portal2_harness::Vector3>(),  // to_prefetch
-#endif                                          // PROTOBUF_PREFETCH_PARSE_TABLE
-        },
-        {{
-            {::_pbi::TcParser::MiniParse, {}},
-            // float x = 1;
-            {::_pbi::TcParser::FastF32S1,
-             {13, 0, 0, PROTOBUF_FIELD_OFFSET(Vector3, _impl_.x_)}},
-            // float y = 2;
-            {::_pbi::TcParser::FastF32S1,
-             {21, 1, 0, PROTOBUF_FIELD_OFFSET(Vector3, _impl_.y_)}},
-            // float z = 3;
-            {::_pbi::TcParser::FastF32S1,
-             {29, 2, 0, PROTOBUF_FIELD_OFFSET(Vector3, _impl_.z_)}},
-        }},
-        {{65535, 65535}},
-        {{
-            // float x = 1;
-            {PROTOBUF_FIELD_OFFSET(Vector3, _impl_.x_),
-             _Internal::kHasBitsOffset + 0, 0,
-             (0 | ::_fl::kFcOptional | ::_fl::kFloat)},
-            // float y = 2;
-            {PROTOBUF_FIELD_OFFSET(Vector3, _impl_.y_),
-             _Internal::kHasBitsOffset + 1, 0,
-             (0 | ::_fl::kFcOptional | ::_fl::kFloat)},
-            // float z = 3;
-            {PROTOBUF_FIELD_OFFSET(Vector3, _impl_.z_),
-             _Internal::kHasBitsOffset + 2, 0,
-             (0 | ::_fl::kFcOptional | ::_fl::kFloat)},
-        }},
-        // no aux_entries
-        {{}},
-    };
+                ::_pbi::TcParser::GetTable<
+                    ::portal2_harness::Vector3>(),  // to_prefetch
+#endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+            },
+            {{
+                {::_pbi::TcParser::MiniParse, {}},
+                // float x = 1;
+                {::_pbi::TcParser::FastF32S1,
+                 {13, 0, 0, PROTOBUF_FIELD_OFFSET(Vector3, _impl_.x_)}},
+                // float y = 2;
+                {::_pbi::TcParser::FastF32S1,
+                 {21, 1, 0, PROTOBUF_FIELD_OFFSET(Vector3, _impl_.y_)}},
+                // float z = 3;
+                {::_pbi::TcParser::FastF32S1,
+                 {29, 2, 0, PROTOBUF_FIELD_OFFSET(Vector3, _impl_.z_)}},
+            }},
+            {{65535, 65535}},
+            {{
+                // float x = 1;
+                {PROTOBUF_FIELD_OFFSET(Vector3, _impl_.x_),
+                 _Internal::kHasBitsOffset + 0, 0,
+                 (0 | ::_fl::kFcOptional | ::_fl::kFloat)},
+                // float y = 2;
+                {PROTOBUF_FIELD_OFFSET(Vector3, _impl_.y_),
+                 _Internal::kHasBitsOffset + 1, 0,
+                 (0 | ::_fl::kFcOptional | ::_fl::kFloat)},
+                // float z = 3;
+                {PROTOBUF_FIELD_OFFSET(Vector3, _impl_.z_),
+                 _Internal::kHasBitsOffset + 2, 0,
+                 (0 | ::_fl::kFcOptional | ::_fl::kFloat)},
+            }},
+            // no aux_entries
+            {{}},
+        };
 PROTOBUF_NOINLINE void Vector3::Clear() {
   // @@protoc_insertion_point(message_clear_start:portal2_harness.Vector3)
   ::google::protobuf::internal::TSanWrite(&_impl_);
@@ -2385,10 +2397,10 @@ MacroRequest::MacroRequest(::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
   _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
       from._internal_metadata_);
   new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
-  ::memcpy(
-      reinterpret_cast<char*>(&_impl_) + offsetof(Impl_, mark_),
-      reinterpret_cast<const char*>(&from._impl_) + offsetof(Impl_, mark_),
-      offsetof(Impl_, pitch_) - offsetof(Impl_, mark_) + sizeof(Impl_::pitch_));
+  ::memcpy(reinterpret_cast<char*>(&_impl_) + offsetof(Impl_, mark_),
+           reinterpret_cast<const char*>(&from._impl_) + offsetof(Impl_, mark_),
+           offsetof(Impl_, target_mark_) - offsetof(Impl_, mark_) +
+               sizeof(Impl_::target_mark_));
 
   // @@protoc_insertion_point(copy_constructor:portal2_harness.MacroRequest)
 }
@@ -2399,9 +2411,9 @@ PROTOBUF_NDEBUG_INLINE MacroRequest::Impl_::Impl_(
 
 inline void MacroRequest::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   new (&_impl_) Impl_(internal_visibility(), arena);
-  ::memset(
-      reinterpret_cast<char*>(&_impl_) + offsetof(Impl_, mark_), 0,
-      offsetof(Impl_, pitch_) - offsetof(Impl_, mark_) + sizeof(Impl_::pitch_));
+  ::memset(reinterpret_cast<char*>(&_impl_) + offsetof(Impl_, mark_), 0,
+           offsetof(Impl_, target_mark_) - offsetof(Impl_, mark_) +
+               sizeof(Impl_::target_mark_));
 }
 MacroRequest::~MacroRequest() {
   // @@protoc_insertion_point(destructor:portal2_harness.MacroRequest)
@@ -2462,17 +2474,17 @@ PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData*
   return MacroRequest_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<
-    3, 6, 0, 44, 2>
+    3, 8, 0, 52, 2>
     MacroRequest::_table_ = {
         {
             PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_._has_bits_),
             0,  // no _extensions_
-            6,
+            8,
             56,  // max_field_number, fast_idx_mask
             offsetof(decltype(_table_), field_lookup_table),
-            4294967232,  // skipmap
+            4294967040,  // skipmap
             offsetof(decltype(_table_), field_entries),
-            6,                                         // num_field_entries
+            8,                                         // num_field_entries
             0,                                         // num_aux_entries
             offsetof(decltype(_table_), field_names),  // no aux_entries
             MacroRequest_class_data_.base(),
@@ -2484,7 +2496,11 @@ PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<
 #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
         },
         {{
-            {::_pbi::TcParser::MiniParse, {}},
+            // int32 target_mark = 8;
+            {::_pbi::TcParser::SingularVarintNoZag1<
+                 ::uint32_t, offsetof(MacroRequest, _impl_.target_mark_), 7>(),
+             {64, 7, 0,
+              PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.target_mark_)}},
             // string verb = 1;
             {::_pbi::TcParser::FastUS1,
              {10, 0, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.verb_)}},
@@ -2507,7 +2523,9 @@ PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<
             {::_pbi::TcParser::SingularVarintNoZag1<
                  ::uint32_t, offsetof(MacroRequest, _impl_.pitch_), 5>(),
              {48, 5, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.pitch_)}},
-            {::_pbi::TcParser::MiniParse, {}},
+            // float percent = 7;
+            {::_pbi::TcParser::FastF32S1,
+             {61, 6, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.percent_)}},
         }},
         {{65535, 65535}},
         {{
@@ -2537,9 +2555,17 @@ PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<
             {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.pitch_),
              _Internal::kHasBitsOffset + 5, 0,
              (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+            // float percent = 7;
+            {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.percent_),
+             _Internal::kHasBitsOffset + 6, 0,
+             (0 | ::_fl::kFcOptional | ::_fl::kFloat)},
+            // int32 target_mark = 8;
+            {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.target_mark_),
+             _Internal::kHasBitsOffset + 7, 0,
+             (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
         }},
         // no aux_entries
-        {{"\34\4\0\0\3\0\0\0"
+        {{"\34\4\0\0\3\0\0\0\0\0\0\0\0\0\0\0"
           "portal2_harness.MacroRequest"
           "verb"
           "dir"}},
@@ -2560,11 +2586,12 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
       _impl_.dir_.ClearNonDefaultToEmpty();
     }
   }
-  if ((cached_has_bits & 0x0000003cu) != 0) {
-    ::memset(&_impl_.mark_, 0,
-             static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.pitch_) -
-                                   reinterpret_cast<char*>(&_impl_.mark_)) +
-                 sizeof(_impl_.pitch_));
+  if ((cached_has_bits & 0x000000fcu) != 0) {
+    ::memset(
+        &_impl_.mark_, 0,
+        static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.target_mark_) -
+                              reinterpret_cast<char*>(&_impl_.mark_)) +
+            sizeof(_impl_.target_mark_));
   }
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
@@ -2645,6 +2672,24 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
     }
   }
 
+  // float percent = 7;
+  if ((this_._impl_._has_bits_[0] & 0x00000040u) != 0) {
+    if (::absl::bit_cast<::uint32_t>(this_._internal_percent()) != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteFloatToArray(
+          7, this_._internal_percent(), target);
+    }
+  }
+
+  // int32 target_mark = 8;
+  if ((this_._impl_._has_bits_[0] & 0x00000080u) != 0) {
+    if (this_._internal_target_mark() != 0) {
+      target = ::google::protobuf::internal::WireFormatLite::
+          WriteInt32ToArrayWithField<8>(stream, this_._internal_target_mark(),
+                                        target);
+    }
+  }
+
   if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         this_._internal_metadata_
@@ -2672,7 +2717,7 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
 
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x0000003fu) != 0) {
+  if ((cached_has_bits & 0x000000ffu) != 0) {
     // string verb = 1;
     if ((cached_has_bits & 0x00000001u) != 0) {
       if (!this_._internal_verb().empty()) {
@@ -2717,6 +2762,19 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
             ::_pbi::WireFormatLite::Int32SizePlusOne(this_._internal_pitch());
       }
     }
+    // float percent = 7;
+    if ((cached_has_bits & 0x00000040u) != 0) {
+      if (::absl::bit_cast<::uint32_t>(this_._internal_percent()) != 0) {
+        total_size += 5;
+      }
+    }
+    // int32 target_mark = 8;
+    if ((cached_has_bits & 0x00000080u) != 0) {
+      if (this_._internal_target_mark() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
+            this_._internal_target_mark());
+      }
+    }
   }
   return this_.MaybeComputeUnknownFieldsSize(total_size,
                                              &this_._impl_._cached_size_);
@@ -2732,7 +2790,7 @@ void MacroRequest::MergeImpl(::google::protobuf::MessageLite& to_msg,
   (void)cached_has_bits;
 
   cached_has_bits = from._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x0000003fu) != 0) {
+  if ((cached_has_bits & 0x000000ffu) != 0) {
     if ((cached_has_bits & 0x00000001u) != 0) {
       if (!from._internal_verb().empty()) {
         _this->_internal_set_verb(from._internal_verb());
@@ -2771,6 +2829,16 @@ void MacroRequest::MergeImpl(::google::protobuf::MessageLite& to_msg,
         _this->_impl_.pitch_ = from._impl_.pitch_;
       }
     }
+    if ((cached_has_bits & 0x00000040u) != 0) {
+      if (::absl::bit_cast<::uint32_t>(from._internal_percent()) != 0) {
+        _this->_impl_.percent_ = from._impl_.percent_;
+      }
+    }
+    if ((cached_has_bits & 0x00000080u) != 0) {
+      if (from._internal_target_mark() != 0) {
+        _this->_impl_.target_mark_ = from._impl_.target_mark_;
+      }
+    }
   }
   _this->_impl_._has_bits_[0] |= cached_has_bits;
   _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
@@ -2796,8 +2864,8 @@ void MacroRequest::InternalSwap(
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.dir_, &other->_impl_.dir_,
                                        arena);
   ::google::protobuf::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.pitch_) +
-      sizeof(MacroRequest::_impl_.pitch_) -
+      PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.target_mark_) +
+      sizeof(MacroRequest::_impl_.target_mark_) -
       PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.mark_)>(
       reinterpret_cast<char*>(&_impl_.mark_),
       reinterpret_cast<char*>(&other->_impl_.mark_));
@@ -3511,72 +3579,73 @@ PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData*
   return EntityField_class_data_.base();
 }
 PROTOBUF_CONSTINIT
-PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<0, 7, 1, 50, 2>
-    EntityField::_table_ = {
-        {
-            PROTOBUF_FIELD_OFFSET(EntityField, _impl_._has_bits_),
-            0,  // no _extensions_
-            7,
-            0,  // max_field_number, fast_idx_mask
-            offsetof(decltype(_table_), field_lookup_table),
-            4294967168,  // skipmap
-            offsetof(decltype(_table_), field_entries),
-            7,  // num_field_entries
-            1,  // num_aux_entries
-            offsetof(decltype(_table_), aux_entries),
-            EntityField_class_data_.base(),
-            nullptr,                            // post_loop_handler
-            ::_pbi::TcParser::GenericFallback,  // fallback
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<0, 7, 1, 50, 2>
+        EntityField::_table_ = {
+            {
+                PROTOBUF_FIELD_OFFSET(EntityField, _impl_._has_bits_),
+                0,  // no _extensions_
+                7,
+                0,  // max_field_number, fast_idx_mask
+                offsetof(decltype(_table_), field_lookup_table),
+                4294967168,  // skipmap
+                offsetof(decltype(_table_), field_entries),
+                7,  // num_field_entries
+                1,  // num_aux_entries
+                offsetof(decltype(_table_), aux_entries),
+                EntityField_class_data_.base(),
+                nullptr,                            // post_loop_handler
+                ::_pbi::TcParser::GenericFallback,  // fallback
 #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
-            ::_pbi::TcParser::GetTable<
-                ::portal2_harness::EntityField>(),  // to_prefetch
+                ::_pbi::TcParser::GetTable<
+                    ::portal2_harness::EntityField>(),  // to_prefetch
 #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
-        },
-        {{
-            // string name = 1;
-            {::_pbi::TcParser::FastUS1,
-             {10, 0, 0, PROTOBUF_FIELD_OFFSET(EntityField, _impl_.name_)}},
-        }},
-        {{65535, 65535}},
-        {{
-            // string name = 1;
-            {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.name_),
-             _Internal::kHasBitsOffset + 0, 0,
-             (0 | ::_fl::kFcOptional | ::_fl::kUtf8String |
-              ::_fl::kRepAString)},
-            // float float_val = 2;
-            {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.value_.float_val_),
-             _Internal::kOneofCaseOffset + 0, 0,
-             (0 | ::_fl::kFcOneof | ::_fl::kFloat)},
-            // int32 int_val = 3;
-            {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.value_.int_val_),
-             _Internal::kOneofCaseOffset + 0, 0,
-             (0 | ::_fl::kFcOneof | ::_fl::kInt32)},
-            // .portal2_harness.Vector3 vec3_val = 4;
-            {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.value_.vec3_val_),
-             _Internal::kOneofCaseOffset + 0, 0,
-             (0 | ::_fl::kFcOneof | ::_fl::kMessage | ::_fl::kTvTable)},
-            // bool bool_val = 5;
-            {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.value_.bool_val_),
-             _Internal::kOneofCaseOffset + 0, 0,
-             (0 | ::_fl::kFcOneof | ::_fl::kBool)},
-            // string string_val = 6;
-            {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.value_.string_val_),
-             _Internal::kOneofCaseOffset + 0, 0,
-             (0 | ::_fl::kFcOneof | ::_fl::kUtf8String | ::_fl::kRepAString)},
-            // int32 handle_val = 7;
-            {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.value_.handle_val_),
-             _Internal::kOneofCaseOffset + 0, 0,
-             (0 | ::_fl::kFcOneof | ::_fl::kInt32)},
-        }},
-        {{
-            {::_pbi::TcParser::GetTable<::portal2_harness::Vector3>()},
-        }},
-        {{"\33\4\0\0\0\0\12\0"
-          "portal2_harness.EntityField"
-          "name"
-          "string_val"}},
-    };
+            },
+            {{
+                // string name = 1;
+                {::_pbi::TcParser::FastUS1,
+                 {10, 0, 0, PROTOBUF_FIELD_OFFSET(EntityField, _impl_.name_)}},
+            }},
+            {{65535, 65535}},
+            {{
+                // string name = 1;
+                {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.name_),
+                 _Internal::kHasBitsOffset + 0, 0,
+                 (0 | ::_fl::kFcOptional | ::_fl::kUtf8String |
+                  ::_fl::kRepAString)},
+                // float float_val = 2;
+                {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.value_.float_val_),
+                 _Internal::kOneofCaseOffset + 0, 0,
+                 (0 | ::_fl::kFcOneof | ::_fl::kFloat)},
+                // int32 int_val = 3;
+                {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.value_.int_val_),
+                 _Internal::kOneofCaseOffset + 0, 0,
+                 (0 | ::_fl::kFcOneof | ::_fl::kInt32)},
+                // .portal2_harness.Vector3 vec3_val = 4;
+                {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.value_.vec3_val_),
+                 _Internal::kOneofCaseOffset + 0, 0,
+                 (0 | ::_fl::kFcOneof | ::_fl::kMessage | ::_fl::kTvTable)},
+                // bool bool_val = 5;
+                {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.value_.bool_val_),
+                 _Internal::kOneofCaseOffset + 0, 0,
+                 (0 | ::_fl::kFcOneof | ::_fl::kBool)},
+                // string string_val = 6;
+                {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.value_.string_val_),
+                 _Internal::kOneofCaseOffset + 0, 0,
+                 (0 | ::_fl::kFcOneof | ::_fl::kUtf8String |
+                  ::_fl::kRepAString)},
+                // int32 handle_val = 7;
+                {PROTOBUF_FIELD_OFFSET(EntityField, _impl_.value_.handle_val_),
+                 _Internal::kOneofCaseOffset + 0, 0,
+                 (0 | ::_fl::kFcOneof | ::_fl::kInt32)},
+            }},
+            {{
+                {::_pbi::TcParser::GetTable<::portal2_harness::Vector3>()},
+            }},
+            {{"\33\4\0\0\0\0\12\0"
+              "portal2_harness.EntityField"
+              "name"
+              "string_val"}},
+        };
 PROTOBUF_NOINLINE void EntityField::Clear() {
   // @@protoc_insertion_point(message_clear_start:portal2_harness.EntityField)
   ::google::protobuf::internal::TSanWrite(&_impl_);
@@ -6493,46 +6562,46 @@ PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData*
   return CommandRequest_class_data_.base();
 }
 PROTOBUF_CONSTINIT
-PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<0, 1, 0, 46, 2>
-    CommandRequest::_table_ = {
-        {
-            PROTOBUF_FIELD_OFFSET(CommandRequest, _impl_._has_bits_),
-            0,  // no _extensions_
-            1,
-            0,  // max_field_number, fast_idx_mask
-            offsetof(decltype(_table_), field_lookup_table),
-            4294967294,  // skipmap
-            offsetof(decltype(_table_), field_entries),
-            1,                                         // num_field_entries
-            0,                                         // num_aux_entries
-            offsetof(decltype(_table_), field_names),  // no aux_entries
-            CommandRequest_class_data_.base(),
-            nullptr,                            // post_loop_handler
-            ::_pbi::TcParser::GenericFallback,  // fallback
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<0, 1, 0, 46, 2>
+        CommandRequest::_table_ = {
+            {
+                PROTOBUF_FIELD_OFFSET(CommandRequest, _impl_._has_bits_),
+                0,  // no _extensions_
+                1,
+                0,  // max_field_number, fast_idx_mask
+                offsetof(decltype(_table_), field_lookup_table),
+                4294967294,  // skipmap
+                offsetof(decltype(_table_), field_entries),
+                1,                                         // num_field_entries
+                0,                                         // num_aux_entries
+                offsetof(decltype(_table_), field_names),  // no aux_entries
+                CommandRequest_class_data_.base(),
+                nullptr,                            // post_loop_handler
+                ::_pbi::TcParser::GenericFallback,  // fallback
 #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
-            ::_pbi::TcParser::GetTable<
-                ::portal2_harness::CommandRequest>(),  // to_prefetch
+                ::_pbi::TcParser::GetTable<
+                    ::portal2_harness::CommandRequest>(),  // to_prefetch
 #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
-        },
-        {{
-            // string command = 1;
-            {::_pbi::TcParser::FastUS1,
-             {10, 0, 0,
-              PROTOBUF_FIELD_OFFSET(CommandRequest, _impl_.command_)}},
-        }},
-        {{65535, 65535}},
-        {{
-            // string command = 1;
-            {PROTOBUF_FIELD_OFFSET(CommandRequest, _impl_.command_),
-             _Internal::kHasBitsOffset + 0, 0,
-             (0 | ::_fl::kFcOptional | ::_fl::kUtf8String |
-              ::_fl::kRepAString)},
-        }},
-        // no aux_entries
-        {{"\36\7\0\0\0\0\0\0"
-          "portal2_harness.CommandRequest"
-          "command"}},
-    };
+            },
+            {{
+                // string command = 1;
+                {::_pbi::TcParser::FastUS1,
+                 {10, 0, 0,
+                  PROTOBUF_FIELD_OFFSET(CommandRequest, _impl_.command_)}},
+            }},
+            {{65535, 65535}},
+            {{
+                // string command = 1;
+                {PROTOBUF_FIELD_OFFSET(CommandRequest, _impl_.command_),
+                 _Internal::kHasBitsOffset + 0, 0,
+                 (0 | ::_fl::kFcOptional | ::_fl::kUtf8String |
+                  ::_fl::kRepAString)},
+            }},
+            // no aux_entries
+            {{"\36\7\0\0\0\0\0\0"
+              "portal2_harness.CommandRequest"
+              "command"}},
+        };
 PROTOBUF_NOINLINE void CommandRequest::Clear() {
   // @@protoc_insertion_point(message_clear_start:portal2_harness.CommandRequest)
   ::google::protobuf::internal::TSanWrite(&_impl_);
@@ -7086,45 +7155,46 @@ PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData*
   return ResetRequest_class_data_.base();
 }
 PROTOBUF_CONSTINIT
-PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<0, 1, 0, 45, 2>
-    ResetRequest::_table_ = {
-        {
-            PROTOBUF_FIELD_OFFSET(ResetRequest, _impl_._has_bits_),
-            0,  // no _extensions_
-            1,
-            0,  // max_field_number, fast_idx_mask
-            offsetof(decltype(_table_), field_lookup_table),
-            4294967294,  // skipmap
-            offsetof(decltype(_table_), field_entries),
-            1,                                         // num_field_entries
-            0,                                         // num_aux_entries
-            offsetof(decltype(_table_), field_names),  // no aux_entries
-            ResetRequest_class_data_.base(),
-            nullptr,                            // post_loop_handler
-            ::_pbi::TcParser::GenericFallback,  // fallback
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<0, 1, 0, 45, 2>
+        ResetRequest::_table_ = {
+            {
+                PROTOBUF_FIELD_OFFSET(ResetRequest, _impl_._has_bits_),
+                0,  // no _extensions_
+                1,
+                0,  // max_field_number, fast_idx_mask
+                offsetof(decltype(_table_), field_lookup_table),
+                4294967294,  // skipmap
+                offsetof(decltype(_table_), field_entries),
+                1,                                         // num_field_entries
+                0,                                         // num_aux_entries
+                offsetof(decltype(_table_), field_names),  // no aux_entries
+                ResetRequest_class_data_.base(),
+                nullptr,                            // post_loop_handler
+                ::_pbi::TcParser::GenericFallback,  // fallback
 #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
-            ::_pbi::TcParser::GetTable<
-                ::portal2_harness::ResetRequest>(),  // to_prefetch
+                ::_pbi::TcParser::GetTable<
+                    ::portal2_harness::ResetRequest>(),  // to_prefetch
 #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
-        },
-        {{
-            // string map_name = 1;
-            {::_pbi::TcParser::FastUS1,
-             {10, 0, 0, PROTOBUF_FIELD_OFFSET(ResetRequest, _impl_.map_name_)}},
-        }},
-        {{65535, 65535}},
-        {{
-            // string map_name = 1;
-            {PROTOBUF_FIELD_OFFSET(ResetRequest, _impl_.map_name_),
-             _Internal::kHasBitsOffset + 0, 0,
-             (0 | ::_fl::kFcOptional | ::_fl::kUtf8String |
-              ::_fl::kRepAString)},
-        }},
-        // no aux_entries
-        {{"\34\10\0\0\0\0\0\0"
-          "portal2_harness.ResetRequest"
-          "map_name"}},
-    };
+            },
+            {{
+                // string map_name = 1;
+                {::_pbi::TcParser::FastUS1,
+                 {10, 0, 0,
+                  PROTOBUF_FIELD_OFFSET(ResetRequest, _impl_.map_name_)}},
+            }},
+            {{65535, 65535}},
+            {{
+                // string map_name = 1;
+                {PROTOBUF_FIELD_OFFSET(ResetRequest, _impl_.map_name_),
+                 _Internal::kHasBitsOffset + 0, 0,
+                 (0 | ::_fl::kFcOptional | ::_fl::kUtf8String |
+                  ::_fl::kRepAString)},
+            }},
+            // no aux_entries
+            {{"\34\10\0\0\0\0\0\0"
+              "portal2_harness.ResetRequest"
+              "map_name"}},
+        };
 PROTOBUF_NOINLINE void ResetRequest::Clear() {
   // @@protoc_insertion_point(message_clear_start:portal2_harness.ResetRequest)
   ::google::protobuf::internal::TSanWrite(&_impl_);
@@ -7373,65 +7443,66 @@ PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData*
   return ResetResponse_class_data_.base();
 }
 PROTOBUF_CONSTINIT
-PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<2, 3, 1, 51, 2>
-    ResetResponse::_table_ = {
-        {
-            PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_._has_bits_),
-            0,  // no _extensions_
-            3,
-            24,  // max_field_number, fast_idx_mask
-            offsetof(decltype(_table_), field_lookup_table),
-            4294967288,  // skipmap
-            offsetof(decltype(_table_), field_entries),
-            3,  // num_field_entries
-            1,  // num_aux_entries
-            offsetof(decltype(_table_), aux_entries),
-            ResetResponse_class_data_.base(),
-            nullptr,                            // post_loop_handler
-            ::_pbi::TcParser::GenericFallback,  // fallback
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<2, 3, 1, 51, 2>
+        ResetResponse::_table_ = {
+            {
+                PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_._has_bits_),
+                0,  // no _extensions_
+                3,
+                24,  // max_field_number, fast_idx_mask
+                offsetof(decltype(_table_), field_lookup_table),
+                4294967288,  // skipmap
+                offsetof(decltype(_table_), field_entries),
+                3,  // num_field_entries
+                1,  // num_aux_entries
+                offsetof(decltype(_table_), aux_entries),
+                ResetResponse_class_data_.base(),
+                nullptr,                            // post_loop_handler
+                ::_pbi::TcParser::GenericFallback,  // fallback
 #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
-            ::_pbi::TcParser::GetTable<
-                ::portal2_harness::ResetResponse>(),  // to_prefetch
+                ::_pbi::TcParser::GetTable<
+                    ::portal2_harness::ResetResponse>(),  // to_prefetch
 #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
-        },
-        {{
-            {::_pbi::TcParser::MiniParse, {}},
-            // bool success = 1;
-            {::_pbi::TcParser::SingularVarintNoZag1<
-                 bool, offsetof(ResetResponse, _impl_.success_), 2>(),
-             {8, 2, 0, PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_.success_)}},
-            // string error_message = 2;
-            {::_pbi::TcParser::FastUS1,
-             {18, 0, 0,
-              PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_.error_message_)}},
-            // .portal2_harness.GameState initial_state = 3;
-            {::_pbi::TcParser::FastMtS1,
-             {26, 1, 0,
-              PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_.initial_state_)}},
-        }},
-        {{65535, 65535}},
-        {{
-            // bool success = 1;
-            {PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_.success_),
-             _Internal::kHasBitsOffset + 2, 0,
-             (0 | ::_fl::kFcOptional | ::_fl::kBool)},
-            // string error_message = 2;
-            {PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_.error_message_),
-             _Internal::kHasBitsOffset + 0, 0,
-             (0 | ::_fl::kFcOptional | ::_fl::kUtf8String |
-              ::_fl::kRepAString)},
-            // .portal2_harness.GameState initial_state = 3;
-            {PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_.initial_state_),
-             _Internal::kHasBitsOffset + 1, 0,
-             (0 | ::_fl::kFcOptional | ::_fl::kMessage | ::_fl::kTvTable)},
-        }},
-        {{
-            {::_pbi::TcParser::GetTable<::portal2_harness::GameState>()},
-        }},
-        {{"\35\0\15\0\0\0\0\0"
-          "portal2_harness.ResetResponse"
-          "error_message"}},
-    };
+            },
+            {{
+                {::_pbi::TcParser::MiniParse, {}},
+                // bool success = 1;
+                {::_pbi::TcParser::SingularVarintNoZag1<
+                     bool, offsetof(ResetResponse, _impl_.success_), 2>(),
+                 {8, 2, 0,
+                  PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_.success_)}},
+                // string error_message = 2;
+                {::_pbi::TcParser::FastUS1,
+                 {18, 0, 0,
+                  PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_.error_message_)}},
+                // .portal2_harness.GameState initial_state = 3;
+                {::_pbi::TcParser::FastMtS1,
+                 {26, 1, 0,
+                  PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_.initial_state_)}},
+            }},
+            {{65535, 65535}},
+            {{
+                // bool success = 1;
+                {PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_.success_),
+                 _Internal::kHasBitsOffset + 2, 0,
+                 (0 | ::_fl::kFcOptional | ::_fl::kBool)},
+                // string error_message = 2;
+                {PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_.error_message_),
+                 _Internal::kHasBitsOffset + 0, 0,
+                 (0 | ::_fl::kFcOptional | ::_fl::kUtf8String |
+                  ::_fl::kRepAString)},
+                // .portal2_harness.GameState initial_state = 3;
+                {PROTOBUF_FIELD_OFFSET(ResetResponse, _impl_.initial_state_),
+                 _Internal::kHasBitsOffset + 1, 0,
+                 (0 | ::_fl::kFcOptional | ::_fl::kMessage | ::_fl::kTvTable)},
+            }},
+            {{
+                {::_pbi::TcParser::GetTable<::portal2_harness::GameState>()},
+            }},
+            {{"\35\0\15\0\0\0\0\0"
+              "portal2_harness.ResetResponse"
+              "error_message"}},
+        };
 PROTOBUF_NOINLINE void ResetResponse::Clear() {
   // @@protoc_insertion_point(message_clear_start:portal2_harness.ResetResponse)
   ::google::protobuf::internal::TSanWrite(&_impl_);
@@ -9336,33 +9407,33 @@ PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData*
   return Empty_class_data_.base();
 }
 PROTOBUF_CONSTINIT
-PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<0, 0, 0, 0, 2>
-    Empty::_table_ = {
-        {
-            0,  // no _has_bits_
-            0,  // no _extensions_
-            0,
-            0,  // max_field_number, fast_idx_mask
-            offsetof(decltype(_table_), field_lookup_table),
-            4294967295,                                // skipmap
-            offsetof(decltype(_table_), field_names),  // no field_entries
-            0,                                         // num_field_entries
-            0,                                         // num_aux_entries
-            offsetof(decltype(_table_), field_names),  // no aux_entries
-            Empty_class_data_.base(),
-            nullptr,                            // post_loop_handler
-            ::_pbi::TcParser::GenericFallback,  // fallback
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ::_pbi::TcParseTable<0, 0, 0, 0, 2>
+        Empty::_table_ = {
+            {
+                0,  // no _has_bits_
+                0,  // no _extensions_
+                0,
+                0,  // max_field_number, fast_idx_mask
+                offsetof(decltype(_table_), field_lookup_table),
+                4294967295,                                // skipmap
+                offsetof(decltype(_table_), field_names),  // no field_entries
+                0,                                         // num_field_entries
+                0,                                         // num_aux_entries
+                offsetof(decltype(_table_), field_names),  // no aux_entries
+                Empty_class_data_.base(),
+                nullptr,                            // post_loop_handler
+                ::_pbi::TcParser::GenericFallback,  // fallback
 #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
-            ::_pbi::TcParser::GetTable<
-                ::portal2_harness::Empty>(),  // to_prefetch
-#endif                                        // PROTOBUF_PREFETCH_PARSE_TABLE
-        },
-        {{
-            {::_pbi::TcParser::MiniParse, {}},
-        }},
-        {{65535, 65535}},  // no field_entries, or aux_entries
-        {{}},
-    };
+                ::_pbi::TcParser::GetTable<
+                    ::portal2_harness::Empty>(),  // to_prefetch
+#endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+            },
+            {{
+                {::_pbi::TcParser::MiniParse, {}},
+            }},
+            {{65535, 65535}},  // no field_entries, or aux_entries
+            {{}},
+        };
 
 ::google::protobuf::Metadata Empty::GetMetadata() const {
   return ::google::protobuf::internal::ZeroFieldsBase::GetMetadataImpl(
