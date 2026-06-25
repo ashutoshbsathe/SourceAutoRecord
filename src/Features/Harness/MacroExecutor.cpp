@@ -19,6 +19,7 @@
 #include "GoToPlanner.hpp"
 #include "Harness.hpp"
 #include "HarnessThread.hpp"
+#include "LaserGeometry.hpp"
 #include "MarkTable.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
@@ -908,6 +909,40 @@ MarchOutcome RouteAround(grpc::ServerContext* context, const Vector& target,
   return out;
 }
 
+// interpose seat+reachability gates on already-resolved entities (shared by the
+// verb and its dryrun recon). Fills *seat/*beamLen and returns "SEAT_OK", else
+// the first failing reject code. Main thread only (traces + the planner).
+std::string InterposeGate(void* emitter, void* cube, float percent,
+                          Vector* seat, float* beamLen) {
+  if (percent < 0.0f) percent = 0.0f;
+  if (percent > 1.0f) percent = 1.0f;
+  const char* cls = server->GetEntityClassName(emitter);
+  if (!cls || std::strcmp(cls, "env_portal_laser")) return "NOT_EMITTER";
+  if (!SE(emitter)->field<bool>("m_bLaserOn")) return "NO_BEAM";
+
+  Vector E, F, hit;
+  float len;
+  if (!ComputeBeamSegment(emitter, &E, &F, &hit, &len) || len <= 0.0f)
+    return "NO_BEAM";
+  *beamLen = len;
+  Vector P = E + F * (percent * len);
+
+  if (!DownTraceRest(P, cube, seat)) return "NO_FLOOR";
+  // TODO(interpose): IN_HAZARD -- a seat in slime/goo passes NO_FLOOR (the
+  // down-trace lands on the goo-bottom brush). Needs a point-contents read,
+  // deferred until that API is reconned.
+
+  ServerEnt* pl = server->GetPlayer(1);
+  if (!pl) return "NO_PLAYER";
+  Vector feet = pl->abs_origin();
+  ICollideable& pcoll = pl->collision();
+  GoToPlanner planner(pcoll.OBBMins(), pcoll.OBBMaxs(), feet.z, 0,
+                      g_heldEntityKey.load());
+  if (planner.Plan(feet, *seat).empty()) return "NOT_REACHABLE";
+
+  return "SEAT_OK";
+}
+
 }  // namespace
 
 // Hands start empty each episode; a stale key would match the reloaded cube.
@@ -949,9 +984,43 @@ portal2_harness::MacroResult MacroExecutor::Execute(
 portal2_harness::MacroResult MacroExecutor::Interpose(
     const portal2_harness::MacroRequest& req) {
   portal2_harness::MacroResult r;
-  r.set_ok(false);
-  r.set_result_code("NOT_IMPLEMENTED");
-  r.set_detail("interpose: seat-only verb pending (phase 2.3)");
+  int emitterMark = req.mark();
+  float percent = req.percent();
+
+  // 2.3: resolve + every seat/reachability gate in one main-thread hop. No
+  // carry or teleport yet (2.4) -- returns SEAT_OK or the first failing reject.
+  struct Out {
+    std::string code = "BAD_MARK";
+    Vector seat{0, 0, 0};
+    float beamLen = 0;
+  };
+  auto out = std::make_shared<Out>();
+  bool ran = RunOnMainThreadSync(context_, [out, emitterMark, percent]() {
+    ServerEnt* cube = HeldCube();
+    if (!cube) {
+      out->code = "NOT_HOLDING";
+      return;
+    }
+    CEntInfo* eInfo = nullptr;
+    if (!ResolveMarkInfo(emitterMark, &eInfo, &out->code)) return;
+    out->code = InterposeGate(eInfo->m_pEntity, (void*)cube, percent,
+                              &out->seat, &out->beamLen);
+  });
+  if (!ran) {
+    r.set_ok(false);
+    r.set_result_code("CANCELLED");
+    return r;
+  }
+  bool ok = out->code == "SEAT_OK";
+  r.set_ok(ok);
+  r.set_result_code(out->code);
+  if (ok)
+    r.set_detail(Utils::ssprintf(
+        "seat (%.0f %.0f %.0f) on beam (len %.0f), reachable -- carry+snap "
+        "pending (2.4)",
+        out->seat.x, out->seat.y, out->seat.z, out->beamLen));
+  else
+    r.set_detail("interpose: " + out->code);
   return r;
 }
 
@@ -1957,4 +2026,44 @@ CON_COMMAND(
       "events "
       "-- read button.m_bButtonState / target.m_bPowered with "
       "sar_harness_dump_fields + sar_harness_laser_probe after a moment.\n");
+}
+
+// Dryrun of interpose's seat+reachability gates (2.3; no carry/teleport). Takes
+// RAW entity indices like the spike (recon path, no marks) -- the emitter and
+// the cube to seat -- and prints the gate code + computed seat. The verb itself
+// resolves the emitter by mark and the cube from the hand.
+CON_COMMAND(sar_harness_interpose_dryrun,
+            "sar_harness_interpose_dryrun <emitter_idx> <cube_idx> <percent> - "
+            "run interpose's seat+reachability gates (no movement) and print "
+            "the result code. Raw entity indices (sar_harness_laser_probe); "
+            "percent in [0,1] along the beam.\n") {
+  if (!server || !entityList) {
+    console->Print("interpose dryrun: no server/entity list yet.\n");
+    return;
+  }
+  if (args.ArgC() < 4) {
+    console->Print(
+        "usage: sar_harness_interpose_dryrun <emitter_idx> <cube_idx> "
+        "<percent>\n");
+    return;
+  }
+  auto getEnt = [](int idx) -> void* {
+    if (idx < 0 || idx >= Offsets::NUM_ENT_ENTRIES) return nullptr;
+    auto info = entityList->GetEntityInfoByIndex(idx);
+    return (info && info->m_pEntity) ? info->m_pEntity : nullptr;
+  };
+  void* emitter = getEnt(std::atoi(args[1]));
+  void* cube = getEnt(std::atoi(args[2]));
+  if (!emitter || !cube) {
+    console->Print("interpose dryrun: bad emitter/cube index.\n");
+    return;
+  }
+  float percent = (float)std::atof(args[3]);
+  Vector seat{0, 0, 0};
+  float beamLen = 0;
+  std::string code = InterposeGate(emitter, cube, percent, &seat, &beamLen);
+  console->Print("interpose dryrun: %s\n", code.c_str());
+  if (code == "SEAT_OK")
+    console->Msg("  seat (%.1f %.1f %.1f)  beam len %.1f  percent %.2f\n",
+                 seat.x, seat.y, seat.z, beamLen, percent);
 }
