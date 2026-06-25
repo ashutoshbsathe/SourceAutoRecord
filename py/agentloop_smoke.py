@@ -92,9 +92,17 @@ def action(num_ticks, mouse_dx=3.0):
 
 def reset_to_spawn(ctx):
     """Reload the map so a movement-dependent check starts from a known spawn --
-    prior checks leave the player displaced, which derails go_to/move."""
+    prior checks leave the player displaced, which derails go_to/move. Then walk
+    forward --corridor-ticks to clear a long entry corridor so the puzzle marks
+    land in range (0 disables)."""
     resp = ctx.harness.reset(map_name=ctx.args.map)
     require(resp.success, f'reset failed: {resp.error_message}')
+    if ctx.args.corridor_ticks > 0:
+        ctx.harness.act(
+            harness_pb2.ActionRequest(
+                num_ticks=ctx.args.corridor_ticks, key_forward=True
+            )
+        )
 
 
 # --- Checks. Each takes the Context, returns a one-line detail, raises on failure. ---
@@ -411,6 +419,72 @@ def check_place_on_button(ctx):
     )
 
 
+def check_interpose(ctx):
+    """interpose seats a HELD cube on a laser beam: pick up a grabbable, then
+    interpose it onto an emitter's beam. The verb must report an interpose
+    outcome -- ON_BEAM when the cube catches the beam, or NOT_REACHABLE/NO_FLOOR/
+    NOT_INTERCEPTING/BLOCKED when geometry or the carry prevents it. A
+    NOT_IMPLEMENTED/NOT_HOLDING/NOT_EMITTER would mean a dispatch or arg
+    regression. Needs a chamber with a reachable cube and a laser emitter."""
+    reset_to_spawn(ctx)
+    ctx.harness.start_agent_loop()
+    try:
+        env = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(verb='wait', ticks=1)
+            ),
+            timeout=30.0,
+        )
+        cube = emitter = None
+        for e in env.state.entity_snapshot.entities:
+            if e.mark <= 0:
+                continue
+            if cube is None and e.class_name in _GRABBABLE:
+                cube = e
+            if emitter is None and e.class_name == 'env_portal_laser':
+                emitter = e
+        require(cube is not None, 'no grabbable cube mark (need a cube+laser chamber)')
+        require(
+            emitter is not None, 'no laser emitter mark (need a cube+laser chamber)'
+        )
+
+        def run(macro, timeout):
+            return ctx.harness.step_agent_loop(
+                harness_pb2.AgentMessage(macro=macro), timeout=timeout
+            )
+
+        run(harness_pb2.MacroRequest(verb='go_to', mark=cube.mark), 90.0)
+        grab = run(harness_pb2.MacroRequest(verb='pick_up', mark=cube.mark), 30.0)
+        require(
+            grab.macro_result.result_code == 'SUCCESS',
+            f'pick_up cube mark={cube.mark} failed: '
+            f'{grab.macro_result.result_code} ({grab.macro_result.detail}) -- '
+            f'cannot test interpose',
+        )
+        env = run(
+            harness_pb2.MacroRequest(verb='interpose', mark=emitter.mark, percent=0.5),
+            90.0,  # interpose carries the cube, may run many ticks
+        )
+    finally:
+        ctx.harness.stop_agent_loop()
+    require(env.success, f'interpose step RPC failed: {env.error_message}')
+    require(env.HasField('macro_result'), 'no macro_result on interpose')
+    mr = env.macro_result
+    ctx.observations.append(
+        gamestate_dict(env.state, f'macro.interpose[{emitter.mark}]')
+    )
+    require(
+        mr.result_code
+        in ('ON_BEAM', 'NOT_INTERCEPTING', 'NOT_REACHABLE', 'NO_FLOOR', 'BLOCKED'),
+        f'interpose on emitter mark={emitter.mark} gave {mr.result_code!r}, not '
+        f'an interpose outcome -- dispatch/arg regression?',
+    )
+    return (
+        f'interpose cube {cube.mark} on emitter {emitter.mark} (0.5) -> '
+        f'{mr.result_code} ({mr.detail})'
+    )
+
+
 def check_client(ctx):
     """The Python macro client end to end: merge the streamed percept into
     marked-entity dicts (WorldView), validate an action locally against that
@@ -497,6 +571,7 @@ CHECKS = [
     ('move', check_move),
     ('go_to', check_go_to),
     ('place_on_button', check_place_on_button),
+    ('interpose', check_interpose),
     ('client', check_client),
     ('pixels', check_pixels),
     ('execute_command', check_execute_command),
@@ -558,6 +633,13 @@ def main():
         '--out', default='agentloop_smoke_out', help='artifact directory'
     )
     parser.add_argument('--timeout', type=float, default=180.0, help='boot wait (s)')
+    parser.add_argument(
+        '--corridor-ticks',
+        type=int,
+        default=200,
+        help='walk forward this many ticks after each reset to clear an entry '
+        'corridor (0 = off)',
+    )
     args = parser.parse_args()
 
     os.makedirs(args.out, exist_ok=True)

@@ -264,6 +264,10 @@ def test_examples_validate():
         elif verb == 'release':
             held = 99  # release requires holding something
             ents = [synth(mark, 'prop_floor_button')] if mark else []
+        elif verb == 'interpose':
+            mark = int(tokens[1])  # emitter mark (spec.mark is unset for interpose)
+            held = 99  # interpose requires a held cube
+            ents = [synth(mark, 'env_portal_laser')]
         elif spec.mark:
             ents = [synth(mark, 'prop_floor_button')]
         else:

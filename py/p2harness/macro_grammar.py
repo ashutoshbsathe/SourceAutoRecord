@@ -94,6 +94,16 @@ VERB_SPECS = {
         'the cube (SEATED); otherwise it just drops.',
         mark='optional',
     ),
+    'interpose': Verb(
+        'Seat the cube you are HOLDING onto a laser beam to block it. Give the '
+        'emitter mark and how far along its beam to place the cube (percent 0-1 '
+        'from the emitter). Optionally add a target mark to also aim the redirect '
+        'at it. Fails NO_FLOOR (over a pit), NOT_REACHABLE (no walk path), '
+        'NOT_INTERCEPTING (the cube misses the beam).',
+        'interpose 4 0.5',
+        'holding a cube, seat it halfway (0.5) along laser-emitter mark 4 to '
+        'block the beam; add a third mark to redirect at a target.',
+    ),
     'move': Verb(
         'Hold a movement direction for N ticks.',
         'move forward 10',
@@ -136,6 +146,11 @@ def build_macro(verb, args):
         m.mark = int(args[0])
     elif verb == 'release':
         m.mark = int(args[0]) if args else 0
+    elif verb == 'interpose':
+        m.mark = int(args[0])  # emitter
+        m.percent = float(args[1])
+        if len(args) > 2:
+            m.target_mark = int(args[2])
     elif verb == 'move':
         m.dir = args[0]
         m.ticks = int(args[1])
@@ -166,6 +181,26 @@ def _check_mark(verb, spec, mark, by_mark):
     return None
 
 
+def _check_interpose(req, held_mark, by_mark):
+    """interpose checks: holding a cube, a valid laser-emitter mark, percent in
+    range, and a valid target mark if given. Error string or the ready req."""
+    if held_mark is None:
+        return 'interpose: nothing is being held; pick_up a cube first'
+    em = by_mark.get(req.mark)
+    if em is None:
+        return (
+            f'interpose: no entity with emitter mark {req.mark}; '
+            f'marks present: {sorted(by_mark)}'
+        )
+    if em['class'] != 'env_portal_laser':
+        return f'interpose: mark {req.mark} is a {em["class"]}, not a laser emitter'
+    if not 0.0 <= req.percent <= 1.0:
+        return f'interpose: percent must be in [0, 1], got {req.percent}'
+    if req.target_mark and req.target_mark not in by_mark:
+        return f'interpose: no entity with target mark {req.target_mark}'
+    return req
+
+
 def validate(text, entities, held_mark=None):
     """Parse a command string ('go_to 7') and check it against grammar + percept.
 
@@ -187,6 +222,8 @@ def validate(text, entities, held_mark=None):
         return f'{verb}: bad args {" ".join(args)!r}; expected {_signature(verb, spec)}'
 
     by_mark = {e['mark']: e for e in entities}
+    if verb == 'interpose':
+        return _check_interpose(req, held_mark, by_mark)
     if spec.mark:
         err = _check_mark(verb, spec, req.mark, by_mark)
         if err:
@@ -207,6 +244,8 @@ def validate(text, entities, held_mark=None):
 
 def _signature(verb, spec):
     """Plain-command form 'verb <arg>' -- the surface the model types."""
+    if verb == 'interpose':
+        return 'interpose <emitter> <percent 0-1> [target]'
     args = []
     if spec.mark == 'optional':
         args.append('[mark]')
