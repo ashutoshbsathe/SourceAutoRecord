@@ -485,6 +485,30 @@ static int ReconReadHandleIndex(void* ent, const char* name) {
   return (int)(raw & (Offsets::NUM_ENT_ENTRIES - 1));
 }
 
+// Forward beam ray: trace from the emitter along its facing to the first opaque
+// world/prop hit. E->hit is the segment a beam-% addresses (MASK_OPAQUE matches
+// the beam, not the floor's MASK_PLAYERSOLID). Returns false when nothing is
+// hit within range (beam exits the map). The authoritative interception is a
+// re-trace after the cube seats -- never this geometric ray.
+static bool ComputeBeamSegment(void* emitter, Vector* E, Vector* fwd,
+                               Vector* hit, float* length) {
+  constexpr float kBeamMax = 16384.0f;
+  *E = SE(emitter)->abs_origin();
+  QAngle ea = SE(emitter)->abs_angles();
+  Math::AngleVectors(ea, fwd);
+  CTraceFilterSimple filter;
+  filter.SetPassEntity(emitter);
+  CGameTrace tr;
+  if (!engine->Trace(*E, ea, kBeamMax, MASK_OPAQUE, filter, tr)) {
+    *hit = *E + *fwd * kBeamMax;
+    *length = kBeamMax;
+    return false;
+  }
+  *hit = tr.endpos;
+  *length = (*hit - *E).Length();
+  return true;
+}
+
 CON_COMMAND(
     sar_harness_laser_probe,
     "sar_harness_laser_probe - world origin, angles, forward vector, the "
@@ -519,6 +543,14 @@ CON_COMMAND(
         "    origin %.1f %.1f %.1f  ang(p/y/r) %.1f %.1f %.1f  fwd %.3f %.3f "
         "%.3f\n",
         o.x, o.y, o.z, a.x, a.y, a.z, fwd.x, fwd.y, fwd.z);
+
+    if (!std::strcmp(className, "env_portal_laser")) {
+      Vector bE, bF, bHit;
+      float bLen;
+      bool bounded = ComputeBeamSegment(ent, &bE, &bF, &bHit, &bLen);
+      console->Msg("    beam -> hit %.1f %.1f %.1f  len %.1f%s\n", bHit.x,
+                   bHit.y, bHit.z, bLen, bounded ? "" : " (unbounded)");
+    }
 
     for (const char* f : {"m_bLaserOn", "m_bPowered", "m_nCubeType"}) {
       std::string v = ReconReadField(ent, f);
