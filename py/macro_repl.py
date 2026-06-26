@@ -47,6 +47,9 @@ from testchamber_session import launch_or_attach
 HELP = """commands:
   go_to N / aim_at N / pick_up N / interact N   verbs taking a mark
   release [N]        drop: look-down, or toward mark N
+  interpose E P [T]  seat the HELD cube on laser-emitter E at percent P (0-1);
+                     optional target T to also redirect + power it
+  redirect_to C T    aim beam-seated cube C at laser-target T to power it
   move DIR T         DIR in forward|back|left|right, hold T ticks
   look YAW [PITCH]   turn by signed degrees
   wait T / done

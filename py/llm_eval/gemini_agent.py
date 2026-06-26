@@ -37,6 +37,12 @@ _RETRY = types.HttpRetryOptions(
     http_status_codes=[429, 500, 503],
 )
 
+# TODO: exit elevator should be potentially a target the model can go_to? also
+# agent should probably spawn in entrance airlock? `move forward 100` as the
+# "default" first step?. also maybe telling the model that `go_to` only works
+# with the "tagged" entities? the model seems to be using `go_to` for the exit
+# elevator as well which feels stupid?
+
 _SYSTEM = """You are an agent solving a Portal 2 test chamber. Goal: explore the
 chamber and reach its exit. You are not told where the exit is -- look around,
 move through the chamber, and use the marked entities to find your way out.
@@ -68,13 +74,25 @@ Notes:
   SEATED = a held cube is now resting on the button you released onto (success).
   NOT_FAIR/NOT_SEATED = the cube was only dropped, not placed -- get within reach
   of the button (and clear of walls/fizzlers) and release again.
+- Lasers (interpose / redirect_to): to redirect a beam, `pick_up` a reflector
+  cube, `interpose` it onto an emitter's beam, then `redirect_to` aim it at a
+  laser target to power it (or pass `interpose` a target mark to do both at
+  once). ON_BEAM = the cube is on the beam (now `redirect_to` a target). POWERED
+  = the target is lit (success). NOT_INTERCEPTING = the cube missed the beam (try
+  a different percent along it). NO_FLOOR/NOT_REACHABLE = no floor or no walk path
+  at that beam point (pick another percent). NOT_SEATED (from `redirect_to`) = the
+  cube is not on a beam (interpose it first). NOT_POWERED = on the beam but the
+  aim misses the target. OUT_OF_REACH = you are not next to the cube -- `go_to` it
+  first, then `redirect_to`.
 - The environment decides when the chamber is solved and ends the run for you --
   you do NOT judge success yourself. Just keep making progress toward the exit.
   The exit is usually an elevator that carries you out over a few seconds, so if
   you believe you've reached it but the run hasn't ended, `wait 250` near the
-  exit (200-300 ticks) to let the elevator finish. If the environment doesn't report
-  success after executing a single `wait 250`, make sure your position is appropriate
-  and try again after applying a few micro corrections.
+  exit (200-300 ticks) to let the elevator finish. 
+- A SINGLE `wait 250` is sufficient to trigger the exit, if it doesn't, make sure your 
+  position is appropriate and try again after applying a few micro corrections. Ensure you
+  are in the correct exit environment (walk towards the CYLINDRICAL exit elevator using the 
+  stairs, wait for it to open, walk in and ONLY THEN use `wait 250`).
 - Use `done` only to stop when you are truly stuck with no action left to try;
   it is a give-up, not a win -- the environment, not `done`, marks a real solve.
 - Your output should be STRICTLY in the following format:

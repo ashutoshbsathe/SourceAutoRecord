@@ -18,6 +18,47 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 
 ---
 
+## Top of mind (2026-06-26) — LASER VERBS SHIPPED; a chamber SOLVED verb-only
+
+The laser verb family is **shipped end-to-end and a full PeTI laser chamber was SOLVED verb-only**
+(`go_to`/`pick_up`/`release`/`interpose`/`redirect_to` — no raw geometry from the driver), confirmed via
+**macro_repl + agentloop_smoke 13/13**. This closes workstream **A** ("build the laser verbs") from 06-24.
+
+**What shipped** (commits `866ff50f` + `278c51cc` on yeeh, UNPUSHED) — a robustness chain that took the
+verbs from "intermittently broken" to "solves a chamber":
+- **`interpose`** (held cube → beam): carry (go_to backend) → free the +use grab via a clear-air view sweep
+  (`FreeGrab` — a steep-down drop wedges the cube into the floor, +use won't release) → displace the player
+  off the seat scanning **perpendicular to the beam, rejecting on-beam bearings** (else the displaced player
+  occludes the beam) → re-seat + confirm. `ON_BEAM`/`NOT_INTERCEPTING`/`NO_FLOOR`/`NOT_REACHABLE`.
+- **`redirect_to`** (orient atom): **reach-gated** (`OUT_OF_REACH` if not next to the cube — no
+  across-the-room teleport-rotate); rotate +X→target in place, confirm `m_bPowered`.
+- **`release`** (place-on-button) hardened: displace on **proximity** (not just dead-on-seat); honest
+  `NOT_SEATED` when no standoff fits; `SEATED` requires the cube still on-seat at dwell end (drift gate).
+- **`go_to`** nav upgrade (enables the dual-role cube-on-button): skip obstacles whose footprint OVERLAPS
+  the target (reach a cube seated on a button) + a **pushable-target arrival standoff** (stop beside a cube,
+  don't bulldoze it; grabbable-gated so a button keeps a close approach for `release`) + zero player velocity
+  on arrival (no coast-wedge).
+
+The **dual-role cube** (one cube presses a button on the beam AND redirects it) solves as an EMERGENT
+composition (`go_to cube → redirect_to relay`), no named dual-role verb — exactly the intended design.
+
+**NEXT — the verbs + percept are ready, so the bottleneck is no longer SAR.** Highest-value first:
+1. **⭐ "Laser light" — run the FROZEN-LLM eval on the laser chamber.** macro_repl proved the human
+   baseline; the actual science is whether an *untrained* model reasons through laser redirection. Wire the
+   laser chamber into the ReAct driver and run — the **M3 analogue of first/third light**. This is where the
+   reasoning-vs-perception signal for lasers comes from; everything below is gated on what it reveals (e.g.
+   does the model compose `go_to`+`redirect_to` on `OUT_OF_REACH`, or one-shot `power_with`?).
+2. **Laser increments (as the eval exposes gaps):** dual-role `at=@button` placement (interpose a cube
+   directly onto a button on the beam) · `IN_HAZARD` (point-contents goo check — `NO_FLOOR` misses slime) ·
+   `power_with` one-shot vs `interpose`+`redirect_to` decompose ablation · multi-emitter incoming-independence.
+3. **The bigger M3 frontiers (independent of lasers, per 06-24):** portals (highest ceiling, the missing
+   mechanic) · the measured benchmark suite · the I/O causal graph.
+
+Docs: [laser_redirect_verb_design.md](laser_redirect_verb_design.md) (handoff updated). Robustness lives in
+`src/Features/Harness/MacroExecutor.cpp` + `GoToPlanner.cpp`; smoke in `py/agentloop_smoke.py`.
+
+---
+
 ## Top of mind (2026-06-24) — lasers work mechanically; the VERB SURFACE needs a rethink
 
 Lasers are **mechanically solved** at the SAR level. Part A percept shipped (transform-sane mark gate,
@@ -168,7 +209,7 @@ yours in free-run. Isolated (Harness.cpp PRE_TICK + TasController per-tick `SetA
 - [x] **M0 — Lock the ontology.** Annotation built; recon mechanism done; status schema + scope locked.
 - [ ] **M1 — Status-aware percept** (Phase 1): curated category-A status flows over gRPC. *(1a ✅; 1b/1c remaining)*
 - [x] **M2 — ⭐ FIRST LIGHT:** frozen VLM solves one cube→button→door chamber (no portals). *(Achieved 2026-06-21 — gemini-3.5-flash SOLVED it in 15 steps once the verbs were robust; `third_light.trajectory`. The robust-verbs-vs-reasoning ablation is the perception-vs-reasoning signal.)*
-- [ ] **M3 — Ramp complexity:** add portals → lasers → panels; grow the chamber suite into difficulty tiers.
+- [ ] **M3 — Ramp complexity:** add portals → lasers → panels; grow the chamber suite into difficulty tiers. *(Lasers: verb surface SHIPPED + a chamber solved verb-only, 2026-06-26 — next is the frozen-LLM "laser light" eval. Portals + panels remain.)*
 - [ ] **M4 — Public benchmark:** multi-model eval (Claude/Gemini/GPT-class), scoring, reproducible packaging.
 - [ ] **M5 — VP talk, with data:** the reasoning-gap-vs-locomotion-gap result.
 

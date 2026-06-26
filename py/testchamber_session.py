@@ -18,6 +18,22 @@ from p2harness import harness_pb2
 from p2harness.entities import WorldView
 from p2harness.harness import P2Harness
 
+# interpose carries the cube then DROPS it onto the beam; it leaves the cube IN
+# HAND only when it fails BEFORE the drop -- a gate/reach/carry reject. Every
+# other outcome (on-beam, beam-miss, powered or not) dropped it. Mirrors the
+# executor clearing g_heldEntityKey the moment it commits to the drop.
+_INTERPOSE_KEPT_HELD = frozenset(
+    {
+        'NOT_EMITTER',
+        'NO_BEAM',
+        'NO_FLOOR',
+        'NOT_REACHABLE',
+        'BAD_MARK',
+        'BLOCKED',
+        'CANCELLED',
+    }
+)
+
 
 @dataclass
 class Observation:
@@ -89,12 +105,19 @@ class TestChamberSession:
         return self.last
 
     def _update_held(self, macro, result):
-        """Track the carried mark -- there is no engine held-flag."""
-        if not result.ok:
-            return
-        if macro.verb == 'pick_up':
-            self.held_mark = macro.mark
-        elif macro.verb == 'release':
+        """Track the carried mark -- no engine held-flag, so mirror the executor's
+        g_heldEntityKey. pick_up takes a cube (on success); release ALWAYS frees
+        the grab; interpose drops the cube onto the beam unless it failed before
+        the drop. Crucially NOT gated on result.ok: a placement MISS (release ->
+        NOT_FAIR, interpose -> NOT_INTERCEPTING) still left the cube on the
+        floor/beam, not in hand."""
+        verb, code = macro.verb, result.result_code
+        if verb == 'pick_up':
+            if result.ok:
+                self.held_mark = macro.mark
+        elif verb == 'release':
+            self.held_mark = None
+        elif verb == 'interpose' and code not in _INTERPOSE_KEPT_HELD:
             self.held_mark = None
 
     def close(self):

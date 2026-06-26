@@ -32,10 +32,11 @@ GRABBABLE_CLASSES = frozenset(
 # in a straight line and need a clear path. Surfaced verbatim in the prompt so the
 # model stops blindly retrying a STUCK go_to (the bug that motivated this).
 CAVEAT = (
-    '`go_to`/`interact` auto-march in a STRAIGHT LINE: they only reach a mark with '
-    'a clear path -- anything in the way (wall, door, object) fails STUCK/BLOCKED/'
-    "WALL. When that happens, don't retry blindly: `look` to find the opening, "
-    'then `move` through it (or pick a nearer, in-view mark) before retrying.'
+    '`go_to`/`interact` route AROUND obstacles (cubes, buttons, walls) to reach a '
+    'mark -- they fail BLOCKED only when NO walk path exists, or ADVANCED when a '
+    'gap/edge stops them partway. On BLOCKED/ADVANCED you are at a NEW spot: '
+    're-read the percept and try a nearer in-view mark, or `look`+`move` toward '
+    "the opening -- don't blindly repeat the same command."
 )
 
 
@@ -62,15 +63,16 @@ VERB_SPECS = {
         mark='required',
     ),
     'go_to': Verb(
-        'Walk in a STRAIGHT LINE to a mark -- only with a clear path; a wall/door/'
-        'object between you and the mark fails STUCK/BLOCKED/WALL.',
+        'Walk to a mark, routing AROUND obstacles (cubes, buttons, walls). Stops '
+        'just BESIDE a cube/box it is sent to (it will not shove it). BLOCKED only '
+        'if no walk path exists; ADVANCED if a gap/edge stopped it short.',
         'go_to 3',
-        'straight-march to mark 3 (path must be clear).',
+        'walk to mark 3, routing around anything in the way.',
         mark='required',
     ),
     'interact': Verb(
-        'Walk in a STRAIGHT LINE to a mark and press it (+use) -- a button or '
-        'switch; like go_to it needs a clear path, else STUCK/BLOCKED/WALL.',
+        'Walk to a mark (routing around obstacles, like go_to) and press it '
+        '(+use) -- a button or switch. BLOCKED if no walk path exists.',
         'interact 5',
         'walk to mark 5 and press it.',
         mark='required',

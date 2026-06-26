@@ -18,7 +18,39 @@
 
 ---
 
-## Status & next directions (handoff — 2026-06-24)
+## Status & next directions (handoff — 2026-06-26)
+
+**SHIPPED end-to-end — a full PeTI laser chamber SOLVED verb-only** (`go_to`/`pick_up`/`release`/
+`interpose`/`redirect_to`, no raw geometry from the driver). macro_repl + **agentloop_smoke 13/13**.
+Commits `866ff50f` + `278c51cc` on yeeh (UNPUSHED). The verb surface (`interpose` / `redirect_to` /
+`power_with`(=`target=`) / `release`) and the `go_to` nav it needs are built; the robustness chain lives in
+`MacroExecutor.cpp` + `GoToPlanner.cpp`. Full per-fix detail: [[laser-l0-recon-and-held-aim]] memory + ROADMAP
+2026-06-26.
+
+**Built on the FLAT planner, NOT the stepped-floor extension.** The 2026-06-25 reachability recon
+(`sar_harness_laser_reachability_test`) showed flat 2.5D `GoToPlanner` judges reachability correctly across
+the tested chambers (no floorZ-seam blocker needed for that envelope). So "extend `GoToPlanner` (stepped-floor
++ portal edges)" below is **deferred, off the critical path** — revisit only for stacked floors / portal-
+bridged islands / a sub-128u goo moat (the seam guard is still the right fix there).
+
+**The hard-won robustness chain:** FreeGrab clear-air drop (a steep-down drop wedges the cube into the floor,
++use won't release) · interpose player-displacement **perpendicular to the beam, rejecting on-beam bearings**
+(else the displaced player occludes the beam) · release proximity-displace + drift-confirm + honest
+no-standoff · redirect_to reach gate (`OUT_OF_REACH`) · go_to footprint-overlap-skip (reach a cube-on-button)
++ pushable-target arrival standoff + velocity-zero-on-arrival.
+
+**NEXT (highest-value first):**
+1. **⭐ Run the FROZEN-LLM eval on the laser chamber** ("laser light") — verbs/percept are ready; this is the
+   reasoning signal (M3 analogue of first/third light). Gates everything below (does the model compose
+   `go_to`+`redirect_to` on `OUT_OF_REACH`, or one-shot `power_with`?).
+2. **Increments as the eval exposes gaps:** dual-role `at=@button` placement · `IN_HAZARD` point-contents goo
+   check (`NO_FLOOR` misses slime) · power_with-one-shot vs `interpose`+`redirect_to` decompose ablation ·
+   multi-emitter incoming-independence.
+
+The 2026-06-24 plan below ("Part B verbs depend on the reachability layer, build after") is **executed** —
+kept for the design rationale (the fairness spec + verb synthesis remain the authoritative design).
+
+### Earlier handoff (2026-06-24 — superseded by the above, kept for rationale)
 
 **Done:** L0 recon closed; `sar_harness_laser_intercept_spike` PROVED computed-point teleport
 interception (down-trace rest, ±24u capture radius, no drift, no freeze). Verb design + the
