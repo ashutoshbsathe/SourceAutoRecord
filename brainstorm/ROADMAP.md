@@ -57,6 +57,18 @@ composition (`go_to cube → redirect_to relay`), no named dual-role verb — ex
 Docs: [laser_redirect_verb_design.md](laser_redirect_verb_design.md) (handoff updated). Robustness lives in
 `src/Features/Harness/MacroExecutor.cpp` + `GoToPlanner.cpp`; smoke in `py/agentloop_smoke.py`.
 
+**UPDATE (2026-06-26) — laser-light eval RAN & SOLVED, but surfaced a P0.** `laser_and_button` solved
+verb-only by gemini-3.5-flash (48 steps); the puzzle core (steps 5–16) is clean and impressive. BUT ~75%
+of steps were entrance/exit **corridor** nav, and the **31-step exit-elevator tail would FALSE-FAIL under
+the default `max_steps=30`** (objectives met by step 13, `chamber_complete` latches only at step 47). Root
+cause: the cylindrical exit elevator (a `func_tracktrain` named `*departure_elevator*`) has **no mark** —
+its only handle is the `@exit_airlock_door` frame. Deep adversarial post-mortem (48 verified findings) +
+corridor-fix design panel (5 proposals, 3 judges) → **[laser_and_button_postmortem.md](laser_and_button_postmortem.md)**.
+Recommended: recon-gate first, then **rescope the eval boundary** (end on objective-met, decoupled from the
+ride — kills the false-fail) **+ annotate the elevator** (one name-gated `func_tracktrain` entry). Also P1:
+cap the O(steps²) image-history token cost; batch the percept-noise cluster (ghost (0,0,0) portals, cube
+double-marks, silent-teleport signal).
+
 ---
 
 ## Top of mind (2026-06-24) — lasers work mechanically; the VERB SURFACE needs a rethink
@@ -272,6 +284,7 @@ has crept into `py/` (and likely `src/`). Fix in passing, don't make a project o
 | Doc | Read it for |
 |---|---|
 | **ROADMAP.md** (this) | state, milestones, decisions, where to look |
+| `laser_and_button_postmortem.md` | **⭐ the laser-light eval post-mortem** — adversarial analysis of the first SOLVED laser-chamber trajectory (harness/model right+wrong, 48 verified findings) + the **corridor P0** brainstorm (2 problems: false-fail timeout + wasted nav; rescope-eval-boundary vs annotate-the-elevator, 5 proposals + 3-judge panel). Read for what to fix next on the eval/exit. |
 | `fixed_ontology_scope.md` | *why* deep-narrow + the v0 scope decision (read first for scope) |
 | `puzzlemaker_elements.md` | the element list (categories A/B/C, P1) |
 | `status_field_recon.md` | per-class status fields (the locked schema) + recon protocol + I/O-edge vocabulary (PeTI vs BEEmod) |
