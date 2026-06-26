@@ -106,8 +106,10 @@ VERB_SPECS = {
     ),
     'redirect_to': Verb(
         'Aim a cube ALREADY seated on a laser beam so it redirects the beam to a '
-        'target and powers it. The cube must already be on a beam (interpose it '
-        'first) -- else NOT_SEATED; NOT_POWERED if the aim cannot reach.',
+        'target and powers it. You must be standing next to the cube (re-aiming '
+        'means re-placing it) -- else OUT_OF_REACH, so go_to the cube first. The '
+        'cube must already be on a beam (interpose it first) -- else NOT_SEATED; '
+        'NOT_POWERED if the aim cannot reach.',
         'redirect_to 6 9',
         'a reflector cube already on a beam (mark 6): aim it at laser-target mark '
         '9 to power it; interpose it onto the beam first.',

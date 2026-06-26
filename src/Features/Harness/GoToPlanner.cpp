@@ -51,8 +51,25 @@ GoToPlanner::GoToPlanner(const Vector& playerMins, const Vector& playerMaxs,
                          float refZ, uint32_t targetKey, uint32_t heldKey)
     : mins_(playerMins), maxs_(playerMaxs), refZ_(refZ) {
   halfWidth_ = std::max(maxs_.x, maxs_.y);
+  // The target's own footprint (if it's an obstacle prop), so the stamp skips
+  // not just the destination but anything overlapping it -- the button a cube
+  // is seated on -- else the route could never reach a cube-on-button.
+  Vector tC{0, 0, 0};
+  float tR = -1;
+  if (targetKey) {
+    CEntInfo* ti = entityList->GetEntityInfoByIndex(targetKey >> 16);
+    if (ti && ti->m_pEntity &&
+        static_cast<uint16_t>(ti->m_SerialNumber) ==
+            static_cast<uint16_t>(targetKey) &&
+        IsObstacleClass(server->GetEntityClassName(ti->m_pEntity))) {
+      ICollideable& tc = SE(ti->m_pEntity)->collision();
+      Vector mn = tc.OBBMins(), mx = tc.OBBMaxs();
+      tC = SE(ti->m_pEntity)->abs_origin() + (mn + mx) * 0.5f;
+      tR = 0.5f * Vector{mx.x - mn.x, mx.y - mn.y, 0}.Length2D();
+    }
+  }
   // Snapshot obstacle-prop footprints once (the grid stamp); skip the go_to
-  // target and any carried cube by identity. Main thread.
+  // target, anything overlapping it, and any carried cube. Main thread.
   for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
     CEntInfo* info = entityList->GetEntityInfoByIndex(i);
     if (!info || !info->m_pEntity) continue;
@@ -64,9 +81,13 @@ GoToPlanner::GoToPlanner(const Vector& playerMins, const Vector& playerMaxs,
     ICollideable& coll = se->collision();
     Vector mins = coll.OBBMins(), maxs = coll.OBBMaxs();
     Vector center = se->abs_origin() + (mins + maxs) * 0.5f;
-    float r = 0.5f * Vector{maxs.x - mins.x, maxs.y - mins.y, 0}.Length2D() +
-              halfWidth_;
-    obstacles_.push_back({center.x, center.y, r});
+    float footprintR =
+        0.5f * Vector{maxs.x - mins.x, maxs.y - mins.y, 0}.Length2D();
+    if (tR >= 0) {  // overlaps the target footprint -> skip (e.g. its button)
+      float dxt = center.x - tC.x, dyt = center.y - tC.y;
+      if (dxt * dxt + dyt * dyt < (tR + footprintR) * (tR + footprintR)) continue;
+    }
+    obstacles_.push_back({center.x, center.y, footprintR + halfWidth_});
   }
 }
 
