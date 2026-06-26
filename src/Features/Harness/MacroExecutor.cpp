@@ -52,9 +52,9 @@ constexpr float kReachRadius = 48.0f;  // horizontal dist that counts as arrived
 constexpr float kApproachGap =
     20.0f;  // extra standoff past an obstacle-target's footprint (hull gap +
             // post-arrival coast) so go_to stops beside it, not into it
-constexpr float kLegRadius = 24.0f;    // looser arrival for an A* waypoint
-constexpr int kMaxReplans = 2;     // A* re-plans on a dynamically-blocked leg
-constexpr float kStuckEps = 1.0f;  // <this much progress/iter twice = stuck
+constexpr float kLegRadius = 24.0f;  // looser arrival for an A* waypoint
+constexpr int kMaxReplans = 2;       // A* re-plans on a dynamically-blocked leg
+constexpr float kStuckEps = 1.0f;    // <this much progress/iter twice = stuck
 constexpr float kProbeHeight = 18.0f;  // lift the edge ray to ~step height
 constexpr float kStepAhead = 24.0f;    // edge ray is cast this far ahead
 constexpr float kStepDownMax = 64.0f;  // no floor within this below = edge
@@ -116,10 +116,6 @@ constexpr float kEyeLineSlack =
     8.0f;  // eye->seat ray may stop at most this short of the seat
 constexpr float kOccupancyLift =
     2.0f;  // raise the seat-occupancy hull this far clear of the button
-
-// DEBUG (remove before commit -- grep HDBG): trace release/interpose decisions
-// to the game console. Safe on both the gRPC and main threads.
-#define HDBG(...) console->Print(__VA_ARGS__)
 
 int Slot() { return GET_SLOT(); }
 
@@ -585,21 +581,13 @@ bool DropHeld(grpc::ServerContext* context, QAngle view, int settle) {
   for (int attempt = 0; attempt < kDropTries; ++attempt) {
     PulseUse(settle, view);
     auto holding = std::make_shared<bool>(true);
-    auto attached = std::make_shared<int>(-1);
-    if (!RunOnMainThreadSync(context, [holding, attached]() {
+    if (!RunOnMainThreadSync(context, [holding]() {
           ServerEnt* pl = server->GetPlayer(1);
-          if (!pl) return;
-          CBaseHandle h = pl->field<CBaseHandle>("m_hAttachedObject");
-          *holding = (bool)h;
-          *attached = (bool)h ? h.GetEntryIndex() : -1;
+          if (pl) *holding = (bool)pl->field<CBaseHandle>("m_hAttachedObject");
         }))
       return false;  // cancelled
-    HDBG("[drop] pulse %d/%d settle=%d view=(p%.0f y%.0f) holding=%d attached=%d\n",
-         attempt + 1, kDropTries, settle, view.x, view.y, (int)*holding,
-         *attached);
     if (!*holding) return true;
   }
-  HDBG("[drop] FAILED -- still holding after %d pulses\n", kDropTries);
   return false;
 }
 
@@ -619,10 +607,8 @@ bool FreeGrab(grpc::ServerContext* context, int settle) {
           *view = ApplyAbsoluteView(QAngle{fv.x, cur.y + fv.y, 0});
         }))
       return false;  // cancelled
-    HDBG("[free] view (p%.0f y%+.0f)\n", fv.x, fv.y);
     if (DropHeld(context, *view, settle)) return true;
   }
-  HDBG("[free] FAILED -- no clear-air view freed the grab\n");
   return false;
 }
 
@@ -693,11 +679,11 @@ bool IsGoToObstacleClass(const char* cls) {
          !std::strcmp(cls, "prop_button");
 }
 
-// Footprint of an obstacle-class go_to target: its OBB centre -> *outCenter, its
-// circle radius returned (or -1 if targetKey is unset / not an obstacle prop).
-// Lets the obstacle stamps skip whatever the target's footprint overlaps -- the
-// button a cube is seated on -- so a route can actually reach a cube-on-button.
-// Main thread.
+// Footprint of an obstacle-class go_to target: its OBB centre -> *outCenter,
+// its circle radius returned (or -1 if targetKey is unset / not an obstacle
+// prop). Lets the obstacle stamps skip whatever the target's footprint overlaps
+// -- the button a cube is seated on -- so a route can actually reach a
+// cube-on-button. Main thread.
 float TargetFootprint(uint32_t targetKey, Vector* outCenter) {
   if (!targetKey) return -1;
   CEntInfo* info = entityList->GetEntityInfoByIndex(targetKey >> 16);
@@ -737,9 +723,11 @@ void InjectObstacles(float* clear, const Vector& feet, float playerHalfWidth,
     Vector center = se->abs_origin() + (mins + maxs) * 0.5f;
     float footprintR =  // the obstacle's own circle (no body inflation)
         0.5f * Vector{maxs.x - mins.x, maxs.y - mins.y, 0}.Length2D();
-    if (tR >= 0) {  // skip an obstacle overlapping the target (cube on a button)
+    if (tR >=
+        0) {  // skip an obstacle overlapping the target (cube on a button)
       float dxt = center.x - tC.x, dyt = center.y - tC.y;
-      if (dxt * dxt + dyt * dyt < (tR + footprintR) * (tR + footprintR)) continue;
+      if (dxt * dxt + dyt * dyt < (tR + footprintR) * (tR + footprintR))
+        continue;
     }
     Vector d{center.x - feet.x, center.y - feet.y, 0};
     float dist = d.Length2D();
@@ -955,8 +943,8 @@ MarchOutcome MarchTo(grpc::ServerContext* context, const Vector& target,
 // budget is shared across the legs so a long route can't run unbounded.
 // gRPC-thread only.
 MarchOutcome RouteAround(grpc::ServerContext* context, const Vector& target,
-                         uint32_t targetKey, uint32_t heldKey, float reachRadius,
-                         float initialDist) {
+                         uint32_t targetKey, uint32_t heldKey,
+                         float reachRadius, float initialDist) {
   MarchOutcome out;  // defaults to BLOCKED
   out.dist = initialDist;
   int budget = kGoToMaxTicks;
@@ -1192,8 +1180,6 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
     c.set_result_code("CANCELLED");
     return c;
   };
-  HDBG("[intp] ENTER emitterMark=%d targetMark=%d percent=%.2f\n", emitterMark,
-       req.target_mark(), percent);
 
   // 1. Gate (main thread): resolve the emitter mark + held cube, compute the
   // seat + march start, or bail with the first failing reject.
@@ -1222,10 +1208,6 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
         Vector{g->seat.x - feet.x, g->seat.y - feet.y, 0}.Length2D();
   });
   if (!ran) return cancelled();
-  HDBG("[intp] gate=%s seat=(%.0f %.0f %.0f) beamLen=%.0f startFeet=(%.0f %.0f "
-       "%.0f) dist=%.0f\n",
-       g->code.c_str(), g->seat.x, g->seat.y, g->seat.z, g->beamLen,
-       g->startFeet.x, g->startFeet.y, g->startFeet.z, g->initialDist);
   if (g->code != "SEAT_OK") {
     r.set_ok(false);
     r.set_result_code(g->code);
@@ -1243,8 +1225,6 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
   if (m.cancelled) return cancelled();
   Scheduler::OnMainThread([]() { ClearFramebulk(); });
   AdvanceTicksBlocking(kGoToSettle);
-  HDBG("[intp] march: reached=%d code=%s dist=%.0f\n", m.reached,
-       m.code.c_str(), m.dist);
   if (!m.reached) {
     r.set_ok(false);
     r.set_result_code("BLOCKED");
@@ -1273,23 +1253,13 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
         ServerEnt* player = server->GetPlayer(1);
         CEntInfo* eInfo = nullptr;
         std::string code;
-        if (!cube || !player || !ResolveMarkInfo(emitterMark, &eInfo, &code)) {
-          HDBG("[intp] displace: cube/player/emitter unresolved\n");
+        if (!cube || !player || !ResolveMarkInfo(emitterMark, &eInfo, &code))
           return;
-        }
-        Vector cp = cube->abs_origin();
-        HDBG("[intp] post-drop cube=(%.0f %.0f %.0f) seat=(%.0f %.0f %.0f)\n",
-             cp.x, cp.y, cp.z, g->seat.x, g->seat.y, g->seat.z);
         float beamYaw = SE(eInfo->m_pEntity)->abs_angles().y;
         Vector standoff;
         if (FindPlayerStandoff(g->seat, HalfWidthXY(cube), player, &standoff,
-                               beamYaw + 90.0f, &beamYaw)) {
-          HDBG("[intp] displace player -> (%.0f %.0f %.0f) beamYaw=%.0f\n",
-               standoff.x, standoff.y, standoff.z, beamYaw);
+                               beamYaw + 90.0f, &beamYaw))
           SeatEntity(player, standoff, player->abs_angles());
-        } else {
-          HDBG("[intp] displace: NO standoff (player stays, may shove cube)\n");
-        }
       }))
     return cancelled();
 
@@ -1302,7 +1272,6 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
     bool intercept = false;
     bool powered = false;
     float residual = 0;
-    Vector settled{0, 0, 0};  // where the cube ended up after the settle
   };
   auto c = std::make_shared<Conf>();
   for (int attempt = 0; attempt < kRedirectTries; ++attempt) {
@@ -1327,20 +1296,7 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
           CEntInfo* eInfo = nullptr;
           std::string code;
           if (!cube || !ResolveMarkInfo(emitterMark, &eInfo, &code)) return;
-          c->settled = cube->abs_origin();
           c->intercept = ConfirmInterception(eInfo->m_pEntity, (void*)cube);
-          {  // why miss? beam endpoint vs the cube hull's actual z-span
-            Vector E, F, hit;
-            float len;
-            ComputeBeamSegment(eInfo->m_pEntity, &E, &F, &hit, &len);
-            ICollideable& cc = cube->collision();
-            Vector cmn = cc.OBBMins(), cmx = cc.OBBMaxs();
-            Vector o = cube->abs_origin();
-            HDBG("[intp] beam hit=(%.0f %.0f %.0f) len=%.0f | cube z=[%.0f..%.0f] "
-                 "hit-cube=%.0f\n",
-                 hit.x, hit.y, hit.z, len, o.z + cmn.z, o.z + cmx.z,
-                 (hit - o).Length());
-          }
           if (!targetMark) return;
           CEntInfo* tInfo = nullptr;
           if (!ResolveMarkInfo(targetMark, &tInfo, &code)) return;
@@ -1355,13 +1311,6 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
           c->residual = std::acos(dot) * 57.2958f;
         });
     if (!ranC) return cancelled();
-    float seatDrift = Vector{c->settled.x - g->seat.x, c->settled.y - g->seat.y,
-                             c->settled.z - g->seat.z}
-                          .Length();
-    HDBG("[intp] try %d/%d: intercept=%d powered=%d residual=%.1f settled=(%.0f "
-         "%.0f %.0f) drift=%.0f\n",
-         attempt + 1, kRedirectTries, c->intercept, c->powered, c->residual,
-         c->settled.x, c->settled.y, c->settled.z, seatDrift);
     if (c->intercept && (!targetMark || c->powered)) break;  // good this try
   }
 
@@ -1440,22 +1389,20 @@ portal2_harness::MacroResult MacroExecutor::RedirectTo(
     r.set_result_code("CANCELLED");
     return r;
   }
-  HDBG("[redir] gate=%s cube=%d target=%d reach=%.0f (max %.0f)\n",
-       g->code.c_str(), cubeMark, targetMark, g->reach, kGrabRange);
   if (g->code != "SEAT_OK") {
     r.set_ok(false);
     r.set_result_code(g->code);
-    r.set_detail(g->code == "OUT_OF_REACH"
-                     ? Utils::ssprintf("redirect_to: cube %.0fu away (>%.0f) -- "
-                                       "go_to it first",
-                                       g->reach, kGrabRange)
-                     : "redirect_to: " + g->code);
+    r.set_detail(
+        g->code == "OUT_OF_REACH"
+            ? Utils::ssprintf("redirect_to: cube %.0fu away (>%.0f) -- "
+                              "go_to it first",
+                              g->reach, kGrabRange)
+            : "redirect_to: " + g->code);
     return r;
   }
 
   float residual = 0;
   std::string code = RedirectConfirm(g->cubeKey, targetMark, &residual);
-  HDBG("[redir] confirm=%s residual=%.1f\n", code.c_str(), residual);
   if (code == "CANCELLED") {
     r.set_ok(false);
     r.set_result_code("CANCELLED");
@@ -1603,14 +1550,19 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
       res->startFeet = feet;
       res->initialDist =
           Vector{res->center.x - feet.x, res->center.y - feet.y, 0}.Length2D();
-      // Obstacle target -> stand off at its footprint edge + body + gap, so the
-      // approach stops beside the prop instead of bulldozing into it.
+      // Stand off only from a PUSHABLE target (cube/box/turret) at its footprint
+      // edge + body + gap, so the approach stops beside it instead of bulldozing
+      // it. A button is immovable and a follow-up release needs a CLOSE approach
+      // to reach it, so it keeps the plain kReachRadius.
+      CEntInfo* tInfo = nullptr;
+      std::string tcode;
       Vector tC;
       float tR = TargetFootprint(res->targetKey, &tC);
-      if (tR >= 0) {
+      if (tR >= 0 && ResolveMarkInfo(mark, &tInfo, &tcode) &&
+          IsGrabbableClass(server->GetEntityClassName(tInfo->m_pEntity))) {
         Vector pmx = pl->collision().OBBMaxs();
-        res->reachRadius = std::max(
-            kReachRadius, tR + std::max(pmx.x, pmx.y) + kApproachGap);
+        res->reachRadius =
+            std::max(kReachRadius, tR + std::max(pmx.x, pmx.y) + kApproachGap);
       }
     }
   });
@@ -1632,8 +1584,6 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
   // executor.
   Vector target = res->center;
   uint32_t heldKey = g_heldEntityKey.load();
-  HDBG("[goto] mark=%d standoff=%.0f (kReach=%.0f)\n", mark, res->reachRadius,
-       kReachRadius);
   MarchOutcome m =
       MarchTo(context_, target, res->reachRadius, kGoToMaxTicks, res->targetKey,
               heldKey, res->startFeet, res->initialDist);
@@ -1655,8 +1605,8 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
 
   // Stop: zero the framebulk AND the walk velocity, then settle. Friction alone
   // let the player coast ~28u past the standoff into the target (wedging it
-  // against a prop+wall, a hard stuck) -- killing m_vecVelocity stops it dead at
-  // the standoff so the next verb has clean room.
+  // against a prop+wall, a hard stuck) -- killing m_vecVelocity stops it dead
+  // at the standoff so the next verb has clean room.
   Scheduler::OnMainThread([]() {
     ClearFramebulk();
     ServerEnt* pl = server->GetPlayer(1);
@@ -1954,20 +1904,6 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
     return r;
   };
 
-  RunOnMainThreadSync(context_, [mark, heldKey]() {
-    ServerEnt* pl = server->GetPlayer(1);
-    if (!pl) {
-      HDBG("[rel] ENTER mark=%d heldKey=0x%x -- NO PLAYER\n", mark, heldKey);
-      return;
-    }
-    CBaseHandle h = pl->field<CBaseHandle>("m_hAttachedObject");
-    Vector p = pl->abs_origin();
-    HDBG("[rel] ENTER mark=%d heldKey=0x%x(idx=%d) player=(%.0f %.0f %.0f) "
-         "holding=%d attached=%d\n",
-         mark, heldKey, heldKey >> 16, p.x, p.y, p.z, (bool)h,
-         (bool)h ? h.GetEntryIndex() : -1);
-  });
-
   // Orient before dropping: face the mark if given, else look down to drop at
   // the player's feet (e.g. onto a floor button being stood on). Capture the
   // view so PulseUse can HOLD it across the drop -- a single SetAngles drifts
@@ -2002,8 +1938,6 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
     if (!ran) return cancelled();
     seatPath = *isBtn;
   }
-  HDBG("[rel] view=(p%.1f y%.1f) seatPath=%d (mark>0=%d heldKey=%d)\n", view.x,
-       view.y, seatPath, mark > 0, (bool)heldKey);
 
   if (!seatPath) {
     // +use pulse drops the carried object, holding `view` so it lands where we
@@ -2051,17 +1985,10 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
     if (!cube || !player || !ResolveMarkInfo(mark, &binfo, &code)) return;
     ServerEnt* button = SE(binfo->m_pEntity);
     Seat s = ComputeSeat(button, cube);
-    HDBG("[rel] hop1: seat ok=%d center=(%.0f %.0f %.0f) normalZ=%.2f\n", s.ok,
-         s.center.x, s.center.y, s.center.z, s.normalZ);
     if (!s.ok) return;
     // Only seat what a clean hand-drop from here could have reached; otherwise
     // leave the cube where the drop put it.
     Fairness f = CheckFairness(button, cube, player, s);
-    HDBG("[rel] hop1: fair=%d reach=%d(d%.0f) press=%d corr=%d(g%.0f) eye=%d "
-         "clear=%d self=%d occ=%s\n",
-         f.fair, f.reach, f.reachDist, f.pressNormal, f.corridor, f.corridorGap,
-         f.eyeLine, f.seatClear, f.selfOnSeat,
-         f.occupant.empty() ? "-" : f.occupant.c_str());
     if (!f.fair) {
       step->fair = false;
       step->reason = FairnessFailReason(f);
@@ -2074,20 +2001,14 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
     Vector pf = player->abs_origin();
     float gapXY = Vector{s.center.x - pf.x, s.center.y - pf.y, 0}.Length2D();
     float overlapR = HalfWidthXY(player) + HalfWidthXY(cube) + kStandoffMargin;
-    HDBG("[rel] hop1: player=(%.0f %.0f %.0f) gapXY=%.1f overlapR=%.1f -> %s\n",
-         pf.x, pf.y, pf.z, gapXY, overlapR,
-         gapXY < overlapR ? "DISPLACE" : "SEAT-NOW");
     if (gapXY < overlapR) {
       Vector standoff;
       float clearR = std::max(HalfWidthXY(button), HalfWidthXY(cube));
       if (!FindPlayerStandoff(button->abs_origin(), clearR, player,
                               &standoff)) {
-        HDBG("[rel] hop1: standoff NONE (clearR=%.1f) -> noStandoff\n", clearR);
         step->noStandoff = true;
         return;
       }
-      HDBG("[rel] hop1: standoff (%.0f %.0f %.0f) -> displace player\n",
-           standoff.x, standoff.y, standoff.z);
       SeatEntity(player, standoff, player->abs_angles());
       step->displaced = true;
       return;
@@ -2095,8 +2016,6 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
     SeatEntity(cube, s.origin, s.angles);
     step->seatOrigin = s.origin;
     step->placed = true;
-    HDBG("[rel] hop1: seated cube now at (%.0f %.0f %.0f)\n", s.origin.x,
-         s.origin.y, s.origin.z);
   });
   if (!ran1) return cancelled();
 
@@ -2138,8 +2057,6 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
       SeatEntity(cube, s.origin, s.angles);
       step->seatOrigin = s.origin;
       step->placed = true;
-      HDBG("[rel] hop2: seated cube at (%.0f %.0f %.0f) after button rise\n",
-           s.origin.x, s.origin.y, s.origin.z);
     });
     if (!ran2) return cancelled();
   }
@@ -2188,8 +2105,6 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
   LookBackAt(context_, heldKey);
 
   bool seated = act1 && fin->act && fin->onSeat;
-  HDBG("[rel] dwell: act1=%d act2=%d drift=%.1f onSeat=%d -> %s\n", (int)act1,
-       (int)fin->act, fin->drift, fin->onSeat, seated ? "SEATED" : "NOT_SEATED");
   r.set_ok(seated);
   r.set_result_code(seated ? "SEATED" : "NOT_SEATED");
   r.set_detail(

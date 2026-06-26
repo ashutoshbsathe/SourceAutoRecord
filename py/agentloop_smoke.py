@@ -488,9 +488,11 @@ def check_interpose(ctx):
 def check_redirect(ctx):
     """redirect_to aims a beam-seated cube at a target to power it: interpose a
     cube onto a beam, then redirect_to a laser target. Asserts a redirect code --
-    POWERED when the cube redirects to the target, or NOT_POWERED/NOT_SEATED when
-    geometry or interpose-ordering prevents it. A NOT_IMPLEMENTED/BAD_MARK would
-    be a wiring regression. Needs a cube, a laser emitter, and a laser target."""
+    POWERED when the cube redirects to the target, NOT_POWERED/NOT_SEATED when
+    geometry or interpose-ordering prevents it, or OUT_OF_REACH if the player
+    isn't next to the cube (it interpose just placed it, so it normally is). A
+    NOT_IMPLEMENTED/BAD_MARK would be a wiring regression. Needs a cube, a laser
+    emitter, and a laser target."""
     reset_to_spawn(ctx)
     ctx.harness.start_agent_loop()
     try:
@@ -545,7 +547,7 @@ def check_redirect(ctx):
         gamestate_dict(env.state, f'macro.redirect_to[{target.mark}]')
     )
     require(
-        mr.result_code in ('POWERED', 'NOT_POWERED', 'NOT_SEATED'),
+        mr.result_code in ('POWERED', 'NOT_POWERED', 'NOT_SEATED', 'OUT_OF_REACH'),
         f'redirect_to gave {mr.result_code!r}, not a redirect outcome -- '
         f'dispatch/arg regression?',
     )

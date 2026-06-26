@@ -85,7 +85,8 @@ GoToPlanner::GoToPlanner(const Vector& playerMins, const Vector& playerMaxs,
         0.5f * Vector{maxs.x - mins.x, maxs.y - mins.y, 0}.Length2D();
     if (tR >= 0) {  // overlaps the target footprint -> skip (e.g. its button)
       float dxt = center.x - tC.x, dyt = center.y - tC.y;
-      if (dxt * dxt + dyt * dyt < (tR + footprintR) * (tR + footprintR)) continue;
+      if (dxt * dxt + dyt * dyt < (tR + footprintR) * (tR + footprintR))
+        continue;
     }
     obstacles_.push_back({center.x, center.y, footprintR + halfWidth_});
   }
