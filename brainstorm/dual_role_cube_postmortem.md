@@ -248,3 +248,55 @@ grab that doesn't move the cube far, and a button-seated, laser-pinned cube is e
 
 *Down-weighted / not actioned:* the `moved=8` strict-`>` "boundary" tweak — superseded by the engine-flag
 read (don't tune the threshold). Corridor-entry asymmetry between the two runs — noted, not the cause.
+
+---
+
+## 7. Follow-up (2026-06-27) — `robust_dual_role_cube.trajectory`: held-flag fix CONFIRMED; release flakiness + interpose recur
+
+After the held-flag fix shipped (Phases 1-4, commits `3ce28193`/`3359240b`/`a990cd5f`/`bba2be85`), a fresh
+post-fix run (`robust_dual_role_cube.trajectory`, 30 steps, BUDGET) both **validated the fix** and **exposed a
+second harness bug** the fix had been masking.
+
+### Fix confirmed working
+- **Step 9 `pick_up 14` off the button → SUCCESS** (`dz=2 moved=10`). This is the exact button-seated grab
+  that GRAB_FAILED ×3 and doom-looped in the WEIRD run (§2a/§2b). No false-negative, no orphan drag.
+- `held_mark` reported engine truth throughout — which is *how* the model caught the desync below (step 17
+  thinking: *"the game says I am holding the cube, but interpose returned NOT_HOLDING"*). The old guess would
+  have hidden it.
+
+The run still failed, for three independent reasons: the model repeated the **dual-role miss** (used both cubes
+as redirectors, left button 7 **unpressed** — `[7] pressed:False` at step 26 with both targets powered —
+realized only at step 29, out of budget), plus two harness bugs that **wasted steps 10-22** and starved the
+budget it needed to self-correct.
+
+### Bug A — `release` flakiness [CONFIRMED, critical]
+Steps 14/17/19 each report **`SUCCESS` "released (look-down)"** while cube 14 **rides with the player at z=47**
+(hold height) — s18 `(119,355,47)`, s20 `(414,454,47)`, still in hand — until it finally drops at **step 22**
+(s23: z=19, floor). `step020.png` shows the steep-down view with the cube held at the feet, after a "released"
+success. Three compounding defects:
+- **A1 (dishonest):** the plain-drop path calls `DropHeld(...)` then **unconditionally** reports SUCCESS
+  ([MacroExecutor.cpp:1951-1957](../src/Features/Harness/MacroExecutor.cpp)). `DropHeld` *returns a bool* —
+  it confirms via `m_hAttachedObject` and returns false if still held after `kDropTries`
+  ([:580-591](../src/Features/Harness/MacroExecutor.cpp)). That return is discarded.
+- **A2 (unreliable):** the plain path drops with a steep `kReleasePitch=75°` look-down ([:1924](../src/Features/Harness/MacroExecutor.cpp)).
+  The `FreeGrab` comment ([:593-597](../src/Features/Harness/MacroExecutor.cpp)) literally documents that such a
+  steep-down view "drives the held cube into the floor and +use then refuses to release it" — which is why the
+  **seat** path sweeps clear-air views. The plain path never got that, so it wedges near walls/emitters and
+  succeeds only in open space (step 22). Hence *flaky*, not always-broken.
+- **A3 (desync):** `Release` clears `g_heldEntityKey = 0` up front ([:1901](../src/Features/Harness/MacroExecutor.cpp)),
+  before the drop is confirmed. When A1/A2 fail, `interpose` reads `HeldCube()` = `g_heldEntityKey`
+  ([:1193-1195](../src/Features/Harness/MacroExecutor.cpp)) → NOT_HOLDING, while `held_mark` reads
+  `m_hAttachedObject` → 14. The Phase-1 fix surfaced this pre-existing desync rather than causing it.
+
+**Fix (Bug A):** the plain release should (1) fall back to `FreeGrab`'s clear-air sweep when the aimed drop
+fails, (2) return the real outcome (a failure code, not fake SUCCESS), and (3) restore `g_heldEntityKey` on
+failure so the held-state stays truthful.
+
+### Bug B — `interpose NOT_REACHABLE` recurred [known, see §2c/§6③]
+Steps 10/12/13 on emitter 9 returned NOT_REACHABLE — including step 12 with the player standing **on the beam
+line** at `(16,320)`, right at the emitter (`step012.png`) — yet the *same* `interpose 9` **succeeded** at step
+25 from `(375,446)`, seating the cube at `(210,320,18)`. Position-dependent false-unreachability, consistent
+with the flat-planner refZ / navmesh-pocket family. Not offline-resolvable — gated on the in-engine
+`sar_harness_laser_reachability_test` recon, bundled with the §6③ interpose down-trace fix. The step-10
+NOT_REACHABLE is what triggered the model into the release storm, so A and B compounded. (Memory:
+`interpose-false-not-reachable`.)
