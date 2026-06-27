@@ -31,6 +31,14 @@ def main():
     )
     parser.add_argument('--timeout', type=float, default=180.0, help='boot wait (s)')
     parser.add_argument('--max-steps', type=int, default=30, help='step budget')
+    parser.add_argument(
+        '--corridor-ticks',
+        type=int,
+        default=0,
+        help='walk forward out of the spawn airlock for up to N ticks before the '
+        'agent takes over, so it skips the entrance-corridor fumbling (~200 is a '
+        'good start; 0 = off)',
+    )
     args = parser.parse_args()
 
     cfg = {'map': args.map}
@@ -43,7 +51,9 @@ def main():
     try:
         session = TestChamberSession(harness, args.map)
         agent = GeminiAgent()
-        terminal = run_eval(session, agent, cfg, args.out, args.max_steps)
+        terminal = run_eval(
+            session, agent, cfg, args.out, args.max_steps, args.corridor_ticks
+        )
         print(f'{terminal}  -> {args.out}')
         session.close()
         return 0 if terminal == 'SOLVED' else 1

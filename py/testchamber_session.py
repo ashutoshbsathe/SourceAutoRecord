@@ -89,6 +89,30 @@ class TestChamberSession:
         self.held_mark = None
         return self.prime(capture_frame)
 
+    def clear_entrance_corridor(self, ticks, capture_frame=False):
+        """Walk forward out of the spawn airlock before the agent takes over.
+
+        The entrance airlock door + worldportal open on player approach, but a
+        plain forward walk EDGE-stalls at the still-shut door (Move breaks on its
+        floor-edge guard), so alternate move/wait until the player teleports into
+        the chamber (a >1000u single jump) or the tick budget is spent. The spawn
+        always faces into the chamber, so forward is the right direction. Returns
+        the post-corridor Observation; not recorded as an agent step.
+        """
+        obs = self.last
+        spent = 0
+        while spent < ticks:
+            chunk = min(40, ticks - spent)
+            bx, by, _ = obs.player
+            self.step(harness_pb2.MacroRequest(verb='move', dir='forward', ticks=chunk))
+            obs = self.step(
+                harness_pb2.MacroRequest(verb='wait', ticks=20), capture_frame
+            )
+            spent += chunk + 20
+            if ((obs.player[0] - bx) ** 2 + (obs.player[1] - by) ** 2) ** 0.5 > 1000:
+                break  # teleported through the airlock into the chamber
+        return obs
+
     def step(self, macro, capture_frame=False):
         """Send one macro; merge the percept and return the Observation."""
         result, state = self.harness.step_macro(macro, copy_pixels=capture_frame)

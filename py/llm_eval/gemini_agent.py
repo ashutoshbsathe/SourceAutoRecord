@@ -308,17 +308,21 @@ def _write(writer, index, obs, calls, terminal):
     writer.write_step(make_step(index, obs, calls, terminal))
 
 
-def run_eval(session, agent, cfg, out_path, max_steps=30):
+def run_eval(session, agent, cfg, out_path, max_steps=30, corridor_ticks=0):
     """Drive the chamber with `agent`, recording each step. Returns the terminal.
 
     cfg holds the map name. The terminal (also on the last step) is
     SOLVED | DONE | BUDGET | GAVE_UP -- SOLVED comes from the engine's
-    chamber-complete signal, not the agent.
+    chamber-complete signal, not the agent. corridor_ticks > 0 walks the player
+    out of the spawn airlock before step 0, so the agent doesn't burn turns on
+    the entrance corridor.
     """
     if session.harness.shm is None:
         raise RuntimeError('frame capture needs a video-mode instance (no SHM mapped)')
     session.harness.execute_command('sar_harness_annotate 1')
     obs = session.reset(cfg['map'], capture_frame=True)
+    if corridor_ticks > 0:
+        obs = session.clear_entrance_corridor(corridor_ticks, capture_frame=True)
 
     header = trajectory_pb2.TrajectoryHeader(
         map=cfg['map'],
