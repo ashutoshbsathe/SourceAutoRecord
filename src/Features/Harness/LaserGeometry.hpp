@@ -16,10 +16,13 @@ class SkipTwoEntities : public CTraceFilter {
 };
 
 // Forward beam ray: emitter -> first opaque world/prop hit (MASK_OPAQUE).
-// E/fwd/hit/length filled; false if nothing is hit within range. The
-// authoritative interception is a re-trace after a cube seats, never this ray.
+// E/fwd/hit/length filled; false if nothing is hit within range. skipA/skipB are
+// extra entities the ray ignores -- the player + held cube, so a player standing
+// in the beam doesn't shorten it and pull an interpose seat back to the emitter.
+// The authoritative interception is a re-trace after a cube seats, never this ray.
 bool ComputeBeamSegment(void* emitter, Vector* E, Vector* fwd, Vector* hit,
-                        float* length);
+                        float* length, void* skipA = nullptr,
+                        void* skipB = nullptr);
 
 // Fraction [0,1] of from->to unobstructed by world geometry (MASK_OPAQUE),
 // skipping skipA + skipB. 1.0 = clear.

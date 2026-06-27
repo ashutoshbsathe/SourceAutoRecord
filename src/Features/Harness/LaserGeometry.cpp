@@ -11,15 +11,29 @@ namespace {
 constexpr float kBeamMax = 16384.0f;      // forward-ray max reach
 constexpr float kRestProbeUp = 64.0f;     // down-trace start above P
 constexpr float kRestProbeDist = 256.0f;  // ... and how far down to look
+
+// Skip the emitter (the ray starts inside its hull) plus up to two more
+// entities -- the player and held cube under interpose.
+class SkipBeamHits : public CTraceFilterSimple {
+ public:
+  const void* a = nullptr;
+  const void* b = nullptr;
+  const void* c = nullptr;
+  bool ShouldHitEntity(void* e, int) override {
+    return e != a && e != b && e != c;
+  }
+};
 }  // namespace
 
 bool ComputeBeamSegment(void* emitter, Vector* E, Vector* fwd, Vector* hit,
-                        float* length) {
+                        float* length, void* skipA, void* skipB) {
   *E = SE(emitter)->abs_origin();
   QAngle ea = SE(emitter)->abs_angles();
   Math::AngleVectors(ea, fwd);
-  CTraceFilterSimple filter;
-  filter.SetPassEntity(emitter);
+  SkipBeamHits filter;
+  filter.a = emitter;
+  filter.b = skipA;
+  filter.c = skipB;
   CGameTrace tr;
   if (!engine->Trace(*E, ea, kBeamMax, MASK_OPAQUE, filter, tr)) {
     *hit = *E + *fwd * kBeamMax;

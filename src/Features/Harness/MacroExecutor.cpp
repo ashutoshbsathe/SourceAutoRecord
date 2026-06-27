@@ -1015,9 +1015,14 @@ std::string InterposeGate(void* emitter, void* cube, float percent,
   if (!cls || std::strcmp(cls, "env_portal_laser")) return "NOT_EMITTER";
   if (!SE(emitter)->field<bool>("m_bLaserOn")) return "NO_BEAM";
 
+  ServerEnt* pl = server->GetPlayer(1);
+  if (!pl) return "NO_PLAYER";
+
+  // Skip the player + held cube so a player standing in the beam doesn't shorten
+  // it and pull the seat back onto the emitter housing.
   Vector E, F, hit;
   float len;
-  if (!ComputeBeamSegment(emitter, &E, &F, &hit, &len) || len <= 0.0f)
+  if (!ComputeBeamSegment(emitter, &E, &F, &hit, &len, pl, cube) || len <= 0.0f)
     return "NO_BEAM";
   *beamLen = len;
   Vector P = E + F * (percent * len);
@@ -1027,14 +1032,10 @@ std::string InterposeGate(void* emitter, void* cube, float percent,
   // down-trace lands on the goo-bottom brush). Needs a point-contents read,
   // deferred until that API is reconned.
 
-  ServerEnt* pl = server->GetPlayer(1);
-  if (!pl) return "NO_PLAYER";
-  Vector feet = pl->abs_origin();
-  ICollideable& pcoll = pl->collision();
-  GoToPlanner planner(pcoll.OBBMins(), pcoll.OBBMaxs(), feet.z, 0,
-                      g_heldEntityKey.load());
-  if (planner.Plan(feet, *seat).empty()) return "NOT_REACHABLE";
-
+  // Reachability is the carry's job: interpose marches to the seat with the same
+  // uncapped VFH as go_to (MarchTo + RouteAround) and reports BLOCKED if it can't
+  // get there. A one-shot capped A* gate here only false-rejected seats go_to
+  // reaches -- far seats (cell cap) and raised-platform starts (flat refZ).
   return "SEAT_OK";
 }
 
