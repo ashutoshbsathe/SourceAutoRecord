@@ -363,7 +363,9 @@ def check_place_on_button(ctx):
     place-on-button code -- SEATED when the cube seats, or NOT_FAIR/NOT_SEATED
     when positioning/timing kept it from latching. A plain SUCCESS would mean the
     button was not recognised and release fell back to a bare drop (the wiring
-    regression this guards). Needs a chamber with a reachable cube and button."""
+    regression this guards). Also checks GameState.held_mark round-trips: it reads
+    the cube's mark after pick_up and 0 after release. Needs a chamber with a
+    reachable cube and button."""
     reset_to_spawn(ctx)
     ctx.harness.start_agent_loop()
     try:
@@ -400,6 +402,10 @@ def check_place_on_button(ctx):
             f'{grab.macro_result.result_code} ({grab.macro_result.detail}) -- '
             f'cannot test seating',
         )
+        require(
+            grab.state.held_mark == cube.mark,
+            f'held_mark={grab.state.held_mark} after pick_up, expected {cube.mark}',
+        )
         run('go_to', button.mark, 90.0)
         env = run('release', button.mark, 60.0)
     finally:
@@ -413,9 +419,13 @@ def check_place_on_button(ctx):
         f'release on button mark={button.mark} gave {mr.result_code!r}, not a '
         f'place-on-button code -- button not recognised (wiring regression?)',
     )
+    require(
+        env.state.held_mark == 0,
+        f'held_mark={env.state.held_mark} after release, expected 0 (empty hands)',
+    )
     return (
         f'release cube {cube.mark} on button {button.mark} -> '
-        f'{mr.result_code} ({mr.detail})'
+        f'{mr.result_code} ({mr.detail}); held_mark {cube.mark}->0'
     )
 
 
