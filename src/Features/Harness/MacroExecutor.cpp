@@ -78,8 +78,6 @@ constexpr int kWedgeCooldown = 16;  // batches a wedged heading stays blocked
 constexpr int kSettle = 20;       // ticks to let a grab/drop/use resolve
 constexpr int kUseHoldTicks = 3;  // hold +use past the press/tick-advance race
 constexpr float kGrabRange = 96.0f;   // reach gate: ~80u radius + half a cube
-constexpr float kHeldDist = 80.0f;    // a held object rides within this of eye
-constexpr float kMinGrabMove = 8.0f;  // a real grab snaps it more than this
 constexpr float kReleasePitch = 75.0f;  // mark-less release: look-down pitch
 constexpr int kReleaseDropSettle = 4;   // ticks to free the grab before a seat
 constexpr int kDropTries =
@@ -1829,9 +1827,10 @@ portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
   if (!aim.ok()) return aim;  // BAD_MARK / NO_PLAYER / CANCELLED bubble up
   PulseUse(kSettle, QAngle{aim.aim_pitch(), aim.aim_yaw(), 0});
 
-  // No networked held flag, so infer the grab: the object ends within kHeldDist
-  // of the eye AND moved more than kMinGrabMove. The move check rejects a +use
-  // that hit nothing (reads moved=0) instead of reporting a false success.
+  // Confirm the grab against the engine's held handle (m_hAttachedObject): the
+  // player must hold THIS mark's entity. dz/moved/dist stay for telemetry only --
+  // the old "moved more than kMinGrabMove" heuristic false-negatived a grab of a
+  // cube that barely moves (one already near hold height, e.g. seated on a button).
   struct Post {
     bool resolved = false;
     bool held = false;
@@ -1854,7 +1853,11 @@ portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
     post->dz = center.z - preCenter.z;
     post->moved = (center - preCenter).Length();
     post->dist = (center - eye).Length();
-    post->held = post->dist < kHeldDist && post->moved > kMinGrabMove;
+    ServerEnt* pl = server->GetPlayer(1);
+    CBaseHandle h = pl ? pl->field<CBaseHandle>("m_hAttachedObject") : CBaseHandle();
+    auto [hidx, hser] = markTable.GetEntityFromMark(mark);
+    post->held =
+        h && h.GetEntryIndex() == hidx && (uint16_t)h.GetSerialNumber() == hser;
     post->resolved = true;
   });
   if (!ran2) {
