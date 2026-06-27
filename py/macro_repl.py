@@ -101,8 +101,7 @@ def report(macro, obs):
                 extra = f' mark{macro.mark}={fmt_pos(m["pos"])}'
                 break
     print(f'  {mr.result_code:<13} {mr.detail}   player={fmt_pos(obs.player)}{extra}')
-    # held: engine truth (m_hAttachedObject->mark) vs the Python verb-mirror guess.
-    print(f'  held engine={obs.state.held_mark}  py_guess={obs.held_mark}')
+    print(f'  held={obs.held_mark}')
     if obs.state.chamber_complete:
         print(f'  *** chamber_complete  exit_signal_mask={obs.state.exit_signal_mask}')
 
