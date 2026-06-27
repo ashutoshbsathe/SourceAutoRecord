@@ -1943,13 +1943,19 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
   }
 
   if (!seatPath) {
-    // +use pulse drops the carried object, holding `view` so it lands where we
-    // aimed, retrying the edge until the hand is empty. Caveat: +use is a
-    // context toggle, so a release issued while NOT holding (but stood on a
-    // grabbable) grabs-then-drops; the caller's held-tracking keeps intent
-    // aligned.
-    DropHeld(context_, view, kSettle);
+    // Drop and CONFIRM the hand emptied: the aimed view first (lands where we
+    // looked), then FreeGrab's clear-air sweep -- a steep look-down wedges the
+    // cube and +use won't release it. STILL_HELD if neither frees it.
+    bool dropped =
+        DropHeld(context_, view, kSettle) || FreeGrab(context_, kSettle);
     portal2_harness::MacroResult r;
+    if (!dropped) {
+      g_heldEntityKey = heldKey;  // never freed -- keep held-state truthful
+      r.set_ok(false);
+      r.set_result_code("STILL_HELD");
+      r.set_detail("release: +use could not free the held cube");
+      return r;
+    }
     r.set_ok(true);
     r.set_result_code("SUCCESS");
     r.set_detail(mark > 0 ? Utils::ssprintf("released toward mark %d", mark)
