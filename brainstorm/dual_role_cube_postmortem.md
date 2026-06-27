@@ -320,3 +320,12 @@ Verified: a markless release at the emitter now drops the cube (`held=None`), no
    redundant *and* stricter. Dropped it; reachability is now the carry's call. interpose no longer returns
    NOT_REACHABLE (truly-unreachable → `BLOCKED`). Supersedes the §6③ "interpose down-trace fix" and the "needs
    the in-engine reachability recon" framing — the macro_repl player-in/out-of-beam pattern was conclusive.
+
+### Outcome — the chamber now solves CLEAN (2026-06-27)
+A fresh post-fix eval (`noteworthy_trajectories/robust_dual_role_cube.trajectory`) is a **16-step SOLVED, 0
+rejected, ZERO failure codes** run (down from 30→50 steps, 3.2M→0.34M input tokens). The model now nails the
+dual role: `release 14 → SEATED` (s4), then **`redirect_to 14` while the cube sits on the button** → POWERED
+target 12 (s13) — exactly the move it never reached for in the weird/old-robust runs. No GRAB_FAILED, no
+NOT_REACHABLE, no STILL_HELD, no STUCK. **Caveat:** one clean solve is not a measured solve rate (the prior two
+runs failed the dual-role strategy, so it's ~1/3 across runs) — the §6.4 `on_beam`/grammar question is now
+"measure first, probably unnecessary" rather than "ship it." The harness is no longer the bottleneck here.

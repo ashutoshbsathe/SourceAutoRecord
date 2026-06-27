@@ -51,6 +51,31 @@ down-trace fix (pass the emitter to `DownTraceRest` so a near-emitter seat stops
 z≈83). ④ design call: add `on_beam` to cube percept / soften the "interpose first" grammar prior (validate on
 a 2nd dual-role map — overfit risk). ⑤ structural: navmesh dead-pocket escape (defer behind ③).
 
+**SHIPPED + the chamber now SOLVES CLEAN (2026-06-27).** All harness P0s fixed and verified in macro_repl,
+then end-to-end: `robust_dual_role_cube.trajectory` is now a **16-step SOLVED, 0 rejected, ZERO failure codes**
+run (down from 30→50 steps and 3.2M→0.34M tokens) — and at step 13 the model fires **`redirect_to 14` on the
+cube while it sits on the button** (the dual-role move it kept missing). Commits on `yeeh`:
+- ① held-flag fix — `3ce28193` (expose `GameState.held_mark`), `3359240b` (grab-confirm via `m_hAttachedObject`),
+  `a990cd5f` (delete the Python `_update_held` guess), `bba2be85` (`agentloop_smoke` round-trip).
+- Bug A release flakiness — `0e3fc7ae` (clear-air `FreeGrab` fallback + honest `STILL_HELD` + restore `g_heldEntityKey`).
+- ③ interpose reachability — `162fa231`, but as TWO different root causes than ③ predicted: **(a) beam self-block**
+  (the player standing in their own beam shortened the trace → seat snapped onto the housing; skip player+cube in
+  the beam trace) and **(b) a capped-A\* reachability gate stricter than the uncapped VFH carry** (`go_to` reaches
+  what the gate rejected — dropped the pre-gate, the carry is now the authority). interpose no longer returns
+  NOT_REACHABLE (truly-unreachable → `BLOCKED`).
+- ② recon-confirm drag mechanism: **moot** (the held-flag fix removed the drag entirely). ⑤ dead-pocket: **mostly
+  moot** (it was caused by interpose's bad standoff, now fixed). Resolution writeup: postmortem §7.
+
+**④ on_beam / grammar tweak — now likely UNNECESSARY, do NOT rush it.** The model solved dual-role *without* any
+percept/grammar change this run, so the strategy miss was stochastic + harness-derailment, not a hard legibility
+wall. One clean solve ≠ a measured solve rate, though.
+
+**NEXT — harness is no longer the bottleneck on this chamber. Measure, then push the M3 frontiers:**
+1. **Measure the dual-role solve rate** (run N×; this run is 1 clean solve, prior two failed the dual-role
+   strategy → ~1/3 so far). Decides whether ④ is actually needed or the model is just stochastic.
+2. **The bigger M3 frontiers (from 06-24, now unblocked):** portals (highest ceiling, the missing mechanic) ·
+   the measured benchmark suite (157 in-scope PeTI chambers censused) · the I/O causal graph.
+
 ---
 
 ## Top of mind (2026-06-26) — LASER VERBS SHIPPED; a chamber SOLVED verb-only
