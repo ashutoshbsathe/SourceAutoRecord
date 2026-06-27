@@ -140,6 +140,7 @@ message GameState {
   EntitySnapshot entity_snapshot = 7;
   bool chamber_complete = 8;
   int32 exit_signal_mask = 9;  // which exit signal(s) fired
+  int32 held_mark = 10;  // mark of the cube the player holds (0 = empty hands)
 }
 
 // --- Action Messages ---

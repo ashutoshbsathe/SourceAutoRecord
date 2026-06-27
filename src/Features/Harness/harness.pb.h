@@ -4684,6 +4684,7 @@ class GameState final : public ::google::protobuf::Message
     kIsCrouchingFieldNumber = 5,
     kChamberCompleteFieldNumber = 8,
     kExitSignalMaskFieldNumber = 9,
+    kHeldMarkFieldNumber = 10,
   };
   // .portal2_harness.Vector3 position = 1;
   bool has_position() const;
@@ -4795,11 +4796,21 @@ class GameState final : public ::google::protobuf::Message
   void _internal_set_exit_signal_mask(::int32_t value);
 
   public:
+  // int32 held_mark = 10;
+  void clear_held_mark() ;
+  ::int32_t held_mark() const;
+  void set_held_mark(::int32_t value);
+
+  private:
+  ::int32_t _internal_held_mark() const;
+  void _internal_set_held_mark(::int32_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:portal2_harness.GameState)
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<4, 9,
+  static const ::google::protobuf::internal::TcParseTable<4, 10,
                                    4, 0,
                                    2>
       _table_;
@@ -4830,6 +4841,7 @@ class GameState final : public ::google::protobuf::Message
     bool is_crouching_;
     bool chamber_complete_;
     ::int32_t exit_signal_mask_;
+    ::int32_t held_mark_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -8258,6 +8270,30 @@ inline ::int32_t GameState::_internal_exit_signal_mask() const {
 inline void GameState::_internal_set_exit_signal_mask(::int32_t value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.exit_signal_mask_ = value;
+}
+
+// int32 held_mark = 10;
+inline void GameState::clear_held_mark() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.held_mark_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000200u;
+}
+inline ::int32_t GameState::held_mark() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.GameState.held_mark)
+  return _internal_held_mark();
+}
+inline void GameState::set_held_mark(::int32_t value) {
+  _internal_set_held_mark(value);
+  _impl_._has_bits_[0] |= 0x00000200u;
+  // @@protoc_insertion_point(field_set:portal2_harness.GameState.held_mark)
+}
+inline ::int32_t GameState::_internal_held_mark() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.held_mark_;
+}
+inline void GameState::_internal_set_held_mark(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.held_mark_ = value;
 }
 
 // -------------------------------------------------------------------

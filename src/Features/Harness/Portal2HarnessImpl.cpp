@@ -314,6 +314,14 @@ bool Portal2HarnessImpl::InternalObserve(portal2_harness::GameState* response) {
   response->set_is_crouching(crouching);
   response->set_server_tick(serverTick);
 
+  // Authoritative held-cube flag: the player's m_hAttachedObject handle resolved
+  // to its mark (0 = empty hands or unmarked). Source's grab model puts the
+  // handle on the player, not a bool on the prop.
+  CBaseHandle held = pl->field<CBaseHandle>("m_hAttachedObject");
+  if (held)
+    response->set_held_mark(
+        markTable.GetMark(held.GetEntryIndex(), (uint16_t)held.GetSerialNumber()));
+
   if (harness && harness->entitySnapshotter) {
     if (observeLastVersion.size() != (size_t)Offsets::NUM_ENT_ENTRIES) {
       observeLastVersion.assign(Offsets::NUM_ENT_ENTRIES, 0);
