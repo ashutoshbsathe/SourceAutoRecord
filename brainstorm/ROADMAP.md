@@ -66,15 +66,13 @@ cube while it sits on the button** (the dual-role move it kept missing). Commits
 - ② recon-confirm drag mechanism: **moot** (the held-flag fix removed the drag entirely). ⑤ dead-pocket: **mostly
   moot** (it was caused by interpose's bad standoff, now fixed). Resolution writeup: postmortem §7.
 
-**④ on_beam / grammar tweak — now likely UNNECESSARY, do NOT rush it.** The model solved dual-role *without* any
-percept/grammar change this run, so the strategy miss was stochastic + harness-derailment, not a hard legibility
-wall. One clean solve ≠ a measured solve rate, though.
+**④ on_beam / grammar tweak — CONFIRMED UNNECESSARY (3/3 solves post-fix).** The model solves dual-role
+*reliably* without any percept/grammar change, so the earlier weird/old-robust strategy misses were
+harness-derailment + stochasticity, not a legibility wall. Not actioning ④ — it would overfit to one chamber.
 
-**NEXT — harness is no longer the bottleneck on this chamber. Measure, then push the M3 frontiers:**
-1. **Measure the dual-role solve rate** (run N×; this run is 1 clean solve, prior two failed the dual-role
-   strategy → ~1/3 so far). Decides whether ④ is actually needed or the model is just stochastic.
-2. **The bigger M3 frontiers (from 06-24, now unblocked):** portals (highest ceiling, the missing mechanic) ·
-   the measured benchmark suite (157 in-scope PeTI chambers censused) · the I/O causal graph.
+**NEXT — dual-role chamber is DONE: harness P0s shipped, solve rate measured 3/3 verb-only. Onto the M3
+frontiers (from 06-24, now unblocked):** **portals** (highest ceiling, the one missing core mechanic — STARTING
+HERE) · the measured benchmark suite (157 in-scope PeTI chambers censused) · the I/O causal graph.
 
 ---
 
