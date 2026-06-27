@@ -18,6 +18,41 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 
 ---
 
+## Top of mind (2026-06-27) — DUAL-ROLE CUBE EVAL RAN: model is strong, a harness HELD-FLAG P0 surfaced
+
+The M3 **dual-role cube eval** ran on `workshop/17093866141393312246/1782237070` and gave us a clean
+controlled pair on the SAME chamber + grammar + model (gemini-3.5-flash): a **19-step SOLVE**
+(`dual_role_cube.trajectory`) and a **50-step BUDGET non-solve** (`weird_teleport_dual_role_cube.trajectory`).
+The good run is proof the model is strong — it derived the dual-role trick from coordinates (*"same
+x-coordinate! Bingo"*) and ran `release→SEATED`, `redirect_to`→POWERED, `interpose`→POWERED, SOLVED, 0
+rejects. A 22-agent blameless adversarial post-mortem (4 lenses + per-finding skeptic refutation; overturned
+3 first-pass overclaims) → **[dual_role_cube_postmortem.md](dual_role_cube_postmortem.md)**.
+
+**Root cause of the non-solve = ONE model strategy miss, amplified by a harness bug into a doom loop.** The
+model never used `redirect_to` on the seated cube (0× in 50 steps) and reached for `pick_up 14` off the
+button instead. That tripped the **P0**: `pick_up` confirms a grab **positionally** (`moved>8u`,
+[MacroExecutor.cpp:1857](../src/Features/Harness/MacroExecutor.cpp)), and a button-seated laser-pinned cube
+barely moves when grabbed → **GRAB_FAILED ×3 even though the engine attached it** ("pick_up failing when the
+cube was on the button"). The harness then thinks hands are empty (`g_heldEntityKey=0`) while the cube is
+engine-held → the next `go_to` **drags it ~440u off the button** ("teleport fuckery"), killing the press.
+
+**The fix (P0, highest ROI, ~½ day) — read the engine held flag, DUMP the Python guess.** The authoritative
+`m_hAttachedObject` is already read in `DropHeld` ([:586](../src/Features/Harness/MacroExecutor.cpp)); there is
+**no prop-side cube held-bool** (the player owns the handle). Plumb it once: `m_hAttachedObject` →
+`markTable.GetMark` → `int32 held_mark` on `GameState` → Python reads `state.held_mark` and **`_update_held`
+([testchamber_session.py:131](../py/testchamber_session.py)) gets deleted**. The SAME read replaces the
+`moved>8` grab-confirm. One field kills (a) the false-negative, (b) the orphan-attachment drag, and (c) the
+Python-side held guess simultaneously.
+
+**NEXT (post-mortem §6, cheap→structural):** ① ship the held-flag fix (SAR proto+C++ first, then Python;
+add a `held_mark` round-trip to `agentloop_smoke`). ② recon-confirm the drag mechanism (per-tick
+`m_hAttachedObject` dump — the one honest uncertainty: engine-carried vs physics-punted). ③ interpose
+down-trace fix (pass the emitter to `DownTraceRest` so a near-emitter seat stops snapping onto the housing at
+z≈83). ④ design call: add `on_beam` to cube percept / soften the "interpose first" grammar prior (validate on
+a 2nd dual-role map — overfit risk). ⑤ structural: navmesh dead-pocket escape (defer behind ③).
+
+---
+
 ## Top of mind (2026-06-26) — LASER VERBS SHIPPED; a chamber SOLVED verb-only
 
 The laser verb family is **shipped end-to-end and a full PeTI laser chamber was SOLVED verb-only**
