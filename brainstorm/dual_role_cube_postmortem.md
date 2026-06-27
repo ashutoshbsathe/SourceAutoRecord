@@ -300,3 +300,23 @@ with the flat-planner refZ / navmesh-pocket family. Not offline-resolvable — g
 `sar_harness_laser_reachability_test` recon, bundled with the §6③ interpose down-trace fix. The step-10
 NOT_REACHABLE is what triggered the model into the release storm, so A and B compounded. (Memory:
 `interpose-false-not-reachable`.)
+
+### Resolution — Bug A + Bug B fixed (2026-06-27, commits `0e3fc7ae`, `162fa231`)
+**Bug A (release):** the plain-drop path now falls back to `FreeGrab`'s clear-air sweep when the aimed drop
+fails, returns the real outcome (`STILL_HELD`, not fake SUCCESS), and restores `g_heldEntityKey` on failure.
+Verified: a markless release at the emitter now drops the cube (`held=None`), no more SUCCESS-while-held.
+
+**Bug B (interpose) — two root causes, both fixed:**
+1. **Beam self-block (also the real cause of the §2c "housing-snap").** `ComputeBeamSegment` skipped only the
+   emitter, so the player's own hull (and held cube) standing in/near the beam stopped the trace early → short
+   beam → the `percent` seat collapsed onto the emitter housing (z≈83). The §2c "down-trace passes only the
+   cube" diagnosis was the *mechanism*; the *root* is that the seat was near the emitter at all, because the
+   player shortened the beam. Fix: the interpose gate skips the player + held cube when measuring the beam. The
+   pattern was airtight — player on the beam line → fail; off it → works.
+2. **Capped-A\* reachability gate (this is §2d/§6③).** The gate's reachability was a one-shot
+   `GoToPlanner::Plan` (400-cell cap, flat `refZ=feet.z`) that disagreed with the **uncapped VFH carry**
+   (`MarchTo`) that `go_to` actually uses — false-rejecting far seats (cap) and raised-platform starts (refZ).
+   interpose already carries via `MarchTo` + `RouteAround` and reports `BLOCKED` honestly, so the pre-gate was
+   redundant *and* stricter. Dropped it; reachability is now the carry's call. interpose no longer returns
+   NOT_REACHABLE (truly-unreachable → `BLOCKED`). Supersedes the §6③ "interpose down-trace fix" and the "needs
+   the in-engine reachability recon" framing — the macro_repl player-in/out-of-beam pattern was conclusive.
