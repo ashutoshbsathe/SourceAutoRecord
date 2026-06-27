@@ -11,6 +11,19 @@ the hand-passed `--exit x,y,z --radius` hack that caps the project at ~5 hand-me
 > harness** and that error inverts the conclusion; see §2.0. Everything below cites `file:line`
 > from the actual tree. Nothing here is built yet; the gate to building is the §6 recon session.
 
+> **Revision note (2026-06-27) — a 6th, semantically-distinct signal shipped.** `PuzzleExit::OnInput`
+> now also latches `chamber_complete` on **`@exit_airlock_door.Open`** (`SIG_EXIT_AIRLOCK = 1<<5`). Unlike
+> the X-series above, this is **not a level-transition signal** — it fires *earlier*, when the player walks
+> into the exit airlock corridor (the PeTI `relay_leaving_level` → `@exit_airlock_door.Open` edge, gated on
+> `@exit_door.OnFullyClosed` + an exit-corridor trigger). It was added for the **LLM-eval's "reached the
+> exit" semantics**: end the episode once the agent has solved AND navigated out of the chamber, *before*
+> the bidirectional `linked_portal_door` worldportal ride to the departure elevator (which had caused a
+> 31-step navigation tail — see [laser_and_button_postmortem.md](laser_and_button_postmortem.md)). It ORs
+> into the same latch as the transition signals, so an agent that rides all the way out still completes via
+> the egress keys; the airlock signal just fires first on the ~80% of in-scope PeTI maps that carry
+> `@exit_airlock_door`. Latch-once + the `harnessControlActive` guard handle the two same-named airlock-door
+> entities (chamber-side + elevator-side) and any spawn-fire outliers.
+
 ---
 
 ## 0. TL;DR (the punchline)

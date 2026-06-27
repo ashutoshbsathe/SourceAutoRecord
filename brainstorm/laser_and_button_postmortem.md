@@ -4,6 +4,28 @@
 > **Method:** the trajectory was dumped to text + 48 annotated frames, then analysed by a multi-lens adversarial workflow — 6 independent lenses (harness-right / model-right / model-wrong / harness-wrong / percept / efficiency), each finding re-checked by a skeptic agent against the dump, frames, and source. 49 findings, 48 confirmed, 1 refuted. A second workflow ran a 5-proposal corridor-fix design panel scored by 3 independent judges. Full findings in **Appendix A**, full proposals + judge scores in **Appendix B**.
 > **Date:** 2026-06-26.
 
+> **RESOLVED — SHIPPED 2026-06-27 (branch `yeeh`, commit pending).** The corridor P0 fix landed, but
+> as a *different and better* signal than §7.4 proposed, and the recon corrected two claims this doc makes.
+> **What shipped:** a one-branch addition to `PuzzleExit::OnInput` latching the EXISTING `chamber_complete`
+> on **`@exit_airlock_door.Open`** (`SIG_EXIT_AIRLOCK = 1<<5`, input `Open` only) — **no new proto field, no
+> Python change** (the rescope-via-`objective_complete`-proto-field idea in §7.4 was dropped as unnecessary;
+> the existing `if chamber_complete: SOLVED` picks it up). **Why this signal, not the §7.4 candidates:** a
+> first cut hooked `@exit_door.Open` and the user correctly rejected it — that fires at *puzzle-solve* while
+> the player is still at the button (0 navigation), and "navigation stays the puzzle." `@exit_airlock_door.Open`
+> is fired by `relay_leaving_level`, gated on `@exit_door.OnFullyClosed` *while the player stands in the exit-
+> corridor trigger* — so it requires solved **+ walked through the exit door + up the corridor**, but fires
+> BEFORE the elevator. An agent that solves but doesn't walk out gets no latch → must navigate. The §7.4
+> fallback (`m_bPowered`+`m_bButtonState` element predicate) was also rejected (chamber-specific, doesn't
+> generalize). **Two corrections to this doc's own analysis:** (1) the exit "teleport" is NOT a
+> `trigger_teleport` — it's a *seamless bidirectional `linked_portal_door` worldportal pair*
+> (`@exit_portal_chamber_side`↔`@exit_portal_elevator_side`); its bidirectionality is what bounced the agent.
+> (2) Because the new latch fires *before* the worldportal crossing, the entire §7.2/§7.4 "A\* can't path
+> across the seam → annotate-the-elevator / reachability-test" thread is **moot** — we never require the ride.
+> **Also shipped:** the ghost-`prop_portal` (0,0,0) origin-reject (§5 P1). **Deferred per user:** cube-dup
+> filter, `TELEPORTED` signal, image-history cap. Generality: 108/134 in-scope PeTI maps have
+> `@exit_airlock_door`, 96% open it via the player-gated `relay_leaving_level`; spawn-fire outliers + the 19%
+> without the door fall back to the unchanged egress OR-set (zero regression). See ROADMAP top-of-mind.
+
 ---
 
 ## 0. TL;DR

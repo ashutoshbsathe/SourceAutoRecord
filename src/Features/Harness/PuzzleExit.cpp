@@ -19,6 +19,9 @@ enum ExitSignal {
   SIG_READY = 1 << 2,          // RunScriptCode(ReadyForTransition)
   SIG_LEVELEND = 1 << 3,       // OnLevelEnd
   SIG_CHANGELEVEL = 1 << 4,    // ChangeLevel / ChangeLevelPostFade
+  SIG_EXIT_AIRLOCK = 1 << 5,   // @exit_airlock_door.Open -- solved AND walked out
+                               // into the exit corridor (relay_leaving_level),
+                               // before the worldportal ride to the elevator.
 };
 
 }  // namespace
@@ -45,6 +48,9 @@ void PuzzleExit::OnInput(const char* entName, const char* className,
   else if (!strcasecmp(inputName, "ChangeLevel") ||
            !strcasecmp(inputName, "ChangeLevelPostFade"))
     sig = SIG_CHANGELEVEL;
+  else if (!strcasecmp(inputName, "Open") &&
+           !strcmp(entName, "@exit_airlock_door"))
+    sig = SIG_EXIT_AIRLOCK;
   if (!sig) return;
 
   g_mask.fetch_or(sig);

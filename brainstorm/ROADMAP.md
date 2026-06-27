@@ -69,6 +69,25 @@ ride — kills the false-fail) **+ annotate the elevator** (one name-gated `func
 cap the O(steps²) image-history token cost; batch the percept-noise cluster (ghost (0,0,0) portals, cube
 double-marks, silent-teleport signal).
 
+**RESOLVED (2026-06-27) — corridor rescope SHIPPED, signal corrected mid-session.** First cut hooked
+`@exit_door.Open` — WRONG (fires at puzzle-solve, player still at the button, 0 navigation). User pushback:
+"navigation stays the puzzle" — exit-door-unlocked ≠ agent reached the exit. I/O recon of the Q4 dump +
+134-map corpus found the right signal: **`@exit_airlock_door.Open`** (`SIG_EXIT_AIRLOCK = 1<<5`). It's fired
+by `relay_leaving_level`, gated on `@exit_door.OnFullyClosed` WHILE the player stands in a corridor trigger —
+so it requires solved **+ walked through the exit door + up the corridor**, but fires BEFORE the bidirectional
+`linked_portal_door` worldportal ride to the far elevator (the "~4600u teleport" is a *seamless worldportal
+pair*, not a trigger_teleport; its bidirectionality caused the 31-step bounce). An agent that solves but
+doesn't walk out gets NO early latch → must navigate → traversal stays part of the test. Shipped **proto-free,
+Python-free**: `PuzzleExit::OnInput` latches the EXISTING `chamber_complete`, additive + backstopped by the
+unchanged egress OR-set (zero regression). Generality: 108/134 in-scope PeTI maps have the door, 96% open it
+via player-gated `relay_leaving_level`; 4 spawn-fire outliers backstopped. Also shipped: ghost-portal fix
+(origin-reject extended to `prop_portal` in `IsHarnessMarkedEntity`). Deferred per user: cube-dup filter,
+TELEPORTED signal, image-history cap. `sar.so` rebuilt + compiles. **NEXT (user verifies in macro_repl, THEN
+runs eval):** macro_repl on `workshop/17093866141393312246/1782237070` — solve + walk into the exit corridor →
+expect `chamber_complete exit_signal_mask=32` (bit 5 = SIG_EXIT_AIRLOCK), fired BEFORE reaching the elevator;
+then the M3 **dual-role cube eval**. Corpus census also ran: **157 in-scope PeTI chambers**, 58
+laser+cube+button candidates, benchmark-suite selection is the open M4 follow-up.
+
 ---
 
 ## Top of mind (2026-06-24) — lasers work mechanically; the VERB SURFACE needs a rethink

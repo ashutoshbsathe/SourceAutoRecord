@@ -78,14 +78,17 @@ bool IsHarnessMarkedClass(const char* className) {
   return className && kClassColors.find(className) != kClassColors.end();
 }
 
-// Per-entity mark gate: class membership plus transform sanity. A redirected
-// laser re-emits transient env_portal_laser segments at the world origin with
-// an identity transform; marking those churns the mark table and pollutes the
-// percept, so any env_portal_laser at (0,0,0) is rejected. A real emitter --
-// even an unnamed re-emitter mid-chain -- has a true origin.
+// Per-entity mark gate: class membership plus transform sanity. Two classes
+// ghost at the world origin -- a redirected laser re-emits transient
+// env_portal_laser segments there with an identity transform, and a prop_portal
+// leaves abs_origin zeroed (its real position lives off the render path).
+// Marking either churns the mark table and pollutes the percept, so a (0,0,0)
+// of either class is rejected. A real emitter -- even an unnamed re-emitter
+// mid-chain -- has a true origin.
 bool IsHarnessMarkedEntity(void* ent, const char* className) {
   if (!IsHarnessMarkedClass(className)) return false;
-  if (!std::strcmp(className, "env_portal_laser")) {
+  if (!std::strcmp(className, "env_portal_laser") ||
+      !std::strcmp(className, "prop_portal")) {
     Vector o = SE(ent)->abs_origin();
     if (o.x == 0.0f && o.y == 0.0f && o.z == 0.0f) return false;
   }
