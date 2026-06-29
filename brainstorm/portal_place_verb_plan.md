@@ -128,7 +128,8 @@ the panel source. **B0 front-loads the recon and gates B1+; ARC A never waits on
   ARC B reschedules.
 - **B1 — `SurfaceEnumerator`** (`.{hpp,cpp}`): the chosen B0 route → portalable white-tile faces → cluster
   (reuse `cluster_panels.py`'s plane-key/128u-cell/connected-components logic, ported to C++) → `vector<PanelDesc>`,
-  identical shape to the sidecar. *Verify:* `sar_harness_panels_dump` shows live-walk panels.
+  identical shape to the sidecar. Replicate the emitter's **origin-junk filter** (drop panels whose center is
+  at `(0,0,0)` — the PeTI puzzlemaker's origin-instance geometry). *Verify:* `sar_harness_panels_dump` matches the sidecar.
 - **B2 — `BspWalkPanelSource`** behind `IPanelSource`: call `SurfaceEnumerator` at load; band marks with the
   same sort key as ARC A (C4). *Verify:* builds.
 - **B3 — source swap behind a cvar** (`sar_harness_panel_source 0=sidecar 1=bspwalk`). Everything else unchanged.

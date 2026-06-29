@@ -139,6 +139,9 @@ def enumerate_panels(geo_path):
             cvs = [c[1] for c in blob]
             umin, umax = min(cus) * TILE, (max(cus) + 1) * TILE
             vmin, vmax = min(cvs) * TILE, (max(cvs) + 1) * TILE
+            center = plane_point((umin + umax) / 2, (vmin + vmax) / 2, u, v, dist, n)
+            if max(abs(x) for x in center) < 1.0:
+                continue  # puzzlemaker origin-instance junk faces cluster at (0,0,0)
             corners = [
                 plane_point(umin, vmin, u, v, dist, n),
                 plane_point(umax, vmin, u, v, dist, n),
@@ -150,9 +153,7 @@ def enumerate_panels(geo_path):
                     key + (min(cus), min(cvs)),
                     {
                         'plane_normal': list(n),
-                        'center': plane_point(
-                            (umin + umax) / 2, (vmin + vmax) / 2, u, v, dist, n
-                        ),
+                        'center': center,
                         'mins': [min(c[i] for c in corners) for i in range(3)],
                         'maxs': [max(c[i] for c in corners) for i in range(3)],
                         'anchor_flags': 0,
