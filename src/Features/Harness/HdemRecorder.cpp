@@ -141,7 +141,7 @@ void HdemRecorder::RecordTick(int tickNumber) {
     bool wasSeen = (oldSerial != 0);
     bool isAlive = slot.alive;
 
-    // 1. Detect and write records for deleted/reused entities
+    // Detect and write records for deleted/reused entities
     if (wasSeen && (!isAlive || slot.serial != oldSerial)) {
       AppendToBuffer(tickBuffer, static_cast<uint16_t>(i));
       AppendToBuffer(tickBuffer, oldSerial);
@@ -157,7 +157,7 @@ void HdemRecorder::RecordTick(int tickNumber) {
       wasSeen = false;
     }
 
-    // 2. Detect and write records for new/modified entities
+    // Detect and write records for new/modified entities
     if (isAlive) {
       uint32_t currentVersion = slot.changeVersion;
       if (!wasSeen || currentVersion != lastSeenVersion[i]) {
@@ -206,14 +206,12 @@ void HdemRecorder::RecordTick(int tickNumber) {
         }
 
         if (isFullSnapshot) {
-          // Write classname
           AppendToBuffer(tickBuffer,
                          static_cast<uint16_t>(HDEM_FIELD_CLASSNAME));
           tickBuffer.insert(tickBuffer.end(), slot.className.c_str(),
                             slot.className.c_str() + slot.className.size() + 1);
           fieldsWritten++;
 
-          // Write targetname
           AppendToBuffer(tickBuffer, static_cast<uint16_t>(HDEM_FIELD_NAME));
           tickBuffer.insert(
               tickBuffer.end(), slot.targetName.c_str(),

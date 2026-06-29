@@ -18,10 +18,8 @@
 #include "Utils/SDK/Trace.hpp"
 
 namespace {
-// Floor search window around the construction refZ (the player's feet): probe
-// from a little above to well below, so a flat chamber's floor (and a modest
-// step) is found. Today's chambers are flat; multi-level routing revisits
-// this using the stored floorZ.
+// Floor search window around the player's feet: probe from a little above to
+// well below, so the floor (and a modest step) is found.
 constexpr float kProbeUp = 40.0f;
 constexpr float kProbeDown = 128.0f;
 constexpr float kHullLift = 2.0f;  // lift the body hull a hair off the floor
@@ -31,9 +29,7 @@ constexpr float kHeuristicWeight = 1.001f;  // tie-break: trim frontier fan-out
 constexpr int kPlanMaxCells = 400;  // expansion cap -> no path on overflow
 constexpr int kSnapRadius = 4;      // goal spiral-snap search (cells)
 
-// Props the route bends around (mirrors MacroExecutor's VFH
-// IsGoToObstacleClass; the design accepts this small duplication,
-// astar_routing_design fork #2).
+// Props the route bends around.
 bool IsObstacleClass(const char* cls) {
   if (!cls) return false;
   return !std::strcmp(cls, "prop_weighted_cube") ||
@@ -51,9 +47,9 @@ GoToPlanner::GoToPlanner(const Vector& playerMins, const Vector& playerMaxs,
                          float refZ, uint32_t targetKey, uint32_t heldKey)
     : mins_(playerMins), maxs_(playerMaxs), refZ_(refZ) {
   halfWidth_ = std::max(maxs_.x, maxs_.y);
-  // The target's own footprint (if it's an obstacle prop), so the stamp skips
-  // not just the destination but anything overlapping it -- the button a cube
-  // is seated on -- else the route could never reach a cube-on-button.
+  // The target's own footprint (if an obstacle prop), so the stamp skips not
+  // just the destination but anything overlapping it (the button a cube sits
+  // on); else the route could never reach a cube-on-button.
   Vector tC{0, 0, 0};
   float tR = -1;
   if (targetKey) {
@@ -119,8 +115,9 @@ GoToPlanner::Cell GoToPlanner::Probe(int cx, int cy) const {
   c.floorZ = floorTr.endpos.z;
 
   // 2. Does the body fit? A zero-length player-hull test just above the floor.
-  // TraceHull reads startsolid/allsolid (load-bearing: a hull inside a wall
-  // returns fraction 1 with a garbage normal), so a wall cell reads BLOCKED.
+  // TraceHull reports startsolid/allsolid; a hull inside a wall otherwise
+  // returns fraction 1 with a garbage normal, so use that to mark a wall cell
+  // BLOCKED.
   Vector at{x, y, c.floorZ + kHullLift};
   CGameTrace hullTr;
   if (engine->TraceHull(at, at, mins_, maxs_, MASK_PLAYERSOLID, filter,
@@ -131,8 +128,7 @@ GoToPlanner::Cell GoToPlanner::Probe(int cx, int cy) const {
   }
 
   // 3. Obstacle stamp: a cell whose center is inside a cube/button footprint (+
-  // body half-width) is BLOCKED, so the route bends around it -- world-only A*
-  // would route straight back through the cube.
+  // body half-width) is BLOCKED, so the route bends around it.
   for (const ObstacleCircle& o : obstacles_) {
     float dx = x - o.x, dy = y - o.y;
     if (dx * dx + dy * dy < o.r * o.r) {
@@ -147,8 +143,8 @@ GoToPlanner::Cell GoToPlanner::Probe(int cx, int cy) const {
 }
 
 bool GoToPlanner::Passable(int ax, int ay, int bx, int by) {
-  // Only the destination must be walkable -- the source is never gated, so A*
-  // can leave a start cell that probes BLOCKED (you're standing there).
+  // Only the destination is gated, never the source, so A* can leave a start
+  // cell that probes BLOCKED (you're standing on it).
   if (At(bx, by).state != WALKABLE) return false;
   if (ax != bx &&
       ay != by) {  // diagonal: no corner-cut through a blocked corner
@@ -187,8 +183,8 @@ std::vector<Vector> GoToPlanner::Plan(const Vector& startPos,
                                       const Vector& goalPos) {
   int sx = CellX(startPos.x), sy = CellY(startPos.y);
   int gx = CellX(goalPos.x), gy = CellY(goalPos.y);
-  // Goal in a solid prop/wall (e.g. a cube mark) -> snap to the nearest
-  // walkable neighbour; the final VFH leg + reach radius closes the gap.
+  // Goal in a solid prop/wall (e.g. on a cube) -> snap to the nearest walkable
+  // neighbour; the final approach leg closes the remaining gap.
   if (At(gx, gy).state != WALKABLE && !SnapGoal(&gx, &gy)) return {};
 
   auto octile = [](int dx, int dy) {
@@ -296,12 +292,11 @@ CON_COMMAND(sar_harness_probe_cells,
   }
 }
 
-// Recon: probe_cells split into WHY a cell is blocked (down-trace miss / hull-
-// startsolid / obstacle stamp) + whether a walkable cell is actually
-// A*-reachable from the player's feet, alongside a floorZ-delta map. The
-// pairing is the point: a shallow gap (goo moat, lower walkway) reads '.' and
-// reachable in [A] yet shows a floor drop in [B] -- the false-legalize the
-// reachability gate must catch. Eyeball both against the visible chamber.
+// Debug: per-cell block reason (down-trace miss / hull-startsolid / obstacle
+// stamp), whether a walkable cell is A*-reachable from the player's feet [A],
+// and a floorZ-delta map [B]. A shallow gap (goo moat, lower walkway) can read
+// walkable+reachable in [A] yet show a floor drop in [B]. Eyeball both against
+// the visible chamber.
 CON_COMMAND(sar_harness_laser_reachability_test,
             "sar_harness_laser_reachability_test [radius] - print the go_to "
             "planner's per-cell block reason, reachability-from-feet, and "
@@ -321,8 +316,8 @@ CON_COMMAND(sar_harness_laser_reachability_test,
   int pcx = GoToPlanner::CellX(feet.x), pcy = GoToPlanner::CellY(feet.y);
 
   // BFS the reachable set from the player cell, bounded to the window. Passable
-  // gates only the destination (mirrors A*), so the start seeds even if it
-  // probes BLOCKED (you're standing on it).
+  // gates only the destination, so the start seeds even if it probes BLOCKED
+  // (you're standing on it).
   static const int dxs[8] = {1, -1, 0, 0, 1, 1, -1, -1};
   static const int dys[8] = {0, 0, 1, -1, 1, -1, 1, -1};
   struct QCell {

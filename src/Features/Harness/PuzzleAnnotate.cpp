@@ -34,13 +34,11 @@ Variable sar_harness_annotate_los(
     "sar_harness_annotate_los", "1", 0, 1,
     "Cull annotation boxes/marks for entities the camera can't see (LOS).\n");
 
-// x_height of the mark label. Single digits, so keep it legible; tune freely.
-// Kept modest: oversized labels collide constantly and stack into tall columns.
+// x_height of the mark label; kept small so labels don't collide and stack.
 static constexpr float kMarkHeight = 4.0f;
 
-// classname -> annotation color. Membership here is also the "do we annotate
-// it?" test (one lookup gives both). Portals are special-cased at runtime to
-// blue/orange via m_bIsPortal2; their entry is just the base color.
+// classname -> annotation color; membership also decides whether we annotate
+// the class. Portals are recolored blue/orange at runtime via m_bIsPortal2.
 static const std::unordered_map<std::string, Color> kClassColors = {
     // Core puzzle objects.
     {"prop_portal", {64, 160, 255}},        // blue primary; orange if Portal2
@@ -56,35 +54,29 @@ static const std::unordered_map<std::string, Color> kClassColors = {
     {"prop_testchamber_door", {255, 255, 255}},  // white
     {"env_portal_laser", {255, 40, 40}},         // red - laser emitter
     {"point_laser_target", {255, 0, 255}},       // magenta - the goal surface
-    // Laser catcher/relay are deliberately unmarked: the goal predicate
-    // m_bPowered is read straight off point_laser_target, so they are noise.
-    // The player is deliberately absent: it's the agent, not an addressable
-    // target, so it gets neither a mark nor a (self-occluding) first-person
-    // box.
-    // Hazards + brush-trigger volumes (provisional colors). Trigger volumes are
-    // invisible playspace -- their OBB reads as a slab, not a tight object box.
+    // Laser catcher/relay unmarked: the goal bit m_bPowered reads off
+    // point_laser_target, so they'd be noise. The player is unmarked: it's the
+    // agent, not a target.
+    // Hazards + brush-trigger volumes. Trigger volumes are invisible playspace
+    // -- their OBB reads as a slab, not a tight object box.
     {"npc_portal_turret_floor", {180, 60, 220}},  // turret - violet
     {"trigger_portal_cleanser", {0, 210, 160}},   // fizzler - teal
     {"trigger_catapult", {255, 105, 180}},        // faith plate - pink
     {"prop_tractor_beam", {180, 255, 60}},        // funnel - lime
-    // Not handled here, since classname alone can't match them: folding
-    // panels/stairs (func_brush keyed by targetname) and gels/light bridges
-    // (paint surfaces, not box-able entities).
+    // Not matchable by classname alone, so omitted: folding panels/stairs
+    // (func_brush keyed by targetname) and gels/light bridges (paint surfaces).
 };
 
-// Single source of truth for "do we annotate/mark this class?" -- MarkTable
-// consults this so the marked set matches the annotated set drawn below.
+// Whether this class is annotated/marked; MarkTable consults this too so the
+// marked set matches the annotated set.
 bool IsHarnessMarkedClass(const char* className) {
   return className && kClassColors.find(className) != kClassColors.end();
 }
 
-// Per-entity mark gate: class membership plus transform sanity. Two classes
-// ghost at the world origin -- a redirected laser re-emits transient
-// env_portal_laser segments there with an identity transform, and a prop_portal
-// leaves abs_origin zeroed (its real position lives off the render path).
-// Marking either churns the mark table and pollutes the percept, so a (0,0,0)
-// of either class is rejected. A real emitter -- even an unnamed re-emitter
-// mid-chain -- has a true origin.
+// Mark gate: class membership, plus reject env_portal_laser/prop_portal sitting
+// at (0,0,0). Both ghost there -- transient laser re-emit segments carry an
+// identity transform, and a prop_portal leaves abs_origin zeroed -- and marking
+// them churns the mark table. A real emitter always has a true origin.
 bool IsHarnessMarkedEntity(void* ent, const char* className) {
   if (!IsHarnessMarkedClass(className)) return false;
   if (!std::strcmp(className, "env_portal_laser") ||
@@ -133,9 +125,9 @@ static bool EntityVisible(const Vector& eye, void* player, void* ent,
   return false;
 }
 
-// True if any of the box's sample points projects onto the screen -- i.e. the
-// entity is at least partly in the frame. Without this, the label clamp would
-// drag an entirely off-screen entity's number onto a screen edge.
+// True if any box sample point projects onto the screen, i.e. the entity is at
+// least partly in frame; gates the label clamp so off-screen entities' numbers
+// aren't dragged onto a screen edge.
 static bool InFrame(const Vector& origin, const Vector& mins,
                     const Vector& maxs, const QAngle& angles) {
   int sw = 0, sh = 0;
@@ -157,27 +149,24 @@ static bool InFrame(const Vector& origin, const Vector& mins,
 }
 
 // Box + label every entity whose classname is in kClassColors, colored by
-// class. Iterates the server entity list directly (independent of any harness
-// session), matching the loop in EntitySnapshotter::Update.
+// class, by walking the server entity list directly.
 ON_EVENT(RENDER) {
-  // Marks are a property of the world, not the overlay: rebuild every frame so
-  // EntityState.mark telemetry and macro mark-resolution stay correct even with
-  // the visual overlay off. Self-guards on server/entityList; cheap (one
-  // entity-list walk). Only the drawing below is gated on the cvar.
+  // Rebuild marks every frame so EntityState.mark telemetry stays correct even
+  // when the visual overlay is off; only the drawing below is cvar-gated.
   markTable.RebuildFromWorld();
 
   if (!sar_harness_annotate.GetBool()) return;
   if (!server || !entityList) return;
 
-  // Eye + camera-right vector, computed once. Used both for the LOS cull and to
-  // place the left/right label candidates beside the box on screen.
+  // Eye + camera-right, used for the LOS cull and for placing left/right label
+  // candidates beside the box.
   Vector eye;
   QAngle eyeAng;
   bool haveEye = camera && camera->GetEyePos<false>(GET_SLOT(), eye, eyeAng);
   Vector camRight{1, 0, 0};
   if (haveEye) Math::AngleVectors(eyeAng, nullptr, &camRight, nullptr);
-  // The LOS cvar gates the cull only; the player is skipped by each trace so
-  // the ray doesn't hit our own hull at its start (the eye sits inside it).
+  // Skip the player in each trace: the eye sits inside its hull and would
+  // otherwise self-occlude at the ray start.
   bool los = sar_harness_annotate_los.GetBool();
   void* player = los ? server->GetPlayer(GET_SLOT() + 1) : nullptr;
   bool doCull = los && player && haveEye;
@@ -193,7 +182,7 @@ ON_EVENT(RENDER) {
 
     auto se = SE(ent);
     Color color = colorIt->second;
-    // Portals: blue (primary) is the map default, orange for the secondary.
+    // Orange for the secondary portal, blue (the map default) otherwise.
     if (std::strcmp(className, "prop_portal") == 0 &&
         se->field<bool>("m_bIsPortal2")) {
       color = {255, 128, 0};
@@ -206,31 +195,27 @@ ON_EVENT(RENDER) {
     Vector anchor = origin + Vector{0, 0, maxs.z};
 
     // Box is always drawn and depth-tested, so it occludes against world
-    // geometry naturally -- you see the visible part, nothing flashes in/out.
+    // geometry naturally.
     OverlayRender::addBoxMesh(
         origin, mins, maxs, angles,
         RenderCallback::constant({color.r, color.g, color.b, 5}),
         RenderCallback::constant(color));
 
-    // No number for an entity that isn't in the frame (else the clamp drags an
-    // off-screen entity's label onto a screen edge).
+    // Skip the number for an off-frame entity (else the clamp drags its label
+    // onto a screen edge).
     if (!InFrame(origin, mins, maxs, angles)) continue;
 
-    // The number is drawn on top (clamp_to_screen), so x-ray it only when the
-    // entity is actually visible -- otherwise marks for entities behind walls
-    // would float through. Sampling the whole box keeps a mostly-visible entity
-    // from being hidden by a thin occluder crossing a single ray.
+    // The number draws on top via clamp_to_screen, so cull it when the entity is
+    // occluded; otherwise marks behind walls float through.
     if (doCull && !EntityVisible(eye, player, ent, origin, mins, maxs, angles))
       continue;
 
-    // Mark label above the box. clamp_to_screen keeps the number in the
-    // viewport (a box whose top is off-screen still shows its label) and on top
-    // of geometry (no wall slicing).
+    // Mark label above the box. clamp_to_screen keeps the number in the viewport
+    // and on top of geometry.
     int mark =
         markTable.GetMark(i, static_cast<uint16_t>(info->m_SerialNumber));
-    // Declutter candidates: the box bottom, then either side (offset along the
-    // camera's right axis past the box) so a crowded label can move sideways
-    // instead of only stacking.
+    // Declutter alternates: box bottom, then either side along the camera-right
+    // axis, so a crowded label can move sideways instead of only stacking.
     std::vector<Vector> alts = {origin + Vector{0, 0, mins.z}};
     if (haveEye) {
       auto habs = [](float v) { return v < 0 ? -v : v; };
@@ -249,12 +234,12 @@ ON_EVENT(RENDER) {
 }
 
 // ---------------------------------------------------------------------------
-// Recon: dump candidate "status" fields for puzzle entities. Diagnostic to find
-// which engine field encodes each element's status (button pressed / door open
-// / ...). Run twice -- before vs after a state change -- and diff the output to
-// see which field flipped. Reads via getServerOffset, which resolves against
-// both the datamap and the SendTable, so datamap-only fields (e.g.
-// m_toggle_state on doors) show up even though the snapshotter would miss them.
+// Recon: dump candidate "status" fields for puzzle entities, to find which
+// engine field encodes each element's status (button pressed / door open / ...).
+// Run twice -- before vs after a state change -- and diff to see which flipped.
+// Reads via getServerOffset, which resolves the datamap and the SendTable, so
+// datamap-only fields (e.g. m_toggle_state on doors) show up even though the
+// snapshotter (SendTable-only) would miss them.
 
 // Hand-picked likely status encodings across the puzzle classes. If the field
 // you need isn't here, the name-substring scan below should still surface it;
@@ -408,8 +393,8 @@ CON_COMMAND(sar_harness_dump_fields,
     auto ent = info->m_pEntity;
     const char* className = server->GetEntityClassName(ent);
     if (!className) continue;
-    // kClassColors is the mark/annotate set; recon also wants the laser chain
-    // props (catcher/relay) it intentionally no longer contains.
+    // Recon set = the mark/annotate classes plus the laser chain props
+    // (catcher/relay) that kClassColors omits.
     bool reconClass = kClassColors.find(className) != kClassColors.end() ||
                       !std::strcmp(className, "prop_laser_catcher") ||
                       !std::strcmp(className, "prop_laser_relay");
@@ -457,10 +442,9 @@ CON_COMMAND(sar_harness_dump_fields,
 }
 
 // ---------------------------------------------------------------------------
-// Recon: geometry + state for laser entities and weighted cubes. Diagnostic for
-// the reflector cube's redirect: dump the cube's angles alongside the
-// re-emitted beam segment's forward vector to back out the cube-local axis the
-// beam exits along. Read-only -- field reads only, mutates nothing.
+// Recon: geometry + state for laser entities and weighted cubes. Dumps a cube's
+// angles alongside the re-emitted beam segment's forward vector to back out the
+// cube-local axis the beam exits along. Read-only.
 
 static bool IsLaserProbeClass(const char* c) {
   return !std::strcmp(c, "env_portal_laser") ||
@@ -544,15 +528,11 @@ CON_COMMAND(
 }
 
 // ---------------------------------------------------------------------------
-// Mutating recon: teleport the free reflector cube onto a COMPUTED point of a
-// chosen emitter's beam ray (param t along the ray + optional lateral offset),
-// oriented so its local +X redirect axis aims at a chosen target. Then read
-// m_bPowered (sar_harness_laser_probe, or watch the catcher). Tests whether
-// beam interception is pure hull-overlaps-ray -- no pre-walk, no contact
-// constraint. Sweep t + lateral to map the interception envelope and capture
-// radius; rerun with a second emitter index to confirm the +X exit is
-// incoming-independent. Throwaway session; the cube must not be held; reload
-// to reset.
+// Mutating recon: teleport the free reflector cube onto a point on a chosen
+// emitter's beam ray (param t along the ray + optional lateral offset), oriented
+// so its local +X redirect axis aims at a chosen target, then read m_bPowered.
+// Sweep t + lateral to map the interception envelope. The cube must not be held;
+// reload to reset.
 
 static void ReconTeleportFree(void* ent, const Vector& origin,
                               const QAngle& angles) {
@@ -635,17 +615,17 @@ CON_COMMAND(
   Vector perp{F.y, -F.x, 0};
   Math::VectorNormalize(perp);
 
-  // Default t (no arg): the cube's current position projected onto the ray --
-  // a perpendicular "snap onto the beam" from where it sits. An explicit t is
-  // a world-unit distance along the ray from the emitter (for envelope sweeps).
+  // Default t (no arg): the cube's current position projected onto the ray (a
+  // perpendicular snap onto the beam). An explicit t is a world-unit distance
+  // along the ray from the emitter.
   Vector rel = SE(cube)->abs_origin() - E;
   float t = args.ArgC() >= 5 ? (float)std::atof(args[4])
                              : rel.x * F.x + rel.y * F.y + rel.z * F.z;
   float lateral = args.ArgC() >= 6 ? (float)std::atof(args[5]) : 0.0f;
   Vector P = E + F * t + perp * lateral;
 
-  // Rest the cube on the floor under P (down-trace) instead of dropping it in
-  // mid-air: a fall tumbles the yaw past the redirect tolerance.
+  // Rest the cube on the floor under P (down-trace); dropping it mid-air would
+  // let the fall tumble its yaw past the redirect tolerance.
   Vector seat;
   if (!DownTraceRest(P, cube, &seat)) {
     console->Print(
@@ -680,12 +660,12 @@ CON_COMMAND(
 }
 
 // ---------------------------------------------------------------------------
-// Recon: portal placement. The probe is read-only -- it dumps the portalgun's
-// fire-ability and, per prop_portal, BOTH origin reads (a freshly placed portal
+// Recon: portal placement. The probe is read-only: it dumps the portalgun's
+// fire-ability and, per prop_portal, both origin reads (a freshly placed portal
 // zeroes abs_origin; server->GetAbsOrigin carries the real face), the link
 // handle, and the color bit. The fire spike commits a portal along the player's
-// current view: TraceFirePortal only previews placement, so portal_place does
-// the actual commit, and the result is read back. Aim at a surface, then fire.
+// view: TraceFirePortal only previews, so portal_place does the actual commit,
+// then the result is read back. Aim at a surface, then fire.
 
 CON_COMMAND(
     sar_harness_portal_probe,
@@ -775,8 +755,8 @@ CON_COMMAND(
     return;
   }
 
-  // Prime the gun's portal entities so the placement has a backing prop_portal
-  // (mirrors the HUD/scanner path that TraceFirePortal expects).
+  // Prime the gun's portal entities so the placement has a backing prop_portal,
+  // as TraceFirePortal expects.
   unsigned char linkage = SE(gun)->field<unsigned char>("m_iPortalLinkageGroupID");
   if (!entityList->LookupEntity(SE(gun)->field<CBaseHandle>("m_hPrimaryPortal"))) {
     auto b = server->FindPortal(linkage, false, true);
@@ -848,12 +828,10 @@ CON_COMMAND(
 }
 
 // ---------------------------------------------------------------------------
-// Recon: portal SURFACE census (R1). Read-only -- TraceFirePortal previews
-// only, no portal is placed. Part 1 walks every info_placement_helper (the
-// mapmaker attractor census: origin/radius/state). Part 2 sweeps a coarse
-// preview grid across the wall under the crosshair and prints it as an ASCII
-// portalability map -- how many contiguous portalable tiles the panel spans
-// (the single- vs multi-tile signal) and whether cells snapped to a helper.
+// Read-only portal-surface recon (no portal placed): lists every
+// info_placement_helper (origin/radius/state), then sweeps a coarse
+// TraceFirePortal preview grid across the wall under the crosshair and prints it
+// as an ASCII portalability map, marking which cells snapped to a helper.
 
 static void PlaneAxes(Vector n, Vector* ax1, Vector* ax2) {
   Vector up = (n.z < 0.9f && n.z > -0.9f) ? Vector{0, 0, 1} : Vector{1, 0, 0};
@@ -863,7 +841,7 @@ static void PlaneAxes(Vector n, Vector* ax1, Vector* ax2) {
 
 CON_COMMAND(
     sar_harness_portal_surface_census,
-    "sar_harness_portal_surface_census - R1 recon. Lists every "
+    "sar_harness_portal_surface_census - surface recon. Lists every "
     "info_placement_helper (origin/radius/state), then sweeps a coarse "
     "TraceFirePortal preview grid on the wall under the crosshair and prints "
     "an ASCII portalability map. Read-only (no portal placed); aim at a wall "
@@ -937,8 +915,8 @@ CON_COMMAND(
   console->Msg("    aimed wall: hit %.1f %.1f %.1f  normal %.2f %.2f %.2f\n",
                hit.x, hit.y, hit.z, n.x, n.y, n.z);
 
-  // Prime the gun's two portal entities (same as the fire spike); no portal is
-  // placed -- TraceFirePortal previews only.
+  // Prime the gun's two portal entities; no portal is placed, TraceFirePortal
+  // previews only.
   auto wpn = SE(player)->active_weapon();
   uintptr_t gun = (uintptr_t)entityList->LookupEntity(wpn);
   if (!gun || !entityList->IsPortalGun(wpn)) {

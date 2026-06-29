@@ -53,8 +53,7 @@ void EntitySnapshotter::DiscoverSchema() {
     slot.alive = false;
   }
 
-  // Pre-initialize well-known fields at their corresponding enum indices in
-  // allFields
+  // Seat each well-known field at the allFields index matching its enum value.
   struct WellKnownField {
     HdemWellKnownField id;
     std::string name;
@@ -100,8 +99,7 @@ void EntitySnapshotter::DiscoverSchema() {
 
   if (!server || !entityList) return;
 
-  // Track which classnames we've already SendTable-discovered to avoid
-  // redundant walks (many entities share the same class).
+  // Walk each class's SendTable only once (many entities share a class).
   std::unordered_map<std::string, bool> sendTableDiscovered;
 
   for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
@@ -147,9 +145,8 @@ void EntitySnapshotter::RegisterClassSchema(const std::string& className) {
   }
 }
 
-// Curated datamap-only ([dm]) status fields the SendTable walk never registers
-// (it sees networked props only). The read path EntField::getServerOffset
-// resolves datamaps, so registration is the only gap. Keep this list small.
+// Datamap-only status fields the SendTable walk misses (it sees networked props
+// only); the read path resolves datamaps, so they just need registering here.
 namespace {
 struct CuratedStatusField {
   const char* className;
@@ -169,8 +166,7 @@ const CuratedStatusField kCuratedStatusFields[] = {
 
 void EntitySnapshotter::RegisterCuratedStatusFields() {
   for (const auto& curated : kCuratedStatusFields) {
-    // Ensure the class carries the universal fields even if it was absent from
-    // the first map (schema discovery runs once per process).
+    // Add the universal fields too, in case this class was absent at discovery.
     RegisterClassSchema(curated.className);
     auto& cls = classes[GetOrAddClass(curated.className)];
 

@@ -100,10 +100,9 @@ static void PopulateEntityStateProto(
   protoState->set_serial_number(slot.serial);
   protoState->set_class_name(slot.className);
   protoState->set_target_name(slot.targetName);
-  // Frame<->telemetry bridge: the same integer drawn on the annotated frame.
-  // 0 if this class isn't marked. MarkTable is rebuilt every RENDER frame
-  // (PuzzleAnnotate.cpp) independent of the visual overlay cvar, so marks are
-  // live whether or not sar_harness_annotate is on; reads are mutex-guarded.
+  // The same integer drawn on the annotated frame (0 if this class isn't
+  // marked). Marks are live whether or not the visual overlay is on; reads are
+  // mutex-guarded.
   protoState->set_mark(markTable.GetMark(entityIndex, slot.serial));
 
   const uint8_t* currentBuf = slot.fieldBuf.get();
@@ -125,7 +124,6 @@ static void PopulateEntityStateProto(
   protoState->mutable_velocity()->set_y(velocity.y);
   protoState->mutable_velocity()->set_z(velocity.z);
 
-  // Populate dynamic fields
   for (const auto& fs : layout.fields) {
     if (fs.fieldId == HDEM_FIELD_ORIGIN || fs.fieldId == HDEM_FIELD_ANGLES ||
         fs.fieldId == HDEM_FIELD_VELOCITY) {
@@ -314,9 +312,8 @@ bool Portal2HarnessImpl::InternalObserve(portal2_harness::GameState* response) {
   response->set_is_crouching(crouching);
   response->set_server_tick(serverTick);
 
-  // Authoritative held-cube flag: the player's m_hAttachedObject handle resolved
-  // to its mark (0 = empty hands or unmarked). Source's grab model puts the
-  // handle on the player, not a bool on the prop.
+  // Held-cube mark from the player's m_hAttachedObject handle (0 = empty hands
+  // or unmarked). The grab handle lives on the player, not as a flag on the prop.
   CBaseHandle held = pl->field<CBaseHandle>("m_hAttachedObject");
   if (held)
     response->set_held_mark(
@@ -444,9 +441,8 @@ grpc::Status Portal2HarnessImpl::Act(
   if (request->portal_primary()) buttons[FireBlue] = true;
   if (request->portal_secondary()) buttons[FireOrange] = true;
 
-  // Set the framebulk as its own closure -- FIFO ensures it runs before the
-  // AdvanceTick burst below, so inputs are in place first. FetchInputs always
-  // returns framebulk[0] (the "before" entry for any tick > 0).
+  // Queue the framebulk first so it lands before the AdvanceTick burst below;
+  // FetchInputs always reads framebulk[0] for any tick > 0.
   Scheduler::OnMainThread([=]() {
     TasFramebulk& fb = tasPlayer->playbackInfo.slots[0].framebulks[0];
     fb.moveAnalog = {moveX, moveY, 0};
@@ -575,9 +571,8 @@ bool Portal2HarnessImpl::CopyPixelsToShm(grpc::ServerContext* context) {
   });
 }
 
-// Delegate one closed semantic verb to the executor (PR2+). The executor owns
-// the gRPC-thread loop and dispatches every engine read/write to the main
-// thread; unimplemented verbs come back NOT_IMPLEMENTED.
+// Run one closed semantic verb. The executor dispatches every engine read/write
+// to the main thread; unimplemented verbs come back NOT_IMPLEMENTED.
 void Portal2HarnessImpl::ExecuteMacro(
     grpc::ServerContext* context, const portal2_harness::MacroRequest* request,
     portal2_harness::MacroResult* result) {
@@ -585,7 +580,6 @@ void Portal2HarnessImpl::ExecuteMacro(
   *result = executor.Execute(*request);
 }
 
-// docs/Portal2HarnessImpl.cpp:AgentLoop>
 grpc::Status Portal2HarnessImpl::AgentLoop(
     grpc::ServerContext* context,
     grpc::ServerReaderWriter<portal2_harness::EnvironmentMessage,
@@ -604,11 +598,9 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
     env_msg.set_success(true);
 
     if (req.has_macro()) {
-      // Macro path: run one closed semantic verb. The refreshed percept still
-      // rides on the Observe below, shared with the action path.
+      // The refreshed percept rides on the shared Observe below.
       this->ExecuteMacro(context, &req.macro(), env_msg.mutable_macro_result());
     } else {
-      // Raw framebulk path (existing RL behavior).
       portal2_harness::ActionResponse action_resp;
       grpc::Status act_status = this->Act(context, &req.action(), &action_resp);
 
@@ -636,8 +628,7 @@ grpc::Status Portal2HarnessImpl::AgentLoop(
       continue;
     }
 
-    // Refresh the visual percept when requested (the model sets this once per
-    // step). Shared by the action and macro branches.
+    // Refresh the visual percept when requested (typically once per step).
     if (req.copy_pixels_to_shm()) {
       if (!this->CopyPixelsToShm(context)) return grpc::Status::CANCELLED;
     }

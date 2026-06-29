@@ -85,11 +85,9 @@ constexpr int kDropTries =
 constexpr int kSeatSettle = 32;    // ticks for the press to register post-seat
 constexpr int kSeatDwellGap = 16;  // ticks between the two press reads
 constexpr int kRedirectTries =
-    3;  // redirect re-seat attempts (re-rolls ~2% jank)
+    3;  // redirect re-seat attempts (re-rolls ~2% settle jank)
 constexpr int kButtonRiseTicks = 12;  // ticks for a button to rise once the
                                       // player steps off it
-// TODO: bisect kSeatSettle / kSeatDwellGap / kButtonRiseTicks to their
-// minimums.
 
 // Place-on-button seat-find tuning.
 constexpr float kSeatProbeUp =
@@ -135,9 +133,8 @@ float NormalizeYaw(float yaw) {
   return yaw;
 }
 
-// Eye position of the host player (slot 0 -> entity index 1), matching the
-// engine's own eye calc (Cheats.cpp:315 / AutoAimTool.cpp:86). False if no
-// player. Main thread only.
+// Eye position of the host player (slot 0 -> entity index 1): abs_origin +
+// view offset + portal-local eye offset. False if no player. Main thread only.
 bool PlayerEye(Vector* outEye) {
   ServerEnt* pl = server->GetPlayer(1);
   if (!pl) return false;
@@ -183,9 +180,8 @@ bool IsButtonClass(const char* cls) {
          s == "prop_floor_ball_button" || s == "prop_under_floor_button";
 }
 
-// OBB centre of an entity. Uses the *unrotated* centre (origin +
-// (mins+maxs)/2): correct for axis-aligned elements; rotating the local centre
-// by abs_angles is the refinement for tilted entities. Main thread only (live
+// OBB centre of an entity, unrotated (origin + (mins+maxs)/2): correct for
+// axis-aligned elements, approximate for tilted ones. Main thread only (live
 // entity).
 Vector EntityCenter(ServerEnt* se) {
   ICollideable& coll = se->collision();
@@ -504,12 +500,10 @@ void ClearFramebulk() {
     fb.buttonStates[i] = false;
 }
 
-// The aiming primitive: clamp pitch to the engine's own clamp, zero roll, set
-// the absolute view, and zero the framebulk view delta so the TAS per-tick
-// re-apply (GetAngles() - viewAnalog, TasController.cpp:200) preserves it
-// (delta 0 => idempotent). Returns the commanded angle (== camera if SetAngles
-// survived); if the re-apply ever clobbers it, swap THIS for a viewAnalog
-// delta. Main thread only.
+// The aiming primitive: clamp pitch, zero roll, set the absolute view, and zero
+// the framebulk view delta so the TAS per-tick re-apply (GetAngles() -
+// viewAnalog) preserves it (delta 0 => idempotent). Returns the commanded angle
+// (== camera if SetAngles survived). Main thread only.
 QAngle ApplyAbsoluteView(QAngle angles) {
   angles.x = std::min(std::max(angles.x, -kPitchLimit), kPitchLimit);
   angles.y =
@@ -546,14 +540,12 @@ void SetMoveFramebulk(float side, float fwd) {
 }
 
 // Pulse +use (drop / grab / activate), HOLDING `view` across the whole pulse.
-// +use is edge-triggered (PlayerUse acts on the IN_USE 0->1 tick), so hold it
+// +use is edge-triggered (acts on the IN_USE 0->1 tick), so hold it
 // kUseHoldTicks rather than 1: a 1-tick press can be cleared before the
-// simulated tick reads it -- a race vs the tick advance, worse under
-// sv_alternateticks' 2-sim-tick pairs. Extra held ticks add no new edge, so it
-// stays ONE logical press (can't grab-then-drop). The view is re-asserted every
-// batch through the settle: a single SetAngles drifts -- the engine ratchets
-// pitch to the ceiling each tick -- exactly why the go_to march re-asserts per
-// batch. Without it the held object swings up mid-pulse and drops wrong.
+// simulated tick reads it. Extra held ticks add no new edge, so it stays ONE
+// logical press (can't grab-then-drop). The view is re-asserted every settle
+// batch because a single SetAngles drifts -- the engine ratchets pitch to the
+// ceiling each tick -- which would swing the held object up and drop it wrong.
 // gRPC-thread ONLY: it blocks on the tick condvar, so a main-thread closure
 // would self-deadlock.
 void PulseUse(int settle, QAngle view) {
@@ -789,7 +781,7 @@ VfhPick ChooseVfhHeading(void* player, const Vector& feet, float goalBearing,
 }
 
 // One VFH march leg's result. GoTo turns it into the MacroResult; the A* layer
-// will chain legs and decrement the tick budget across them.
+// chains legs and decrements the tick budget across them.
 struct MarchOutcome {
   std::string code = "BLOCKED";  // SUCCESS / BLOCKED / NO_PLAYER (cap->BLOCKED)
   bool reached = false;
@@ -1028,14 +1020,12 @@ std::string InterposeGate(void* emitter, void* cube, float percent,
   Vector P = E + F * (percent * len);
 
   if (!DownTraceRest(P, cube, seat)) return "NO_FLOOR";
-  // TODO(interpose): IN_HAZARD -- a seat in slime/goo passes NO_FLOOR (the
-  // down-trace lands on the goo-bottom brush). Needs a point-contents read,
-  // deferred until that API is reconned.
+  // A seat in slime/goo wrongly passes NO_FLOOR -- the down-trace lands on the
+  // goo-bottom brush. Needs a point-contents read to catch.
 
   // Reachability is the carry's job: interpose marches to the seat with the same
-  // uncapped VFH as go_to (MarchTo + RouteAround) and reports BLOCKED if it can't
-  // get there. A one-shot capped A* gate here only false-rejected seats go_to
-  // reaches -- far seats (cell cap) and raised-platform starts (flat refZ).
+  // VFH as go_to (MarchTo + RouteAround) and reports BLOCKED if it can't get
+  // there.
   return "SEAT_OK";
 }
 
@@ -1053,8 +1043,8 @@ bool ConfirmInterception(void* emitter, void* cube) {
   float cubeR =
       0.5f * Vector{cmax.x - cmin.x, cmax.y - cmin.y, cmax.z - cmin.z}.Length();
   // Against the cube's ACTUAL position, never a computed seat -- a cube that
-  // drifted or never reached the beam reads a miss even when the seat sat near
-  // the beam's far terminus (the false-ON_BEAM bug).
+  // drifted or never reached the beam must read a miss even when the seat sat
+  // near the beam's far terminus.
   return (hit - SE(cube)->abs_origin()).Length() < cubeR + kInterceptSlack;
 }
 
@@ -1243,10 +1233,10 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
     return r;
   }
 
-  // 3.5 Step the player off the seat (scan perpendicular to the beam so it
-  // can't occlude E->P) -- else its hull shoves the cube off the beam during
-  // the settle, the shove the recon spike avoided by having no player there.
-  // Best effort: with no room to step, the confirm below reports the miss.
+  // Step the player off the seat (scan perpendicular to the beam so it can't
+  // occlude E->P) -- else its hull shoves the cube off the beam during the
+  // settle. Best effort: with no room to step, the confirm below reports the
+  // miss.
   if (!RunOnMainThreadSync(context_, [g, heldKey, emitterMark]() {
         ServerEnt* cube = EntFromKey(heldKey);
         ServerEnt* player = server->GetPlayer(1);
@@ -1450,10 +1440,9 @@ portal2_harness::MacroResult MacroExecutor::AimAt(int mark) {
     return r;
   }
 
-  // The tick where the TAS re-apply must preserve our aim. The resulting view
-  // rides back on the AgentLoop Observe (GameState.camera); we report the
-  // *commanded* angle so a caller can verify camera == aim (i.e. SetAngles
-  // survived) without a second, cancel-prone main-thread read-back.
+  // Advance one tick so the view rides back on the next AgentLoop Observe. We
+  // report the *commanded* angle so a caller can verify camera == aim without a
+  // second, cancel-prone main-thread read-back.
   AdvanceTicksBlocking(1);
 
   r.set_ok(true);
@@ -1526,8 +1515,8 @@ portal2_harness::MacroResult MacroExecutor::Done() {
 portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
   portal2_harness::MacroResult r;
 
-  // Resolve the target once (static for these chambers) and capture the
-  // starting distance, so an early cancel reports a real distance, not 0.
+  // Resolve the target once and capture the starting distance, so an early
+  // cancel reports a real distance, not 0.
   struct Resolve {
     bool ok = false;
     std::string code = "BAD_MARK";
@@ -1578,9 +1567,7 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
   }
 
   // VFH march to the resolved target. targetKey/heldKey skip the destination
-  // and any carried cube in the obstacle histogram. The per-batch march loop
-  // lives in MarchTo, so the A* layer can chain legs through the same
-  // executor.
+  // and any carried cube in the obstacle histogram.
   Vector target = res->center;
   uint32_t heldKey = g_heldEntityKey.load();
   MarchOutcome m =
@@ -1775,9 +1762,9 @@ portal2_harness::MacroResult MacroExecutor::Move(const std::string& dir,
 portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
   portal2_harness::MacroResult r;
 
-  // Phase 1 (main thread): resolve + grabbable-class + reach check, snapshot
-  // the pre-grab pos. Heap output survives a post-cancel closure run; the class
-  // gate stops a wrong mark (e.g. a button) being +use-pressed by a bad grab.
+  // Resolve + grabbable-class + reach check, snapshot the pre-grab pos (main
+  // thread). Heap output survives a post-cancel closure run; the class gate
+  // stops a wrong mark (e.g. a button) being +use-pressed by a bad grab.
   struct Pre {
     bool ok = false;
     std::string code = "BAD_MARK";
@@ -1829,9 +1816,9 @@ portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
   PulseUse(kSettle, QAngle{aim.aim_pitch(), aim.aim_yaw(), 0});
 
   // Confirm the grab against the engine's held handle (m_hAttachedObject): the
-  // player must hold THIS mark's entity. dz/moved/dist stay for telemetry only --
-  // the old "moved more than kMinGrabMove" heuristic false-negatived a grab of a
-  // cube that barely moves (one already near hold height, e.g. seated on a button).
+  // player must hold THIS mark's entity. dz/moved/dist are telemetry only -- a
+  // movement-based check false-negatives a cube that barely moves (one already
+  // near hold height, e.g. seated on a button).
   struct Post {
     bool resolved = false;
     bool held = false;
@@ -1911,8 +1898,8 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
   // Orient before dropping: face the mark if given, else look down to drop at
   // the player's feet (e.g. onto a floor button being stood on). Capture the
   // view so PulseUse can HOLD it across the drop -- a single SetAngles drifts
-  // pitch to the ceiling and flings the held cube (the "camera to the ceiling"
-  // bug). AimAt returns the commanded (pre-drift) angle.
+  // pitch to the ceiling and flings the held cube. AimAt returns the commanded
+  // (pre-drift) angle.
   QAngle view{0, 0, 0};
   if (mark > 0) {
     portal2_harness::MacroResult aim = AimAt(mark);
@@ -2308,10 +2295,9 @@ CON_COMMAND(sar_harness_seat_check,
 }
 
 // Debug: snap the held (or given) cube onto a button mark via seat-find +
-// CBaseEntity::Teleport, with NO fairness or verify -- a spike to confirm the
-// teleport lands the cube dead-centre and the button presses. Mutates state
-// (moves the cube). Prefer a free cube-mark: a still-held cube gets yanked back
-// by the grab controller on the next tick.
+// CBaseEntity::Teleport, with NO fairness or verify. Mutates state (moves the
+// cube). Prefer a free cube-mark: a still-held cube gets yanked back by the grab
+// controller on the next tick.
 CON_COMMAND(
     sar_harness_seat_place,
     "sar_harness_seat_place <button-mark> [cube-mark] - teleport the "
@@ -2365,16 +2351,14 @@ CON_COMMAND(
       s.origin.x, s.origin.y, s.origin.z, s.angles.x, s.angles.y, s.angles.z);
 }
 
-// Debug: the dual-role placement spike. Seat a free cube on a button via
-// ComputeSeat, yaw-only aim the cube's +X at a laser target, and dump the
-// button geometry so a float is diagnosable: the press TRIGGER z-band vs where
-// the cube bottom lands. Answers the blocking questions before any verb code:
-// is the button inside the beam's lateral capture radius, does the seat land
-// the cube in the trigger band (or float above it), and does a yaw-only aim
-// (pitch never touched) reach the target. The cube is left FREE (grabbable);
+// Debug: seat a free cube on a button via ComputeSeat, yaw-only aim the cube's
+// +X at a laser target, and dump the button geometry: whether the button is
+// inside the beam's lateral capture radius, whether the seat lands the cube in
+// the press trigger z-band (or floats above it), and whether a yaw-only aim
+// (pitch never touched) reaches the target. The cube is left FREE (grabbable);
 // the press + power are sim-tick events, so read them AFTER with
-// sar_harness_dump_fields + sar_harness_laser_probe. Mutates (moves the cube);
-// use a free cube mark and reload between runs.
+// sar_harness_dump_fields + sar_harness_laser_probe. Moves the cube; use a free
+// cube mark and reload between runs.
 CON_COMMAND(
     sar_harness_dual_seat_spike,
     "sar_harness_dual_seat_spike <emitter-mark> <target-mark> <cube-mark> "
@@ -2502,10 +2486,10 @@ CON_COMMAND(
       "sar_harness_dump_fields + sar_harness_laser_probe after a moment.\n");
 }
 
-// Dryrun of interpose's seat+reachability gates (2.3; no carry/teleport). Takes
-// RAW entity indices like the spike (recon path, no marks) -- the emitter and
-// the cube to seat -- and prints the gate code + computed seat. The verb itself
-// resolves the emitter by mark and the cube from the hand.
+// Dryrun of interpose's seat+reachability gates (no carry/teleport). Takes RAW
+// entity indices (no marks) -- the emitter and the cube to seat -- and prints
+// the gate code + computed seat. The verb itself resolves the emitter by mark
+// and the cube from the hand.
 CON_COMMAND(sar_harness_interpose_dryrun,
             "sar_harness_interpose_dryrun <emitter_idx> <cube_idx> <percent> - "
             "run interpose's seat+reachability gates (no movement) and print "
@@ -2542,7 +2526,7 @@ CON_COMMAND(sar_harness_interpose_dryrun,
                  seat.x, seat.y, seat.z, beamLen, percent);
 }
 
-// Run interpose's snap end-to-end in-console (2.4 test): gate + teleport-snap +
+// Run interpose's snap end-to-end in-console: gate + teleport-snap +
 // interception re-trace, on a FREE cube by raw index (no carry -- that needs
 // the harness/Python). percent in [0,1]; read the settled result with
 // sar_harness_laser_probe.

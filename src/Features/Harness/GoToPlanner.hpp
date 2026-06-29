@@ -6,28 +6,27 @@
 
 #include "Utils/SDK/Math.hpp"
 
-// Lazy occupancy grid + A* for go_to global routing. Cells are hull-probed
-// on demand and cached -- only the explored frontier is touched, no reset-time
-// sweep. Anchored to the world lattice at kCellSize; 2D connectivity (current
-// chambers are ~flat) with floorZ stored per cell as the 2.5D-ready seam.
-// Obstacle props (cubes/buttons/turrets) are stamped BLOCKED so the route bends
-// around them, not just walls. Construct once per go_to from the live player;
-// every method traces the world / reads the entity list and must run on the
-// main thread.
+// Lazy occupancy grid + A* for go_to routing. Cells are hull-probed on demand
+// and cached; only the explored frontier is touched. Anchored to the world
+// lattice at kCellSize with 2D connectivity (floorZ stored per cell). Obstacle
+// props (cubes/buttons/turrets) are stamped BLOCKED so the route bends around
+// them, not just walls. Construct once per go_to from the live player; every
+// method traces the world / reads the entity list and must run on the main
+// thread.
 class GoToPlanner {
  public:
-  static constexpr float kCellSize = 16.0f;  // ~half player hull; 128/8 divisor
+  static constexpr float kCellSize = 16.0f;  // ~half player hull
 
   enum CellState : uint8_t { UNKNOWN = 0, WALKABLE, BLOCKED };
   enum BlockReason : uint8_t { OPEN = 0, NO_FLOOR, IN_WALL, OBSTACLE };
   struct Cell {
     uint8_t state = UNKNOWN;
-    uint8_t reason = OPEN;  // why BLOCKED; recon-only, A* never reads it
+    uint8_t reason = OPEN;  // why BLOCKED; diagnostic only, A* never reads it
     float floorZ = 0;
   };
 
-  // targetKey/heldKey: obstacle props skipped by identity (the go_to
-  // destination and any carried cube), matching the VFH histogram's stance.
+  // targetKey/heldKey: obstacle props skipped by identity -- the go_to
+  // destination and any carried cube are not stamped BLOCKED.
   GoToPlanner(const Vector& playerMins, const Vector& playerMaxs, float refZ,
               uint32_t targetKey = 0, uint32_t heldKey = 0);
 

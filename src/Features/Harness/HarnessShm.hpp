@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string>
 
-// docs/HarnessShm.hpp:HarnessShm>
+// Maps a POSIX shared-memory framebuffer for sharing pixels with the Python client.
 class HarnessShm {
  public:
   HarnessShm();

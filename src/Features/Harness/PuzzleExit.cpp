@@ -19,9 +19,8 @@ enum ExitSignal {
   SIG_READY = 1 << 2,          // RunScriptCode(ReadyForTransition)
   SIG_LEVELEND = 1 << 3,       // OnLevelEnd
   SIG_CHANGELEVEL = 1 << 4,    // ChangeLevel / ChangeLevelPostFade
-  SIG_EXIT_AIRLOCK = 1 << 5,   // @exit_airlock_door.Open -- solved AND walked out
-                               // into the exit corridor (relay_leaving_level),
-                               // before the worldportal ride to the elevator.
+  SIG_EXIT_AIRLOCK = 1 << 5,   // @exit_airlock_door.Open -- walked out into the
+                               // exit corridor after solving.
 };
 
 }  // namespace

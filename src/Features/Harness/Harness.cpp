@@ -40,21 +40,19 @@ const int HARNESS_WARMUP_TICKS = 256;
 // Helpers
 // ================================================================
 
-// Build a TasPlaybackInfo suitable for harness control.
-// Contains two framebulks: a default at tick 0 (the one we update),
-// and a sentinel at a very high tick (to keep lastTick huge so
-// TasPlayer::Update never auto-stops).
+// Two framebulks: a default at tick 0 (the one we update), and a sentinel at a
+// very high tick so lastTick stays huge and TasPlayer::Update never auto-stops.
 static TasPlaybackInfo BuildHarnessPlaybackInfo() {
   TasPlaybackInfo info;
 
-  // Configure header: start immediately, no map change
-  info.slots[0].header.version = 5;  // latest script version
+  // Start immediately, no map change.
+  info.slots[0].header.version = 5;
   info.slots[0].header.startInfo.isNext = false;
   info.slots[0].header.startInfo.type = StartImmediately;
   info.slots[0].header.startInfo.param = "";
   info.slots[0].header.rngManipFile = "";
 
-  // Mark as raw playback (skip TAS tool processing)
+  // Raw playback: skip TAS tool processing.
   info.slots[0].forceRawPlayback = true;
   info.slots[0].loadedFromFile = false;
   info.slots[0].name = "harness";
@@ -98,8 +96,8 @@ static void ActivateHarnessTasPlayer() {
   console->Print("Harness: Activating TasPlayer with harness framebulks...\n");
   TasPlaybackInfo info = BuildHarnessPlaybackInfo();
   tasPlayer->Activate(info);
-  // TasPlayer::Update() will call Start() and PostStart() on subsequent frames,
-  // which handles in_forceuser, controller enabling, etc.
+  // TasPlayer::Update() calls Start()/PostStart() on later frames, which set
+  // in_forceuser and enable the controller.
 }
 
 static void sar_harness_callback(void* var, const char* pOldValue,
@@ -108,8 +106,7 @@ static void sar_harness_callback(void* var, const char* pOldValue,
     console->Print("Harness enabled. Initializing gRPC server thread...\n");
     harness->StartServer();
 
-    // If a session is already running (user enabled harness mid-game),
-    // activate TasPlayer and start warmup
+    // Harness enabled mid-game: activate TasPlayer and start warmup now.
     if (session->isRunning) {
       ActivateHarnessTasPlayer();
       harness->warmupTicksRemaining = HARNESS_WARMUP_TICKS;
@@ -120,7 +117,6 @@ static void sar_harness_callback(void* var, const char* pOldValue,
     harness->harnessControlActive = false;
     harness->warmupTicksRemaining = 0;
     harness->ticksRemaining = 0;
-    // Stop TasPlayer if it's running
     if (tasPlayer && tasPlayer->IsActive()) {
       Scheduler::OnMainThread([]() { tasPlayer->Stop(true); });
     }
@@ -149,10 +145,10 @@ Harness::Harness()
 }
 
 Harness::~Harness() {
-  // Null out global pointer FIRST so event handlers bail immediately
+  // Null the global first so event handlers bail immediately.
   harness = nullptr;
 
-  // Stop TasPlayer to prevent it from accessing our framebulk data
+  // Stop TasPlayer so it can no longer reach our framebulk data.
   if (tasPlayer && tasPlayer->IsActive()) {
     tasPlayer->Stop(true);
   }
@@ -169,7 +165,6 @@ Harness::~Harness() {
   }
 }
 
-// docs/Harness.cpp:StartServer>
 void Harness::StartServer() {
   if (this->shouldRun) return;
   this->shouldRun = true;
@@ -186,9 +181,8 @@ void Harness::StartServer() {
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
     builder.RegisterService(&service);
 
-    // Survive long idle stretches between macros (minutes of client
-    // think-time): tolerate the client's keepalive pings and never idle- or
-    // age-close the connection. The client drives keepalive (harness.py).
+    // Survive minutes of client think-time: tolerate the client's keepalive
+    // pings and never idle- or age-close the connection.
     builder.AddChannelArgument(
         GRPC_ARG_HTTP2_MIN_RECV_PING_INTERVAL_WITHOUT_DATA_MS, 10000);
     builder.AddChannelArgument(GRPC_ARG_MAX_CONNECTION_IDLE_MS, INT_MAX);
@@ -213,7 +207,7 @@ void Harness::StopServer() {
   if (!this->shouldRun) return;
   this->shouldRun = false;
 
-  // Wake up any threads blocked on condvars (Act, Reset)
+  // Wake any threads blocked on the tick/reset condvars (Act, Reset).
   this->harnessControlActive = false;
   this->ticksRemaining = 0;
   this->warmupTicksRemaining = 0;
@@ -226,7 +220,7 @@ void Harness::StopServer() {
     this->resetCV.notify_all();
   }
 
-  // Shut down the gRPC server to terminate any in-flight RPCs
+  // Shut down the gRPC server, terminating any in-flight RPCs.
   if (this->server) {
     auto deadline = std::chrono::system_clock::now() + std::chrono::seconds(1);
     this->server->Shutdown(deadline);
@@ -244,7 +238,6 @@ void Harness::StopServer() {
 // Event handlers
 // ================================================================
 
-// SESSION_START: When a session begins with harness enabled, activate TasPlayer
 ON_EVENT(SESSION_START) {
   if (harness && harness->entitySnapshotter) {
     harness->entitySnapshotter->DiscoverSchema();
@@ -265,13 +258,13 @@ void Harness::RecordDemoAction(const CUserCmd& cmd) {
   this->lastDemoAction = cmd;
 }
 
-// PRE_TICK: Manage warmup countdown and tick synchronization
+// Warmup countdown and per-Act tick synchronization.
 ON_EVENT(PRE_TICK) {
   if (!harness || !harness->IsEnabled() || harness->isRecordingRollout) return;
   if (!harness->harnessControlActive && harness->warmupTicksRemaining <= 0)
     return;
 
-  // Warmup phase: let the game run freely while TasPlayer initializes
+  // Let the game run freely while TasPlayer initializes.
   if (harness->warmupTicksRemaining > 0) {
     harness->warmupTicksRemaining--;
     if (harness->warmupTicksRemaining == 0) {
@@ -281,7 +274,7 @@ ON_EVENT(PRE_TICK) {
       engine->SetAdvancing(true);  // Pause the game
       harness->harnessControlActive = true;
 
-      // Notify Reset() if it's waiting for warmup completion
+      // Wake a Reset() waiting on warmup completion.
       {
         std::lock_guard<std::mutex> lock(harness->resetMutex);
         harness->resetCV.notify_one();
@@ -290,18 +283,17 @@ ON_EVENT(PRE_TICK) {
     return;
   }
 
-  // Act tick counting: decrement remaining ticks and notify when done
   if (harness->ticksRemaining > 0) {
     harness->ticksRemaining--;
     if (harness->ticksRemaining <= 0) {
-      // All requested ticks have executed, notify the waiting Act() call
+      // Requested ticks done: wake the waiting Act() call.
       std::lock_guard<std::mutex> lock(harness->tickMutex);
       harness->tickCV.notify_one();
     }
   }
 }
 
-// POST_TICK: Drive active sidecar recording stream tick-by-tick
+// Snapshot entities each tick; feed the .hdem recorder if active.
 ON_EVENT(POST_TICK) {
   if (!harness || !harness->entitySnapshotter) return;
 
@@ -310,13 +302,11 @@ ON_EVENT(POST_TICK) {
 
   if (!hdemActive && !harnessEnabled) return;
 
-  // Ensure game engine structures are fully initialized
   if (!engine || !engine->hoststate || !server || !server->gpGlobals) {
     return;
   }
 
-  // Only record state frames when server simulation is actively ticking a live
-  // map
+  // Only snapshot when the server is simulating a live map.
   if (!engine->hoststate->m_activeGame) {
     return;
   }
@@ -328,7 +318,7 @@ ON_EVENT(POST_TICK) {
   }
 }
 
-// POST_TICK: Record rollout data during demo playback
+// Record rollout data during demo playback.
 ON_EVENT(POST_TICK) {
   if (!harness || !harness->isRecordingRollout ||
       !harness->rolloutRecorder->IsActive())
@@ -384,7 +374,6 @@ ON_EVENT(DEMO_STOP) {
   }
 }
 
-// Manual stop command
 CON_COMMAND(
     sar_harness_stop_rollout,
     "sar_harness_stop_rollout - Stops the current rollout recording.\n") {
@@ -456,7 +445,7 @@ CON_COMMAND_F_COMPLETION(
   if (!Utils::EndsWith(demoPath, ".dem")) demoPath += ".dem";
   if (!Utils::EndsWith(outputPath, ".rollout")) outputPath += ".rollout";
 
-  // Ensure absolute path in the game directory if it is relative
+  // Resolve a relative output path against the game directory.
   bool isAbsolute = (outputPath.size() >= 1 && outputPath[0] == '/');
 #ifdef _WIN32
   if (outputPath.size() >= 2 && outputPath[1] == ':') isAbsolute = true;
@@ -465,7 +454,6 @@ CON_COMMAND_F_COMPLETION(
     outputPath = std::string(engine->GetGameDirectory()) + "/" + outputPath;
   }
 
-  // Check if demo file exists
   auto fullPath = fileSystem->FindFileSomewhere(demoPath).value_or(demoPath);
   if (!std::filesystem::exists(fullPath)) {
     return console->Warning("Harness: Demo file not found: %s\n",
@@ -533,7 +521,6 @@ CON_COMMAND_F_COMPLETION(
 
   sv_alternateticks.SetValue(0);
 
-  // Execute playdemo
   std::string cmd =
       "sar_disable_challenge_stats_hud -1; hideconsole; playdemo \"" +
       demoPath + "\"";

@@ -2,7 +2,6 @@
 #include <cstddef>
 #include <cstdint>
 
-// Magic: "HDEM", version, flags
 constexpr uint32_t HDEM_MAGIC = 0x4D454448;  // "HDEM" in Little-Endian
 constexpr uint16_t HDEM_VERSION = 1;
 

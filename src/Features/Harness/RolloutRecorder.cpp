@@ -36,7 +36,6 @@ bool RolloutRecorder::Start(const std::string& path, const std::string& mapName,
     }
   }
 
-  // Write Header
   portal2_harness::RolloutHeader header;
   header.set_map_name(mapName);
   header.set_shm_width(width);
@@ -54,8 +53,7 @@ void RolloutRecorder::Stop() {
   this->file.close();
   this->isActive = false;
 
-  // We can't use console->Print here because we are a lower level util,
-  // so we'll just log to a string if needed or let the caller handle it.
+  // No console->Print here; the caller handles any logging.
 }
 
 void RolloutRecorder::RecordTick(const portal2_harness::GameState& state,
@@ -99,8 +97,7 @@ void RolloutRecorder::MapUserCmdToAction(const CUserCmd& cmd,
   req->set_portal_primary(cmd.buttons & IN_ATTACK);
   req->set_portal_secondary(cmd.buttons & IN_ATTACK2);
 
-  // Reconstruct relative look deltas if raw mouse inputs are zero (e.g. in
-  // human demo playback)
+  // Demo playback has zero raw mouse deltas; recover them from viewangle diffs.
   float dx = static_cast<float>(cmd.mousedx);
   float dy = static_cast<float>(cmd.mousedy);
 

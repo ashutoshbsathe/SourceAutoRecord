@@ -15,7 +15,6 @@ HarnessShm::HarnessShm()
 
 HarnessShm::~HarnessShm() { Cleanup(); }
 
-// docs/HarnessShm.cpp:Init>
 bool HarnessShm::Init(const std::string& name, size_t size) {
   if (initialized_) {
     Cleanup();
@@ -24,7 +23,6 @@ bool HarnessShm::Init(const std::string& name, size_t size) {
   name_ = name;
   size_ = size;
 
-  // Open/create POSIX shared memory
   fd_ = shm_open(name_.c_str(), O_CREAT | O_RDWR, 0666);
   if (fd_ == -1) {
     console->Print("HarnessShm: Failed to shm_open %s (errno %d)\n",
@@ -32,7 +30,6 @@ bool HarnessShm::Init(const std::string& name, size_t size) {
     return false;
   }
 
-  // Set the size
   if (ftruncate(fd_, size_) == -1) {
     console->Print("HarnessShm: Failed to ftruncate %s (errno %d)\n",
                    name_.c_str(), errno);
@@ -42,7 +39,6 @@ bool HarnessShm::Init(const std::string& name, size_t size) {
     return false;
   }
 
-  // Map memory
   mapped_ptr_ = mmap(0, size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);
   if (mapped_ptr_ == MAP_FAILED) {
     console->Print("HarnessShm: Failed to mmap %s (errno %d)\n", name_.c_str(),
@@ -72,12 +68,8 @@ void HarnessShm::Cleanup() {
     fd_ = -1;
   }
 
-  // Explicitly using a comment about Sync:
-  // SYNC: We are relying on the gRPC HTTP/2 stream as the synchronization
-  // barrier. C++ will write to SHM -> Send gRPC message. Python receives gRPC
-  // message -> Reads SHM. This ensures no race conditions on the memory block
-  // without needing complex SHM mutexes.
-
+  // No SHM mutex: the gRPC stream is the sync barrier (writer sends after the
+  // SHM write, reader reads after receiving the message).
   shm_unlink(name_.c_str());
   initialized_ = false;
 

@@ -13,7 +13,7 @@ constexpr float kRestProbeUp = 64.0f;     // down-trace start above P
 constexpr float kRestProbeDist = 256.0f;  // ... and how far down to look
 
 // Skip the emitter (the ray starts inside its hull) plus up to two more
-// entities -- the player and held cube under interpose.
+// entities (e.g. the player and a held cube).
 class SkipBeamHits : public CTraceFilterSimple {
  public:
   const void* a = nullptr;

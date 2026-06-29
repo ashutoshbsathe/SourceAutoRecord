@@ -5,12 +5,11 @@
 
 #include "harness.pb.h"
 
-// Runs one closed semantic verb (aim_at / look / go_to / move / pick_up / ...)
-// against the live, frozen game. Like Act(), it lives on the gRPC thread and
-// dispatches every engine read/write to the main thread
-// (Scheduler::OnMainThread, via the HarnessThread helpers). One instance per
-// macro step; it holds no state beyond the gRPC context it needs to abort
-// cleanly if the client drops the stream.
+// Runs one semantic verb (aim_at / look / go_to / move / pick_up / ...) against
+// the frozen game. Lives on the gRPC thread and dispatches every engine
+// read/write to the main thread via the HarnessThread helpers. One instance per
+// macro step; holds only the gRPC context, used to abort if the client drops
+// the stream.
 class MacroExecutor {
  public:
   explicit MacroExecutor(grpc::ServerContext* context) : context_(context) {}
@@ -32,9 +31,9 @@ class MacroExecutor {
   portal2_harness::MacroResult Interact(int mark);
   portal2_harness::MacroResult Interpose(
       const portal2_harness::MacroRequest& req);
-  // Yaw a seated cube's +X at a target + confirm power, re-seating to re-roll
-  // the ~2% settle jank. POWERED / NOT_POWERED / CANCELLED; *residual = degrees
-  // the cube's +X ends off the target.
+  // Yaw a seated cube's +X at a target and confirm power, re-seating to retry
+  // the occasional settle jank. Returns POWERED / NOT_POWERED / CANCELLED;
+  // *residual = degrees the cube's +X ends off the target.
   std::string RedirectConfirm(uint32_t cubeKey, int targetMark,
                               float* residual);
   portal2_harness::MacroResult RedirectTo(

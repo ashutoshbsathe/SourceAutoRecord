@@ -14,7 +14,6 @@
 #include "harness.grpc.pb.h"
 #include "harness.pb.h"
 
-// docs/Harness.hpp:Harness>
 class Harness : public Feature {
  public:
   Harness();

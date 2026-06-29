@@ -27,8 +27,7 @@ class HdemReader {
   void Close();
   bool IsOpen() const { return file.is_open(); }
 
-  // Read and apply all ticks up to targetTick.
-  // Reconstructs the state of all entities.
+  // Apply all frames up to targetTick, rebuilding every entity's state.
   bool AdvanceToTick(int targetTick);
 
   // Get the current reconstructed snapshot of all entities.
