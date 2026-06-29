@@ -846,3 +846,153 @@ CON_COMMAND(
       ReconReadField(portal, "m_bIsPortal2").c_str(),
       ReconReadHandleIndex(portal, "m_hLinkedPortal"));
 }
+
+// ---------------------------------------------------------------------------
+// Recon: portal SURFACE census (R1). Read-only -- TraceFirePortal previews
+// only, no portal is placed. Part 1 walks every info_placement_helper (the
+// mapmaker attractor census: origin/radius/state). Part 2 sweeps a coarse
+// preview grid across the wall under the crosshair and prints it as an ASCII
+// portalability map -- how many contiguous portalable tiles the panel spans
+// (the single- vs multi-tile signal) and whether cells snapped to a helper.
+
+static void PlaneAxes(Vector n, Vector* ax1, Vector* ax2) {
+  Vector up = (n.z < 0.9f && n.z > -0.9f) ? Vector{0, 0, 1} : Vector{1, 0, 0};
+  *ax1 = n.Cross(up).Normalize();
+  *ax2 = n.Cross(*ax1).Normalize();
+}
+
+CON_COMMAND(
+    sar_harness_portal_surface_census,
+    "sar_harness_portal_surface_census - R1 recon. Lists every "
+    "info_placement_helper (origin/radius/state), then sweeps a coarse "
+    "TraceFirePortal preview grid on the wall under the crosshair and prints "
+    "an ASCII portalability map. Read-only (no portal placed); aim at a wall "
+    "first.\n") {
+  if (!server || !entityList || !engine) {
+    console->Print("portal surface census: no server/entity list yet.\n");
+    return;
+  }
+
+  int helpers = 0;
+  for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
+    auto info = entityList->GetEntityInfoByIndex(i);
+    if (!info || !info->m_pEntity) continue;
+    auto ent = info->m_pEntity;
+    const char* cn = server->GetEntityClassName(ent);
+    if (!cn || std::strcmp(cn, "info_placement_helper")) continue;
+    auto se = SE(ent);
+    Vector o = se->abs_origin();
+#ifdef _WIN32
+    float radius = se->fieldOff<float>("m_flRadius", 648);
+#else
+    float radius = se->fieldOff<float>("m_flRadius", 664);
+#endif
+    const char* nm = server->GetEntityName(ent);
+    console->Print("[%d] info_placement_helper \"%s\"\n", i,
+                   (nm && *nm) ? nm : "<no name>");
+    console->Msg(
+        "    origin %.1f %.1f %.1f  radius %.1f  force=%d snap=%d disabled=%d "
+        "defer=%d\n",
+        o.x, o.y, o.z, radius, (int)se->field<bool>("m_bForcePlacement"),
+        (int)se->field<bool>("m_bSnapToHelperAngles"),
+        (int)se->field<bool>("m_bDisabled"),
+        (int)se->field<bool>("m_bDeferringToPortal"));
+    ++helpers;
+  }
+  console->Print("helpers: %d info_placement_helper entit%s.\n", helpers,
+                 helpers == 1 ? "y" : "ies");
+
+  void* player = server->GetPlayer(1);
+  Vector eye;
+  QAngle ang;
+  if (!player || !camera || !camera->GetEyePos<true>(0, eye, ang)) {
+    console->Print("portal surface census: no eye/player.\n");
+    return;
+  }
+  Vector fwd;
+  Math::AngleVectors(ang, &fwd);
+  Vector delta = fwd * 2500.0f;
+
+  Ray_t ray;
+  ray.m_IsRay = true;
+  ray.m_IsSwept = true;
+  ray.m_Start = VectorAligned(eye.x, eye.y, eye.z);
+  ray.m_Delta = VectorAligned(delta.x, delta.y, delta.z);
+  ray.m_StartOffset = VectorAligned();
+  ray.m_Extents = VectorAligned();
+  SkipTwoEntities filter;
+  filter.a = player;
+  filter.b = nullptr;
+  CGameTrace tr;
+  engine->TraceRay(engine->engineTrace->ThisPtr(), ray, MASK_SHOT_PORTAL,
+                   &filter, &tr);
+  if (tr.fraction >= 1.0f || tr.plane.normal.Length() < 0.9f) {
+    console->Print("    no wall under the crosshair — aim at a surface.\n");
+    return;
+  }
+  Vector n = tr.plane.normal;
+  Vector hit = eye + delta * tr.fraction;
+  Vector ax1, ax2;
+  PlaneAxes(n, &ax1, &ax2);
+  console->Msg("    aimed wall: hit %.1f %.1f %.1f  normal %.2f %.2f %.2f\n",
+               hit.x, hit.y, hit.z, n.x, n.y, n.z);
+
+  // Prime the gun's two portal entities (same as the fire spike); no portal is
+  // placed -- TraceFirePortal previews only.
+  auto wpn = SE(player)->active_weapon();
+  uintptr_t gun = (uintptr_t)entityList->LookupEntity(wpn);
+  if (!gun || !entityList->IsPortalGun(wpn)) {
+    console->Print("    no portalgun equipped — can't probe portalability.\n");
+    return;
+  }
+  unsigned char linkage =
+      SE(gun)->field<unsigned char>("m_iPortalLinkageGroupID");
+  if (!entityList->LookupEntity(
+          SE(gun)->field<CBaseHandle>("m_hPrimaryPortal"))) {
+    auto b = server->FindPortal(linkage, false, true);
+    SE(gun)->field<CBaseHandle>("m_hPrimaryPortal") =
+        ((IHandleEntity*)b)->GetRefEHandle();
+  }
+  if (!entityList->LookupEntity(
+          SE(gun)->field<CBaseHandle>("m_hSecondaryPortal"))) {
+    auto o = server->FindPortal(linkage, true, true);
+    SE(gun)->field<CBaseHandle>("m_hSecondaryPortal") =
+        ((IHandleEntity*)o)->GetRefEHandle();
+  }
+
+  // '#' placeable, 'H' snapped to a placement helper, '.' not portalable.
+  const float kStep = 64.0f;
+  const int kHalf = 4;
+  int placeable = 0, usedHelper = 0;
+  for (int r = kHalf; r >= -kHalf; --r) {
+    char rowbuf[16];
+    int col = 0;
+    for (int c = -kHalf; c <= kHalf; ++c) {
+      Vector p = hit + ax1 * (c * kStep) + ax2 * (r * kStep);
+      Vector origin = p + n * 10.0f;
+      Vector dir = -n;
+      TracePortalPlacementInfo_t pinfo;
+      server->TraceFirePortal(gun, origin, dir, false, 2, pinfo);
+      int res = (int)pinfo.ePlacementResult;
+      char ch;
+      if (res == PORTAL_PLACEMENT_USED_HELPER) {
+        ch = 'H';
+        ++usedHelper;
+        ++placeable;
+      } else if (res <= PORTAL_PLACEMENT_BUMPED) {
+        ch = '#';
+        ++placeable;
+      } else {
+        ch = '.';
+      }
+      rowbuf[col++] = ch;
+    }
+    rowbuf[col] = '\0';
+    console->Msg("    %s\n", rowbuf);
+  }
+  int total = (2 * kHalf + 1) * (2 * kHalf + 1);
+  console->Print(
+      "portal surface census: %d/%d cells portalable (%d via helper) at %gu "
+      "spacing on the aimed wall.\n",
+      placeable, total, usedHelper, kStep);
+}

@@ -271,3 +271,59 @@ only the R1 surface enumerator + chamber census remains, and R5 was not run.
 **Next:** R1 — census the v0-target portal chambers (single- vs multi-tile panels) + probe the
 `info_placement_helper` route to a world-brush surface enumerator. That resolves §5.1 (ship-right
 `surface_center`+`where` vs ship-now `aim_ray_reticle`).
+
+---
+
+## 8. R1 recon plan — agreed 2026-06-29 (BOTH tracks, cross-validated)
+
+A 5-agent R1 fan-out (G1–G4 grounding + synthesis) established the stakes: **`PlacementScanner` is a
+*placement* enumerator, not a *surface* one** — its `testPoint`/`initScan` spine is reusable, but panel
+auto-discovery + coplanar clustering + non-entity marking are all NEW (`MarkTable` is entity-only, world
+brush has no entity). `info_placement_helper` has no surface-ID field and unproven coverage (leak-risky
+prior, never the sole enumerator). `dump_ents.py --geometry` already emits per-face
+`portalable`/`plane`/`verts`. So "name the surface" is a **MEDIUM-lift** build *if* we go ship-right — which
+is exactly why R1 measures whether v0 needs it before building anything.
+
+**This is recon to DECIDE, not the enumerator build.** User chose BOTH tracks so the runtime side
+ground-truths the BSP's ~89% portalable-flag false-positive the offline census would otherwise inherit.
+
+### Track C — in-engine `sar_harness_portal_surface_census` (read-only, console-only, no file writes)
+Mirror `sar_harness_portal_probe` ([:690](../src/Features/Harness/PuzzleAnnotate.cpp#L690)); reuse
+`ReconReadField`/`ReconReadHandleIndex` + the `PlacementScanner` `camTrace`/`getAxesForPlane`/`testPoint`/
+`initScan` idiom ([PlacementScanner.cpp:21-204](../src/Features/PlacementScanner.cpp#L21)).
+- **C1** classname gate + command skeleton (banner, null-guard, no-op). Verify: appears in-game, mutates nothing.
+- **C2** helper census loop — walk entity list, gate `info_placement_helper`, print index + `abs_origin` +
+  `m_flRadius` + `m_bForcePlacement`/`m_bSnapToHelperAngles`/`m_bDisabled`/`m_bDeferringToPortal`
+  ([PlacementHelperHud.cpp:77-88](../src/Features/Hud/PlacementHelperHud.cpp#L77)). Verify: lists white-wall helpers.
+- **C3** camera-aimed wall pick — `camTrace` + `getAxesForPlane`; print hit normal/origin/basis. Verify: prints the aimed wall.
+- **C4** coarse portalability strip — prime gun (`initScan`), `TraceFirePortal` at **64–128u** spacing across
+  the aimed wall plane; print per-probe `ePlacementResult` + `finalPos` + `used_helper (==result 1)`. Verify:
+  white→run of `SUCCESS/BUMPED`, black→`INVALID_SURFACE`, helper drift visible in `finalPos`.
+- **C5** build (`make`); user runs on 3–5 v0-target chambers, captures console.
+
+**Track C — RESULTS (2026-06-29, `sp_a2_triple_laser`).** Command validated: black wall → `0/81`,
+white panels → `#` clusters, floor/ceiling → large fields (72–73/81). (a) **Helpers are SPARSE** — 5
+`info_placement_helper` in the whole chamber (radii 16–24u, all flags 0), nowhere near one-per-panel →
+the **helper-only enumerator is DEAD** (confirms g2: mapmaker attractors, partial coverage). (b)
+`used_helper` is always 0 here **by design** — perpendicular probes place directly and never need a
+helper-assist; helper coverage is read from the Part-1 census instead. (c) **Panels are a size MIX**: a
+1×4-cell strip (~1 tile wide), a 4×4-cell wall panel (~2×2 tiles), and large portalable floors/ceilings
+→ multi-tile panels common → *preliminary* lean toward `where`. (d) Runtime cleanly ground-truths
+portalable/not, so the BSP-vs-runtime cross-check is viable. **Caveat:** one Valve SP map, a spot-check
+— the PeTI corpus census (Track P) is the prevalence authority.
+
+### Track P — offline BSP census (after Track C, per SAR-before-Python)
+- **P1** run existing `uv run python py/bsp_recon/dump_ents.py --corpus workshop --geometry --out artifacts/bsp_recon`
+  (no code) → confirm `*.geo.json` carries `faces[].portalable` + `info_placement_helper` entities.
+- **P2** `cluster_panels.py` (new, <200 LOC): load `*.geo.json`, **material-filter to white tile** (dodges the
+  89% FP), union-find faces by coplanarity (normal+dist ε) + 128u adjacency → panel cells; emit per-map
+  **single-vs-multi-tile histogram** + a **helper-coverage tally** (spatial-join `info_placement_helper`
+  onto panels) → `panel_census.json`. Verify on one map: ~29 panels, sane sizes.
+- **P3** cross-validate P2 vs the C5 runtime capture on the same chambers — flag BSP false-positive discrepancies.
+
+### Decision rule → resolves §5.1
+Let **M = fraction of portalable panels that are multi-tile** (≥2 contiguous 128u cells), corpus-wide.
+- **M low (< ~20%) + runtime confirms single-tile-dominant** → `surface_center`, **no `where`** (one label/panel).
+- **M high + look-loop is the bottleneck** → `surface_center` **+ `where`** (the sub-panel DOF is a real puzzle choice).
+- **clustering not uniform/stable/leak-safe OR runtime confirm too costly at load** → ship-now **`aim_ray_reticle`**,
+  earn the enumerator later (fix the `Hud/PortalPlacement.cpp` reticle leak first — §4.4).
