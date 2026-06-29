@@ -222,12 +222,19 @@ inline constexpr MacroRequest::Impl_::Impl_(
         dir_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
+        color_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        where_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
         mark_{0},
         ticks_{0},
         yaw_{0},
         pitch_{0},
         percent_{0},
-        target_mark_{0} {}
+        target_mark_{0},
+        surface_mark_{0} {}
 
 template <typename>
 PROTOBUF_CONSTEXPR MacroRequest::MacroRequest(::_pbi::ConstantInitialized)
@@ -454,6 +461,36 @@ struct ActionRequestDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ActionRequestDefaultTypeInternal _ActionRequest_default_instance_;
 
+inline constexpr SurfaceMark::Impl_::Impl_(
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        plane_normal_{nullptr},
+        center_{nullptr},
+        mins_{nullptr},
+        maxs_{nullptr},
+        mark_{0},
+        anchor_flags_{0} {}
+
+template <typename>
+PROTOBUF_CONSTEXPR SurfaceMark::SurfaceMark(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(SurfaceMark_class_data_.base()),
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(),
+#endif  // PROTOBUF_CUSTOM_VTABLE
+      _impl_(::_pbi::ConstantInitialized()) {
+}
+struct SurfaceMarkDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SurfaceMarkDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SurfaceMarkDefaultTypeInternal() {}
+  union {
+    SurfaceMark _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SurfaceMarkDefaultTypeInternal _SurfaceMark_default_instance_;
+
 inline constexpr EntityField::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
@@ -578,6 +615,7 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
 inline constexpr GameState::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
+        surface_marks_{},
         position_{nullptr},
         velocity_{nullptr},
         camera_{nullptr},
@@ -735,7 +773,7 @@ const ::uint32_t
         2,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_._has_bits_),
-        11, // hasbit index offset
+        14, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.verb_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.mark_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.ticks_),
@@ -744,14 +782,20 @@ const ::uint32_t
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.pitch_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.percent_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.target_mark_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.color_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.surface_mark_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.where_),
         0,
-        2,
-        3,
-        1,
         4,
         5,
+        1,
         6,
         7,
+        8,
+        9,
+        2,
+        10,
+        3,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroResult, _impl_._has_bits_),
         11, // hasbit index offset
@@ -823,8 +867,23 @@ const ::uint32_t
         0,
         1,
         0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::SurfaceMark, _impl_._has_bits_),
+        9, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::SurfaceMark, _impl_.mark_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::SurfaceMark, _impl_.plane_normal_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::SurfaceMark, _impl_.center_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::SurfaceMark, _impl_.mins_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::SurfaceMark, _impl_.maxs_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::SurfaceMark, _impl_.anchor_flags_),
+        4,
+        0,
+        1,
+        2,
+        3,
+        5,
+        0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState, _impl_._has_bits_),
-        13, // hasbit index offset
+        14, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState, _impl_.position_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState, _impl_.velocity_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState, _impl_.camera_),
@@ -835,6 +894,7 @@ const ::uint32_t
         PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState, _impl_.chamber_complete_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState, _impl_.exit_signal_mask_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState, _impl_.held_mark_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::GameState, _impl_.surface_marks_),
         0,
         1,
         2,
@@ -845,6 +905,7 @@ const ::uint32_t
         7,
         8,
         9,
+        ~0u,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::ActionRequest, _impl_._has_bits_),
         17, // hasbit index offset
@@ -984,24 +1045,25 @@ static const ::_pbi::MigrationSchema
         {9, sizeof(::portal2_harness::AgentMessage)},
         {18, sizeof(::portal2_harness::EnvironmentMessage)},
         {29, sizeof(::portal2_harness::MacroRequest)},
-        {48, sizeof(::portal2_harness::MacroResult)},
-        {67, sizeof(::portal2_harness::EntityField)},
-        {86, sizeof(::portal2_harness::EntityState)},
-        {109, sizeof(::portal2_harness::EntitySnapshot)},
-        {118, sizeof(::portal2_harness::GameState)},
-        {141, sizeof(::portal2_harness::ActionRequest)},
-        {172, sizeof(::portal2_harness::ActionResponse)},
-        {179, sizeof(::portal2_harness::CommandRequest)},
-        {184, sizeof(::portal2_harness::CommandResponse)},
-        {191, sizeof(::portal2_harness::ResetRequest)},
-        {196, sizeof(::portal2_harness::ResetResponse)},
-        {205, sizeof(::portal2_harness::HandshakeRequest)},
-        {212, sizeof(::portal2_harness::HandshakeResponse)},
-        {227, sizeof(::portal2_harness::RolloutHeader)},
-        {240, sizeof(::portal2_harness::RolloutStep)},
-        {249, sizeof(::portal2_harness::Empty)},
-        {250, sizeof(::portal2_harness::RenderDemoRequest)},
-        {259, sizeof(::portal2_harness::RenderDemoResponse)},
+        {54, sizeof(::portal2_harness::MacroResult)},
+        {73, sizeof(::portal2_harness::EntityField)},
+        {92, sizeof(::portal2_harness::EntityState)},
+        {115, sizeof(::portal2_harness::EntitySnapshot)},
+        {124, sizeof(::portal2_harness::SurfaceMark)},
+        {139, sizeof(::portal2_harness::GameState)},
+        {164, sizeof(::portal2_harness::ActionRequest)},
+        {195, sizeof(::portal2_harness::ActionResponse)},
+        {202, sizeof(::portal2_harness::CommandRequest)},
+        {207, sizeof(::portal2_harness::CommandResponse)},
+        {214, sizeof(::portal2_harness::ResetRequest)},
+        {219, sizeof(::portal2_harness::ResetResponse)},
+        {228, sizeof(::portal2_harness::HandshakeRequest)},
+        {235, sizeof(::portal2_harness::HandshakeResponse)},
+        {250, sizeof(::portal2_harness::RolloutHeader)},
+        {263, sizeof(::portal2_harness::RolloutStep)},
+        {272, sizeof(::portal2_harness::Empty)},
+        {273, sizeof(::portal2_harness::RenderDemoRequest)},
+        {282, sizeof(::portal2_harness::RenderDemoResponse)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::portal2_harness::_Vector3_default_instance_._instance,
@@ -1012,6 +1074,7 @@ static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::portal2_harness::_EntityField_default_instance_._instance,
     &::portal2_harness::_EntityState_default_instance_._instance,
     &::portal2_harness::_EntitySnapshot_default_instance_._instance,
+    &::portal2_harness::_SurfaceMark_default_instance_._instance,
     &::portal2_harness::_GameState_default_instance_._instance,
     &::portal2_harness::_ActionRequest_default_instance_._instance,
     &::portal2_harness::_ActionResponse_default_instance_._instance,
@@ -1038,96 +1101,104 @@ const char descriptor_table_protodef_harness_2eproto[] ABSL_ATTRIBUTE_SECTION_VA
     "\n\005state\030\001 \001(\0132\032.portal2_harness.GameStat"
     "e\022\017\n\007success\030\002 \001(\010\022\025\n\rerror_message\030\003 \001("
     "\t\0222\n\014macro_result\030\004 \001(\0132\034.portal2_harnes"
-    "s.MacroResult\"\210\001\n\014MacroRequest\022\014\n\004verb\030\001"
+    "s.MacroResult\"\274\001\n\014MacroRequest\022\014\n\004verb\030\001"
     " \001(\t\022\014\n\004mark\030\002 \001(\005\022\r\n\005ticks\030\003 \001(\005\022\013\n\003dir"
     "\030\004 \001(\t\022\013\n\003yaw\030\005 \001(\005\022\r\n\005pitch\030\006 \001(\005\022\017\n\007pe"
-    "rcent\030\007 \001(\002\022\023\n\013target_mark\030\010 \001(\005\"\233\001\n\013Mac"
-    "roResult\022\n\n\002ok\030\001 \001(\010\022\023\n\013result_code\030\002 \001("
-    "\t\022\016\n\006detail\030\003 \001(\t\022\017\n\007reached\030\004 \001(\010\022\022\n\nfi"
-    "nal_dist\030\005 \001(\002\022\022\n\nmoved_dist\030\006 \001(\002\022\021\n\tai"
-    "m_pitch\030\007 \001(\002\022\017\n\007aim_yaw\030\010 \001(\002\"\272\001\n\013Entit"
-    "yField\022\014\n\004name\030\001 \001(\t\022\023\n\tfloat_val\030\002 \001(\002H"
-    "\000\022\021\n\007int_val\030\003 \001(\005H\000\022,\n\010vec3_val\030\004 \001(\0132\030"
-    ".portal2_harness.Vector3H\000\022\022\n\010bool_val\030\005"
-    " \001(\010H\000\022\024\n\nstring_val\030\006 \001(\tH\000\022\024\n\nhandle_v"
-    "al\030\007 \001(\005H\000B\007\n\005value\"\262\002\n\013EntityState\022\024\n\014e"
-    "ntity_index\030\001 \001(\005\022\025\n\rserial_number\030\002 \001(\005"
-    "\022\022\n\nclass_name\030\003 \001(\t\022\023\n\013target_name\030\004 \001("
-    "\t\022*\n\010position\030\005 \001(\0132\030.portal2_harness.Ve"
-    "ctor3\022(\n\006angles\030\006 \001(\0132\030.portal2_harness."
-    "Vector3\022*\n\010velocity\030\007 \001(\0132\030.portal2_harn"
-    "ess.Vector3\022,\n\006fields\030\010 \003(\0132\034.portal2_ha"
-    "rness.EntityField\022\017\n\007deleted\030\t \001(\010\022\014\n\004ma"
-    "rk\030\n \001(\005\"h\n\016EntitySnapshot\022.\n\010entities\030\001"
-    " \003(\0132\034.portal2_harness.EntityState\022\030\n\020is"
-    "_full_snapshot\030\002 \001(\010\022\014\n\004tick\030\003 \001(\005\"\311\002\n\tG"
-    "ameState\022*\n\010position\030\001 \001(\0132\030.portal2_har"
-    "ness.Vector3\022*\n\010velocity\030\002 \001(\0132\030.portal2"
-    "_harness.Vector3\022(\n\006camera\030\003 \001(\0132\030.porta"
-    "l2_harness.Vector3\022\016\n\006health\030\004 \001(\005\022\024\n\014is"
-    "_crouching\030\005 \001(\010\022\023\n\013server_tick\030\006 \001(\005\0228\n"
-    "\017entity_snapshot\030\007 \001(\0132\037.portal2_harness"
-    ".EntitySnapshot\022\030\n\020chamber_complete\030\010 \001("
-    "\010\022\030\n\020exit_signal_mask\030\t \001(\005\022\021\n\theld_mark"
-    "\030\n \001(\005\"\250\002\n\rActionRequest\022\021\n\tnum_ticks\030\001 "
-    "\001(\005\022\023\n\013key_forward\030\002 \001(\010\022\020\n\010key_left\030\003 \001"
-    "(\010\022\024\n\014key_backward\030\004 \001(\010\022\021\n\tkey_right\030\005 "
-    "\001(\010\022\017\n\007key_use\030\006 \001(\010\022\022\n\nkey_zoomin\030\007 \001(\010"
-    "\022\023\n\013key_zoomout\030\010 \001(\010\022\022\n\nkey_crouch\030\t \001("
-    "\010\022\026\n\016portal_primary\030\n \001(\010\022\030\n\020portal_seco"
-    "ndary\030\013 \001(\010\022\020\n\010key_jump\030\014 \001(\010\022\020\n\010mouse_d"
-    "x\030\r \001(\002\022\020\n\010mouse_dy\030\016 \001(\002\"8\n\016ActionRespo"
-    "nse\022\017\n\007success\030\001 \001(\010\022\025\n\rerror_message\030\002 "
-    "\001(\t\"!\n\016CommandRequest\022\017\n\007command\030\001 \001(\t\"9"
-    "\n\017CommandResponse\022\017\n\007success\030\001 \001(\010\022\025\n\rer"
-    "ror_message\030\002 \001(\t\" \n\014ResetRequest\022\020\n\010map"
-    "_name\030\001 \001(\t\"j\n\rResetResponse\022\017\n\007success\030"
-    "\001 \001(\010\022\025\n\rerror_message\030\002 \001(\t\0221\n\rinitial_"
-    "state\030\003 \001(\0132\032.portal2_harness.GameState\""
-    "=\n\020HandshakeRequest\022\026\n\016client_version\030\001 "
-    "\001(\t\022\021\n\tclient_id\030\002 \001(\t\"\206\001\n\021HandshakeResp"
-    "onse\022\024\n\014game_version\030\001 \001(\t\022\020\n\010map_name\030\002"
-    " \001(\t\022\021\n\tshm_width\030\003 \001(\005\022\022\n\nshm_height\030\004 "
-    "\001(\005\022\020\n\010shm_size\030\005 \001(\005\022\020\n\010shm_name\030\006 \001(\t\""
-    "l\n\rRolloutHeader\022\020\n\010map_name\030\001 \001(\t\022\021\n\tsh"
-    "m_width\030\002 \001(\005\022\022\n\nshm_height\030\003 \001(\005\022\020\n\010tic"
-    "krate\030\004 \001(\002\022\020\n\010shm_name\030\005 \001(\t\"|\n\013Rollout"
-    "Step\022)\n\005state\030\001 \001(\0132\032.portal2_harness.Ga"
-    "meState\022.\n\006action\030\002 \001(\0132\036.portal2_harnes"
-    "s.ActionRequest\022\022\n\nimage_data\030\003 \001(\014\"\007\n\005E"
-    "mpty\"S\n\021RenderDemoRequest\022\021\n\tdemo_path\030\001"
-    " \001(\t\022\023\n\013output_path\030\002 \001(\t\022\026\n\016capture_pix"
-    "els\030\003 \001(\010\"\204\001\n\022RenderDemoResponse\022\017\n\007succ"
-    "ess\030\001 \001(\010\022\025\n\rerror_message\030\002 \001(\t\022\031\n\021fina"
-    "l_output_path\030\003 \001(\t\022\026\n\016recorded_ticks\030\004 "
-    "\001(\005\022\023\n\013total_bytes\030\005 \001(\0032\273\004\n\016Portal2Harn"
-    "ess\022Y\n\020InitialHandshake\022!.portal2_harnes"
-    "s.HandshakeRequest\032\".portal2_harness.Han"
-    "dshakeResponse\022=\n\007Observe\022\026.portal2_harn"
-    "ess.Empty\032\032.portal2_harness.GameState\022F\n"
-    "\003Act\022\036.portal2_harness.ActionRequest\032\037.p"
-    "ortal2_harness.ActionResponse\022S\n\016Execute"
-    "Command\022\037.portal2_harness.CommandRequest"
-    "\032 .portal2_harness.CommandResponse\022F\n\005Re"
-    "set\022\035.portal2_harness.ResetRequest\032\036.por"
-    "tal2_harness.ResetResponse\022S\n\tAgentLoop\022"
-    "\035.portal2_harness.AgentMessage\032#.portal2"
-    "_harness.EnvironmentMessage(\0010\001\022U\n\nRende"
-    "rDemo\022\".portal2_harness.RenderDemoReques"
-    "t\032#.portal2_harness.RenderDemoResponseb\006"
-    "proto3"
+    "rcent\030\007 \001(\002\022\023\n\013target_mark\030\010 \001(\005\022\r\n\005colo"
+    "r\030\t \001(\t\022\024\n\014surface_mark\030\n \001(\005\022\r\n\005where\030\013"
+    " \001(\t\"\233\001\n\013MacroResult\022\n\n\002ok\030\001 \001(\010\022\023\n\013resu"
+    "lt_code\030\002 \001(\t\022\016\n\006detail\030\003 \001(\t\022\017\n\007reached"
+    "\030\004 \001(\010\022\022\n\nfinal_dist\030\005 \001(\002\022\022\n\nmoved_dist"
+    "\030\006 \001(\002\022\021\n\taim_pitch\030\007 \001(\002\022\017\n\007aim_yaw\030\010 \001"
+    "(\002\"\272\001\n\013EntityField\022\014\n\004name\030\001 \001(\t\022\023\n\tfloa"
+    "t_val\030\002 \001(\002H\000\022\021\n\007int_val\030\003 \001(\005H\000\022,\n\010vec3"
+    "_val\030\004 \001(\0132\030.portal2_harness.Vector3H\000\022\022"
+    "\n\010bool_val\030\005 \001(\010H\000\022\024\n\nstring_val\030\006 \001(\tH\000"
+    "\022\024\n\nhandle_val\030\007 \001(\005H\000B\007\n\005value\"\262\002\n\013Enti"
+    "tyState\022\024\n\014entity_index\030\001 \001(\005\022\025\n\rserial_"
+    "number\030\002 \001(\005\022\022\n\nclass_name\030\003 \001(\t\022\023\n\013targ"
+    "et_name\030\004 \001(\t\022*\n\010position\030\005 \001(\0132\030.portal"
+    "2_harness.Vector3\022(\n\006angles\030\006 \001(\0132\030.port"
+    "al2_harness.Vector3\022*\n\010velocity\030\007 \001(\0132\030."
+    "portal2_harness.Vector3\022,\n\006fields\030\010 \003(\0132"
+    "\034.portal2_harness.EntityField\022\017\n\007deleted"
+    "\030\t \001(\010\022\014\n\004mark\030\n \001(\005\"h\n\016EntitySnapshot\022."
+    "\n\010entities\030\001 \003(\0132\034.portal2_harness.Entit"
+    "yState\022\030\n\020is_full_snapshot\030\002 \001(\010\022\014\n\004tick"
+    "\030\003 \001(\005\"\333\001\n\013SurfaceMark\022\014\n\004mark\030\001 \001(\005\022.\n\014"
+    "plane_normal\030\002 \001(\0132\030.portal2_harness.Vec"
+    "tor3\022(\n\006center\030\003 \001(\0132\030.portal2_harness.V"
+    "ector3\022&\n\004mins\030\004 \001(\0132\030.portal2_harness.V"
+    "ector3\022&\n\004maxs\030\005 \001(\0132\030.portal2_harness.V"
+    "ector3\022\024\n\014anchor_flags\030\006 \001(\005\"\376\002\n\tGameSta"
+    "te\022*\n\010position\030\001 \001(\0132\030.portal2_harness.V"
+    "ector3\022*\n\010velocity\030\002 \001(\0132\030.portal2_harne"
+    "ss.Vector3\022(\n\006camera\030\003 \001(\0132\030.portal2_har"
+    "ness.Vector3\022\016\n\006health\030\004 \001(\005\022\024\n\014is_crouc"
+    "hing\030\005 \001(\010\022\023\n\013server_tick\030\006 \001(\005\0228\n\017entit"
+    "y_snapshot\030\007 \001(\0132\037.portal2_harness.Entit"
+    "ySnapshot\022\030\n\020chamber_complete\030\010 \001(\010\022\030\n\020e"
+    "xit_signal_mask\030\t \001(\005\022\021\n\theld_mark\030\n \001(\005"
+    "\0223\n\rsurface_marks\030\013 \003(\0132\034.portal2_harnes"
+    "s.SurfaceMark\"\250\002\n\rActionRequest\022\021\n\tnum_t"
+    "icks\030\001 \001(\005\022\023\n\013key_forward\030\002 \001(\010\022\020\n\010key_l"
+    "eft\030\003 \001(\010\022\024\n\014key_backward\030\004 \001(\010\022\021\n\tkey_r"
+    "ight\030\005 \001(\010\022\017\n\007key_use\030\006 \001(\010\022\022\n\nkey_zoomi"
+    "n\030\007 \001(\010\022\023\n\013key_zoomout\030\010 \001(\010\022\022\n\nkey_crou"
+    "ch\030\t \001(\010\022\026\n\016portal_primary\030\n \001(\010\022\030\n\020port"
+    "al_secondary\030\013 \001(\010\022\020\n\010key_jump\030\014 \001(\010\022\020\n\010"
+    "mouse_dx\030\r \001(\002\022\020\n\010mouse_dy\030\016 \001(\002\"8\n\016Acti"
+    "onResponse\022\017\n\007success\030\001 \001(\010\022\025\n\rerror_mes"
+    "sage\030\002 \001(\t\"!\n\016CommandRequest\022\017\n\007command\030"
+    "\001 \001(\t\"9\n\017CommandResponse\022\017\n\007success\030\001 \001("
+    "\010\022\025\n\rerror_message\030\002 \001(\t\" \n\014ResetRequest"
+    "\022\020\n\010map_name\030\001 \001(\t\"j\n\rResetResponse\022\017\n\007s"
+    "uccess\030\001 \001(\010\022\025\n\rerror_message\030\002 \001(\t\0221\n\ri"
+    "nitial_state\030\003 \001(\0132\032.portal2_harness.Gam"
+    "eState\"=\n\020HandshakeRequest\022\026\n\016client_ver"
+    "sion\030\001 \001(\t\022\021\n\tclient_id\030\002 \001(\t\"\206\001\n\021Handsh"
+    "akeResponse\022\024\n\014game_version\030\001 \001(\t\022\020\n\010map"
+    "_name\030\002 \001(\t\022\021\n\tshm_width\030\003 \001(\005\022\022\n\nshm_he"
+    "ight\030\004 \001(\005\022\020\n\010shm_size\030\005 \001(\005\022\020\n\010shm_name"
+    "\030\006 \001(\t\"l\n\rRolloutHeader\022\020\n\010map_name\030\001 \001("
+    "\t\022\021\n\tshm_width\030\002 \001(\005\022\022\n\nshm_height\030\003 \001(\005"
+    "\022\020\n\010tickrate\030\004 \001(\002\022\020\n\010shm_name\030\005 \001(\t\"|\n\013"
+    "RolloutStep\022)\n\005state\030\001 \001(\0132\032.portal2_har"
+    "ness.GameState\022.\n\006action\030\002 \001(\0132\036.portal2"
+    "_harness.ActionRequest\022\022\n\nimage_data\030\003 \001"
+    "(\014\"\007\n\005Empty\"S\n\021RenderDemoRequest\022\021\n\tdemo"
+    "_path\030\001 \001(\t\022\023\n\013output_path\030\002 \001(\t\022\026\n\016capt"
+    "ure_pixels\030\003 \001(\010\"\204\001\n\022RenderDemoResponse\022"
+    "\017\n\007success\030\001 \001(\010\022\025\n\rerror_message\030\002 \001(\t\022"
+    "\031\n\021final_output_path\030\003 \001(\t\022\026\n\016recorded_t"
+    "icks\030\004 \001(\005\022\023\n\013total_bytes\030\005 \001(\0032\273\004\n\016Port"
+    "al2Harness\022Y\n\020InitialHandshake\022!.portal2"
+    "_harness.HandshakeRequest\032\".portal2_harn"
+    "ess.HandshakeResponse\022=\n\007Observe\022\026.porta"
+    "l2_harness.Empty\032\032.portal2_harness.GameS"
+    "tate\022F\n\003Act\022\036.portal2_harness.ActionRequ"
+    "est\032\037.portal2_harness.ActionResponse\022S\n\016"
+    "ExecuteCommand\022\037.portal2_harness.Command"
+    "Request\032 .portal2_harness.CommandRespons"
+    "e\022F\n\005Reset\022\035.portal2_harness.ResetReques"
+    "t\032\036.portal2_harness.ResetResponse\022S\n\tAge"
+    "ntLoop\022\035.portal2_harness.AgentMessage\032#."
+    "portal2_harness.EnvironmentMessage(\0010\001\022U"
+    "\n\nRenderDemo\022\".portal2_harness.RenderDem"
+    "oRequest\032#.portal2_harness.RenderDemoRes"
+    "ponseb\006proto3"
 };
 static ::absl::once_flag descriptor_table_harness_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_harness_2eproto = {
     false,
     false,
-    3446,
+    3773,
     descriptor_table_protodef_harness_2eproto,
     "harness.proto",
     &descriptor_table_harness_2eproto_once,
     nullptr,
     0,
-    22,
+    23,
     schemas,
     file_default_instances,
     TableStruct_harness_2eproto::offsets,
@@ -2185,7 +2256,9 @@ PROTOBUF_NDEBUG_INLINE MacroRequest::Impl_::Impl_(
       : _has_bits_{from._has_bits_},
         _cached_size_{0},
         verb_(arena, from.verb_),
-        dir_(arena, from.dir_) {}
+        dir_(arena, from.dir_),
+        color_(arena, from.color_),
+        where_(arena, from.where_) {}
 
 MacroRequest::MacroRequest(
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
@@ -2204,9 +2277,9 @@ MacroRequest::MacroRequest(
                offsetof(Impl_, mark_),
            reinterpret_cast<const char *>(&from._impl_) +
                offsetof(Impl_, mark_),
-           offsetof(Impl_, target_mark_) -
+           offsetof(Impl_, surface_mark_) -
                offsetof(Impl_, mark_) +
-               sizeof(Impl_::target_mark_));
+               sizeof(Impl_::surface_mark_));
 
   // @@protoc_insertion_point(copy_constructor:portal2_harness.MacroRequest)
 }
@@ -2215,16 +2288,18 @@ PROTOBUF_NDEBUG_INLINE MacroRequest::Impl_::Impl_(
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
       : _cached_size_{0},
         verb_(arena),
-        dir_(arena) {}
+        dir_(arena),
+        color_(arena),
+        where_(arena) {}
 
 inline void MacroRequest::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   new (&_impl_) Impl_(internal_visibility(), arena);
   ::memset(reinterpret_cast<char *>(&_impl_) +
                offsetof(Impl_, mark_),
            0,
-           offsetof(Impl_, target_mark_) -
+           offsetof(Impl_, surface_mark_) -
                offsetof(Impl_, mark_) +
-               sizeof(Impl_::target_mark_));
+               sizeof(Impl_::surface_mark_));
 }
 MacroRequest::~MacroRequest() {
   // @@protoc_insertion_point(destructor:portal2_harness.MacroRequest)
@@ -2236,6 +2311,8 @@ inline void MacroRequest::SharedDtor(MessageLite& self) {
   ABSL_DCHECK(this_.GetArena() == nullptr);
   this_._impl_.verb_.Destroy();
   this_._impl_.dir_.Destroy();
+  this_._impl_.color_.Destroy();
+  this_._impl_.where_.Destroy();
   this_._impl_.~Impl_();
 }
 
@@ -2282,16 +2359,16 @@ MacroRequest::GetClassData() const {
   return MacroRequest_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<3, 8, 0, 52, 2>
+const ::_pbi::TcParseTable<4, 11, 0, 62, 2>
 MacroRequest::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_._has_bits_),
     0, // no _extensions_
-    8, 56,  // max_field_number, fast_idx_mask
+    11, 120,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967040,  // skipmap
+    4294965248,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    8,  // num_field_entries
+    11,  // num_field_entries
     0,  // num_aux_entries
     offsetof(decltype(_table_), field_names),  // no aux_entries
     MacroRequest_class_data_.base(),
@@ -2301,30 +2378,44 @@ MacroRequest::_table_ = {
     ::_pbi::TcParser::GetTable<::portal2_harness::MacroRequest>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
-    // int32 target_mark = 8;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.target_mark_), 7>(),
-     {64, 7, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.target_mark_)}},
+    {::_pbi::TcParser::MiniParse, {}},
     // string verb = 1;
     {::_pbi::TcParser::FastUS1,
      {10, 0, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.verb_)}},
     // int32 mark = 2;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.mark_), 2>(),
-     {16, 2, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.mark_)}},
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.mark_), 4>(),
+     {16, 4, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.mark_)}},
     // int32 ticks = 3;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.ticks_), 3>(),
-     {24, 3, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.ticks_)}},
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.ticks_), 5>(),
+     {24, 5, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.ticks_)}},
     // string dir = 4;
     {::_pbi::TcParser::FastUS1,
      {34, 1, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.dir_)}},
     // int32 yaw = 5;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.yaw_), 4>(),
-     {40, 4, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.yaw_)}},
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.yaw_), 6>(),
+     {40, 6, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.yaw_)}},
     // int32 pitch = 6;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.pitch_), 5>(),
-     {48, 5, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.pitch_)}},
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.pitch_), 7>(),
+     {48, 7, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.pitch_)}},
     // float percent = 7;
     {::_pbi::TcParser::FastF32S1,
-     {61, 6, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.percent_)}},
+     {61, 8, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.percent_)}},
+    // int32 target_mark = 8;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.target_mark_), 9>(),
+     {64, 9, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.target_mark_)}},
+    // string color = 9;
+    {::_pbi::TcParser::FastUS1,
+     {74, 2, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.color_)}},
+    // int32 surface_mark = 10;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.surface_mark_), 10>(),
+     {80, 10, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.surface_mark_)}},
+    // string where = 11;
+    {::_pbi::TcParser::FastUS1,
+     {90, 3, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.where_)}},
+    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::MiniParse, {}},
   }}, {{
     65535, 65535
   }}, {{
@@ -2332,33 +2423,44 @@ MacroRequest::_table_ = {
     {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.verb_), _Internal::kHasBitsOffset + 0, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
     // int32 mark = 2;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.mark_), _Internal::kHasBitsOffset + 2, 0,
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.mark_), _Internal::kHasBitsOffset + 4, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // int32 ticks = 3;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.ticks_), _Internal::kHasBitsOffset + 3, 0,
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.ticks_), _Internal::kHasBitsOffset + 5, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // string dir = 4;
     {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.dir_), _Internal::kHasBitsOffset + 1, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
     // int32 yaw = 5;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.yaw_), _Internal::kHasBitsOffset + 4, 0,
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.yaw_), _Internal::kHasBitsOffset + 6, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // int32 pitch = 6;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.pitch_), _Internal::kHasBitsOffset + 5, 0,
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.pitch_), _Internal::kHasBitsOffset + 7, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // float percent = 7;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.percent_), _Internal::kHasBitsOffset + 6, 0,
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.percent_), _Internal::kHasBitsOffset + 8, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kFloat)},
     // int32 target_mark = 8;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.target_mark_), _Internal::kHasBitsOffset + 7, 0,
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.target_mark_), _Internal::kHasBitsOffset + 9, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    // string color = 9;
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.color_), _Internal::kHasBitsOffset + 2, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    // int32 surface_mark = 10;
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.surface_mark_), _Internal::kHasBitsOffset + 10, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    // string where = 11;
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.where_), _Internal::kHasBitsOffset + 3, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
   }},
   // no aux_entries
   {{
-    "\34\4\0\0\3\0\0\0\0\0\0\0\0\0\0\0"
+    "\34\4\0\0\3\0\0\0\0\5\0\5\0\0\0\0"
     "portal2_harness.MacroRequest"
     "verb"
     "dir"
+    "color"
+    "where"
   }},
 };
 PROTOBUF_NOINLINE void MacroRequest::Clear() {
@@ -2369,18 +2471,29 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
   (void) cached_has_bits;
 
   cached_has_bits = _impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000003u) != 0) {
+  if ((cached_has_bits & 0x0000000fu) != 0) {
     if ((cached_has_bits & 0x00000001u) != 0) {
       _impl_.verb_.ClearNonDefaultToEmpty();
     }
     if ((cached_has_bits & 0x00000002u) != 0) {
       _impl_.dir_.ClearNonDefaultToEmpty();
     }
+    if ((cached_has_bits & 0x00000004u) != 0) {
+      _impl_.color_.ClearNonDefaultToEmpty();
+    }
+    if ((cached_has_bits & 0x00000008u) != 0) {
+      _impl_.where_.ClearNonDefaultToEmpty();
+    }
   }
-  if ((cached_has_bits & 0x000000fcu) != 0) {
+  if ((cached_has_bits & 0x000000f0u) != 0) {
     ::memset(&_impl_.mark_, 0, static_cast<::size_t>(
-        reinterpret_cast<char*>(&_impl_.target_mark_) -
-        reinterpret_cast<char*>(&_impl_.mark_)) + sizeof(_impl_.target_mark_));
+        reinterpret_cast<char*>(&_impl_.pitch_) -
+        reinterpret_cast<char*>(&_impl_.mark_)) + sizeof(_impl_.pitch_));
+  }
+  if ((cached_has_bits & 0x00000700u) != 0) {
+    ::memset(&_impl_.percent_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.surface_mark_) -
+        reinterpret_cast<char*>(&_impl_.percent_)) + sizeof(_impl_.surface_mark_));
   }
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
@@ -2412,7 +2525,7 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
   }
 
   // int32 mark = 2;
-  if ((this_._impl_._has_bits_[0] & 0x00000004u) != 0) {
+  if ((this_._impl_._has_bits_[0] & 0x00000010u) != 0) {
     if (this_._internal_mark() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<2>(
@@ -2421,7 +2534,7 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
   }
 
   // int32 ticks = 3;
-  if ((this_._impl_._has_bits_[0] & 0x00000008u) != 0) {
+  if ((this_._impl_._has_bits_[0] & 0x00000020u) != 0) {
     if (this_._internal_ticks() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<3>(
@@ -2440,7 +2553,7 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
   }
 
   // int32 yaw = 5;
-  if ((this_._impl_._has_bits_[0] & 0x00000010u) != 0) {
+  if ((this_._impl_._has_bits_[0] & 0x00000040u) != 0) {
     if (this_._internal_yaw() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<5>(
@@ -2449,7 +2562,7 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
   }
 
   // int32 pitch = 6;
-  if ((this_._impl_._has_bits_[0] & 0x00000020u) != 0) {
+  if ((this_._impl_._has_bits_[0] & 0x00000080u) != 0) {
     if (this_._internal_pitch() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<6>(
@@ -2458,7 +2571,7 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
   }
 
   // float percent = 7;
-  if ((this_._impl_._has_bits_[0] & 0x00000040u) != 0) {
+  if ((this_._impl_._has_bits_[0] & 0x00000100u) != 0) {
     if (::absl::bit_cast<::uint32_t>(this_._internal_percent()) != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteFloatToArray(
@@ -2467,11 +2580,40 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
   }
 
   // int32 target_mark = 8;
-  if ((this_._impl_._has_bits_[0] & 0x00000080u) != 0) {
+  if ((this_._impl_._has_bits_[0] & 0x00000200u) != 0) {
     if (this_._internal_target_mark() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<8>(
               stream, this_._internal_target_mark(), target);
+    }
+  }
+
+  // string color = 9;
+  if ((this_._impl_._has_bits_[0] & 0x00000004u) != 0) {
+    if (!this_._internal_color().empty()) {
+      const ::std::string& _s = this_._internal_color();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "portal2_harness.MacroRequest.color");
+      target = stream->WriteStringMaybeAliased(9, _s, target);
+    }
+  }
+
+  // int32 surface_mark = 10;
+  if ((this_._impl_._has_bits_[0] & 0x00000400u) != 0) {
+    if (this_._internal_surface_mark() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<10>(
+              stream, this_._internal_surface_mark(), target);
+    }
+  }
+
+  // string where = 11;
+  if ((this_._impl_._has_bits_[0] & 0x00000008u) != 0) {
+    if (!this_._internal_where().empty()) {
+      const ::std::string& _s = this_._internal_where();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "portal2_harness.MacroRequest.where");
+      target = stream->WriteStringMaybeAliased(11, _s, target);
     }
   }
 
@@ -2515,45 +2657,68 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
                                         this_._internal_dir());
       }
     }
-    // int32 mark = 2;
+    // string color = 9;
     if ((cached_has_bits & 0x00000004u) != 0) {
+      if (!this_._internal_color().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_color());
+      }
+    }
+    // string where = 11;
+    if ((cached_has_bits & 0x00000008u) != 0) {
+      if (!this_._internal_where().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_where());
+      }
+    }
+    // int32 mark = 2;
+    if ((cached_has_bits & 0x00000010u) != 0) {
       if (this_._internal_mark() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_mark());
       }
     }
     // int32 ticks = 3;
-    if ((cached_has_bits & 0x00000008u) != 0) {
+    if ((cached_has_bits & 0x00000020u) != 0) {
       if (this_._internal_ticks() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_ticks());
       }
     }
     // int32 yaw = 5;
-    if ((cached_has_bits & 0x00000010u) != 0) {
+    if ((cached_has_bits & 0x00000040u) != 0) {
       if (this_._internal_yaw() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_yaw());
       }
     }
     // int32 pitch = 6;
-    if ((cached_has_bits & 0x00000020u) != 0) {
+    if ((cached_has_bits & 0x00000080u) != 0) {
       if (this_._internal_pitch() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_pitch());
       }
     }
+  }
+  if ((cached_has_bits & 0x00000700u) != 0) {
     // float percent = 7;
-    if ((cached_has_bits & 0x00000040u) != 0) {
+    if ((cached_has_bits & 0x00000100u) != 0) {
       if (::absl::bit_cast<::uint32_t>(this_._internal_percent()) != 0) {
         total_size += 5;
       }
     }
     // int32 target_mark = 8;
-    if ((cached_has_bits & 0x00000080u) != 0) {
+    if ((cached_has_bits & 0x00000200u) != 0) {
       if (this_._internal_target_mark() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_target_mark());
+      }
+    }
+    // int32 surface_mark = 10;
+    if ((cached_has_bits & 0x00000400u) != 0) {
+      if (this_._internal_surface_mark() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
+            this_._internal_surface_mark());
       }
     }
   }
@@ -2590,33 +2755,58 @@ void MacroRequest::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::go
       }
     }
     if ((cached_has_bits & 0x00000004u) != 0) {
+      if (!from._internal_color().empty()) {
+        _this->_internal_set_color(from._internal_color());
+      } else {
+        if (_this->_impl_.color_.IsDefault()) {
+          _this->_internal_set_color("");
+        }
+      }
+    }
+    if ((cached_has_bits & 0x00000008u) != 0) {
+      if (!from._internal_where().empty()) {
+        _this->_internal_set_where(from._internal_where());
+      } else {
+        if (_this->_impl_.where_.IsDefault()) {
+          _this->_internal_set_where("");
+        }
+      }
+    }
+    if ((cached_has_bits & 0x00000010u) != 0) {
       if (from._internal_mark() != 0) {
         _this->_impl_.mark_ = from._impl_.mark_;
       }
     }
-    if ((cached_has_bits & 0x00000008u) != 0) {
+    if ((cached_has_bits & 0x00000020u) != 0) {
       if (from._internal_ticks() != 0) {
         _this->_impl_.ticks_ = from._impl_.ticks_;
       }
     }
-    if ((cached_has_bits & 0x00000010u) != 0) {
+    if ((cached_has_bits & 0x00000040u) != 0) {
       if (from._internal_yaw() != 0) {
         _this->_impl_.yaw_ = from._impl_.yaw_;
       }
     }
-    if ((cached_has_bits & 0x00000020u) != 0) {
+    if ((cached_has_bits & 0x00000080u) != 0) {
       if (from._internal_pitch() != 0) {
         _this->_impl_.pitch_ = from._impl_.pitch_;
       }
     }
-    if ((cached_has_bits & 0x00000040u) != 0) {
+  }
+  if ((cached_has_bits & 0x00000700u) != 0) {
+    if ((cached_has_bits & 0x00000100u) != 0) {
       if (::absl::bit_cast<::uint32_t>(from._internal_percent()) != 0) {
         _this->_impl_.percent_ = from._impl_.percent_;
       }
     }
-    if ((cached_has_bits & 0x00000080u) != 0) {
+    if ((cached_has_bits & 0x00000200u) != 0) {
       if (from._internal_target_mark() != 0) {
         _this->_impl_.target_mark_ = from._impl_.target_mark_;
+      }
+    }
+    if ((cached_has_bits & 0x00000400u) != 0) {
+      if (from._internal_surface_mark() != 0) {
+        _this->_impl_.surface_mark_ = from._impl_.surface_mark_;
       }
     }
   }
@@ -2640,9 +2830,11 @@ void MacroRequest::InternalSwap(MacroRequest* PROTOBUF_RESTRICT PROTOBUF_NONNULL
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.verb_, &other->_impl_.verb_, arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.dir_, &other->_impl_.dir_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.color_, &other->_impl_.color_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.where_, &other->_impl_.where_, arena);
   ::google::protobuf::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.target_mark_)
-      + sizeof(MacroRequest::_impl_.target_mark_)
+      PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.surface_mark_)
+      + sizeof(MacroRequest::_impl_.surface_mark_)
       - PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.mark_)>(
           reinterpret_cast<char*>(&_impl_.mark_),
           reinterpret_cast<char*>(&other->_impl_.mark_));
@@ -4583,6 +4775,453 @@ void EntitySnapshot::InternalSwap(EntitySnapshot* PROTOBUF_RESTRICT PROTOBUF_NON
 }
 // ===================================================================
 
+class SurfaceMark::_Internal {
+ public:
+  using HasBits =
+      decltype(::std::declval<SurfaceMark>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_._has_bits_);
+};
+
+SurfaceMark::SurfaceMark(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, SurfaceMark_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:portal2_harness.SurfaceMark)
+}
+PROTOBUF_NDEBUG_INLINE SurfaceMark::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    const ::portal2_harness::SurfaceMark& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0} {}
+
+SurfaceMark::SurfaceMark(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const SurfaceMark& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, SurfaceMark_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SurfaceMark* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  ::uint32_t cached_has_bits = _impl_._has_bits_[0];
+  _impl_.plane_normal_ = ((cached_has_bits & 0x00000001u) != 0)
+                ? ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.plane_normal_)
+                : nullptr;
+  _impl_.center_ = ((cached_has_bits & 0x00000002u) != 0)
+                ? ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.center_)
+                : nullptr;
+  _impl_.mins_ = ((cached_has_bits & 0x00000004u) != 0)
+                ? ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.mins_)
+                : nullptr;
+  _impl_.maxs_ = ((cached_has_bits & 0x00000008u) != 0)
+                ? ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.maxs_)
+                : nullptr;
+  ::memcpy(reinterpret_cast<char *>(&_impl_) +
+               offsetof(Impl_, mark_),
+           reinterpret_cast<const char *>(&from._impl_) +
+               offsetof(Impl_, mark_),
+           offsetof(Impl_, anchor_flags_) -
+               offsetof(Impl_, mark_) +
+               sizeof(Impl_::anchor_flags_));
+
+  // @@protoc_insertion_point(copy_constructor:portal2_harness.SurfaceMark)
+}
+PROTOBUF_NDEBUG_INLINE SurfaceMark::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0} {}
+
+inline void SurfaceMark::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  ::memset(reinterpret_cast<char *>(&_impl_) +
+               offsetof(Impl_, plane_normal_),
+           0,
+           offsetof(Impl_, anchor_flags_) -
+               offsetof(Impl_, plane_normal_) +
+               sizeof(Impl_::anchor_flags_));
+}
+SurfaceMark::~SurfaceMark() {
+  // @@protoc_insertion_point(destructor:portal2_harness.SurfaceMark)
+  SharedDtor(*this);
+}
+inline void SurfaceMark::SharedDtor(MessageLite& self) {
+  SurfaceMark& this_ = static_cast<SurfaceMark&>(self);
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  delete this_._impl_.plane_normal_;
+  delete this_._impl_.center_;
+  delete this_._impl_.mins_;
+  delete this_._impl_.maxs_;
+  this_._impl_.~Impl_();
+}
+
+inline void* PROTOBUF_NONNULL SurfaceMark::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) SurfaceMark(arena);
+}
+constexpr auto SurfaceMark::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::ZeroInit(sizeof(SurfaceMark),
+                                            alignof(SurfaceMark));
+}
+constexpr auto SurfaceMark::InternalGenerateClassData_() {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &_SurfaceMark_default_instance_._instance,
+          &_table_.header,
+          nullptr,  // OnDemandRegisterArenaDtor
+          nullptr,  // IsInitialized
+          &SurfaceMark::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<SurfaceMark>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &SurfaceMark::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<SurfaceMark>(), &SurfaceMark::ByteSizeLong,
+              &SurfaceMark::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_._cached_size_),
+          false,
+      },
+      &SurfaceMark::kDescriptorMethods,
+      &descriptor_table_harness_2eproto,
+      nullptr,  // tracker
+  };
+}
+
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull SurfaceMark_class_data_ =
+        SurfaceMark::InternalGenerateClassData_();
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+SurfaceMark::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&SurfaceMark_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(SurfaceMark_class_data_.tc_table);
+  return SurfaceMark_class_data_.base();
+}
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::_pbi::TcParseTable<3, 6, 4, 0, 2>
+SurfaceMark::_table_ = {
+  {
+    PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_._has_bits_),
+    0, // no _extensions_
+    6, 56,  // max_field_number, fast_idx_mask
+    offsetof(decltype(_table_), field_lookup_table),
+    4294967232,  // skipmap
+    offsetof(decltype(_table_), field_entries),
+    6,  // num_field_entries
+    4,  // num_aux_entries
+    offsetof(decltype(_table_), aux_entries),
+    SurfaceMark_class_data_.base(),
+    nullptr,  // post_loop_handler
+    ::_pbi::TcParser::GenericFallback,  // fallback
+    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+    ::_pbi::TcParser::GetTable<::portal2_harness::SurfaceMark>(),  // to_prefetch
+    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+  }, {{
+    {::_pbi::TcParser::MiniParse, {}},
+    // int32 mark = 1;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(SurfaceMark, _impl_.mark_), 4>(),
+     {8, 4, 0, PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.mark_)}},
+    // .portal2_harness.Vector3 plane_normal = 2;
+    {::_pbi::TcParser::FastMtS1,
+     {18, 0, 0, PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.plane_normal_)}},
+    // .portal2_harness.Vector3 center = 3;
+    {::_pbi::TcParser::FastMtS1,
+     {26, 1, 1, PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.center_)}},
+    // .portal2_harness.Vector3 mins = 4;
+    {::_pbi::TcParser::FastMtS1,
+     {34, 2, 2, PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.mins_)}},
+    // .portal2_harness.Vector3 maxs = 5;
+    {::_pbi::TcParser::FastMtS1,
+     {42, 3, 3, PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.maxs_)}},
+    // int32 anchor_flags = 6;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(SurfaceMark, _impl_.anchor_flags_), 5>(),
+     {48, 5, 0, PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.anchor_flags_)}},
+    {::_pbi::TcParser::MiniParse, {}},
+  }}, {{
+    65535, 65535
+  }}, {{
+    // int32 mark = 1;
+    {PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.mark_), _Internal::kHasBitsOffset + 4, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    // .portal2_harness.Vector3 plane_normal = 2;
+    {PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.plane_normal_), _Internal::kHasBitsOffset + 0, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kMessage | ::_fl::kTvTable)},
+    // .portal2_harness.Vector3 center = 3;
+    {PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.center_), _Internal::kHasBitsOffset + 1, 1,
+    (0 | ::_fl::kFcOptional | ::_fl::kMessage | ::_fl::kTvTable)},
+    // .portal2_harness.Vector3 mins = 4;
+    {PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.mins_), _Internal::kHasBitsOffset + 2, 2,
+    (0 | ::_fl::kFcOptional | ::_fl::kMessage | ::_fl::kTvTable)},
+    // .portal2_harness.Vector3 maxs = 5;
+    {PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.maxs_), _Internal::kHasBitsOffset + 3, 3,
+    (0 | ::_fl::kFcOptional | ::_fl::kMessage | ::_fl::kTvTable)},
+    // int32 anchor_flags = 6;
+    {PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.anchor_flags_), _Internal::kHasBitsOffset + 5, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+  }},
+  {{
+      {::_pbi::TcParser::GetTable<::portal2_harness::Vector3>()},
+      {::_pbi::TcParser::GetTable<::portal2_harness::Vector3>()},
+      {::_pbi::TcParser::GetTable<::portal2_harness::Vector3>()},
+      {::_pbi::TcParser::GetTable<::portal2_harness::Vector3>()},
+  }},
+  {{
+  }},
+};
+PROTOBUF_NOINLINE void SurfaceMark::Clear() {
+// @@protoc_insertion_point(message_clear_start:portal2_harness.SurfaceMark)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if ((cached_has_bits & 0x0000000fu) != 0) {
+    if ((cached_has_bits & 0x00000001u) != 0) {
+      ABSL_DCHECK(_impl_.plane_normal_ != nullptr);
+      _impl_.plane_normal_->Clear();
+    }
+    if ((cached_has_bits & 0x00000002u) != 0) {
+      ABSL_DCHECK(_impl_.center_ != nullptr);
+      _impl_.center_->Clear();
+    }
+    if ((cached_has_bits & 0x00000004u) != 0) {
+      ABSL_DCHECK(_impl_.mins_ != nullptr);
+      _impl_.mins_->Clear();
+    }
+    if ((cached_has_bits & 0x00000008u) != 0) {
+      ABSL_DCHECK(_impl_.maxs_ != nullptr);
+      _impl_.maxs_->Clear();
+    }
+  }
+  if ((cached_has_bits & 0x00000030u) != 0) {
+    ::memset(&_impl_.mark_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.anchor_flags_) -
+        reinterpret_cast<char*>(&_impl_.mark_)) + sizeof(_impl_.anchor_flags_));
+  }
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL SurfaceMark::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const SurfaceMark& this_ = static_cast<const SurfaceMark&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL SurfaceMark::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const SurfaceMark& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(serialize_to_array_start:portal2_harness.SurfaceMark)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  // int32 mark = 1;
+  if ((this_._impl_._has_bits_[0] & 0x00000010u) != 0) {
+    if (this_._internal_mark() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<1>(
+              stream, this_._internal_mark(), target);
+    }
+  }
+
+  cached_has_bits = this_._impl_._has_bits_[0];
+  // .portal2_harness.Vector3 plane_normal = 2;
+  if ((cached_has_bits & 0x00000001u) != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+        2, *this_._impl_.plane_normal_, this_._impl_.plane_normal_->GetCachedSize(), target,
+        stream);
+  }
+
+  // .portal2_harness.Vector3 center = 3;
+  if ((cached_has_bits & 0x00000002u) != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+        3, *this_._impl_.center_, this_._impl_.center_->GetCachedSize(), target,
+        stream);
+  }
+
+  // .portal2_harness.Vector3 mins = 4;
+  if ((cached_has_bits & 0x00000004u) != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+        4, *this_._impl_.mins_, this_._impl_.mins_->GetCachedSize(), target,
+        stream);
+  }
+
+  // .portal2_harness.Vector3 maxs = 5;
+  if ((cached_has_bits & 0x00000008u) != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+        5, *this_._impl_.maxs_, this_._impl_.maxs_->GetCachedSize(), target,
+        stream);
+  }
+
+  // int32 anchor_flags = 6;
+  if ((cached_has_bits & 0x00000020u) != 0) {
+    if (this_._internal_anchor_flags() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<6>(
+              stream, this_._internal_anchor_flags(), target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:portal2_harness.SurfaceMark)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t SurfaceMark::ByteSizeLong(const MessageLite& base) {
+  const SurfaceMark& this_ = static_cast<const SurfaceMark&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t SurfaceMark::ByteSizeLong() const {
+  const SurfaceMark& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:portal2_harness.SurfaceMark)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if ((cached_has_bits & 0x0000003fu) != 0) {
+    // .portal2_harness.Vector3 plane_normal = 2;
+    if ((cached_has_bits & 0x00000001u) != 0) {
+      total_size += 1 +
+                    ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.plane_normal_);
+    }
+    // .portal2_harness.Vector3 center = 3;
+    if ((cached_has_bits & 0x00000002u) != 0) {
+      total_size += 1 +
+                    ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.center_);
+    }
+    // .portal2_harness.Vector3 mins = 4;
+    if ((cached_has_bits & 0x00000004u) != 0) {
+      total_size += 1 +
+                    ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.mins_);
+    }
+    // .portal2_harness.Vector3 maxs = 5;
+    if ((cached_has_bits & 0x00000008u) != 0) {
+      total_size += 1 +
+                    ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.maxs_);
+    }
+    // int32 mark = 1;
+    if ((cached_has_bits & 0x00000010u) != 0) {
+      if (this_._internal_mark() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
+            this_._internal_mark());
+      }
+    }
+    // int32 anchor_flags = 6;
+    if ((cached_has_bits & 0x00000020u) != 0) {
+      if (this_._internal_anchor_flags() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
+            this_._internal_anchor_flags());
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void SurfaceMark::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::google::protobuf::MessageLite& from_msg) {
+  auto* const _this = static_cast<SurfaceMark*>(&to_msg);
+  auto& from = static_cast<const SurfaceMark&>(from_msg);
+  ::google::protobuf::Arena* arena = _this->GetArena();
+  // @@protoc_insertion_point(class_specific_merge_from_start:portal2_harness.SurfaceMark)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if ((cached_has_bits & 0x0000003fu) != 0) {
+    if ((cached_has_bits & 0x00000001u) != 0) {
+      ABSL_DCHECK(from._impl_.plane_normal_ != nullptr);
+      if (_this->_impl_.plane_normal_ == nullptr) {
+        _this->_impl_.plane_normal_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.plane_normal_);
+      } else {
+        _this->_impl_.plane_normal_->MergeFrom(*from._impl_.plane_normal_);
+      }
+    }
+    if ((cached_has_bits & 0x00000002u) != 0) {
+      ABSL_DCHECK(from._impl_.center_ != nullptr);
+      if (_this->_impl_.center_ == nullptr) {
+        _this->_impl_.center_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.center_);
+      } else {
+        _this->_impl_.center_->MergeFrom(*from._impl_.center_);
+      }
+    }
+    if ((cached_has_bits & 0x00000004u) != 0) {
+      ABSL_DCHECK(from._impl_.mins_ != nullptr);
+      if (_this->_impl_.mins_ == nullptr) {
+        _this->_impl_.mins_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.mins_);
+      } else {
+        _this->_impl_.mins_->MergeFrom(*from._impl_.mins_);
+      }
+    }
+    if ((cached_has_bits & 0x00000008u) != 0) {
+      ABSL_DCHECK(from._impl_.maxs_ != nullptr);
+      if (_this->_impl_.maxs_ == nullptr) {
+        _this->_impl_.maxs_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.maxs_);
+      } else {
+        _this->_impl_.maxs_->MergeFrom(*from._impl_.maxs_);
+      }
+    }
+    if ((cached_has_bits & 0x00000010u) != 0) {
+      if (from._internal_mark() != 0) {
+        _this->_impl_.mark_ = from._impl_.mark_;
+      }
+    }
+    if ((cached_has_bits & 0x00000020u) != 0) {
+      if (from._internal_anchor_flags() != 0) {
+        _this->_impl_.anchor_flags_ = from._impl_.anchor_flags_;
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SurfaceMark::CopyFrom(const SurfaceMark& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:portal2_harness.SurfaceMark)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void SurfaceMark::InternalSwap(SurfaceMark* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::google::protobuf::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.anchor_flags_)
+      + sizeof(SurfaceMark::_impl_.anchor_flags_)
+      - PROTOBUF_FIELD_OFFSET(SurfaceMark, _impl_.plane_normal_)>(
+          reinterpret_cast<char*>(&_impl_.plane_normal_),
+          reinterpret_cast<char*>(&other->_impl_.plane_normal_));
+}
+
+::google::protobuf::Metadata SurfaceMark::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
 class GameState::_Internal {
  public:
   using HasBits =
@@ -4605,7 +5244,8 @@ PROTOBUF_NDEBUG_INLINE GameState::Impl_::Impl_(
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
     const ::portal2_harness::GameState& from_msg)
       : _has_bits_{from._has_bits_},
-        _cached_size_{0} {}
+        _cached_size_{0},
+        surface_marks_{visibility, arena, from.surface_marks_} {}
 
 GameState::GameState(
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
@@ -4646,7 +5286,8 @@ GameState::GameState(
 PROTOBUF_NDEBUG_INLINE GameState::Impl_::Impl_(
     ::google::protobuf::internal::InternalVisibility visibility,
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
-      : _cached_size_{0} {}
+      : _cached_size_{0},
+        surface_marks_{visibility, arena} {}
 
 inline void GameState::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   new (&_impl_) Impl_(internal_visibility(), arena);
@@ -4678,8 +5319,20 @@ inline void* PROTOBUF_NONNULL GameState::PlacementNew_(
   return ::new (mem) GameState(arena);
 }
 constexpr auto GameState::InternalNewImpl_() {
-  return ::google::protobuf::internal::MessageCreator::ZeroInit(sizeof(GameState),
-                                            alignof(GameState));
+  constexpr auto arena_bits = ::google::protobuf::internal::EncodePlacementArenaOffsets({
+      PROTOBUF_FIELD_OFFSET(GameState, _impl_.surface_marks_) +
+          decltype(GameState::_impl_.surface_marks_)::
+              InternalGetArenaOffset(
+                  ::google::protobuf::Message::internal_visibility()),
+  });
+  if (arena_bits.has_value()) {
+    return ::google::protobuf::internal::MessageCreator::ZeroInit(
+        sizeof(GameState), alignof(GameState), *arena_bits);
+  } else {
+    return ::google::protobuf::internal::MessageCreator(&GameState::PlacementNew_,
+                                 sizeof(GameState),
+                                 alignof(GameState));
+  }
 }
 constexpr auto GameState::InternalGenerateClassData_() {
   return ::google::protobuf::internal::ClassDataFull{
@@ -4715,17 +5368,17 @@ GameState::GetClassData() const {
   return GameState_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<4, 10, 4, 0, 2>
+const ::_pbi::TcParseTable<4, 11, 5, 0, 2>
 GameState::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(GameState, _impl_._has_bits_),
     0, // no _extensions_
-    10, 120,  // max_field_number, fast_idx_mask
+    11, 120,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294966272,  // skipmap
+    4294965248,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    10,  // num_field_entries
-    4,  // num_aux_entries
+    11,  // num_field_entries
+    5,  // num_aux_entries
     offsetof(decltype(_table_), aux_entries),
     GameState_class_data_.base(),
     nullptr,  // post_loop_handler
@@ -4765,7 +5418,9 @@ GameState::_table_ = {
     // int32 held_mark = 10;
     {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(GameState, _impl_.held_mark_), 9>(),
      {80, 9, 0, PROTOBUF_FIELD_OFFSET(GameState, _impl_.held_mark_)}},
-    {::_pbi::TcParser::MiniParse, {}},
+    // repeated .portal2_harness.SurfaceMark surface_marks = 11;
+    {::_pbi::TcParser::FastMtR1,
+     {90, 63, 4, PROTOBUF_FIELD_OFFSET(GameState, _impl_.surface_marks_)}},
     {::_pbi::TcParser::MiniParse, {}},
     {::_pbi::TcParser::MiniParse, {}},
     {::_pbi::TcParser::MiniParse, {}},
@@ -4803,12 +5458,16 @@ GameState::_table_ = {
     // int32 held_mark = 10;
     {PROTOBUF_FIELD_OFFSET(GameState, _impl_.held_mark_), _Internal::kHasBitsOffset + 9, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    // repeated .portal2_harness.SurfaceMark surface_marks = 11;
+    {PROTOBUF_FIELD_OFFSET(GameState, _impl_.surface_marks_), -1, 4,
+    (0 | ::_fl::kFcRepeated | ::_fl::kMessage | ::_fl::kTvTable)},
   }},
   {{
       {::_pbi::TcParser::GetTable<::portal2_harness::Vector3>()},
       {::_pbi::TcParser::GetTable<::portal2_harness::Vector3>()},
       {::_pbi::TcParser::GetTable<::portal2_harness::Vector3>()},
       {::_pbi::TcParser::GetTable<::portal2_harness::EntitySnapshot>()},
+      {::_pbi::TcParser::GetTable<::portal2_harness::SurfaceMark>()},
   }},
   {{
   }},
@@ -4820,6 +5479,7 @@ PROTOBUF_NOINLINE void GameState::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
+  _impl_.surface_marks_.Clear();
   cached_has_bits = _impl_._has_bits_[0];
   if ((cached_has_bits & 0x0000000fu) != 0) {
     if ((cached_has_bits & 0x00000001u) != 0) {
@@ -4951,6 +5611,17 @@ PROTOBUF_NOINLINE void GameState::Clear() {
     }
   }
 
+  // repeated .portal2_harness.SurfaceMark surface_marks = 11;
+  for (unsigned i = 0, n = static_cast<unsigned>(
+                           this_._internal_surface_marks_size());
+       i < n; i++) {
+    const auto& repfield = this_._internal_surface_marks().Get(i);
+    target =
+        ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+            11, repfield, repfield.GetCachedSize(),
+            target, stream);
+  }
+
   if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
     target =
         ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
@@ -4975,6 +5646,15 @@ PROTOBUF_NOINLINE void GameState::Clear() {
   (void)cached_has_bits;
 
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+   {
+    // repeated .portal2_harness.SurfaceMark surface_marks = 11;
+    {
+      total_size += 1UL * this_._internal_surface_marks_size();
+      for (const auto& msg : this_._internal_surface_marks()) {
+        total_size += ::google::protobuf::internal::WireFormatLite::MessageSize(msg);
+      }
+    }
+  }
   cached_has_bits = this_._impl_._has_bits_[0];
   if ((cached_has_bits & 0x000000ffu) != 0) {
     // .portal2_harness.Vector3 position = 1;
@@ -5053,6 +5733,8 @@ void GameState::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::googl
   ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
+  _this->_internal_mutable_surface_marks()->MergeFrom(
+      from._internal_surface_marks());
   cached_has_bits = from._impl_._has_bits_[0];
   if ((cached_has_bits & 0x000000ffu) != 0) {
     if ((cached_has_bits & 0x00000001u) != 0) {
@@ -5136,6 +5818,7 @@ void GameState::InternalSwap(GameState* PROTOBUF_RESTRICT PROTOBUF_NONNULL other
   using ::std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _impl_.surface_marks_.InternalSwap(&other->_impl_.surface_marks_);
   ::google::protobuf::internal::memswap<
       PROTOBUF_FIELD_OFFSET(GameState, _impl_.held_mark_)
       + sizeof(GameState::_impl_.held_mark_)

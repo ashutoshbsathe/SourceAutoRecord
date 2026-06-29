@@ -81,7 +81,9 @@ message MacroRequest {
       6;  // look(): signed degrees, lexer-snapped to 15, engine-clamped
   float percent = 7;      // interpose: position along the beam [0,1]
   int32 target_mark = 8;  // interpose: optional redirect aim (0 = unset)
-  // later (portals/nav): string color; Vector3 point; string direction;
+  string color = 9;         // place_portal: blue|orange
+  int32 surface_mark = 10;  // place_portal: target wall-panel surface mark
+  string where = 11;        // place_portal: sub-panel anchor (reserved; CENTER for v0)
 }
 
 message MacroResult {
@@ -130,6 +132,15 @@ message EntitySnapshot {
   int32 tick = 3;
 }
 
+message SurfaceMark {
+  int32 mark = 1;          // panel mark, own namespace (1..N)
+  Vector3 plane_normal = 2;
+  Vector3 center = 3;
+  Vector3 mins = 4;        // panel world AABB
+  Vector3 maxs = 5;
+  int32 anchor_flags = 6;  // available where-anchors (reserved)
+}
+
 message GameState {
   Vector3 position = 1;
   Vector3 velocity = 2;
@@ -141,6 +152,7 @@ message GameState {
   bool chamber_complete = 8;
   int32 exit_signal_mask = 9;  // which exit signal(s) fired
   int32 held_mark = 10;  // mark of the cube the player holds (0 = empty hands)
+  repeated SurfaceMark surface_marks = 11;  // portalable wall panels
 }
 
 // --- Action Messages ---

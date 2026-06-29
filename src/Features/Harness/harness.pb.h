@@ -138,6 +138,10 @@ class RolloutStep;
 struct RolloutStepDefaultTypeInternal;
 extern RolloutStepDefaultTypeInternal _RolloutStep_default_instance_;
 extern const ::google::protobuf::internal::ClassDataFull RolloutStep_class_data_;
+class SurfaceMark;
+struct SurfaceMarkDefaultTypeInternal;
+extern SurfaceMarkDefaultTypeInternal _SurfaceMark_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull SurfaceMark_class_data_;
 class Vector3;
 struct Vector3DefaultTypeInternal;
 extern Vector3DefaultTypeInternal _Vector3_default_instance_;
@@ -425,7 +429,7 @@ class RolloutHeader final : public ::google::protobuf::Message
     return *reinterpret_cast<const RolloutHeader*>(
         &_RolloutHeader_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 17;
+  static constexpr int kIndexInFileMessages = 18;
   friend void swap(RolloutHeader& a, RolloutHeader& b) { a.Swap(&b); }
   inline void Swap(RolloutHeader* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -674,7 +678,7 @@ class ResetRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const ResetRequest*>(
         &_ResetRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 13;
+  static constexpr int kIndexInFileMessages = 14;
   friend void swap(ResetRequest& a, ResetRequest& b) { a.Swap(&b); }
   inline void Swap(ResetRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -870,7 +874,7 @@ class RenderDemoResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const RenderDemoResponse*>(
         &_RenderDemoResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 21;
+  static constexpr int kIndexInFileMessages = 22;
   friend void swap(RenderDemoResponse& a, RenderDemoResponse& b) { a.Swap(&b); }
   inline void Swap(RenderDemoResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1119,7 +1123,7 @@ class RenderDemoRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const RenderDemoRequest*>(
         &_RenderDemoRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 20;
+  static constexpr int kIndexInFileMessages = 21;
   friend void swap(RenderDemoRequest& a, RenderDemoRequest& b) { a.Swap(&b); }
   inline void Swap(RenderDemoRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1719,12 +1723,15 @@ class MacroRequest final : public ::google::protobuf::Message
   enum : int {
     kVerbFieldNumber = 1,
     kDirFieldNumber = 4,
+    kColorFieldNumber = 9,
+    kWhereFieldNumber = 11,
     kMarkFieldNumber = 2,
     kTicksFieldNumber = 3,
     kYawFieldNumber = 5,
     kPitchFieldNumber = 6,
     kPercentFieldNumber = 7,
     kTargetMarkFieldNumber = 8,
+    kSurfaceMarkFieldNumber = 10,
   };
   // string verb = 1;
   void clear_verb() ;
@@ -1754,6 +1761,36 @@ class MacroRequest final : public ::google::protobuf::Message
   const ::std::string& _internal_dir() const;
   PROTOBUF_ALWAYS_INLINE void _internal_set_dir(const ::std::string& value);
   ::std::string* PROTOBUF_NONNULL _internal_mutable_dir();
+
+  public:
+  // string color = 9;
+  void clear_color() ;
+  const ::std::string& color() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_color(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_color();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_color();
+  void set_allocated_color(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_color() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_color(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_color();
+
+  public:
+  // string where = 11;
+  void clear_where() ;
+  const ::std::string& where() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_where(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_where();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_where();
+  void set_allocated_where(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_where() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_where(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_where();
 
   public:
   // int32 mark = 2;
@@ -1816,12 +1853,22 @@ class MacroRequest final : public ::google::protobuf::Message
   void _internal_set_target_mark(::int32_t value);
 
   public:
+  // int32 surface_mark = 10;
+  void clear_surface_mark() ;
+  ::int32_t surface_mark() const;
+  void set_surface_mark(::int32_t value);
+
+  private:
+  ::int32_t _internal_surface_mark() const;
+  void _internal_set_surface_mark(::int32_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:portal2_harness.MacroRequest)
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<3, 8,
-                                   0, 52,
+  static const ::google::protobuf::internal::TcParseTable<4, 11,
+                                   0, 62,
                                    2>
       _table_;
 
@@ -1844,12 +1891,15 @@ class MacroRequest final : public ::google::protobuf::Message
     ::google::protobuf::internal::CachedSize _cached_size_;
     ::google::protobuf::internal::ArenaStringPtr verb_;
     ::google::protobuf::internal::ArenaStringPtr dir_;
+    ::google::protobuf::internal::ArenaStringPtr color_;
+    ::google::protobuf::internal::ArenaStringPtr where_;
     ::int32_t mark_;
     ::int32_t ticks_;
     ::int32_t yaw_;
     ::int32_t pitch_;
     float percent_;
     ::int32_t target_mark_;
+    ::int32_t surface_mark_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -1914,7 +1964,7 @@ class HandshakeResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const HandshakeResponse*>(
         &_HandshakeResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 16;
+  static constexpr int kIndexInFileMessages = 17;
   friend void swap(HandshakeResponse& a, HandshakeResponse& b) { a.Swap(&b); }
   inline void Swap(HandshakeResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2180,7 +2230,7 @@ class HandshakeRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const HandshakeRequest*>(
         &_HandshakeRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 15;
+  static constexpr int kIndexInFileMessages = 16;
   friend void swap(HandshakeRequest& a, HandshakeRequest& b) { a.Swap(&b); }
   inline void Swap(HandshakeRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2392,7 +2442,7 @@ class Empty final : public ::google::protobuf::internal::ZeroFieldsBase
     return *reinterpret_cast<const Empty*>(
         &_Empty_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 19;
+  static constexpr int kIndexInFileMessages = 20;
   friend void swap(Empty& a, Empty& b) { a.Swap(&b); }
   inline void Swap(Empty* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2539,7 +2589,7 @@ class CommandResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const CommandResponse*>(
         &_CommandResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 12;
+  static constexpr int kIndexInFileMessages = 13;
   friend void swap(CommandResponse& a, CommandResponse& b) { a.Swap(&b); }
   inline void Swap(CommandResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2747,7 +2797,7 @@ class CommandRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const CommandRequest*>(
         &_CommandRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 11;
+  static constexpr int kIndexInFileMessages = 12;
   friend void swap(CommandRequest& a, CommandRequest& b) { a.Swap(&b); }
   inline void Swap(CommandRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2943,7 +2993,7 @@ class ActionResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const ActionResponse*>(
         &_ActionResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 10;
+  static constexpr int kIndexInFileMessages = 11;
   friend void swap(ActionResponse& a, ActionResponse& b) { a.Swap(&b); }
   inline void Swap(ActionResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -3151,7 +3201,7 @@ class ActionRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const ActionRequest*>(
         &_ActionRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 9;
+  static constexpr int kIndexInFileMessages = 10;
   friend void swap(ActionRequest& a, ActionRequest& b) { a.Swap(&b); }
   inline void Swap(ActionRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -3441,6 +3491,277 @@ class ActionRequest final : public ::google::protobuf::Message
 };
 
 extern const ::google::protobuf::internal::ClassDataFull ActionRequest_class_data_;
+// -------------------------------------------------------------------
+
+class SurfaceMark final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:portal2_harness.SurfaceMark) */ {
+ public:
+  inline SurfaceMark() : SurfaceMark(nullptr) {}
+  ~SurfaceMark() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(SurfaceMark* PROTOBUF_NONNULL msg, std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(SurfaceMark));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR SurfaceMark(::google::protobuf::internal::ConstantInitialized);
+
+  inline SurfaceMark(const SurfaceMark& from) : SurfaceMark(nullptr, from) {}
+  inline SurfaceMark(SurfaceMark&& from) noexcept
+      : SurfaceMark(nullptr, ::std::move(from)) {}
+  inline SurfaceMark& operator=(const SurfaceMark& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SurfaceMark& operator=(SurfaceMark&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const SurfaceMark& default_instance() {
+    return *reinterpret_cast<const SurfaceMark*>(
+        &_SurfaceMark_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 8;
+  friend void swap(SurfaceMark& a, SurfaceMark& b) { a.Swap(&b); }
+  inline void Swap(SurfaceMark* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SurfaceMark* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  SurfaceMark* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<SurfaceMark>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const SurfaceMark& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const SurfaceMark& from) { SurfaceMark::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(SurfaceMark* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "portal2_harness.SurfaceMark"; }
+
+ protected:
+  explicit SurfaceMark(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  SurfaceMark(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const SurfaceMark& from);
+  SurfaceMark(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, SurfaceMark&& from) noexcept
+      : SurfaceMark(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kPlaneNormalFieldNumber = 2,
+    kCenterFieldNumber = 3,
+    kMinsFieldNumber = 4,
+    kMaxsFieldNumber = 5,
+    kMarkFieldNumber = 1,
+    kAnchorFlagsFieldNumber = 6,
+  };
+  // .portal2_harness.Vector3 plane_normal = 2;
+  bool has_plane_normal() const;
+  void clear_plane_normal() ;
+  const ::portal2_harness::Vector3& plane_normal() const;
+  [[nodiscard]] ::portal2_harness::Vector3* PROTOBUF_NULLABLE release_plane_normal();
+  ::portal2_harness::Vector3* PROTOBUF_NONNULL mutable_plane_normal();
+  void set_allocated_plane_normal(::portal2_harness::Vector3* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_plane_normal(::portal2_harness::Vector3* PROTOBUF_NULLABLE value);
+  ::portal2_harness::Vector3* PROTOBUF_NULLABLE unsafe_arena_release_plane_normal();
+
+  private:
+  const ::portal2_harness::Vector3& _internal_plane_normal() const;
+  ::portal2_harness::Vector3* PROTOBUF_NONNULL _internal_mutable_plane_normal();
+
+  public:
+  // .portal2_harness.Vector3 center = 3;
+  bool has_center() const;
+  void clear_center() ;
+  const ::portal2_harness::Vector3& center() const;
+  [[nodiscard]] ::portal2_harness::Vector3* PROTOBUF_NULLABLE release_center();
+  ::portal2_harness::Vector3* PROTOBUF_NONNULL mutable_center();
+  void set_allocated_center(::portal2_harness::Vector3* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_center(::portal2_harness::Vector3* PROTOBUF_NULLABLE value);
+  ::portal2_harness::Vector3* PROTOBUF_NULLABLE unsafe_arena_release_center();
+
+  private:
+  const ::portal2_harness::Vector3& _internal_center() const;
+  ::portal2_harness::Vector3* PROTOBUF_NONNULL _internal_mutable_center();
+
+  public:
+  // .portal2_harness.Vector3 mins = 4;
+  bool has_mins() const;
+  void clear_mins() ;
+  const ::portal2_harness::Vector3& mins() const;
+  [[nodiscard]] ::portal2_harness::Vector3* PROTOBUF_NULLABLE release_mins();
+  ::portal2_harness::Vector3* PROTOBUF_NONNULL mutable_mins();
+  void set_allocated_mins(::portal2_harness::Vector3* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_mins(::portal2_harness::Vector3* PROTOBUF_NULLABLE value);
+  ::portal2_harness::Vector3* PROTOBUF_NULLABLE unsafe_arena_release_mins();
+
+  private:
+  const ::portal2_harness::Vector3& _internal_mins() const;
+  ::portal2_harness::Vector3* PROTOBUF_NONNULL _internal_mutable_mins();
+
+  public:
+  // .portal2_harness.Vector3 maxs = 5;
+  bool has_maxs() const;
+  void clear_maxs() ;
+  const ::portal2_harness::Vector3& maxs() const;
+  [[nodiscard]] ::portal2_harness::Vector3* PROTOBUF_NULLABLE release_maxs();
+  ::portal2_harness::Vector3* PROTOBUF_NONNULL mutable_maxs();
+  void set_allocated_maxs(::portal2_harness::Vector3* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_maxs(::portal2_harness::Vector3* PROTOBUF_NULLABLE value);
+  ::portal2_harness::Vector3* PROTOBUF_NULLABLE unsafe_arena_release_maxs();
+
+  private:
+  const ::portal2_harness::Vector3& _internal_maxs() const;
+  ::portal2_harness::Vector3* PROTOBUF_NONNULL _internal_mutable_maxs();
+
+  public:
+  // int32 mark = 1;
+  void clear_mark() ;
+  ::int32_t mark() const;
+  void set_mark(::int32_t value);
+
+  private:
+  ::int32_t _internal_mark() const;
+  void _internal_set_mark(::int32_t value);
+
+  public:
+  // int32 anchor_flags = 6;
+  void clear_anchor_flags() ;
+  ::int32_t anchor_flags() const;
+  void set_anchor_flags(::int32_t value);
+
+  private:
+  ::int32_t _internal_anchor_flags() const;
+  void _internal_set_anchor_flags(::int32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:portal2_harness.SurfaceMark)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<3, 6,
+                                   4, 0,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const SurfaceMark& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::portal2_harness::Vector3* PROTOBUF_NULLABLE plane_normal_;
+    ::portal2_harness::Vector3* PROTOBUF_NULLABLE center_;
+    ::portal2_harness::Vector3* PROTOBUF_NULLABLE mins_;
+    ::portal2_harness::Vector3* PROTOBUF_NULLABLE maxs_;
+    ::int32_t mark_;
+    ::int32_t anchor_flags_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_harness_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull SurfaceMark_class_data_;
 // -------------------------------------------------------------------
 
 class EntityField final : public ::google::protobuf::Message
@@ -4587,7 +4908,7 @@ class GameState final : public ::google::protobuf::Message
     return *reinterpret_cast<const GameState*>(
         &_GameState_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 8;
+  static constexpr int kIndexInFileMessages = 9;
   friend void swap(GameState& a, GameState& b) { a.Swap(&b); }
   inline void Swap(GameState* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -4675,6 +4996,7 @@ class GameState final : public ::google::protobuf::Message
 
   // accessors -------------------------------------------------------
   enum : int {
+    kSurfaceMarksFieldNumber = 11,
     kPositionFieldNumber = 1,
     kVelocityFieldNumber = 2,
     kCameraFieldNumber = 3,
@@ -4686,6 +5008,23 @@ class GameState final : public ::google::protobuf::Message
     kExitSignalMaskFieldNumber = 9,
     kHeldMarkFieldNumber = 10,
   };
+  // repeated .portal2_harness.SurfaceMark surface_marks = 11;
+  int surface_marks_size() const;
+  private:
+  int _internal_surface_marks_size() const;
+
+  public:
+  void clear_surface_marks() ;
+  ::portal2_harness::SurfaceMark* PROTOBUF_NONNULL mutable_surface_marks(int index);
+  ::google::protobuf::RepeatedPtrField<::portal2_harness::SurfaceMark>* PROTOBUF_NONNULL mutable_surface_marks();
+
+  private:
+  const ::google::protobuf::RepeatedPtrField<::portal2_harness::SurfaceMark>& _internal_surface_marks() const;
+  ::google::protobuf::RepeatedPtrField<::portal2_harness::SurfaceMark>* PROTOBUF_NONNULL _internal_mutable_surface_marks();
+  public:
+  const ::portal2_harness::SurfaceMark& surface_marks(int index) const;
+  ::portal2_harness::SurfaceMark* PROTOBUF_NONNULL add_surface_marks();
+  const ::google::protobuf::RepeatedPtrField<::portal2_harness::SurfaceMark>& surface_marks() const;
   // .portal2_harness.Vector3 position = 1;
   bool has_position() const;
   void clear_position() ;
@@ -4810,8 +5149,8 @@ class GameState final : public ::google::protobuf::Message
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<4, 10,
-                                   4, 0,
+  static const ::google::protobuf::internal::TcParseTable<4, 11,
+                                   5, 0,
                                    2>
       _table_;
 
@@ -4832,6 +5171,7 @@ class GameState final : public ::google::protobuf::Message
         const GameState& from_msg);
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::RepeatedPtrField< ::portal2_harness::SurfaceMark > surface_marks_;
     ::portal2_harness::Vector3* PROTOBUF_NULLABLE position_;
     ::portal2_harness::Vector3* PROTOBUF_NULLABLE velocity_;
     ::portal2_harness::Vector3* PROTOBUF_NULLABLE camera_;
@@ -4906,7 +5246,7 @@ class RolloutStep final : public ::google::protobuf::Message
     return *reinterpret_cast<const RolloutStep*>(
         &_RolloutStep_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 18;
+  static constexpr int kIndexInFileMessages = 19;
   friend void swap(RolloutStep& a, RolloutStep& b) { a.Swap(&b); }
   inline void Swap(RolloutStep* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -5136,7 +5476,7 @@ class ResetResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const ResetResponse*>(
         &_ResetResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 14;
+  static constexpr int kIndexInFileMessages = 15;
   friend void swap(ResetResponse& a, ResetResponse& b) { a.Swap(&b); }
   inline void Swap(ResetResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -6221,7 +6561,7 @@ inline void MacroRequest::set_allocated_verb(::std::string* PROTOBUF_NULLABLE va
 inline void MacroRequest::clear_mark() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.mark_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000004u;
+  _impl_._has_bits_[0] &= ~0x00000010u;
 }
 inline ::int32_t MacroRequest::mark() const {
   // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.mark)
@@ -6229,7 +6569,7 @@ inline ::int32_t MacroRequest::mark() const {
 }
 inline void MacroRequest::set_mark(::int32_t value) {
   _internal_set_mark(value);
-  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_._has_bits_[0] |= 0x00000010u;
   // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.mark)
 }
 inline ::int32_t MacroRequest::_internal_mark() const {
@@ -6245,7 +6585,7 @@ inline void MacroRequest::_internal_set_mark(::int32_t value) {
 inline void MacroRequest::clear_ticks() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.ticks_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000008u;
+  _impl_._has_bits_[0] &= ~0x00000020u;
 }
 inline ::int32_t MacroRequest::ticks() const {
   // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.ticks)
@@ -6253,7 +6593,7 @@ inline ::int32_t MacroRequest::ticks() const {
 }
 inline void MacroRequest::set_ticks(::int32_t value) {
   _internal_set_ticks(value);
-  _impl_._has_bits_[0] |= 0x00000008u;
+  _impl_._has_bits_[0] |= 0x00000020u;
   // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.ticks)
 }
 inline ::int32_t MacroRequest::_internal_ticks() const {
@@ -6334,7 +6674,7 @@ inline void MacroRequest::set_allocated_dir(::std::string* PROTOBUF_NULLABLE val
 inline void MacroRequest::clear_yaw() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.yaw_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000010u;
+  _impl_._has_bits_[0] &= ~0x00000040u;
 }
 inline ::int32_t MacroRequest::yaw() const {
   // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.yaw)
@@ -6342,7 +6682,7 @@ inline ::int32_t MacroRequest::yaw() const {
 }
 inline void MacroRequest::set_yaw(::int32_t value) {
   _internal_set_yaw(value);
-  _impl_._has_bits_[0] |= 0x00000010u;
+  _impl_._has_bits_[0] |= 0x00000040u;
   // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.yaw)
 }
 inline ::int32_t MacroRequest::_internal_yaw() const {
@@ -6358,7 +6698,7 @@ inline void MacroRequest::_internal_set_yaw(::int32_t value) {
 inline void MacroRequest::clear_pitch() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.pitch_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000020u;
+  _impl_._has_bits_[0] &= ~0x00000080u;
 }
 inline ::int32_t MacroRequest::pitch() const {
   // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.pitch)
@@ -6366,7 +6706,7 @@ inline ::int32_t MacroRequest::pitch() const {
 }
 inline void MacroRequest::set_pitch(::int32_t value) {
   _internal_set_pitch(value);
-  _impl_._has_bits_[0] |= 0x00000020u;
+  _impl_._has_bits_[0] |= 0x00000080u;
   // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.pitch)
 }
 inline ::int32_t MacroRequest::_internal_pitch() const {
@@ -6382,7 +6722,7 @@ inline void MacroRequest::_internal_set_pitch(::int32_t value) {
 inline void MacroRequest::clear_percent() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.percent_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000040u;
+  _impl_._has_bits_[0] &= ~0x00000100u;
 }
 inline float MacroRequest::percent() const {
   // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.percent)
@@ -6390,7 +6730,7 @@ inline float MacroRequest::percent() const {
 }
 inline void MacroRequest::set_percent(float value) {
   _internal_set_percent(value);
-  _impl_._has_bits_[0] |= 0x00000040u;
+  _impl_._has_bits_[0] |= 0x00000100u;
   // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.percent)
 }
 inline float MacroRequest::_internal_percent() const {
@@ -6406,7 +6746,7 @@ inline void MacroRequest::_internal_set_percent(float value) {
 inline void MacroRequest::clear_target_mark() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.target_mark_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000080u;
+  _impl_._has_bits_[0] &= ~0x00000200u;
 }
 inline ::int32_t MacroRequest::target_mark() const {
   // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.target_mark)
@@ -6414,7 +6754,7 @@ inline ::int32_t MacroRequest::target_mark() const {
 }
 inline void MacroRequest::set_target_mark(::int32_t value) {
   _internal_set_target_mark(value);
-  _impl_._has_bits_[0] |= 0x00000080u;
+  _impl_._has_bits_[0] |= 0x00000200u;
   // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.target_mark)
 }
 inline ::int32_t MacroRequest::_internal_target_mark() const {
@@ -6424,6 +6764,160 @@ inline ::int32_t MacroRequest::_internal_target_mark() const {
 inline void MacroRequest::_internal_set_target_mark(::int32_t value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.target_mark_ = value;
+}
+
+// string color = 9;
+inline void MacroRequest::clear_color() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.color_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000004u;
+}
+inline const ::std::string& MacroRequest::color() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.color)
+  return _internal_color();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MacroRequest::set_color(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_.color_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.color)
+}
+inline ::std::string* PROTOBUF_NONNULL MacroRequest::mutable_color()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_color();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.MacroRequest.color)
+  return _s;
+}
+inline const ::std::string& MacroRequest::_internal_color() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.color_.Get();
+}
+inline void MacroRequest::_internal_set_color(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_.color_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MacroRequest::_internal_mutable_color() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  return _impl_.color_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MacroRequest::release_color() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.MacroRequest.color)
+  if ((_impl_._has_bits_[0] & 0x00000004u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000004u;
+  auto* released = _impl_.color_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.color_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MacroRequest::set_allocated_color(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000004u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004u;
+  }
+  _impl_.color_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.color_.IsDefault()) {
+    _impl_.color_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.MacroRequest.color)
+}
+
+// int32 surface_mark = 10;
+inline void MacroRequest::clear_surface_mark() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.surface_mark_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000400u;
+}
+inline ::int32_t MacroRequest::surface_mark() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.surface_mark)
+  return _internal_surface_mark();
+}
+inline void MacroRequest::set_surface_mark(::int32_t value) {
+  _internal_set_surface_mark(value);
+  _impl_._has_bits_[0] |= 0x00000400u;
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.surface_mark)
+}
+inline ::int32_t MacroRequest::_internal_surface_mark() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.surface_mark_;
+}
+inline void MacroRequest::_internal_set_surface_mark(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.surface_mark_ = value;
+}
+
+// string where = 11;
+inline void MacroRequest::clear_where() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.where_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000008u;
+}
+inline const ::std::string& MacroRequest::where() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.where)
+  return _internal_where();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MacroRequest::set_where(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000008u;
+  _impl_.where_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.where)
+}
+inline ::std::string* PROTOBUF_NONNULL MacroRequest::mutable_where()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_where();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.MacroRequest.where)
+  return _s;
+}
+inline const ::std::string& MacroRequest::_internal_where() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.where_.Get();
+}
+inline void MacroRequest::_internal_set_where(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000008u;
+  _impl_.where_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MacroRequest::_internal_mutable_where() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000008u;
+  return _impl_.where_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MacroRequest::release_where() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.MacroRequest.where)
+  if ((_impl_._has_bits_[0] & 0x00000008u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000008u;
+  auto* released = _impl_.where_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.where_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MacroRequest::set_allocated_where(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000008u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000008u;
+  }
+  _impl_.where_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.where_.IsDefault()) {
+    _impl_.where_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.MacroRequest.where)
 }
 
 // -------------------------------------------------------------------
@@ -7758,6 +8252,450 @@ inline void EntitySnapshot::_internal_set_tick(::int32_t value) {
 
 // -------------------------------------------------------------------
 
+// SurfaceMark
+
+// int32 mark = 1;
+inline void SurfaceMark::clear_mark() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.mark_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000010u;
+}
+inline ::int32_t SurfaceMark::mark() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.SurfaceMark.mark)
+  return _internal_mark();
+}
+inline void SurfaceMark::set_mark(::int32_t value) {
+  _internal_set_mark(value);
+  _impl_._has_bits_[0] |= 0x00000010u;
+  // @@protoc_insertion_point(field_set:portal2_harness.SurfaceMark.mark)
+}
+inline ::int32_t SurfaceMark::_internal_mark() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.mark_;
+}
+inline void SurfaceMark::_internal_set_mark(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.mark_ = value;
+}
+
+// .portal2_harness.Vector3 plane_normal = 2;
+inline bool SurfaceMark::has_plane_normal() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.plane_normal_ != nullptr);
+  return value;
+}
+inline void SurfaceMark::clear_plane_normal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.plane_normal_ != nullptr) _impl_.plane_normal_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline const ::portal2_harness::Vector3& SurfaceMark::_internal_plane_normal() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  const ::portal2_harness::Vector3* p = _impl_.plane_normal_;
+  return p != nullptr ? *p : reinterpret_cast<const ::portal2_harness::Vector3&>(::portal2_harness::_Vector3_default_instance_);
+}
+inline const ::portal2_harness::Vector3& SurfaceMark::plane_normal() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.SurfaceMark.plane_normal)
+  return _internal_plane_normal();
+}
+inline void SurfaceMark::unsafe_arena_set_allocated_plane_normal(
+    ::portal2_harness::Vector3* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (GetArena() == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.plane_normal_);
+  }
+  _impl_.plane_normal_ = reinterpret_cast<::portal2_harness::Vector3*>(value);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:portal2_harness.SurfaceMark.plane_normal)
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NULLABLE SurfaceMark::release_plane_normal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  ::portal2_harness::Vector3* released = _impl_.plane_normal_;
+  _impl_.plane_normal_ = nullptr;
+  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
+    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
+    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    if (GetArena() == nullptr) {
+      delete old;
+    }
+  } else {
+    if (GetArena() != nullptr) {
+      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    }
+  }
+  return released;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NULLABLE SurfaceMark::unsafe_arena_release_plane_normal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.SurfaceMark.plane_normal)
+
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  ::portal2_harness::Vector3* temp = _impl_.plane_normal_;
+  _impl_.plane_normal_ = nullptr;
+  return temp;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NONNULL SurfaceMark::_internal_mutable_plane_normal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.plane_normal_ == nullptr) {
+    auto* p = ::google::protobuf::Message::DefaultConstruct<::portal2_harness::Vector3>(GetArena());
+    _impl_.plane_normal_ = reinterpret_cast<::portal2_harness::Vector3*>(p);
+  }
+  return _impl_.plane_normal_;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NONNULL SurfaceMark::mutable_plane_normal()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  ::portal2_harness::Vector3* _msg = _internal_mutable_plane_normal();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.SurfaceMark.plane_normal)
+  return _msg;
+}
+inline void SurfaceMark::set_allocated_plane_normal(::portal2_harness::Vector3* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (message_arena == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.plane_normal_);
+  }
+
+  if (value != nullptr) {
+    ::google::protobuf::Arena* submessage_arena = value->GetArena();
+    if (message_arena != submessage_arena) {
+      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+
+  _impl_.plane_normal_ = reinterpret_cast<::portal2_harness::Vector3*>(value);
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.SurfaceMark.plane_normal)
+}
+
+// .portal2_harness.Vector3 center = 3;
+inline bool SurfaceMark::has_center() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.center_ != nullptr);
+  return value;
+}
+inline void SurfaceMark::clear_center() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.center_ != nullptr) _impl_.center_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline const ::portal2_harness::Vector3& SurfaceMark::_internal_center() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  const ::portal2_harness::Vector3* p = _impl_.center_;
+  return p != nullptr ? *p : reinterpret_cast<const ::portal2_harness::Vector3&>(::portal2_harness::_Vector3_default_instance_);
+}
+inline const ::portal2_harness::Vector3& SurfaceMark::center() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.SurfaceMark.center)
+  return _internal_center();
+}
+inline void SurfaceMark::unsafe_arena_set_allocated_center(
+    ::portal2_harness::Vector3* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (GetArena() == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.center_);
+  }
+  _impl_.center_ = reinterpret_cast<::portal2_harness::Vector3*>(value);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:portal2_harness.SurfaceMark.center)
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NULLABLE SurfaceMark::release_center() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  ::portal2_harness::Vector3* released = _impl_.center_;
+  _impl_.center_ = nullptr;
+  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
+    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
+    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    if (GetArena() == nullptr) {
+      delete old;
+    }
+  } else {
+    if (GetArena() != nullptr) {
+      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    }
+  }
+  return released;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NULLABLE SurfaceMark::unsafe_arena_release_center() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.SurfaceMark.center)
+
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  ::portal2_harness::Vector3* temp = _impl_.center_;
+  _impl_.center_ = nullptr;
+  return temp;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NONNULL SurfaceMark::_internal_mutable_center() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.center_ == nullptr) {
+    auto* p = ::google::protobuf::Message::DefaultConstruct<::portal2_harness::Vector3>(GetArena());
+    _impl_.center_ = reinterpret_cast<::portal2_harness::Vector3*>(p);
+  }
+  return _impl_.center_;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NONNULL SurfaceMark::mutable_center()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  _impl_._has_bits_[0] |= 0x00000002u;
+  ::portal2_harness::Vector3* _msg = _internal_mutable_center();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.SurfaceMark.center)
+  return _msg;
+}
+inline void SurfaceMark::set_allocated_center(::portal2_harness::Vector3* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (message_arena == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.center_);
+  }
+
+  if (value != nullptr) {
+    ::google::protobuf::Arena* submessage_arena = value->GetArena();
+    if (message_arena != submessage_arena) {
+      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+
+  _impl_.center_ = reinterpret_cast<::portal2_harness::Vector3*>(value);
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.SurfaceMark.center)
+}
+
+// .portal2_harness.Vector3 mins = 4;
+inline bool SurfaceMark::has_mins() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000004u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.mins_ != nullptr);
+  return value;
+}
+inline void SurfaceMark::clear_mins() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.mins_ != nullptr) _impl_.mins_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000004u;
+}
+inline const ::portal2_harness::Vector3& SurfaceMark::_internal_mins() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  const ::portal2_harness::Vector3* p = _impl_.mins_;
+  return p != nullptr ? *p : reinterpret_cast<const ::portal2_harness::Vector3&>(::portal2_harness::_Vector3_default_instance_);
+}
+inline const ::portal2_harness::Vector3& SurfaceMark::mins() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.SurfaceMark.mins)
+  return _internal_mins();
+}
+inline void SurfaceMark::unsafe_arena_set_allocated_mins(
+    ::portal2_harness::Vector3* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (GetArena() == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.mins_);
+  }
+  _impl_.mins_ = reinterpret_cast<::portal2_harness::Vector3*>(value);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000004u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:portal2_harness.SurfaceMark.mins)
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NULLABLE SurfaceMark::release_mins() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+
+  _impl_._has_bits_[0] &= ~0x00000004u;
+  ::portal2_harness::Vector3* released = _impl_.mins_;
+  _impl_.mins_ = nullptr;
+  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
+    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
+    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    if (GetArena() == nullptr) {
+      delete old;
+    }
+  } else {
+    if (GetArena() != nullptr) {
+      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    }
+  }
+  return released;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NULLABLE SurfaceMark::unsafe_arena_release_mins() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.SurfaceMark.mins)
+
+  _impl_._has_bits_[0] &= ~0x00000004u;
+  ::portal2_harness::Vector3* temp = _impl_.mins_;
+  _impl_.mins_ = nullptr;
+  return temp;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NONNULL SurfaceMark::_internal_mutable_mins() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.mins_ == nullptr) {
+    auto* p = ::google::protobuf::Message::DefaultConstruct<::portal2_harness::Vector3>(GetArena());
+    _impl_.mins_ = reinterpret_cast<::portal2_harness::Vector3*>(p);
+  }
+  return _impl_.mins_;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NONNULL SurfaceMark::mutable_mins()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  _impl_._has_bits_[0] |= 0x00000004u;
+  ::portal2_harness::Vector3* _msg = _internal_mutable_mins();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.SurfaceMark.mins)
+  return _msg;
+}
+inline void SurfaceMark::set_allocated_mins(::portal2_harness::Vector3* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (message_arena == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.mins_);
+  }
+
+  if (value != nullptr) {
+    ::google::protobuf::Arena* submessage_arena = value->GetArena();
+    if (message_arena != submessage_arena) {
+      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000004u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004u;
+  }
+
+  _impl_.mins_ = reinterpret_cast<::portal2_harness::Vector3*>(value);
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.SurfaceMark.mins)
+}
+
+// .portal2_harness.Vector3 maxs = 5;
+inline bool SurfaceMark::has_maxs() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000008u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.maxs_ != nullptr);
+  return value;
+}
+inline void SurfaceMark::clear_maxs() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.maxs_ != nullptr) _impl_.maxs_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000008u;
+}
+inline const ::portal2_harness::Vector3& SurfaceMark::_internal_maxs() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  const ::portal2_harness::Vector3* p = _impl_.maxs_;
+  return p != nullptr ? *p : reinterpret_cast<const ::portal2_harness::Vector3&>(::portal2_harness::_Vector3_default_instance_);
+}
+inline const ::portal2_harness::Vector3& SurfaceMark::maxs() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.SurfaceMark.maxs)
+  return _internal_maxs();
+}
+inline void SurfaceMark::unsafe_arena_set_allocated_maxs(
+    ::portal2_harness::Vector3* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (GetArena() == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.maxs_);
+  }
+  _impl_.maxs_ = reinterpret_cast<::portal2_harness::Vector3*>(value);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000008u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000008u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:portal2_harness.SurfaceMark.maxs)
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NULLABLE SurfaceMark::release_maxs() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+
+  _impl_._has_bits_[0] &= ~0x00000008u;
+  ::portal2_harness::Vector3* released = _impl_.maxs_;
+  _impl_.maxs_ = nullptr;
+  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
+    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
+    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    if (GetArena() == nullptr) {
+      delete old;
+    }
+  } else {
+    if (GetArena() != nullptr) {
+      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    }
+  }
+  return released;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NULLABLE SurfaceMark::unsafe_arena_release_maxs() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.SurfaceMark.maxs)
+
+  _impl_._has_bits_[0] &= ~0x00000008u;
+  ::portal2_harness::Vector3* temp = _impl_.maxs_;
+  _impl_.maxs_ = nullptr;
+  return temp;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NONNULL SurfaceMark::_internal_mutable_maxs() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.maxs_ == nullptr) {
+    auto* p = ::google::protobuf::Message::DefaultConstruct<::portal2_harness::Vector3>(GetArena());
+    _impl_.maxs_ = reinterpret_cast<::portal2_harness::Vector3*>(p);
+  }
+  return _impl_.maxs_;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NONNULL SurfaceMark::mutable_maxs()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  _impl_._has_bits_[0] |= 0x00000008u;
+  ::portal2_harness::Vector3* _msg = _internal_mutable_maxs();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.SurfaceMark.maxs)
+  return _msg;
+}
+inline void SurfaceMark::set_allocated_maxs(::portal2_harness::Vector3* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (message_arena == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.maxs_);
+  }
+
+  if (value != nullptr) {
+    ::google::protobuf::Arena* submessage_arena = value->GetArena();
+    if (message_arena != submessage_arena) {
+      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000008u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000008u;
+  }
+
+  _impl_.maxs_ = reinterpret_cast<::portal2_harness::Vector3*>(value);
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.SurfaceMark.maxs)
+}
+
+// int32 anchor_flags = 6;
+inline void SurfaceMark::clear_anchor_flags() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.anchor_flags_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000020u;
+}
+inline ::int32_t SurfaceMark::anchor_flags() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.SurfaceMark.anchor_flags)
+  return _internal_anchor_flags();
+}
+inline void SurfaceMark::set_anchor_flags(::int32_t value) {
+  _internal_set_anchor_flags(value);
+  _impl_._has_bits_[0] |= 0x00000020u;
+  // @@protoc_insertion_point(field_set:portal2_harness.SurfaceMark.anchor_flags)
+}
+inline ::int32_t SurfaceMark::_internal_anchor_flags() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.anchor_flags_;
+}
+inline void SurfaceMark::_internal_set_anchor_flags(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.anchor_flags_ = value;
+}
+
+// -------------------------------------------------------------------
+
 // GameState
 
 // .portal2_harness.Vector3 position = 1;
@@ -8294,6 +9232,56 @@ inline ::int32_t GameState::_internal_held_mark() const {
 inline void GameState::_internal_set_held_mark(::int32_t value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.held_mark_ = value;
+}
+
+// repeated .portal2_harness.SurfaceMark surface_marks = 11;
+inline int GameState::_internal_surface_marks_size() const {
+  return _internal_surface_marks().size();
+}
+inline int GameState::surface_marks_size() const {
+  return _internal_surface_marks_size();
+}
+inline void GameState::clear_surface_marks() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.surface_marks_.Clear();
+}
+inline ::portal2_harness::SurfaceMark* PROTOBUF_NONNULL GameState::mutable_surface_marks(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:portal2_harness.GameState.surface_marks)
+  return _internal_mutable_surface_marks()->Mutable(index);
+}
+inline ::google::protobuf::RepeatedPtrField<::portal2_harness::SurfaceMark>* PROTOBUF_NONNULL GameState::mutable_surface_marks()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:portal2_harness.GameState.surface_marks)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_surface_marks();
+}
+inline const ::portal2_harness::SurfaceMark& GameState::surface_marks(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.GameState.surface_marks)
+  return _internal_surface_marks().Get(index);
+}
+inline ::portal2_harness::SurfaceMark* PROTOBUF_NONNULL GameState::add_surface_marks()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::portal2_harness::SurfaceMark* _add = _internal_mutable_surface_marks()->Add();
+  // @@protoc_insertion_point(field_add:portal2_harness.GameState.surface_marks)
+  return _add;
+}
+inline const ::google::protobuf::RepeatedPtrField<::portal2_harness::SurfaceMark>& GameState::surface_marks() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:portal2_harness.GameState.surface_marks)
+  return _internal_surface_marks();
+}
+inline const ::google::protobuf::RepeatedPtrField<::portal2_harness::SurfaceMark>&
+GameState::_internal_surface_marks() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.surface_marks_;
+}
+inline ::google::protobuf::RepeatedPtrField<::portal2_harness::SurfaceMark>* PROTOBUF_NONNULL
+GameState::_internal_mutable_surface_marks() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.surface_marks_;
 }
 
 // -------------------------------------------------------------------
