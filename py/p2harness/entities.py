@@ -13,7 +13,7 @@ WorldView for a live stream.
 
 import math
 
-# m_nCubeType -> semantic cube type (see status_field_recon.md).
+# m_nCubeType -> semantic cube type.
 _CUBE_TYPES = {0: 'standard', 2: 'reflective'}
 
 
@@ -26,10 +26,10 @@ def _field_value(field):
 def _project_state(class_name, fields):
     """Class-projected semantic state -- the LLM-facing view, not the raw dump.
 
-    Only category-A puzzle elements carry status; everything else gets {}. Field
-    mappings are per status_field_recon.md. The door has no reliable server
-    open-state field, so it carries no status -- read open/closed from the frame
-    (an advertised-but-always-None `open` key only misleads the model).
+    Only the status-bearing puzzle classes carry state; everything else gets {}.
+    The door has no reliable server open-state field, so it carries no status --
+    read open/closed from the frame (an advertised-but-always-None `open` key
+    only misleads the model).
     """
     if class_name == 'prop_weighted_cube':
         return {

@@ -5,10 +5,9 @@ to white tile (the bare ``portalable`` flag is ~89% false-positive -- squarebeam
 glass, goo all read portalable), quantizes each face to 128u cells on its plane, connected-components
 the cells into panels, and reports the per-map and corpus single-vs-multi-tile histogram.
 
-This is the offline half of the portal R1 surface-designation decision
-(``brainstorm/portal_verb_recon_design.md`` section 8): a high multi-tile fraction M argues for
-ship-right ``surface_center``+``where``; single-tile-dominant argues for ``surface_center`` with no
-``where``. Cross-checked against the in-engine ``sar_harness_portal_surface_census`` command.
+A high multi-tile fraction means most portalable panels span several tiles, so naming a panel does
+not pin a portal position; single-tile-dominant means naming the panel suffices. Cross-checked
+against the in-engine ``sar_harness_portal_surface_census`` command.
 
 Caveat: worldspawn geometry misses func_brush / brush-entity panels, so func_brush-heavy maps
 undercount -- the runtime command is the ground-truth on those.
@@ -117,14 +116,18 @@ def census_map(geo_path):
 def helper_count(geo_path):
     ent_path = geo_path[: -len('.geo.json')] + '.json'
     try:
-        return load(ent_path).get('classname_counts', {}).get('info_placement_helper', 0)
+        return (
+            load(ent_path).get('classname_counts', {}).get('info_placement_helper', 0)
+        )
     except OSError:
         return 0
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--recon', default='artifacts/bsp_recon', help='dir of <id>/<map>.geo.json')
+    ap.add_argument(
+        '--recon', default='artifacts/bsp_recon', help='dir of <id>/<map>.geo.json'
+    )
     ap.add_argument('--out', default='artifacts/panel_census.json')
     ap.add_argument('--limit', type=int, default=0, help='cap maps processed (0 = all)')
     args = ap.parse_args()
@@ -139,7 +142,7 @@ def main():
     for geo in geos:
         try:
             sizes = census_map(geo)
-        except (KeyError, ValueError, OSError):
+        except Exception:
             skipped += 1
             continue
         if not sizes:
@@ -152,13 +155,15 @@ def main():
         helpers += h
         for s in sizes:
             size_hist[min(s, 5)] += 1  # 5 == "5+ cells"
-        per_map.append({
-            'map': os.path.basename(geo)[: -len('.geo.json')],
-            'panels': len(sizes),
-            'single_tile': s1,
-            'multi_tile': s2,
-            'helpers': h,
-        })
+        per_map.append(
+            {
+                'map': os.path.basename(geo)[: -len('.geo.json')],
+                'panels': len(sizes),
+                'single_tile': s1,
+                'multi_tile': s2,
+                'helpers': h,
+            }
+        )
 
     panels = single + multi
     summary = {

@@ -5,15 +5,14 @@ validation, so the prompt and the gate can't drift. validate() checks a model
 action against the grammar AND the live percept -- unknown verb, bad arg
 type/range, a mark that doesn't exist or is the wrong kind for the verb,
 holding-state -- and on failure returns a structured string fed straight back to
-the model, with no gRPC round-trip and no game step (see
-llm_percept_act_grammar.md).
+the model, with no gRPC round-trip and no game step.
 """
 
 from dataclasses import dataclass
 
 from . import harness_pb2
 
-# Mirror the executor's clamps (MacroExecutor.cpp) so a bad arg is rejected here
+# Mirror the executor's clamps so a bad arg is rejected here
 # instead of silently clamped server-side. Keep this short.
 WAIT_MAX_TICKS = 600  # kMaxWaitTicks
 MOVE_MAX_TICKS = 400  # kGoToMaxTicks
