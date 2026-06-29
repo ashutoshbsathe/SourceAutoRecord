@@ -209,16 +209,22 @@ The 2-1 split is about *timing*, not the ideal. Recon resolves it:
 
 ---
 
-## 5. Open decisions (for alignment)
+## 5. Decision (2026-06-29) — PURE SHIP-RIGHT
 
-1. **Designation timing** — lock the **`surface_center` + `where`** target as the v0 goal (build the
-   enumerator), or ship **`aim_ray_reticle`** first and earn the enumerator later? *(Recon-gated;
-   decided after R1's chamber census + enumerator-feasibility result.)*
-2. **`where` vocabulary** — `{CENTER,TOP,BOTTOM,LEFT,RIGHT,4 corners}` (9), or trim to
-   `{CENTER,TOP,BOTTOM}` for v0? Only matters if recon says v0 needs sub-panel placement.
-3. **R5 / fork B** — is the traversal probe in-scope this session (cheap, reuses the reachability cmd),
-   or do we keep `navigate` portal-blind and route ALL portal traversal through `launch` until the
-   `GoToPlanner` portal-edge workstream? *(Design lean: `launch`-only until proven.)*
+**DECIDED: build the named-panel verb `place_portal(color, surface, where)` with a world-brush
+surface enumerator. No `aim_ray_reticle`, no corner-cutting.** R1 is closed: **M = 0.678** (68% of
+portalable panels are multi-tile, 270-map census) + helpers too sparse to enumerate (~5.5/map vs ~21
+panels/map) + the enumerator does not pre-exist (`PlacementScanner` enumerates placements not
+surfaces; `MarkTable` is entity-only). Multi-tile dominance plus the eval-validity cost of a hand-aim
+look-loop (the reasoning-vs-actuation confound this harness exists to remove) settle it.
+
+1. **Designation — RESOLVED: `surface_center` + `where`.** Build the enumerator. `aim_ray_reticle`
+   rejected: it relocates motor-tax into a `look`-loop and the reticle already leaks `finalPos`.
+2. **`where` vocabulary — keep the full set** `{CENTER,TOP,BOTTOM,LEFT,RIGHT,4 corners}`. M=0.678 says
+   panels are multi-tile-dominant, so the sub-panel DOF is real; don't trim it pre-emptively. `where`
+   defaults to `CENTER`, so single-tile panels collapse to "just name the panel".
+3. **R5 / fork B — `launch`-only for now.** `navigate` stays portal-blind; portal traversal routes
+   through `launch` until the `GoToPlanner` portal-edge workstream. Unchanged.
 
 ---
 
@@ -327,3 +333,7 @@ Let **M = fraction of portalable panels that are multi-tile** (≥2 contiguous 1
 - **M high + look-loop is the bottleneck** → `surface_center` **+ `where`** (the sub-panel DOF is a real puzzle choice).
 - **clustering not uniform/stable/leak-safe OR runtime confirm too costly at load** → ship-now **`aim_ray_reticle`**,
   earn the enumerator later (fix the `Hud/PortalPlacement.cpp` reticle leak first — §4.4).
+
+**RESULT: M = 0.678 — far above the threshold → ship-right `surface_center` + `where` (build the
+enumerator). DECIDED 2026-06-29, see §5.** Full-corpus M; the in-scope v0 subset is unconfirmed (the
+chamber-set reader failed), so re-census M on the in-scope chambers when sizing the `where` vocabulary.

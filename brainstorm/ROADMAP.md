@@ -18,7 +18,7 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 
 ---
 
-## Top of mind (2026-06-29) — PORTAL L0 RECON RAN: mechanical `place_portal` is GREEN
+## Top of mind (2026-06-29) — PORTAL R1 RESOLVED: pure ship-right, build the surface enumerator
 
 The portal L0 recon ran on `sp_a2_triple_laser` (`sar_harness_portal_probe` + `_fire_spike`) and the
 **mechanical verb is proven**: `TraceFirePortal` preview → `portal_place` commit places a portal that
@@ -30,14 +30,17 @@ laser-postmortem ghost-portal noise); `placed_pos=finalPos` is exact; `used_help
 NOT the always-true `placementHelper` bool. The run also vindicated dropping the `TraceFirePortal`-unbound
 guard (it binds + returns clean on build 9568).
 
-**Only R1 remains — and it is the design-fork decider.** The target walls are world brush (not entities;
-only the placed `prop_portal` is markable), so "name the surface" still needs the **world-brush surface
-enumerator** — the single hardest deferred percept on the portal track. **NEXT = the R1 census:** are
-v0-target portal chambers mostly single- or multi-tile panels, and is the enumerator feasible + leak-safe
-(the white walls fired `BUMPED`+helper → their `info_placement_helper` attractors are a candidate enumerable
-unit)? That resolves §5.1: ship-right **`surface_center`+`where`** (build the enumerator) vs ship-now
-**`aim_ray_reticle`**. R5 traversal stays parked (launch-only lean). Recon commands live in
-`src/Features/Harness/PuzzleAnnotate.cpp` (after the laser recon cmds).
+**R1 RESOLVED — PURE SHIP-RIGHT.** The census (`py/bsp_recon/cluster_panels.py` over 270 maps) returned
+**M = 0.678** (68% of portalable panels are multi-tile) + helpers too sparse to enumerate (~5.5/map vs ~21
+panels/map) + the enumerator doesn't pre-exist (`PlacementScanner` enumerates *placements* not *surfaces*;
+`MarkTable` is entity-only). Decision: build the named-panel verb **`place_portal(color, surface, where)`**
+with a **world-brush surface enumerator** — no `aim_ray_reticle` (its hand-aim `look`-loop reintroduces the
+reasoning-vs-actuation confound; reticle already leaks `finalPos`). The runtime half shipped
+(`sar_harness_portal_surface_census`) and the offline clusterer exists. **NEXT = build the enumerator** (the
+single hardest deferred percept): per-plane coplanar/128u clustering → stable non-entity surface marks →
+on-screen panel labels (reuse the annotate legibility path) → the `place_portal` verb. `where` defaults to
+CENTER; re-census M on the in-scope v0 subset when sizing its vocabulary. R5 traversal stays parked
+(launch-only). Decision detail: [portal_verb_recon_design.md §5](portal_verb_recon_design.md).
 
 ---
 
@@ -321,7 +324,7 @@ yours in free-run. Isolated (Harness.cpp PRE_TICK + TasController per-tick `SetA
 - [x] **M0 — Lock the ontology.** Annotation built; recon mechanism done; status schema + scope locked.
 - [ ] **M1 — Status-aware percept** (Phase 1): curated category-A status flows over gRPC. *(1a ✅; 1b/1c remaining)*
 - [x] **M2 — ⭐ FIRST LIGHT:** frozen VLM solves one cube→button→door chamber (no portals). *(Achieved 2026-06-21 — gemini-3.5-flash SOLVED it in 15 steps once the verbs were robust; `third_light.trajectory`. The robust-verbs-vs-reasoning ablation is the perception-vs-reasoning signal.)*
-- [ ] **M3 — Ramp complexity:** add portals → lasers → panels; grow the chamber suite into difficulty tiers. *(Lasers: verb surface SHIPPED + a chamber solved verb-only, 2026-06-26. Portals: L0 recon GREEN 2026-06-29 — mechanical `place_portal` proven (compute→commit→auto-link); R1 surface enumerator is the open gate. Panels remain.)*
+- [ ] **M3 — Ramp complexity:** add portals → lasers → panels; grow the chamber suite into difficulty tiers. *(Lasers: verb surface SHIPPED + a chamber solved verb-only, 2026-06-26. Portals: L0 GREEN + R1 DECIDED 2026-06-29 (M=0.678 → pure ship-right `surface_center`+`where`); building the world-brush surface enumerator. Panels remain.)*
 - [ ] **M4 — Public benchmark:** multi-model eval (Claude/Gemini/GPT-class), scoring, reproducible packaging.
 - [ ] **M5 — VP talk, with data:** the reasoning-gap-vs-locomotion-gap result.
 
