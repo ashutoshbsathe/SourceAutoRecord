@@ -113,6 +113,60 @@ def census_map(geo_path):
     return sizes
 
 
+def plane_point(uc, vc, u, v, dist, n):
+    return [uc * u[i] + vc * v[i] + dist * n[i] for i in range(3)]
+
+
+def enumerate_panels(geo_path):
+    """Per-map portalable panels with world geometry and deterministic marks (1..N)."""
+    by_plane = collections.defaultdict(list)
+    for fa in load(geo_path).get('faces', []):
+        if not fa.get('portalable') or not is_white_tile(fa.get('material', '')):
+            continue
+        n = tuple(fa['plane']['normal'])
+        d = fa['plane']['dist']
+        by_plane[plane_key(n, d)].append((n, d, fa['verts']))
+
+    raw = []
+    for key, faces in by_plane.items():
+        n, dist = faces[0][0], faces[0][1]
+        u, v = plane_axes(n)
+        cells = set()
+        for _, _, verts in faces:
+            cells |= face_cells(verts, u, v)
+        for blob in connected_components(cells):
+            cus = [c[0] for c in blob]
+            cvs = [c[1] for c in blob]
+            umin, umax = min(cus) * TILE, (max(cus) + 1) * TILE
+            vmin, vmax = min(cvs) * TILE, (max(cvs) + 1) * TILE
+            corners = [
+                plane_point(umin, vmin, u, v, dist, n),
+                plane_point(umax, vmin, u, v, dist, n),
+                plane_point(umax, vmax, u, v, dist, n),
+                plane_point(umin, vmax, u, v, dist, n),
+            ]
+            raw.append(
+                (
+                    key + (min(cus), min(cvs)),
+                    {
+                        'plane_normal': list(n),
+                        'center': plane_point(
+                            (umin + umax) / 2, (vmin + vmax) / 2, u, v, dist, n
+                        ),
+                        'mins': [min(c[i] for c in corners) for i in range(3)],
+                        'maxs': [max(c[i] for c in corners) for i in range(3)],
+                        'anchor_flags': 0,
+                    },
+                )
+            )
+    raw.sort(key=lambda r: r[0])
+    panels = []
+    for i, (_, p) in enumerate(raw):
+        p['mark'] = i + 1
+        panels.append(p)
+    return panels
+
+
 def helper_count(geo_path):
     ent_path = geo_path[: -len('.geo.json')] + '.json'
     try:
@@ -130,11 +184,32 @@ def main():
     )
     ap.add_argument('--out', default='artifacts/panel_census.json')
     ap.add_argument('--limit', type=int, default=0, help='cap maps processed (0 = all)')
+    ap.add_argument(
+        '--emit',
+        default='',
+        help='dir to write per-map panel sidecars (skips the census)',
+    )
+    ap.add_argument(
+        '--only', default='', help='comma-separated path substrings selecting maps'
+    )
     args = ap.parse_args()
 
     geos = sorted(glob.glob(os.path.join(args.recon, '*', '*.geo.json')))
+    if args.only:
+        keys = args.only.split(',')
+        geos = [g for g in geos if any(k in g for k in keys)]
     if args.limit:
         geos = geos[: args.limit]
+
+    if args.emit:
+        os.makedirs(args.emit, exist_ok=True)
+        for geo in geos:
+            name = os.path.basename(geo)[: -len('.geo.json')]
+            mapid = os.path.relpath(geo, args.recon)[: -len('.geo.json')]
+            with open(os.path.join(args.emit, name + '.json'), 'w') as fh:
+                json.dump({'map': mapid, 'panels': enumerate_panels(geo)}, fh, indent=1)
+        print(f'wrote {len(geos)} sidecar(s) to {args.emit}')
+        return
 
     per_map = []
     size_hist = collections.Counter()
