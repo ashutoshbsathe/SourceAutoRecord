@@ -18,6 +18,29 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 
 ---
 
+## Top of mind (2026-06-29) — PORTAL L0 RECON RAN: mechanical `place_portal` is GREEN
+
+The portal L0 recon ran on `sp_a2_triple_laser` (`sar_harness_portal_probe` + `_fire_spike`) and the
+**mechanical verb is proven**: `TraceFirePortal` preview → `portal_place` commit places a portal that
+settles, activates, and auto-links — **R0/R2/R3/R4 all closed**, ZERO requested↔placed drift, both colors.
+Findings + verb-build lessons → **[portal_verb_recon_design.md §7](portal_verb_recon_design.md)**. The
+load-bearing ones: confirm on a *later* tick (the same-frame readback reads `(0,0,0)`/inactive); gate the
+percept on **`m_bActivated==true`** (drops the gun's 2 inactive `(0,0,0)` ghost portals and retires the
+laser-postmortem ghost-portal noise); `placed_pos=finalPos` is exact; `used_helper=(ePlacementResult==1)`,
+NOT the always-true `placementHelper` bool. The run also vindicated dropping the `TraceFirePortal`-unbound
+guard (it binds + returns clean on build 9568).
+
+**Only R1 remains — and it is the design-fork decider.** The target walls are world brush (not entities;
+only the placed `prop_portal` is markable), so "name the surface" still needs the **world-brush surface
+enumerator** — the single hardest deferred percept on the portal track. **NEXT = the R1 census:** are
+v0-target portal chambers mostly single- or multi-tile panels, and is the enumerator feasible + leak-safe
+(the white walls fired `BUMPED`+helper → their `info_placement_helper` attractors are a candidate enumerable
+unit)? That resolves §5.1: ship-right **`surface_center`+`where`** (build the enumerator) vs ship-now
+**`aim_ray_reticle`**. R5 traversal stays parked (launch-only lean). Recon commands live in
+`src/Features/Harness/PuzzleAnnotate.cpp` (after the laser recon cmds).
+
+---
+
 ## Top of mind (2026-06-27) — DUAL-ROLE CUBE EVAL RAN: model is strong, a harness HELD-FLAG P0 surfaced
 
 The M3 **dual-role cube eval** ran on `workshop/17093866141393312246/1782237070` and gave us a clean
@@ -298,7 +321,7 @@ yours in free-run. Isolated (Harness.cpp PRE_TICK + TasController per-tick `SetA
 - [x] **M0 — Lock the ontology.** Annotation built; recon mechanism done; status schema + scope locked.
 - [ ] **M1 — Status-aware percept** (Phase 1): curated category-A status flows over gRPC. *(1a ✅; 1b/1c remaining)*
 - [x] **M2 — ⭐ FIRST LIGHT:** frozen VLM solves one cube→button→door chamber (no portals). *(Achieved 2026-06-21 — gemini-3.5-flash SOLVED it in 15 steps once the verbs were robust; `third_light.trajectory`. The robust-verbs-vs-reasoning ablation is the perception-vs-reasoning signal.)*
-- [ ] **M3 — Ramp complexity:** add portals → lasers → panels; grow the chamber suite into difficulty tiers. *(Lasers: verb surface SHIPPED + a chamber solved verb-only, 2026-06-26 — next is the frozen-LLM "laser light" eval. Portals + panels remain.)*
+- [ ] **M3 — Ramp complexity:** add portals → lasers → panels; grow the chamber suite into difficulty tiers. *(Lasers: verb surface SHIPPED + a chamber solved verb-only, 2026-06-26. Portals: L0 recon GREEN 2026-06-29 — mechanical `place_portal` proven (compute→commit→auto-link); R1 surface enumerator is the open gate. Panels remain.)*
 - [ ] **M4 — Public benchmark:** multi-model eval (Claude/Gemini/GPT-class), scoring, reproducible packaging.
 - [ ] **M5 — VP talk, with data:** the reasoning-gap-vs-locomotion-gap result.
 
@@ -374,6 +397,7 @@ has crept into `py/` (and likely `src/`). Fix in passing, don't make a project o
 | `macro_executor_impl_plan.md` | **code-grounded PR plan** for the macro executor + driver (Track C/D detail, PR0–PR7 to first light) |
 | `verb_grammar_rethink.md` | **the chosen v0→M3 verb grammar** — navigate/act-split backbone, the locomotion-vs-puzzle cut, the full verb table (`navigate`/`ride`/`launch`/`place_portal`/`paint`/`press` + laser family), crux decisions (simulate-body/teleport-object), and the SAR-first build order. Read before building any traversal/element verb. |
 | `verb_grammar_transcripts.md` | **per-grammar ReAct transcripts** (third_light + laser + the baited "crossfire" try→fail→realign chamber) for all 7 candidate grammars + the recovery-lens comparison. Read for *why* navigate/act-split wins on failure-legibility + realign-cost. |
+| `portal_verb_recon_design.md` | **⭐ the `place_portal` L0** — recon plan (`sar_harness_portal_probe`/`_fire_spike` + traversal probe), the crux unknowns (does `TraceFirePortal` commit or only preview?), and the surface-designation fan-out verdict (6 schemes → judge panel: target = `surface_center`+coarse `where`; ship-now = `aim_ray_reticle`; the user's fractional-grid is rejected as hand-aim-in-costume). Read before any portal verb/percept code. |
 | `locomotion_tech.md` | **`go_to` pathfinding (local controller + A*) + reliable place-on-button + the laser-routing frontier** — phased plan, substrate recon, ROADMAP #2 |
 | `astar_routing_design.md` | **A\* global routing for `go_to`** (lazy hull-probed grid) + why save/restore tree-search is parked at the puzzle layer (C9), not locomotion |
 | `release_place_on_button_design.md` | **gated-fair central-teleport `release` onto a button** (the P-manip place-on-button design + phased plan C1–D9) — button taxonomy, static-trace fairness check, FCPS `Teleport` reuse, dwell-verify; orientation = preserve-only |

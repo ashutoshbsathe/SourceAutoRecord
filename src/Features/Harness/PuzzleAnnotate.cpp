@@ -678,3 +678,171 @@ CON_COMMAND(
       "  rested on floor; read m_bPowered: sar_harness_laser_probe (or watch "
       "the catcher).\n");
 }
+
+// ---------------------------------------------------------------------------
+// Recon: portal placement. The probe is read-only -- it dumps the portalgun's
+// fire-ability and, per prop_portal, BOTH origin reads (a freshly placed portal
+// zeroes abs_origin; server->GetAbsOrigin carries the real face), the link
+// handle, and the color bit. The fire spike commits a portal along the player's
+// current view: TraceFirePortal only previews placement, so portal_place does
+// the actual commit, and the result is read back. Aim at a surface, then fire.
+
+CON_COMMAND(
+    sar_harness_portal_probe,
+    "sar_harness_portal_probe - portalgun fire-ability + per-prop_portal "
+    "abs_origin vs server origin, m_hLinkedPortal, m_bIsPortal2, m_bActivated. "
+    "Read-only recon.\n") {
+  if (!server || !entityList) {
+    console->Print("portal probe: no server/entity list yet — load a map.\n");
+    return;
+  }
+
+  void* player = server->GetPlayer(1);
+  if (player) {
+    auto wpn = SE(player)->active_weapon();
+    void* gun = entityList->LookupEntity(wpn);
+    bool isGun = gun && entityList->IsPortalGun(wpn);
+    const char* gc = gun ? server->GetEntityClassName(gun) : nullptr;
+    console->Print("portalgun: active_weapon=%s is_portalgun=%s\n",
+                   gc ? gc : "<none>", isGun ? "yes" : "no");
+    if (isGun) {
+      console->Msg(
+          "    m_bCanFirePortal1=%s m_bCanFirePortal2=%s linkage=%s\n",
+          ReconReadField(gun, "m_bCanFirePortal1").c_str(),
+          ReconReadField(gun, "m_bCanFirePortal2").c_str(),
+          ReconReadField(gun, "m_iPortalLinkageGroupID").c_str());
+      console->Msg("    m_hPrimaryPortal -> [%d]  m_hSecondaryPortal -> [%d]\n",
+                   ReconReadHandleIndex(gun, "m_hPrimaryPortal"),
+                   ReconReadHandleIndex(gun, "m_hSecondaryPortal"));
+    }
+  } else {
+    console->Print("portalgun: no player.\n");
+  }
+
+  int n = 0;
+  for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
+    auto info = entityList->GetEntityInfoByIndex(i);
+    if (!info || !info->m_pEntity) continue;
+    auto ent = info->m_pEntity;
+    const char* cn = server->GetEntityClassName(ent);
+    if (!cn || std::strcmp(cn, "prop_portal")) continue;
+
+    Vector oAbs = SE(ent)->abs_origin();
+    Vector oSrv = server->GetAbsOrigin(ent);
+    const char* nm = server->GetEntityName(ent);
+    console->Print("[%d] prop_portal \"%s\"\n", i, (nm && *nm) ? nm : "<no name>");
+    console->Msg(
+        "    abs_origin %.1f %.1f %.1f  server_origin %.1f %.1f %.1f\n", oAbs.x,
+        oAbs.y, oAbs.z, oSrv.x, oSrv.y, oSrv.z);
+    console->Msg(
+        "    m_bActivated=%s m_bIsPortal2=%s m_hLinkedPortal -> [%d]\n",
+        ReconReadField(ent, "m_bActivated").c_str(),
+        ReconReadField(ent, "m_bIsPortal2").c_str(),
+        ReconReadHandleIndex(ent, "m_hLinkedPortal"));
+    ++n;
+  }
+  console->Print("portal probe: %d prop_portal entit%s.\n", n,
+                 n == 1 ? "y" : "ies");
+}
+
+CON_COMMAND(
+    sar_harness_portal_fire_spike,
+    "sar_harness_portal_fire_spike <blue|orange> - fire a portal along the "
+    "player's current view. Logs TraceFirePortal's preview (ePlacementResult + "
+    "finalPos), commits via portal_place, then reads the placed portal back. "
+    "Mutating recon; aim at a surface first, reload to reset.\n") {
+  if (!server || !entityList || !engine) {
+    console->Print("portal fire spike: no server/entity list yet.\n");
+    return;
+  }
+  if (args.ArgC() < 2 ||
+      (std::strcmp(args[1], "blue") && std::strcmp(args[1], "orange"))) {
+    console->Print(
+        "usage: sar_harness_portal_fire_spike <blue|orange>  (aim first)\n");
+    return;
+  }
+  bool orange = !std::strcmp(args[1], "orange");
+
+  void* player = server->GetPlayer(1);
+  if (!player) {
+    console->Print("portal fire spike: no player.\n");
+    return;
+  }
+  auto wpn = SE(player)->active_weapon();
+  uintptr_t gun = (uintptr_t)entityList->LookupEntity(wpn);
+  if (!gun || !entityList->IsPortalGun(wpn)) {
+    console->Print("portal fire spike: no portalgun equipped.\n");
+    return;
+  }
+
+  // Prime the gun's portal entities so the placement has a backing prop_portal
+  // (mirrors the HUD/scanner path that TraceFirePortal expects).
+  unsigned char linkage = SE(gun)->field<unsigned char>("m_iPortalLinkageGroupID");
+  if (!entityList->LookupEntity(SE(gun)->field<CBaseHandle>("m_hPrimaryPortal"))) {
+    auto b = server->FindPortal(linkage, false, true);
+    SE(gun)->field<CBaseHandle>("m_hPrimaryPortal") =
+        ((IHandleEntity*)b)->GetRefEHandle();
+  }
+  if (!entityList->LookupEntity(SE(gun)->field<CBaseHandle>("m_hSecondaryPortal"))) {
+    auto o = server->FindPortal(linkage, true, true);
+    SE(gun)->field<CBaseHandle>("m_hSecondaryPortal") =
+        ((IHandleEntity*)o)->GetRefEHandle();
+  }
+
+  Vector eye;
+  QAngle ang;
+  if (!camera || !camera->GetEyePos<true>(0, eye, ang)) {
+    console->Print("portal fire spike: no eye position.\n");
+    return;
+  }
+  Vector dir;
+  Math::AngleVectors(ang, &dir);
+
+  TracePortalPlacementInfo_t pinfo;
+  int ret = server->TraceFirePortal(gun, eye, dir, orange, 2, pinfo);
+  static const char* kResultName[] = {
+      "SUCCESS",        "USED_HELPER",          "BUMPED",
+      "CANT_FIT",       "CLEANSER",             "OVERLAP_LINKED",
+      "OVERLAP_PARTNER", "INVALID_VOLUME",      "INVALID_SURFACE",
+      "PASSTHROUGH"};
+  int r = (int)pinfo.ePlacementResult;
+  const char* rn = (r >= 0 && r < 10) ? kResultName[r] : "?";
+  console->Print(
+      "portal fire spike: %s  ret=%d ePlacementResult=%d (%s)\n",
+      orange ? "orange" : "blue", ret, r, rn);
+  console->Msg(
+      "    finalPos %.1f %.1f %.1f  finalAngle %.1f %.1f %.1f  helper=%s\n",
+      pinfo.finalPos.x, pinfo.finalPos.y, pinfo.finalPos.z, pinfo.finalAngle.x,
+      pinfo.finalAngle.y, pinfo.finalAngle.z,
+      pinfo.placementHelper ? "yes" : "no");
+
+  if (r > (int)PORTAL_PLACEMENT_BUMPED) {
+    console->Print("    not placeable here — aim at a portalable surface.\n");
+    return;
+  }
+
+  char cmd[160];
+  std::snprintf(cmd, sizeof(cmd),
+                "portal_place %d %d %.6f %.6f %.6f %.6f %.6f %.6f", (int)linkage,
+                orange ? 1 : 0, pinfo.finalPos.x, pinfo.finalPos.y,
+                pinfo.finalPos.z, pinfo.finalAngle.x, pinfo.finalAngle.y,
+                pinfo.finalAngle.z);
+  engine->ExecuteCommand(cmd);
+
+  void* portal = (void*)server->FindPortal(linkage, orange, false);
+  if (!portal) {
+    console->Print("    portal_place issued but FindPortal returned none.\n");
+    return;
+  }
+  Vector pAbs = SE(portal)->abs_origin();
+  Vector pSrv = server->GetAbsOrigin(portal);
+  console->Print(
+      "    placed: abs_origin %.1f %.1f %.1f  server_origin %.1f %.1f %.1f\n",
+      pAbs.x, pAbs.y, pAbs.z, pSrv.x, pSrv.y, pSrv.z);
+  console->Msg(
+      "    m_bActivated=%s m_bIsPortal2=%s m_hLinkedPortal -> [%d]  (probe "
+      "again after both colors to confirm the pair)\n",
+      ReconReadField(portal, "m_bActivated").c_str(),
+      ReconReadField(portal, "m_bIsPortal2").c_str(),
+      ReconReadHandleIndex(portal, "m_hLinkedPortal"));
+}
