@@ -42,6 +42,13 @@ on-screen panel labels (reuse the annotate legibility path) → the `place_porta
 CENTER; re-census M on the in-scope v0 subset when sizing its vocabulary. R5 traversal stays parked
 (launch-only). Decision detail: [portal_verb_recon_design.md §5](portal_verb_recon_design.md).
 
+**UPDATE 2026-06-30 — enumerator SPINE shipped (A1–A6).** Sidecar emit (`cluster_panels.py --emit`) + load
+(`SidecarPanelSource` via json11) + `SurfaceMarkTable` + session-start wire + `sar_harness_panels_dump`,
+verified in-game (27 + 5 panels, origin-junk filtered). The `IPanelSource` seam makes the runtime walk a
+source swap. **NEXT (resume): Arc A A7–A12** (percept → grammar → the `place_portal` verb) **+ Track B B0
+recon (prioritized** — `sar_harness_bsp_face_probe`, trace-based route first**).** Full phased plan + resume
+note: [portal_place_verb_plan.md](portal_place_verb_plan.md).
+
 ---
 
 ## Top of mind (2026-06-27) — DUAL-ROLE CUBE EVAL RAN: model is strong, a harness HELD-FLAG P0 surfaced
@@ -400,7 +407,8 @@ has crept into `py/` (and likely `src/`). Fix in passing, don't make a project o
 | `macro_executor_impl_plan.md` | **code-grounded PR plan** for the macro executor + driver (Track C/D detail, PR0–PR7 to first light) |
 | `verb_grammar_rethink.md` | **the chosen v0→M3 verb grammar** — navigate/act-split backbone, the locomotion-vs-puzzle cut, the full verb table (`navigate`/`ride`/`launch`/`place_portal`/`paint`/`press` + laser family), crux decisions (simulate-body/teleport-object), and the SAR-first build order. Read before building any traversal/element verb. |
 | `verb_grammar_transcripts.md` | **per-grammar ReAct transcripts** (third_light + laser + the baited "crossfire" try→fail→realign chamber) for all 7 candidate grammars + the recovery-lens comparison. Read for *why* navigate/act-split wins on failure-legibility + realign-cost. |
-| `portal_verb_recon_design.md` | **⭐ the `place_portal` L0** — recon plan (`sar_harness_portal_probe`/`_fire_spike` + traversal probe), the crux unknowns (does `TraceFirePortal` commit or only preview?), and the surface-designation fan-out verdict (6 schemes → judge panel: target = `surface_center`+coarse `where`; ship-now = `aim_ray_reticle`; the user's fractional-grid is rejected as hand-aim-in-costume). Read before any portal verb/percept code. |
+| `portal_verb_recon_design.md` | **⭐ the `place_portal` L0** — recon plan (`sar_harness_portal_probe`/`_fire_spike` + traversal probe), the crux unknowns (does `TraceFirePortal` commit or only preview?), and the surface-designation fan-out verdict (6 schemes → judge panel: target = `surface_center`+coarse `where`; ship-now = `aim_ray_reticle`; the user's fractional-grid is rejected as hand-aim-in-costume). R1 decided pure-ship-right (M=0.678). Read before any portal verb/percept code. |
+| `portal_place_verb_plan.md` | **⭐ the `place_portal` build plan** — two arcs (ARC A offline sidecar → verb/percept/labels; ARC B runtime BSP/trace enumeration), cross-cutting decisions (proto, S-prefixed surface marks, `IPanelSource` seam, leak-safe labels), phase-by-phase with per-phase verifies. A1–A6 shipped; A7–A12 + B0 recon next. Read before any `place_portal`/enumerator code. |
 | `locomotion_tech.md` | **`go_to` pathfinding (local controller + A*) + reliable place-on-button + the laser-routing frontier** — phased plan, substrate recon, ROADMAP #2 |
 | `astar_routing_design.md` | **A\* global routing for `go_to`** (lazy hull-probed grid) + why save/restore tree-search is parked at the puzzle layer (C9), not locomotion |
 | `release_place_on_button_design.md` | **gated-fair central-teleport `release` onto a button** (the P-manip place-on-button design + phased plan C1–D9) — button taxonomy, static-trace fairness check, FCPS `Teleport` reuse, dwell-verify; orientation = preserve-only |

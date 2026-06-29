@@ -58,6 +58,25 @@ helper-snap in `detail`). Wrap every main-thread touch in `RunOnMainThreadSync` 
 
 ---
 
+## ▶ Resume here (2026-06-30) — enumerator spine DONE; next = the verb + Track B recon
+
+**Shipped (A1–A6, commits `18a97e16`→`1f0ae091`):** the full offline→runtime enumerator spine. Sidecars
+emit (`cluster_panels.py --emit`), `SidecarPanelSource` loads them via json11, `SurfaceMarkTable` rebuilds at
+session start, `sar_harness_panels_dump` lists them in-game — **verified on two eval maps (27 + 5 panels,
+origin-junk filtered).** Sidecars live in `artifacts/panels/`; set `sar_harness_panel_dir` to its abs path
+before loading a map. The `IPanelSource` seam is in, so Arc B is a source swap.
+
+**Tomorrow — two parallel tracks:**
+1. **Arc A: A7→A12** — flow panels into the percept, add the grammar, build the `PlacePortal` verb. End state:
+   `place_portal blue S1` drops a portal on a named panel in `macro_repl`. (Detailed in A7–A12 below.)
+2. **Track B: B0 recon (PRIORITIZED)** — the runtime-walk feasibility spike; start with
+   `sar_harness_bsp_face_probe` (route (b) trace-based first). (Detailed in Arc B below.)
+
+Loose end: the dual-role eval map (`17093866141393312246`) isn't in the BSP corpus, so its sidecar needs a
+`dump_ents.py --geometry` run on its `.bsp` before A14.
+
+---
+
 ## ARC A — offline sidecar; prove verb + percept + labels + ergonomics
 
 SAR/C++ before Python within each cluster. Each phase = one focused edit + a 1-line verify.
@@ -65,38 +84,58 @@ SAR/C++ before Python within each cluster. Each phase = one focused edit + a 1-l
 - **A0 — eval maps (LOCKED):** the last 3 of `map_candidates.txt` — `workshop/17093866141393312246/1782237070`,
   `workshop/927053855830294446/1522623535`, `workshop/596996616964103777/1361778957`. Some have **no**
   portalable surface — deliberately, to exercise the empty-panel-set / `NOT_PORTALABLE` path. *(no code)*
-- **A1 — proto (C0).** Edit `harness.proto`, `make proto`. *Verify:* regen clean; `harness_pb2.SurfaceMark()` +
-  `MacroRequest(color='blue')` import.
-- **A2 — `PanelDesc` + `IPanelSource`** (`PanelSource.hpp`). *Verify:* builds.
-- **A3 — `SurfaceMarkTable`** (`SurfaceMarkTable.{hpp,cpp}`, mirrors `MarkTable`): hold `vector<PanelDesc>` +
-  band marks, `RebuildFromSource`, `GetPanelFromMark`, `Clear`-on-session-start. *Verify:* builds.
-- **A4 — Python sidecar emitter.** Extend `py/bsp_recon/cluster_panels.py` (reuse its clustering verbatim) to
-  emit, per map, `{ map, panels:[{id, plane_normal, center, mins, maxs, anchor_flags}] }`. *Verify:* emits a
-  sane panel JSON for one eval map.
-- **A5 — `SidecarPanelSource`** (`.{hpp,cpp}`): load `<map>.json` by name (C4), parse → `PanelDesc`, assign
-  band marks deterministically. *Verify:* a temp `sar_harness_panels_dump` prints the panel count.
-- **A6 — wire source + table at session start** (next to `markTable.Clear()`); `g_panelSource` defaults to
-  `SidecarPanelSource`. *Verify:* `map <eval>` → `sar_harness_panels_dump` shows the panel set.
-- **A7 — fill `SurfaceMark` protos** in `Portal2HarnessImpl::InternalObserve` (parallel to the entity loop):
-  one `add_surface_marks()` per panel. Full list every observe (cheap, O(#panels)). *Verify:* `agentloop_smoke`
-  sees non-empty `state.surface_marks`.
-- **A8 — Python percept** (`entities.py` `observe`): append one dict per `surface_marks` entry
-  (`class='wall_panel'`, `pos=center`, `dist`, `bearing`) with the panel mark in its own `S`-prefixed
-  namespace (C1), listed alongside entity marks but visually distinct, uniform style (C3). *Verify:*
-  `agentloop_smoke` percept lists `S`-prefixed panel marks beside entity marks.
-- **A9 — grammar spec** (`macro_grammar.py` `VERB_SPECS`): `place_portal` verb, `example='place_portal blue S1'`.
-  *Verify:* `percept_grammar_smoke` validates the example.
-- **A10 — grammar parse + validate**: extend `build_macro` (`place_portal <color> <surface>`; parse the
-  `S`-prefixed surface arg → `surface_mark` int) + a `_check_place_portal` (color∈{blue,orange}; surface
-  resolves to a `wall_panel`); wire into `validate` + `_signature`. `where` is deferred (proto field stays
-  reserved). *Verify:* bad color / unknown surface → structured error.
-- **A11 — dispatch**: `if (verb=="place_portal") return PlacePortal(req);` + `.hpp` decl. *Verify:* builds;
-  no longer `NOT_IMPLEMENTED`.
-- **A12 — `PlacePortal` core** (template off `Interpose`): resolve `surface_mark`→panel; anchor = panel
-  `center` (`where` deferred — always CENTER for v0); prime gun; `TraceFirePortal` preview; `portal_place`
-  commit; settle; confirm `m_bIsPortal2`/`m_hLinkedPortal`; map `ePlacementResult`→code; `placed_pos=finalPos`.
-  *Verify:* `macro_repl` `place_portal blue S1` → `PLACED` + a blue portal at the panel center; non-portalable
-  panel → `NOT_PORTALABLE`.
+- **A1 ✅** (`18a97e16`) proto: `SurfaceMark` + `surface_marks` on `GameState`; `color`/`surface_mark`/`where`
+  on `MacroRequest`. `make proto` regenerated; both sides import + build.
+- **A2/A3 ✅** (`1b0173a1`) `PanelDesc` + `IPanelSource` (`PanelSource.hpp`) + `SurfaceMarkTable.{hpp,cpp}`.
+- **A4 ✅** (`8d24a8b4`, `1f0ae091`) `cluster_panels.py --emit <dir> [--only <ids>]` emits per-map panel
+  sidecars (world geometry + deterministic 1..N marks); origin-junk filtered.
+- **A5 ✅** (`66d6dd62`) `SidecarPanelSource` loads `sar_harness_panel_dir/<map>.json` via json11.
+- **A6 ✅** (`35223ed4`) session-start rebuild + `sar_harness_panels_dump`. **Verified in-game: 27 + 5 panels.**
+
+### A7–A12 — flow panels to the model + build the verb (tomorrow)
+
+- **A7 — fill `SurfaceMark` protos.** In `Portal2HarnessImpl::InternalObserve` (~`:384`, after the
+  `PopulateEntityStateProto` loop): `for (auto& p : surfaceMarkTable.Panels()) { auto* sm =
+  state->add_surface_marks(); sm->set_mark(p.mark); <set plane_normal/center/mins/maxs from Vector>;
+  sm->set_anchor_flags(p.anchorFlags); }`. Reuse the existing `Vector`→`Vector3` setter used for `position`.
+  Full list every observe (panels static; O(#panels)). *Verify:* `agentloop_smoke` prints non-empty
+  `state.surface_marks` on an eval map.
+- **A8 — Python percept.** In `entities.py` `WorldView.observe` (~`:110`), after the entity marks: per
+  `state.surface_marks` entry append `{ 'mark': f'S{sm.mark}', 'class': 'wall_panel', 'name': '',
+  'pos': (c.x,c.y,c.z), 'dist': …, 'bearing': … }` (dist/bearing from the player, like entity marks). The
+  `S`-prefixed token is the panel's own namespace (C1); merge into the sorted percept, uniform style (C3 — no
+  portalability hint). *Verify:* `agentloop_smoke` percept lists `S1…SN` beside int entity marks.
+- **A9 — grammar spec.** `macro_grammar.py` `VERB_SPECS`: `'place_portal': Verb(doc='Place a portal of the
+  given color on a named wall panel.', example='place_portal blue S1', mark='required')` (confirm how the
+  `mark` field validates an `S`-prefixed panel mark vs an int entity mark). *Verify:* `percept_grammar_smoke`
+  validates the example.
+- **A10 — grammar parse + validate.** `build_macro`: `elif verb=='place_portal': m.color=args[0];
+  m.surface_mark=int(args[1].lstrip('S'))`. `_check_place_portal(req, by_mark)` (mirror `_check_redirect`):
+  `color∈{blue,orange}`; the `S`-prefixed surface arg resolves to a `wall_panel` in the percept. Wire into
+  `validate` + `_signature`. `where` deferred. *Verify:* bad color / unknown `S`-mark → structured reject,
+  no game step.
+- **A11 — dispatch.** `MacroExecutor::Execute` (~`:1099`): `if (verb=="place_portal") return PlacePortal(req);`.
+  Add `MacroResult PlacePortal(const MacroRequest&);` to the private decls in `MacroExecutor.hpp` (after
+  `RedirectTo`). *Verify:* builds; `place_portal` no longer `NOT_IMPLEMENTED`.
+- **A12 — `PlacePortal` core (the meaty one).** Template off `Interpose` (`MacroExecutor.cpp:1160`); the
+  actuator mirrors `sar_harness_portal_fire_spike` (`PuzzleAnnotate.cpp:780-850`). All engine touches inside
+  one `RunOnMainThreadSync` with a `shared_ptr` out-capture:
+  1. **Resolve:** `surfaceMarkTable.GetPanelFromMark(req.surface_mark(), &panel)` → `BAD_MARK` if missing.
+     `req.color()`: `blue`→secondary=false, `orange`→secondary=true, else `BAD_ARG`. Anchor = `panel.center`.
+  2. **Prime gun:** player `active_weapon` → `IsPortalGun`; `linkage = m_iPortalLinkageGroupID`;
+     `FindPortal(linkage, secondary, true)` + seed `m_hPrimaryPortal`/`m_hSecondaryPortal` (fire-spike idiom);
+     `NO_GUN` if absent.
+  3. **Preview:** `origin = panel.center + panel.planeNormal*10`, `dir = -panel.planeNormal`;
+     `TraceFirePortal(gun, origin, dir, secondary, 2, pinfo)`.
+  4. **Result gate (no commit on fail):** `res=pinfo.ePlacementResult`. `res>BUMPED` →
+     `INVALID_*`/`PASSTHROUGH`→`NOT_PORTALABLE`, `CANT_FIT`→`CANT_FIT`, `OVERLAP_*`→`OVERLAP`,
+     `CLEANSER`→`FIZZLED`; `ret==0`/trace-miss → `NO_LOS`.
+  5. **Commit:** `engine->ExecuteCommand("portal_place <linkage> <secondary?1:0> finalPos.xyz finalAngle.xyz")`.
+  6. **Settle + confirm:** `AdvanceTicksBlocking(kSettle)`; `FindPortal(linkage, secondary, false)` → read
+     `m_bIsPortal2` (color sanity) + `m_hLinkedPortal`. `placed_pos = pinfo.finalPos`.
+  7. **Result:** `SUCCESS`/`USED_HELPER`/`BUMPED` → `PLACED` (`USED_HELPER` noted in `detail`).
+  *Verify:* `macro_repl` `place_portal blue S1` → `PLACED` + a blue portal at the panel center; a panel on a
+  non-portalable surface → `NOT_PORTALABLE`; bad mark → `BAD_MARK`.
 - **A13 — panel labels** (reuse `PuzzleAnnotate` legibility): in `RENDER`, after the entity loop, per panel:
   LOS via `MarkVisible` (panel center, null entity — verify `SkipTwoEntities` tolerates null), `InFrame`,
   `OverlayRender::addText(clamp=true)`. Uniform style (C3). *Verify:* `sar_harness_annotate 1` → every panel
@@ -113,19 +152,21 @@ SAR/C++ before Python within each cluster. Each phase = one focused edit + a 1-l
 Reuses the entire ARC A spine (same `IPanelSource`, `SurfaceMarkTable`, proto, verb, labels). Differs only in
 the panel source. **B0 front-loads the recon and gates B1+; ARC A never waits on it.**
 
-- **B0 — recon spike (read-only; runs during ARC A).** SAR is **trace-based today** — no BSP-face walk exists,
-  and `model_t` as wrapped lacks the face/texinfo lumps (`ICollideable::GetCollisionModel()` reaches the world
-  model, but the lump offsets are unwrapped). Spike **two** routes and pick the cheaper:
-  - **(a) raw BSP-lump walk** — `worldspawn` model → `fnHandle`/`dmodel_t` header → `dface` + `texinfo` arrays
-    → plane + material + `SURF_NOPORTAL`. Per-build offset RE (the honest cost: the synthesis' "2-3 days" is
-    optimistic — material-name resolution from cached refs is the fiddly part).
-  - **(b) trace-based face discovery** — `CGameTrace` already returns `csurface_t` (flags + material name) and
-    `worldSurfaceIndex`; cast a coarse one-time grid of rays at chamber load, read flags+material per hit,
-    dedup by `worldSurfaceIndex`, cluster. No lump RE; cost is one-time trace volume (NOT per-tick), far below
-    the rejected per-frame grid.
-  *Verify:* a temp `sar_harness_bsp_face_probe` prints face/surface count + a sample's plane+material matching
-  the sidecar. **Gate:** whichever route is cheaper proceeds; if both exceed budget, ARC A ships standalone and
-  ARC B reschedules.
+- **B0 — recon spike (read-only; ⭐ PRIORITIZED — start the next session here).** SAR is trace-based today;
+  no BSP-face walk exists. Decide the route by spiking both, cheaper first:
+  - **Route (b) trace-based — try FIRST (likely cheaper, no offset RE).** `CGameTrace` already carries
+    `surface` (`csurface_t`: `name`=material, `flags`) and `worldSurfaceIndex` (`Trace.hpp:103-111`).
+    **First task: write `sar_harness_bsp_face_probe`** (read-only, mirror the laser/portal recon cmds): trace
+    at the crosshair, print `surface.name`, `surface.flags & SURF_NOPORTAL`, `worldSurfaceIndex`,
+    `plane.normal`/`dist`. Then the open question — can we *enumerate*? Probe whether `worldSurfaceIndex` is a
+    dense iterable range (walk it directly) or whether we discover faces via a **coarse one-time ray sweep at
+    chamber load** + dedup by `worldSurfaceIndex`. If a load-time sweep recovers the sidecar's face set, (b) wins.
+  - **Route (a) raw BSP-lump walk — fallback (only if (b) can't enumerate).** `entityList->GetEntityInfoByIndex(0)`
+    (worldspawn) → `ICollideable::GetCollisionModel()` → `model_t` (`ICollideable.hpp:22-31,45`) →
+    `model_t->fnHandle` → the brushmodel/`dmodel_t` header → `dface` + `texinfo` arrays. Needs per-build offset
+    RE for the lump pointers + material-name resolution from `texinfo` (the fiddly part).
+  **Deliverable:** the probe command + a written verdict (route + cost) appended here. **Gate:** if both
+  exceed budget, ARC A ships standalone and ARC B reschedules — ARC A never waits on B0.
 - **B1 — `SurfaceEnumerator`** (`.{hpp,cpp}`): the chosen B0 route → portalable white-tile faces → cluster
   (reuse `cluster_panels.py`'s plane-key/128u-cell/connected-components logic, ported to C++) → `vector<PanelDesc>`,
   identical shape to the sidecar. Replicate the emitter's **origin-junk filter** (drop panels whose center is
