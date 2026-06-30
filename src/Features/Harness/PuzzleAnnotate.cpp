@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -18,6 +19,7 @@
 #include "MarkTable.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
+#include "Modules/FileSystem.hpp"
 #include "Modules/Server.hpp"
 #include "Offsets.hpp"
 #include "Utils/Math.hpp"
@@ -973,4 +975,133 @@ CON_COMMAND(
       "portal surface census: %d/%d cells portalable (%d via helper) at %gu "
       "spacing on the aimed wall.\n",
       placeable, total, usedHelper, kStep);
+}
+
+// Trace the crosshair (MASK_SOLID, so grates/glass are hit instead of passed
+// through) and dump the hit face's surface metadata.
+CON_COMMAND(
+    sar_harness_bsp_face_probe,
+    "sar_harness_bsp_face_probe - trace the crosshair and print the hit "
+    "surface's material, flags (+ SURF_NOPORTAL bit), worldSurfaceIndex, "
+    "plane, hit point, and world-brush-vs-entity. Aim at a wall first.\n") {
+  if (!server || !entityList || !engine) {
+    console->Print("bsp face probe: no server/entity list yet — load a map.\n");
+    return;
+  }
+  void* player = server->GetPlayer(1);
+  Vector eye;
+  QAngle ang;
+  if (!player || !camera || !camera->GetEyePos<true>(0, eye, ang)) {
+    console->Print("bsp face probe: no eye/player.\n");
+    return;
+  }
+  Vector fwd;
+  Math::AngleVectors(ang, &fwd);
+  Vector delta = fwd * 2500.0f;
+
+  Ray_t ray;
+  ray.m_IsRay = true;
+  ray.m_IsSwept = true;
+  ray.m_Start = VectorAligned(eye.x, eye.y, eye.z);
+  ray.m_Delta = VectorAligned(delta.x, delta.y, delta.z);
+  ray.m_StartOffset = VectorAligned();
+  ray.m_Extents = VectorAligned();
+  SkipTwoEntities filter;
+  filter.a = player;
+  filter.b = nullptr;
+  CGameTrace tr;
+  engine->TraceRay(engine->engineTrace->ThisPtr(), ray, MASK_SOLID, &filter,
+                   &tr);
+  if (tr.fraction >= 1.0f || tr.plane.normal.Length() < 0.9f) {
+    console->Print("    no surface under the crosshair — aim at a wall.\n");
+    return;
+  }
+  Vector hit = eye + delta * tr.fraction;
+  const char* mat = tr.surface.name ? tr.surface.name : "<null>";
+  const char* cls = tr.m_pEnt ? server->GetEntityClassName(tr.m_pEnt) : "world";
+  console->Print("[bsp face] material \"%s\"  (%s)\n", mat, cls ? cls : "?");
+  console->Msg("    flags 0x%04X  noportal=%d  worldSurfaceIndex=%u\n",
+               tr.surface.flags, (tr.surface.flags & SURF_NOPORTAL) ? 1 : 0,
+               tr.worldSurfaceIndex);
+  console->Msg(
+      "    hit %.1f %.1f %.1f  normal %.2f %.2f %.2f  dist %.1f  contents "
+      "0x%X\n",
+      hit.x, hit.y, hit.z, tr.plane.normal.x, tr.plane.normal.y,
+      tr.plane.normal.z, tr.plane.dist, tr.contents);
+}
+
+// Open the running map's .bsp from the engine search paths and dump the
+// geometry lumps' directory entries + a per-lump LZMA marker.
+CON_COMMAND(
+    sar_harness_bsp_lump_probe,
+    "sar_harness_bsp_lump_probe - resolve maps/<currentmap>.bsp and print the "
+    "header plus the offset/size/fourCC and payload magic of the geometry "
+    "lumps. Read-only; flags any LZMA-compressed lump.\n") {
+  if (!engine || !fileSystem) {
+    console->Print("bsp lump probe: no engine/filesystem.\n");
+    return;
+  }
+  std::string map = engine->GetCurrentMapName();
+  if (map.empty()) {
+    console->Print("bsp lump probe: no map loaded.\n");
+    return;
+  }
+  std::string rel = "maps/" + map + ".bsp";
+  std::string path = fileSystem->FindFileSomewhere(rel).value_or("");
+  if (path.empty()) {
+    console->Print("bsp lump probe: couldn't resolve \"%s\".\n", rel.c_str());
+    return;
+  }
+  std::ifstream f(path, std::ios::binary);
+  if (!f) {
+    console->Print("bsp lump probe: couldn't open \"%s\".\n", path.c_str());
+    return;
+  }
+
+  int ident = 0, version = 0;
+  f.read((char*)&ident, 4);
+  f.read((char*)&version, 4);
+  char id4[5] = {0};
+  std::memcpy(id4, &ident, 4);
+  console->Print("bsp \"%s\"\n    ident \"%s\"  version %d\n", path.c_str(), id4,
+                 version);
+
+  struct LumpRef {
+    int idx;
+    const char* name;
+  };
+  const LumpRef wanted[] = {
+      {1, "PLANES"},     {2, "TEXDATA"},         {3, "VERTEXES"},
+      {6, "TEXINFO"},    {7, "FACES"},           {12, "EDGES"},
+      {13, "SURFEDGES"}, {43, "TEXDATASTRDATA"}, {44, "TEXDATASTRTBL"},
+  };
+  bool anyLzma = false;
+  for (const auto& w : wanted) {
+    // lump_t = { int fileofs; int filelen; int version; int fourCC; } at
+    // header offset 8 + idx*16. A nonzero fourCC or a "LZMA" payload magic
+    // means the lump is compressed.
+    f.seekg(8 + w.idx * 16, std::ios::beg);
+    int ofs = 0, len = 0, lver = 0, fourCC = 0;
+    f.read((char*)&ofs, 4);
+    f.read((char*)&len, 4);
+    f.read((char*)&lver, 4);
+    f.read((char*)&fourCC, 4);
+    unsigned char m[4] = {0, 0, 0, 0};
+    if (ofs > 0 && len >= 4) {
+      f.seekg(ofs, std::ios::beg);
+      f.read((char*)m, 4);
+    }
+    bool lzma = fourCC != 0 ||
+                (m[0] == 'L' && m[1] == 'Z' && m[2] == 'M' && m[3] == 'A');
+    anyLzma = anyLzma || lzma;
+    console->Msg(
+        "    [%2d] %-14s ofs %9d len %9d ver %d fourCC %d magic "
+        "%02X%02X%02X%02X%s\n",
+        w.idx, w.name, ofs, len, lver, fourCC, m[0], m[1], m[2], m[3],
+        lzma ? "  <LZMA>" : "");
+  }
+  console->Print(
+      "bsp lump probe: %s\n",
+      anyLzma ? "LZMA-compressed lump(s) present — a decoder is required."
+              : "geometry lumps uncompressed — no LZMA decoder needed.");
 }

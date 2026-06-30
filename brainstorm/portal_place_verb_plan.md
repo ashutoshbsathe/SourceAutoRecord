@@ -152,8 +152,43 @@ SAR/C++ before Python within each cluster. Each phase = one focused edit + a 1-l
 Reuses the entire ARC A spine (same `IPanelSource`, `SurfaceMarkTable`, proto, verb, labels). Differs only in
 the panel source. **B0 front-loads the recon and gates B1+; ARC A never waits on it.**
 
-- **B0 — recon spike (read-only; ⭐ PRIORITIZED — start the next session here).** SAR is trace-based today;
-  no BSP-face walk exists. Decide the route by spiking both, cheaper first:
+- **B0 — recon spike (read-only; ⭐ PRIORITIZED).** **STATUS 2026-06-30: probe + sweep BUILT, awaiting the
+  in-game run.** `sar_harness_bsp_face_probe` (single crosshair, `MASK_SOLID` so grates/glass register) +
+  `sar_harness_bsp_face_sweep` (coarse hemisphere of rays, `MASK_SHOT_PORTAL`, portalable world-brush hits →
+  distinct `worldSurfaceIndex` / planes / 128u cells vs the sidecar panel count), both in `PuzzleAnnotate.cpp`;
+  `sar.so` builds. **Route (a) STRUCK by the grounding pass:** a 4–6 per-build-offset RE project that only sees
+  static worldspawn brushes, and `py/bsp_recon` already does the exact parse offline — if route (b) can't
+  enumerate, the real fallback is *keep the shipped sidecar*, not RE `model_t`. Run protocol: set
+  `sar_harness_panel_dir` → `artifacts/panels`, load the 27-panel eval map, `sar_harness_panels_dump` (sanity),
+  `bsp_face_probe` on white wall / black wall / grate, then `bsp_face_sweep`. **Crux unknowns the run closes
+  (→ verdict in B0.2):** is `worldSurfaceIndex` nonzero + stable-per-face + a small dense range (→ walk it
+  directly)? does `SURF_NOPORTAL` cleanly split white vs black at runtime (→ usable sweep filter)? does a
+  single-point sweep's distinct-cell count approach the 27 sidecar panels (→ coverage)?
+  **PROBE RAN 2026-06-30 (1361778957) — route (b) signals GREEN:** `SURF_NOPORTAL` cleanly splits
+  white(`0x0800`,noportal=0)/black(`0x0820`,noportal=1); `surface.name` is the real VMT (`tile/white_wall_tile003a`,
+  `metal/black_wall_metal_002c`) so the offline `'white'+'tile'` material filter ports directly;
+  `worldSurfaceIndex` populated + small (0,1,2,5). **Gotcha:** world-brush hits report `m_pEnt = worldspawn`
+  (a real entity), NOT null — the first sweep filtered on `m_pEnt!=null` and got 0 world hits; fixed to match
+  `classname=="worldspawn"` + added a `portalable-on-entity` counter (func_brush blind-spot check).
+  **SWEEP RAN 2026-06-30 (3 vantage points) — trace-enumeration NO-GO:** `worldSurfaceIndex` is NOT a per-face
+  id (only **3 distinct** across 88–1102 portalable hits, range wobbles 0..5 / 0..7 / 0..38 by position →
+  idea (i) walk-the-index DEAD); single-point coverage poor + position-bound (**14/22/23 distinct cells** vs
+  27 multi-tile panels → many-sweep + cluster + still occlusion-bound); **portalable-on-entity = 41/2/31**
+  confirms real `func_brush` portalable surfaces a worldspawn-only enumerator (sidecar OR sweep) misses.
+  (Sidecar read 0 only because `sar_harness_panel_dir` resets on restart and wasn't re-set before map load —
+  procedure, not a bug.) The per-face oracle (`SURF_NOPORTAL` + material) stays GREEN for placement-time
+  checks; it's enumeration-via-trace that fails.
+
+  **→ B0.2 DECISION: trace-sweep enumerator REJECTED. Arc B, if built, = route (c) in-engine BSP _file_
+  parse** (the file, not engine memory — so no offset RE, no per-build rot, unlike route (a)).
+  `FileSystem::FindFileSomewhere("maps/<map>.bsp")` resolves the path (in-tree; EngineDemoPlayer uses it) →
+  `std::ifstream` + a small v21 lump reader (PLANES/VERTEXES/EDGES/SURFEDGES/FACES/TEXINFO/TEXDATA/
+  string-table/string-data) → feed the existing `cluster_panels` port (B1). Exact geometry, complete coverage
+  (can read brush-entity submodels → fixes the func_brush gap), no precompute. **Only open cost: are the
+  geometry lumps LZMA-compressed?** (SAR links zlib, not LZMA.) Price it with a ~60-LOC read-only
+  `sar_harness_bsp_lump_probe` (header + per-lump fourCC/payload-magic) before committing. Until then the
+  shipped sidecar is the v0 source; the `IPanelSource` seam swaps route (c) in with zero downstream churn.
+  SAR is trace-based today; no BSP-face walk exists. The original two-route framing, for reference:
   - **Route (b) trace-based — try FIRST (likely cheaper, no offset RE).** `CGameTrace` already carries
     `surface` (`csurface_t`: `name`=material, `flags`) and `worldSurfaceIndex` (`Trace.hpp:103-111`).
     **First task: write `sar_harness_bsp_face_probe`** (read-only, mirror the laser/portal recon cmds): trace
@@ -167,19 +202,38 @@ the panel source. **B0 front-loads the recon and gates B1+; ARC A never waits on
     RE for the lump pointers + material-name resolution from `texinfo` (the fiddly part).
   **Deliverable:** the probe command + a written verdict (route + cost) appended here. **Gate:** if both
   exceed budget, ARC A ships standalone and ARC B reschedules — ARC A never waits on B0.
-- **B1 — `SurfaceEnumerator`** (`.{hpp,cpp}`): the chosen B0 route → portalable white-tile faces → cluster
-  (reuse `cluster_panels.py`'s plane-key/128u-cell/connected-components logic, ported to C++) → `vector<PanelDesc>`,
-  identical shape to the sidecar. Replicate the emitter's **origin-junk filter** (drop panels whose center is
-  at `(0,0,0)` — the PeTI puzzlemaker's origin-instance geometry). *Verify:* `sar_harness_panels_dump` matches the sidecar.
-- **B2 — `BspWalkPanelSource`** behind `IPanelSource`: call `SurfaceEnumerator` at load; band marks with the
-  same sort key as ARC A (C4). *Verify:* builds.
-- **B3 — source swap behind a cvar** (`sar_harness_panel_source 0=sidecar 1=bspwalk`). Everything else unchanged.
-  *Verify:* `sar_harness_panel_source 1; map <eval>` → same labels + same `place_portal` results as the sidecar.
-- **B4 — cross-validate** walk vs sidecar on the A0 maps (panel count, planes, anchors, marks). Reconcile
-  clustering edge cases (coplanar jitter; `func_brush` excluded — same caveat as the offline census). *Verify:*
-  `agentloop_smoke` percept is mark-for-mark equivalent between sources.
-- **B5 — default to bspwalk**, keep `SidecarPanelSource` compiled as fallback/oracle for new maps. *Verify:*
-  eval maps run end-to-end with no sidecar files present.
+### B-series — `BspFilePanelSource` (the chosen build, decided 2026-06-30)
+
+In-engine parse of the map's `.bsp` **file** (not engine memory). **Deps: zero new** — std `<fstream>` +
+in-tree `FileSystem::FindFileSomewhere` + `Math.hpp`; LZMA confirmed not needed (`bsp_lump_probe`: all lumps
+`fourCC 0`, uncompressed, VBSP v21). **Lives in** one new pair `src/Features/Harness/BspFilePanelSource.{hpp,cpp}`
+(Makefile auto-globs `*.cpp`, no edit). **Reuse, not reinvent:** v21 struct layouts lifted from canonical
+`public/bspfile.h` (sizes already cross-confirmed by the lump-probe: face 56 / texinfo 72 / texdata 32 /
+plane 20 / edge 4, all exact divisors); clustering is a 1:1 port of the validated `cluster_panels.py`.
+**`func_brush` submodels deferred** (optional, post-B8 — no regression, the sidecar misses them too).
+
+- **B1 ✅ — v21 structs + lump loader** (`BspFilePanelSource.cpp`, anon ns): `Plane`/`Edge`/`Face`/`TexInfo`/
+  `TexData` (`#pragma pack(1)`), `LoadBsp(path)` slurps the 9 lumps via `FindFileSomewhere`. *Verify:* `geo_dump`
+  counts (8426 planes / 7183 verts / 3491 faces / 782 texinfos / 42 texdatas on `1361778957`).
+- **B2 ✅ — face → geometry** (`ExtractFace`): plane from `planes[planenum]`; winding verts via
+  `firstedge..→surfedges→edges→verts`; material+flags via `texinfo→texdata→stringtable→stringdata`. *Verify:*
+  `geo_dump` prints real materials (`tile/white_wall_tile003a`) + axis-aligned normals.
+- **B3 ✅ — filter:** portalable (`!(flags & SURF_NOPORTAL)`) + white-tile material (`IsWhiteTile`, mirrors
+  `is_white_tile`). *Verify:* `geo_dump` portalable-white-tile face count is sane (> 27, multi-tile).
+  *(B1–B3 land together in `sar_harness_bsp_geo_dump` for one in-game verify.)*
+- **B4 — cluster → panels:** port `cluster_panels` (plane-key bucket → `PlaneAxes` project → 128u cells →
+  connected-components → center/mins/maxs → origin-junk drop → deterministic sort → marks 1..N) into
+  `EnumeratePanels`. *Verify:* panel count + centers match the sidecar's 27 on `1361778957`.
+- **B5 — `BspFilePanelSource : IPanelSource`** wraps B1–B4. *Verify:* builds.
+- **B6 — A/B swap:** temporary `sar_harness_panel_source` cvar (`0`=sidecar, `1`=bspfile); `SESSION_START`
+  uses the active source. *Verify:* `panels_dump` bspfile == sidecar, mark-for-mark, on the eval maps.
+- **B7 — cross-validate** on all eval maps (count, planes, centers); reconcile coplanar-jitter edge cases.
+  *Verify:* `agentloop_smoke` percept mark-for-mark equivalent across sources.
+- **B8 — REMOVE the sidecar entirely** (per user, 2026-06-30): delete `SidecarPanelSource.{hpp,cpp}`, the
+  `sar_harness_panel_dir` + temporary `sar_harness_panel_source` cvars, the A/B scaffolding; `PanelSession`
+  news up `BspFilePanelSource` directly; delete `artifacts/panels/*.json`. *Verify:* eval maps enumerate with
+  no sidecar present, `agentloop_smoke` passes. (Python `cluster_panels --emit` retirement deferred — census
+  stays.)
 
 ---
 
