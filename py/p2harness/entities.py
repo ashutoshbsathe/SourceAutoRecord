@@ -75,6 +75,25 @@ def _mark_dict(rec, player, eye_yaw):
     }
 
 
+def _panel_dict(sm, player, eye_yaw):
+    """Project one portalable wall panel into the LLM-facing dict.
+
+    Panel marks carry an `S` prefix and a separate 1..N namespace from entity
+    marks, so an `S1` and an entity `1` never collide in the percept.
+    """
+    center = (sm.center.x, sm.center.y, sm.center.z)
+    dist, bearing = _dist_bearing(player, eye_yaw, center)
+    return {
+        'mark': f'S{sm.mark}',
+        'class': 'wall_panel',
+        'name': '',
+        'pos': [round(c, 1) for c in center],
+        'dist': round(dist, 1),
+        'bearing': round(bearing, 1),
+        'state': {},
+    }
+
+
 class WorldView:
     """Running merged view of the marked world over the delta-snapshot stream.
 
@@ -122,7 +141,9 @@ class WorldView:
             if rec.get('mark', 0) > 0
         ]
         marks.sort(key=lambda d: d['mark'])
-        return marks
+        panels = [_panel_dict(sm, player, eye_yaw) for sm in state.surface_marks]
+        panels.sort(key=lambda d: int(d['mark'][1:]))
+        return marks + panels
 
 
 def parse_snapshot(state):

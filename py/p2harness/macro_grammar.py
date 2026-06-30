@@ -115,6 +115,15 @@ VERB_SPECS = {
         'a reflector cube already on a beam (mark 6): aim it at laser-target mark '
         '9 to power it; interpose it onto the beam first.',
     ),
+    'place_portal': Verb(
+        'Place a portal of a color (blue|orange) on a portalable wall panel, '
+        'named by its S-mark. The blue/orange pair auto-links; re-placing a '
+        'color moves that portal. Fails NOT_PORTALABLE / CANT_FIT / OVERLAP / '
+        'FIZZLED / NO_LOS.',
+        'place_portal blue S1',
+        'drop a blue portal on wall panel S1; place orange on another panel to '
+        'link them.',
+    ),
     'move': Verb(
         'Hold a movement direction for N ticks.',
         'move forward 10',
@@ -165,6 +174,9 @@ def build_macro(verb, args):
     elif verb == 'redirect_to':
         m.mark = int(args[0])  # the seated cube
         m.target_mark = int(args[1])  # the target to power
+    elif verb == 'place_portal':
+        m.color = args[0]
+        m.surface_mark = int(args[1].lstrip('S'))
     elif verb == 'move':
         m.dir = args[0]
         m.ticks = int(args[1])
@@ -237,6 +249,21 @@ def _check_redirect(req, by_mark):
     return req
 
 
+def _check_place_portal(req, by_mark):
+    """place_portal checks: a blue|orange color + a portalable wall-panel S-mark.
+    Error string or the ready req."""
+    if req.color not in ('blue', 'orange'):
+        return f'place_portal: color must be blue|orange, got {req.color!r}'
+    key = f'S{req.surface_mark}'
+    panel = by_mark.get(key)
+    if panel is None:
+        present = sorted(k for k in by_mark if isinstance(k, str))
+        return f'place_portal: no panel {key}; panels present: {present}'
+    if panel['class'] != 'wall_panel':
+        return f'place_portal: mark {key} is a {panel["class"]}, not a wall panel'
+    return req
+
+
 def validate(text, entities, held_mark=None):
     """Parse a command string ('go_to 7') and check it against grammar + percept.
 
@@ -262,6 +289,8 @@ def validate(text, entities, held_mark=None):
         return _check_interpose(req, held_mark, by_mark)
     if verb == 'redirect_to':
         return _check_redirect(req, by_mark)
+    if verb == 'place_portal':
+        return _check_place_portal(req, by_mark)
     if spec.mark:
         err = _check_mark(verb, spec, req.mark, by_mark)
         if err:
@@ -286,6 +315,8 @@ def _signature(verb, spec):
         return 'interpose <emitter> <percent 0-1> [target]'
     if verb == 'redirect_to':
         return 'redirect_to <cube> <target>'
+    if verb == 'place_portal':
+        return 'place_portal <blue|orange> <S-mark>'
     args = []
     if spec.mark == 'optional':
         args.append('[mark]')

@@ -274,6 +274,8 @@ def test_examples_validate():
                 synth(mark, 'prop_weighted_cube'),
                 synth(int(tokens[2]), 'point_laser_target'),
             ]
+        elif verb == 'place_portal':
+            ents = [synth(tokens[2], 'wall_panel')]  # the S-mark panel
         elif spec.mark:
             ents = [synth(mark, 'prop_floor_button')]
         else:

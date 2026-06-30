@@ -26,6 +26,7 @@
 #include "Modules/Server.hpp"
 #include "Offsets.hpp"
 #include "Scheduler.hpp"
+#include "SurfaceMarkTable.hpp"
 #include "Utils.hpp"
 #include "Utils/Math.hpp"
 #include "Utils/SDK/EntityEdict.hpp"
@@ -1097,6 +1098,7 @@ portal2_harness::MacroResult MacroExecutor::Execute(
   if (verb == "interact") return Interact(req.mark());
   if (verb == "interpose") return Interpose(req);
   if (verb == "redirect_to") return RedirectTo(req);
+  if (verb == "place_portal") return PlacePortal(req);
 
   // press (a pedestal-button alias of interact) is not wired yet.
   r.set_ok(false);
@@ -1326,6 +1328,123 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
       Utils::ssprintf("interpose: cube %s at (%.0f %.0f %.0f)",
                       targetMark ? "on beam, target powered" : "on beam",
                       g->seat.x, g->seat.y, g->seat.z));
+  return r;
+}
+
+static const char* PortalRejectCode(int res) {
+  switch (res) {
+    case PORTAL_PLACEMENT_CANT_FIT:
+      return "CANT_FIT";
+    case PORTAL_PLACEMENT_CLEANSER:
+      return "FIZZLED";
+    case PORTAL_PLACEMENT_OVERLAP_LINKED:
+    case PORTAL_PLACEMENT_OVERLAP_PARTNER_PORTAL:
+      return "OVERLAP";
+    default:  // INVALID_VOLUME / INVALID_SURFACE / PASSTHROUGH_SURFACE
+      return "NOT_PORTALABLE";
+  }
+}
+
+portal2_harness::MacroResult MacroExecutor::PlacePortal(
+    const portal2_harness::MacroRequest& req) {
+  portal2_harness::MacroResult r;
+  const std::string color = req.color();
+  int surfaceMark = req.surface_mark();
+  bool orange = (color == "orange");
+
+  auto cancelled = []() {
+    portal2_harness::MacroResult c;
+    c.set_ok(false);
+    c.set_result_code("CANCELLED");
+    return c;
+  };
+
+  // 1. Gate (main thread): resolve the panel, prime the gun's portal entities,
+  // preview placement with TraceFirePortal, and on a placeable result commit it
+  // via portal_place. Fire from just off the panel center, along -normal.
+  struct Gate {
+    std::string code = "BAD_MARK";
+    unsigned char linkage = 0;
+    Vector placed{0, 0, 0};
+    bool usedHelper = false;
+  };
+  auto g = std::make_shared<Gate>();
+  bool ran = RunOnMainThreadSync(context_, [g, surfaceMark, orange]() {
+    PanelDesc panel;
+    if (!surfaceMarkTable.GetPanelFromMark(surfaceMark, &panel)) return;
+    void* player = server->GetPlayer(1);
+    if (!player) {
+      g->code = "NO_PLAYER";
+      return;
+    }
+    auto wpn = SE(player)->active_weapon();
+    uintptr_t gun = (uintptr_t)entityList->LookupEntity(wpn);
+    if (!gun || !entityList->IsPortalGun(wpn)) {
+      g->code = "NO_GUN";
+      return;
+    }
+    g->linkage = SE(gun)->field<unsigned char>("m_iPortalLinkageGroupID");
+    if (!entityList->LookupEntity(
+            SE(gun)->field<CBaseHandle>("m_hPrimaryPortal"))) {
+      auto b = server->FindPortal(g->linkage, false, true);
+      SE(gun)->field<CBaseHandle>("m_hPrimaryPortal") =
+          ((IHandleEntity*)b)->GetRefEHandle();
+    }
+    if (!entityList->LookupEntity(
+            SE(gun)->field<CBaseHandle>("m_hSecondaryPortal"))) {
+      auto o = server->FindPortal(g->linkage, true, true);
+      SE(gun)->field<CBaseHandle>("m_hSecondaryPortal") =
+          ((IHandleEntity*)o)->GetRefEHandle();
+    }
+
+    Vector origin = panel.center + panel.planeNormal * 10.0f;
+    Vector dir = panel.planeNormal * -1.0f;
+    TracePortalPlacementInfo_t pinfo;
+    int ret = server->TraceFirePortal(gun, origin, dir, orange, 2, pinfo);
+    int res = (int)pinfo.ePlacementResult;
+    if (ret == 0) {
+      g->code = "NO_LOS";
+      return;
+    }
+    if (res > (int)PORTAL_PLACEMENT_BUMPED) {
+      g->code = PortalRejectCode(res);
+      return;
+    }
+
+    char cmd[160];
+    std::snprintf(cmd, sizeof(cmd),
+                  "portal_place %d %d %.6f %.6f %.6f %.6f %.6f %.6f",
+                  (int)g->linkage, orange ? 1 : 0, pinfo.finalPos.x,
+                  pinfo.finalPos.y, pinfo.finalPos.z, pinfo.finalAngle.x,
+                  pinfo.finalAngle.y, pinfo.finalAngle.z);
+    engine->ExecuteCommand(cmd);
+    g->placed = pinfo.finalPos;
+    g->usedHelper = (res == (int)PORTAL_PLACEMENT_USED_HELPER);
+    g->code = "PLACED";
+  });
+  if (!ran) return cancelled();
+  if (g->code != "PLACED") {
+    r.set_ok(false);
+    r.set_result_code(g->code);
+    r.set_detail("place_portal: " + g->code);
+    return r;
+  }
+
+  // 2. Settle so the portal activates + auto-links, then read m_bActivated back.
+  AdvanceTicksBlocking(kSettle);
+  auto active = std::make_shared<bool>(false);
+  if (!RunOnMainThreadSync(context_, [active, g, orange]() {
+        void* portal = (void*)server->FindPortal(g->linkage, orange, false);
+        if (portal) *active = SE(portal)->field<bool>("m_bActivated");
+      }))
+    return cancelled();
+
+  r.set_ok(true);
+  r.set_result_code("PLACED");
+  r.set_detail(Utils::ssprintf(
+      "place_portal: %s at (%.0f %.0f %.0f)%s%s", color.c_str(), g->placed.x,
+      g->placed.y, g->placed.z, g->usedHelper ? " (helper)" : "",
+      *active ? "" : " [inactive]"));
   return r;
 }
 

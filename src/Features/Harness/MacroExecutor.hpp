@@ -38,4 +38,6 @@ class MacroExecutor {
                               float* residual);
   portal2_harness::MacroResult RedirectTo(
       const portal2_harness::MacroRequest& req);
+  portal2_harness::MacroResult PlacePortal(
+      const portal2_harness::MacroRequest& req);
 };
