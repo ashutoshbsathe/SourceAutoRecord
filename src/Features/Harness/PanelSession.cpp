@@ -5,12 +5,11 @@
 #include "Modules/Engine.hpp"
 #include "SurfaceMarkTable.hpp"
 
-// The active panel source: enumerates panels by parsing the map's .bsp.
-static BspFilePanelSource g_bspSource;
-static IPanelSource* g_panelSource = &g_bspSource;
+// Enumerates panels by parsing the map's .bsp at session start.
+static BspFilePanelSource g_panelSource;
 
 ON_EVENT(SESSION_START) {
-  surfaceMarkTable.RebuildFromSource(*g_panelSource, engine->GetCurrentMapName());
+  surfaceMarkTable.RebuildFromSource(g_panelSource, engine->GetCurrentMapName());
 }
 
 CON_COMMAND(sar_harness_panels_dump,
