@@ -21,9 +21,7 @@ namespace {
 
 const float kTile = 128.0f;
 
-// Source BSP v21 on-disk layout (subset). Field order matches public/bspfile.h;
-// the struct sizes were cross-checked against a v21 map's lump lengths
-// (face 56, texinfo 72, texdata 32, plane 20, edge 4).
+// Source BSP v21 on-disk lump structs; layout must match the file byte-for-byte.
 #pragma pack(push, 1)
 struct Plane {
   Vector normal;
@@ -248,7 +246,7 @@ std::vector<std::vector<Cell>> ConnectedComponents(
 
 // Quantize portalable white-tile faces to 128u cells on their plane, connect
 // adjacent cells into panels, and number them deterministically (plane key then
-// min cell). Mirrors py/bsp_recon/cluster_panels.py.
+// min cell).
 std::vector<PanelDesc> ClusterPanels(const BspFile& bsp) {
   struct Group {
     Vector normal;
