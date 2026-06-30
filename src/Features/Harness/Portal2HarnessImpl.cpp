@@ -23,6 +23,7 @@
 #include "RolloutRecorder.hpp"
 #include "SAR.hpp"
 #include "Scheduler.hpp"
+#include "SurfaceMarkTable.hpp"
 #include "Utils/Memory.hpp"
 #include "Utils/SDK.hpp"
 
@@ -210,6 +211,22 @@ bool Portal2HarnessImpl::InternalObserve(portal2_harness::GameState* response) {
   // Set here so both observe return paths carry it.
   response->set_chamber_complete(PuzzleExit::Get());
   response->set_exit_signal_mask(PuzzleExit::GetMask());
+
+  // Chamber-static portalable wall panels; full list every observe (~O(panels)).
+  auto setVec = [](auto* v, const Vector& s) {
+    v->set_x(s.x);
+    v->set_y(s.y);
+    v->set_z(s.z);
+  };
+  for (const auto& panel : surfaceMarkTable.Panels()) {
+    auto* sm = response->add_surface_marks();
+    sm->set_mark(panel.mark);
+    setVec(sm->mutable_plane_normal(), panel.planeNormal);
+    setVec(sm->mutable_center(), panel.center);
+    setVec(sm->mutable_mins(), panel.mins);
+    setVec(sm->mutable_maxs(), panel.maxs);
+    sm->set_anchor_flags(panel.anchorFlags);
+  }
 
   Vector position;
   Vector velocity;
