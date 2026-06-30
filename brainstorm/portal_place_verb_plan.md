@@ -58,24 +58,25 @@ helper-snap in `detail`). Wrap every main-thread touch in `RunOnMainThreadSync` 
 
 ---
 
-## ▶ Resume here (2026-06-30) — Track B (BSP-file enumerator) at B6; sidecar removal next
+## ▶ Resume here (2026-06-30) — verb wired end-to-end; next = in-game verify + A13/A15/A16
 
-**Track B SHIPPED B0–B6** (commits `bee1ede8`→ this one). The runtime enumerator no longer needs the offline
-sidecar: `BspFilePanelSource` parses the map's `.bsp` file in-engine (VBSP v21, uncompressed, zero new deps),
-reconstructs portalable white-tile faces, and clusters them via the `cluster_panels` port — **mark-for-mark
-identical to the sidecar on `1361778957` (27 panels).** `PanelSession` now wires it as the live source. Trace
-enumeration (route b) was rejected; the full reasoning + B-series detail is below (§B-series, §B0 STATUS).
+**Track B COMPLETE (B0–B8)** (commits `bee1ede8`→`ce34da16`). `BspFilePanelSource` parses the map `.bsp`
+in-engine (VBSP v21, uncompressed, zero new deps) and clusters portalable white-tile faces — mark-for-mark
+identical to the old sidecar (27 + 5 on the two eval maps). Sidecar deleted; `artifacts/panels/*.json` kept
+(unused) per user. Trace enumeration (route b) was rejected — reasoning in §B0 STATUS.
 
-**Track B COMPLETE (B0–B8).** The runtime enumerator is fully self-contained: `BspFilePanelSource` parses the
-map `.bsp` in-engine, no sidecar, no offline precompute. Verified 27 + 5 on the two eval maps. Sidecar deleted;
-`artifacts/panels/*.json` kept (unused) per user.
+**`place_portal` WIRED A7–A12** (commits `e88deeca`, `52bb863f`). A7 fills `GameState.surface_marks`; A8 emits
+panels as `S`-marks (class `wall_panel`) in `WorldView.observe`; A9/A10 add the grammar (`place_portal blue S1`)
++ `_check_place_portal` (smoke 12/12); A11/A12 add the `MacroExecutor::PlacePortal` core — resolve panel → prime
+gun → `TraceFirePortal` preview (fire from `center+normal*10` along `-normal`) → `portal_place` commit → settle →
+read `m_bActivated`. Codes: PLACED | NOT_PORTALABLE | CANT_FIT | OVERLAP | FIZZLED | NO_LOS | NO_GUN | BAD_MARK.
 
-**Next: Arc A — the actual `place_portal` verb (A7→A16),** now fed by the BSP source:
-1. **A7** — fill `SurfaceMark` protos in `InternalObserve` from `surfaceMarkTable.Panels()`.
-2. **A8** — Python percept: `S`-prefixed panel marks into `WorldView.observe`.
-3. **A9/A10** — grammar spec + parse/validate for `place_portal blue S1`.
-4. **A11/A12** — dispatch + the `PlacePortal` core (template off `Interpose` + the `fire_spike` actuator).
-5. **A13–A16** — panel labels, smoke round-trip, ergonomics. End: `place_portal blue S1` drops a portal in `macro_repl`.
+**Next:**
+1. **In-game verify (gate):** `macro_repl` → `place_portal blue S1` on `1361778957` drops a blue portal at panel
+   S1; a non-portalable panel → the right reject; bad color/mark → structured reject.
+2. **A13** — panel labels in the annotate overlay (reuse `PuzzleAnnotate` legibility) so panels show their S-mark.
+3. **A15** — `agentloop_smoke` round-trip for `place_portal` (proto + percept + result codes).
+4. **A16** — ergonomics pass (drive a scripted episode per eval map; tune wording; no mark collision/oracle leak).
 
 Loose end: the dual-role eval map (`17093866141393312246`) has no portals — skipped (no parse needed).
 
