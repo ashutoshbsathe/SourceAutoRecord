@@ -71,12 +71,15 @@ panels as `S`-marks (class `wall_panel`) in `WorldView.observe`; A9/A10 add the 
 gun → `TraceFirePortal` preview (fire from `center+normal*10` along `-normal`) → `portal_place` commit → settle →
 read `m_bActivated`. Codes: PLACED | NOT_PORTALABLE | CANT_FIT | OVERLAP | FIZZLED | NO_LOS | NO_GUN | BAD_MARK.
 
+**A13 ✅ — panel overlay** (commit below): the `RENDER` event now outlines each portalable panel (quad floated
+1u off the wall) + draws its `S<n>` label, reusing the entity LOS-cull + on-screen-clamp legibility. Gated on
+`sar_harness_annotate 1`. Needed because a pure-portal chamber has few marked entities, so the frame looked empty.
+
 **Next:**
-1. **In-game verify (gate):** `macro_repl` → `place_portal blue S1` on `1361778957` drops a blue portal at panel
-   S1; a non-portalable panel → the right reject; bad color/mark → structured reject.
-2. **A13** — panel labels in the annotate overlay (reuse `PuzzleAnnotate` legibility) so panels show their S-mark.
-3. **A15** — `agentloop_smoke` round-trip for `place_portal` (proto + percept + result codes).
-4. **A16** — ergonomics pass (drive a scripted episode per eval map; tune wording; no mark collision/oracle leak).
+1. **In-game verify (gate):** `sar_harness_annotate 1` → panels show `S1…S27` on the walls; `place_portal blue S1`
+   on `1361778957` drops a blue portal on panel S1; bad color/mark → structured reject.
+2. **A15** — `agentloop_smoke` round-trip for `place_portal` (proto + percept + result codes).
+3. **A16** — ergonomics pass (drive a scripted episode per eval map; tune wording; no mark collision/oracle leak).
 
 Loose end: the dual-role eval map (`17093866141393312246`) has no portals — skipped (no parse needed).
 

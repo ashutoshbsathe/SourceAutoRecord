@@ -17,6 +17,7 @@
 #include "Features/OverlayRender.hpp"
 #include "LaserGeometry.hpp"
 #include "MarkTable.hpp"
+#include "SurfaceMarkTable.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
 #include "Modules/FileSystem.hpp"
@@ -232,6 +233,33 @@ ON_EVENT(RENDER) {
                            OverlayRender::TextAlign::BOTTOM, color,
                            /*bg_col*/ {0, 0, 0, 200}, /*clamp_to_screen*/ true,
                            /*alts*/ alts);
+  }
+
+  // Outline + label every portalable wall panel with its S-mark, reusing the
+  // entity-mark legibility (LOS cull + on-screen clamp). Uniform neutral style
+  // so no panel reads as more portalable than another. The quad floats 1u off
+  // the wall to avoid z-fighting the surface.
+  for (const auto& panel : surfaceMarkTable.Panels()) {
+    OverlayRender::addBoxMesh(panel.center + panel.planeNormal * 1.0f,
+                              panel.mins - panel.center,
+                              panel.maxs - panel.center, {0, 0, 0},
+                              RenderCallback::constant({200, 200, 200, 5}),
+                              RenderCallback::constant({90, 90, 90}));
+
+    Vector anchor = panel.center + panel.planeNormal * 2.0f;
+    if (doCull && !MarkVisible(eye, player, nullptr, anchor)) continue;
+    int sw = 0, sh = 0;
+    engine->GetScreenSize(nullptr, sw, sh);
+    Vector s;
+    if (sw > 0 && sh > 0 &&
+        (engine->PointToScreen(anchor, s) != 0 || s.x < 0 || s.x >= sw ||
+         s.y < 0 || s.y >= sh))
+      continue;
+    OverlayRender::addText(anchor, "S" + std::to_string(panel.mark),
+                           kMarkHeight, /*visibility_scale*/ true,
+                           /*no_depth*/ false, OverlayRender::TextAlign::CENTER,
+                           {210, 210, 210}, /*bg_col*/ {0, 0, 0, 200},
+                           /*clamp_to_screen*/ true, /*alts*/ {});
   }
 }
 
