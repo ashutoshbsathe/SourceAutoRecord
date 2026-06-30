@@ -84,6 +84,12 @@ walls and `place_portal blue S1` drops a blue portal on the named panel. The ver
 3. **Deferred:** `where` sub-panel anchor (proto field reserved, v0 = center); `func_brush` portalable submodels
    (read `models[1..N]` faces — the worldspawn-only parse misses them); dynamic portalability hints.
 
+**⭐ Next frontier (separate workstream — think next session).** `place_portal` places portals, but the rest of
+the verb suite is portal-BLIND, so a portal is inert for *getting anywhere*: `go_to`'s flat A\* planner doesn't
+treat a placed blue↔orange pair as a traversal edge (the parked **R5 / fork-B "GoToPlanner portal-edge"** work),
+and `aim_at`/`look` take int *entity* marks, not `S`-panel-marks. Making the suite portal-aware — chiefly
+`go_to`-through-portals — is the next big arc. Full framing in ROADMAP **"Top of mind (2026-06-30)"**.
+
 Loose end: the dual-role eval map (`17093866141393312246`) has no portals — skipped (no parse needed).
 
 ---
