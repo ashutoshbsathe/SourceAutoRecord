@@ -1,9 +1,15 @@
 #include "BspFilePanelSource.hpp"
 
+#include <algorithm>
 #include <cctype>
+#include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <map>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "Command.hpp"
@@ -12,6 +18,8 @@
 #include "Modules/FileSystem.hpp"
 
 namespace {
+
+const float kTile = 128.0f;
 
 // Source BSP v21 on-disk layout (subset). Field order matches public/bspfile.h;
 // the struct sizes were cross-checked against a v21 map's lump lengths
@@ -199,18 +207,173 @@ bool IsPortalable(const FaceGeo& g) {
   return !(g.flags & kSurfNoPortal) && IsWhiteTile(g.material);
 }
 
+// In-plane basis: an arbitrary but deterministic (u, v) spanning the plane.
+void PlaneAxes(Vector n, Vector* u, Vector* v) {
+  Vector up = (n.z < 0.9f && n.z > -0.9f) ? Vector{0, 0, 1} : Vector{1, 0, 0};
+  *u = n.Cross(up).Normalize();
+  *v = n.Cross(*u).Normalize();
+}
+
+Vector PlanePoint(float uc, float vc, const Vector& u, const Vector& v,
+                  float dist, const Vector& n) {
+  return Vector{uc * u.x + vc * v.x + dist * n.x,
+                uc * u.y + vc * v.y + dist * n.y,
+                uc * u.z + vc * v.z + dist * n.z};
+}
+
+using Cell = std::pair<int, int>;
+
+std::vector<std::vector<Cell>> ConnectedComponents(
+    const std::set<Cell>& cells) {
+  std::set<Cell> seen;
+  std::vector<std::vector<Cell>> comps;
+  for (const auto& start : cells) {
+    if (seen.count(start)) continue;
+    std::vector<Cell> blob;
+    std::vector<Cell> stack{start};
+    while (!stack.empty()) {
+      Cell c = stack.back();
+      stack.pop_back();
+      if (seen.count(c)) continue;
+      seen.insert(c);
+      blob.push_back(c);
+      for (Cell nb : {Cell{c.first + 1, c.second}, Cell{c.first - 1, c.second},
+                      Cell{c.first, c.second + 1}, Cell{c.first, c.second - 1}})
+        if (cells.count(nb) && !seen.count(nb)) stack.push_back(nb);
+    }
+    comps.push_back(std::move(blob));
+  }
+  return comps;
+}
+
+// Quantize portalable white-tile faces to 128u cells on their plane, connect
+// adjacent cells into panels, and number them deterministically (plane key then
+// min cell). Mirrors py/bsp_recon/cluster_panels.py.
+std::vector<PanelDesc> ClusterPanels(const BspFile& bsp) {
+  struct Group {
+    Vector normal;
+    float dist;
+    std::vector<FaceGeo> faces;
+  };
+  std::map<std::string, Group> byPlane;
+  for (const auto& f : bsp.faces) {
+    FaceGeo g;
+    if (!ExtractFace(bsp, f, &g) || !IsPortalable(g)) continue;
+    char key[64];
+    std::snprintf(key, sizeof(key), "%.2f,%.2f,%.2f,%ld", g.normal.x,
+                  g.normal.y, g.normal.z, std::lround(g.dist));
+    Group& grp = byPlane[key];
+    grp.normal = g.normal;
+    grp.dist = g.dist;
+    grp.faces.push_back(std::move(g));
+  }
+
+  struct Raw {
+    float nx, ny, nz;
+    long distR;
+    int mincu, mincv;
+    PanelDesc desc;
+  };
+  std::vector<Raw> raw;
+  for (auto& kv : byPlane) {
+    Group& grp = kv.second;
+    Vector u, vv;
+    PlaneAxes(grp.normal, &u, &vv);
+
+    std::set<Cell> cells;
+    for (const auto& fg : grp.faces) {
+      float umin = 1e30f, umax = -1e30f, vmin = 1e30f, vmax = -1e30f;
+      for (const auto& p : fg.verts) {
+        float du = p.Dot(u), dv = p.Dot(vv);
+        umin = std::min(umin, du);
+        umax = std::max(umax, du);
+        vmin = std::min(vmin, dv);
+        vmax = std::max(vmax, dv);
+      }
+      int cu0 = (int)std::floor(umin / kTile);
+      int cu1 = (int)std::floor((umax - 1e-3f) / kTile);
+      int cv0 = (int)std::floor(vmin / kTile);
+      int cv1 = (int)std::floor((vmax - 1e-3f) / kTile);
+      for (int cu = cu0; cu <= cu1; ++cu)
+        for (int cv = cv0; cv <= cv1; ++cv) cells.insert({cu, cv});
+    }
+
+    for (const auto& blob : ConnectedComponents(cells)) {
+      int mincu = blob[0].first, maxcu = blob[0].first;
+      int mincv = blob[0].second, maxcv = blob[0].second;
+      for (const Cell& c : blob) {
+        mincu = std::min(mincu, c.first);
+        maxcu = std::max(maxcu, c.first);
+        mincv = std::min(mincv, c.second);
+        maxcv = std::max(maxcv, c.second);
+      }
+      float umin = mincu * kTile, umax = (maxcu + 1) * kTile;
+      float vmin = mincv * kTile, vmax = (maxcv + 1) * kTile;
+      Vector center = PlanePoint((umin + umax) / 2, (vmin + vmax) / 2, u, vv,
+                                 grp.dist, grp.normal);
+      // PeTI puzzlemaker origin-instance geometry clusters at (0,0,0).
+      if (std::fabs(center.x) < 1.0f && std::fabs(center.y) < 1.0f &&
+          std::fabs(center.z) < 1.0f)
+        continue;
+
+      Vector corners[4] = {
+          PlanePoint(umin, vmin, u, vv, grp.dist, grp.normal),
+          PlanePoint(umax, vmin, u, vv, grp.dist, grp.normal),
+          PlanePoint(umax, vmax, u, vv, grp.dist, grp.normal),
+          PlanePoint(umin, vmax, u, vv, grp.dist, grp.normal),
+      };
+      Vector mins = corners[0], maxs = corners[0];
+      for (const Vector& c : corners) {
+        mins.x = std::min(mins.x, c.x);
+        mins.y = std::min(mins.y, c.y);
+        mins.z = std::min(mins.z, c.z);
+        maxs.x = std::max(maxs.x, c.x);
+        maxs.y = std::max(maxs.y, c.y);
+        maxs.z = std::max(maxs.z, c.z);
+      }
+
+      Raw r;
+      r.nx = std::round(grp.normal.x * 100) / 100;
+      r.ny = std::round(grp.normal.y * 100) / 100;
+      r.nz = std::round(grp.normal.z * 100) / 100;
+      r.distR = std::lround(grp.dist);
+      r.mincu = mincu;
+      r.mincv = mincv;
+      r.desc = PanelDesc{0, grp.normal, center, mins, maxs, 0};
+      raw.push_back(r);
+    }
+  }
+
+  std::sort(raw.begin(), raw.end(), [](const Raw& a, const Raw& b) {
+    if (a.nx != b.nx) return a.nx < b.nx;
+    if (a.ny != b.ny) return a.ny < b.ny;
+    if (a.nz != b.nz) return a.nz < b.nz;
+    if (a.distR != b.distR) return a.distR < b.distR;
+    if (a.mincu != b.mincu) return a.mincu < b.mincu;
+    return a.mincv < b.mincv;
+  });
+
+  std::vector<PanelDesc> panels;
+  for (size_t i = 0; i < raw.size(); ++i) {
+    raw[i].desc.mark = (int)i + 1;
+    panels.push_back(raw[i].desc);
+  }
+  return panels;
+}
+
 }  // namespace
 
 std::vector<PanelDesc> BspFilePanelSource::EnumeratePanels(
     const std::string& mapName) {
-  (void)mapName;
-  return {};  // clustering lands in a later step
+  BspFile bsp;
+  if (!LoadByMap(mapName, &bsp)) return {};
+  return ClusterPanels(bsp);
 }
 
 CON_COMMAND(sar_harness_bsp_geo_dump,
             "sar_harness_bsp_geo_dump - parse the current map's .bsp and print "
-            "the geometry lump counts plus the portalable white-tile faces "
-            "(material/plane/centroid). Read-only.\n") {
+            "the geometry lump counts, the portalable white-tile face count, "
+            "and the clustered panels. Read-only.\n") {
   if (!engine) {
     console->Print("bsp geo dump: no engine.\n");
     return;
@@ -227,26 +390,17 @@ CON_COMMAND(sar_harness_bsp_geo_dump,
       (int)bsp.surfedges.size(), (int)bsp.faces.size(),
       (int)bsp.texinfos.size(), (int)bsp.texdatas.size());
 
-  int n = 0, shown = 0;
+  int n = 0;
   for (const auto& f : bsp.faces) {
     FaceGeo g;
-    if (!ExtractFace(bsp, f, &g) || !IsPortalable(g)) continue;
-    ++n;
-    if (shown < 24 && !g.verts.empty()) {
-      Vector c{0, 0, 0};
-      for (const auto& v : g.verts) {
-        c.x += v.x;
-        c.y += v.y;
-        c.z += v.z;
-      }
-      float inv = 1.0f / g.verts.size();
-      console->Msg(
-          "    %-28s n %.0f %.0f %.0f  d %.0f  verts %d  c %.0f %.0f %.0f\n",
-          g.material.c_str(), g.normal.x, g.normal.y, g.normal.z, g.dist,
-          (int)g.verts.size(), c.x * inv, c.y * inv, c.z * inv);
-      ++shown;
-    }
+    if (ExtractFace(bsp, f, &g) && IsPortalable(g)) ++n;
   }
-  console->Print("bsp geo dump: %d portalable white-tile faces (showed %d).\n",
-                 n, shown);
+  console->Print("    %d portalable white-tile faces\n", n);
+
+  auto panels = ClusterPanels(bsp);
+  for (const auto& p : panels)
+    console->Msg("    S%d  center %.0f %.0f %.0f  normal %.0f %.0f %.0f\n",
+                 p.mark, p.center.x, p.center.y, p.center.z, p.planeNormal.x,
+                 p.planeNormal.y, p.planeNormal.z);
+  console->Print("bsp geo dump: %d panels.\n", (int)panels.size());
 }
