@@ -58,22 +58,23 @@ helper-snap in `detail`). Wrap every main-thread touch in `RunOnMainThreadSync` 
 
 ---
 
-## ▶ Resume here (2026-06-30) — enumerator spine DONE; next = the verb + Track B recon
+## ▶ Resume here (2026-06-30) — Track B (BSP-file enumerator) at B6; sidecar removal next
 
-**Shipped (A1–A6, commits `18a97e16`→`1f0ae091`):** the full offline→runtime enumerator spine. Sidecars
-emit (`cluster_panels.py --emit`), `SidecarPanelSource` loads them via json11, `SurfaceMarkTable` rebuilds at
-session start, `sar_harness_panels_dump` lists them in-game — **verified on two eval maps (27 + 5 panels,
-origin-junk filtered).** Sidecars live in `artifacts/panels/`; set `sar_harness_panel_dir` to its abs path
-before loading a map. The `IPanelSource` seam is in, so Arc B is a source swap.
+**Track B SHIPPED B0–B6** (commits `bee1ede8`→ this one). The runtime enumerator no longer needs the offline
+sidecar: `BspFilePanelSource` parses the map's `.bsp` file in-engine (VBSP v21, uncompressed, zero new deps),
+reconstructs portalable white-tile faces, and clusters them via the `cluster_panels` port — **mark-for-mark
+identical to the sidecar on `1361778957` (27 panels).** `PanelSession` now wires it as the live source. Trace
+enumeration (route b) was rejected; the full reasoning + B-series detail is below (§B-series, §B0 STATUS).
 
-**Tomorrow — two parallel tracks:**
-1. **Arc A: A7→A12** — flow panels into the percept, add the grammar, build the `PlacePortal` verb. End state:
-   `place_portal blue S1` drops a portal on a named panel in `macro_repl`. (Detailed in A7–A12 below.)
-2. **Track B: B0 recon (PRIORITIZED)** — the runtime-walk feasibility spike; start with
-   `sar_harness_bsp_face_probe` (route (b) trace-based first). (Detailed in Arc B below.)
+**Next, in order:**
+1. **B7** — confirm map 2 (`1522623535`, 5 panels) parity through the wired path (`panels_dump`), then
+   `agentloop_smoke` unchanged.
+2. **B8** — REMOVE the sidecar entirely: delete `SidecarPanelSource.{hpp,cpp}`, `sar_harness_panel_dir`,
+   `artifacts/panels/*.json`; simplify `PanelSession`. (Python `cluster_panels --emit` retirement deferred.)
+3. **Arc A: A7→A16** — the actual `place_portal` verb (panels → percept → grammar → `PlacePortal` core), now
+   fed by the BSP source. End state: `place_portal blue S1` drops a portal in `macro_repl`.
 
-Loose end: the dual-role eval map (`17093866141393312246`) isn't in the BSP corpus, so its sidecar needs a
-`dump_ents.py --geometry` run on its `.bsp` before A14.
+Loose end: the dual-role eval map (`17093866141393312246`) has no portals — skipped (no sidecar/parse needed).
 
 ---
 
@@ -221,14 +222,17 @@ plane 20 / edge 4, all exact divisors); clustering is a 1:1 port of the validate
 - **B3 ✅ — filter:** portalable (`!(flags & SURF_NOPORTAL)`) + white-tile material (`IsWhiteTile`, mirrors
   `is_white_tile`). *Verify:* `geo_dump` portalable-white-tile face count is sane (> 27, multi-tile).
   *(B1–B3 land together in `sar_harness_bsp_geo_dump` for one in-game verify.)*
-- **B4 — cluster → panels:** port `cluster_panels` (plane-key bucket → `PlaneAxes` project → 128u cells →
+- **B4 ✅ — cluster → panels:** ported `cluster_panels` (plane-key bucket → `PlaneAxes` project → 128u cells →
   connected-components → center/mins/maxs → origin-junk drop → deterministic sort → marks 1..N) into
-  `EnumeratePanels`. *Verify:* panel count + centers match the sidecar's 27 on `1361778957`.
-- **B5 — `BspFilePanelSource : IPanelSource`** wraps B1–B4. *Verify:* builds.
-- **B6 — A/B swap:** temporary `sar_harness_panel_source` cvar (`0`=sidecar, `1`=bspfile); `SESSION_START`
-  uses the active source. *Verify:* `panels_dump` bspfile == sidecar, mark-for-mark, on the eval maps.
-- **B7 — cross-validate** on all eval maps (count, planes, centers); reconcile coplanar-jitter edge cases.
-  *Verify:* `agentloop_smoke` percept mark-for-mark equivalent across sources.
+  `EnumeratePanels`. **VERIFIED `1361778957`: 38 portalable white-tile faces → 27 panels, MARK-FOR-MARK
+  identical to the sidecar** (S1..S27, same centers + normals). `func_brush` washed out via the white-tile
+  filter → exactly 27, no model-0 gate needed. The in-engine parser reproduces the offline pipeline exactly.
+- **B5 ✅ — `BspFilePanelSource : IPanelSource`** wraps B1–B4 (`EnumeratePanels` = `LoadByMap` + `ClusterPanels`).
+- **B6 ✅ — wire the source:** `PanelSession` news up `BspFilePanelSource` directly (no A/B cvar — geo_dump
+  already proved parity; KISS). Sidecar files kept compiled one round as a safety net until map 2 is confirmed.
+  *Verify (pending):* `panels_dump` → 27 on `1361778957` and 5 on `1522623535` through the wired path.
+- **B7 — cross-validate** map 2 (`1522623535`, 5 panels) parity; `agentloop_smoke` percept unchanged vs the
+  sidecar. *Verify:* both eval maps enumerate correctly through `SurfaceMarkTable`.
 - **B8 — REMOVE the sidecar entirely** (per user, 2026-06-30): delete `SidecarPanelSource.{hpp,cpp}`, the
   `sar_harness_panel_dir` + temporary `sar_harness_panel_source` cvars, the A/B scaffolding; `PanelSession`
   news up `BspFilePanelSource` directly; delete `artifacts/panels/*.json`. *Verify:* eval maps enumerate with

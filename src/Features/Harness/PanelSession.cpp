@@ -1,13 +1,13 @@
+#include "BspFilePanelSource.hpp"
 #include "Command.hpp"
 #include "Event.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
-#include "SidecarPanelSource.hpp"
 #include "SurfaceMarkTable.hpp"
 
-// The active panel source. A runtime BSP/trace walk replaces this pointer later.
-static SidecarPanelSource g_sidecarSource;
-static IPanelSource* g_panelSource = &g_sidecarSource;
+// The active panel source: enumerates panels by parsing the map's .bsp.
+static BspFilePanelSource g_bspSource;
+static IPanelSource* g_panelSource = &g_bspSource;
 
 ON_EVENT(SESSION_START) {
   surfaceMarkTable.RebuildFromSource(*g_panelSource, engine->GetCurrentMapName());
