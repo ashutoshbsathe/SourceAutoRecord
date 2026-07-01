@@ -40,6 +40,31 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
   is flat + portal-blind, so a placed blue↔orange pair isn't yet a traversal edge. THE big one: placing a portal
   only pays off when the agent can route through it. (The engine already walks the player through an open mouth on
   a naive march, so the design Q is intended-traverse vs blunder-through — `llm_percept_act_grammar.md` §4.)
+  **R5 recon RAN 2026-07-01** (`sar_harness_portal_reachability_test` on `sp_a2_laser_over_goo`) — **both halves
+  confirmed:** the flat planner reads the far side of an open pair as a **disconnected component** (SEVERED,
+  symmetric, pristine WALKABLE goal, dz=0, under the cap), and the **engine teleports the player through on
+  mouth-contact** (getpos before/after = a clean portal transit — same z/pitch/roll, yaw flipped ~180°). Upshot:
+  `go_to` can't smuggle a solve (won't route across a severance) but *can* be derailed if its local VFH path
+  grazes an open mouth. **Decision now teed, not recon-blocked:** build the `GoToPlanner` portal edge (fork-B —
+  the model places portals, the engine routes through them; a defensive "avoid open mouths" guard rides along) vs
+  keep portals `launch`-only. **fork-B (A\*-portal-edge) DROPPED 2026-07-01** — user: routing a path *through*
+  the portal is pointless; portals are a first-class Portal 2 mechanic that must interlock with **flings +
+  lasers**, not a nav edge. `portal_traversal_edge_design.md` is superseded (kept for its R5-derived substrate
+  notes). R5 recon detail: `portal_verb_recon_design.md` §5.3.
+- **⭐ UNIFIED PORTAL GRAMMAR RETHINK (2026-07-01) — the live workstream.** 28-agent brainstorm →
+  **[portal_unified_grammar_options_dossier.md](portal_unified_grammar_options_dossier.md)** (6 interlocking axes:
+  pass_through · flings · fractional-`(u,v)` · laser×portal · portal-naming · percept — all one transform
+  `M`=`m_matrixThisToLinked`). **User rulings:** laser verb stays **DUMB** (aim at the mouth, model reasons the
+  exit — no pull-back solver) · fractional `(u,v)` on **ALL panels** (gravity-anchored frame) · **SPINE-ONLY**
+  this session (defer momentum behind the DIED-terminal) · **fling family reopened** (INTO-portal vs FROM-mark;
+  one `launch(via)` rejected). **Traversal/drop family FINAL:** `pass_through(portal)` (walk-self into a
+  foot-reachable mouth) · `drop_into(portal, object=None)` (drop self OR a held object into a GROUND portal; no
+  `fall_into` verb; throw-into-wall out of scope) · `launch(via=@plate|@gel)` (FROM, deferred). **Laser = FREE**
+  once portals are named marks (`redirect_to`/`interpose`/`aim_at` accept `@portal`, no code); only the
+  through-portal *seat* (poly-line `interpose`) is gated on the P0 recon. **NEXT = spine build:** (B) portal
+  naming + percept → (C) `pass_through(color)` → `drop_into` → (A) fractional-`(u,v)`. Zero new offsets. Key
+  subst: engine laser is portal-native (`m_bPowered` confirms through the pair FREE); our `ComputeBeamSegment`
+  is portal-blind.
 - **`aim_at`/`look` at a panel** — both take int *entity* marks today; orienting at an `S`-panel-mark is unwired.
 - **portal × cube/laser/button composition** — how the shipped element verbs interact with portals in a real
   chamber (eval-driven). Then a **portal eval chamber** (the M3 analogue of first/laser light).
@@ -439,6 +464,8 @@ has crept into `py/` (and likely `src/`). Fix in passing, don't make a project o
 | `verb_grammar_rethink.md` | **the chosen v0→M3 verb grammar** — navigate/act-split backbone, the locomotion-vs-puzzle cut, the full verb table (`navigate`/`ride`/`launch`/`place_portal`/`paint`/`press` + laser family), crux decisions (simulate-body/teleport-object), and the SAR-first build order. Read before building any traversal/element verb. |
 | `verb_grammar_transcripts.md` | **per-grammar ReAct transcripts** (third_light + laser + the baited "crossfire" try→fail→realign chamber) for all 7 candidate grammars + the recovery-lens comparison. Read for *why* navigate/act-split wins on failure-legibility + realign-cost. |
 | `portal_verb_recon_design.md` | **⭐ the `place_portal` L0** — recon plan (`sar_harness_portal_probe`/`_fire_spike` + traversal probe), the crux unknowns (does `TraceFirePortal` commit or only preview?), and the surface-designation fan-out verdict (6 schemes → judge panel: target = `surface_center`+coarse `where`; ship-now = `aim_ray_reticle`; the user's fractional-grid is rejected as hand-aim-in-costume). R1 decided pure-ship-right (M=0.678). Read before any portal verb/percept code. |
+| `portal_unified_grammar_options_dossier.md` | **⭐ THE live portal-grammar dossier** — 28-agent brainstorm of the unified Portal-2 verb grammar across 6 axes (pass_through · flings · fractional-`(u,v)` · laser×portal · portal-naming · percept), all sharing `M`=`m_matrixThisToLinked`. Per-axis options + tradeoffs, 3 finalist grammars, per-finalist impl sketch, 7 crux decisions. User rulings recorded at top (dumb-laser · all-panel-`(u,v)` · spine-only · fling reopened). Read before any portal-grammar/verb code. |
+| `portal_traversal_edge_design.md` | **SUPERSEDED (fork-B, dropped 2026-07-01)** — the GoToPlanner A\*-portal-edge plan; kept only for its R5-derived substrate notes. The dossier above replaces it. |
 | `portal_place_verb_plan.md` | **⭐ the `place_portal` build plan** — two arcs (ARC A offline sidecar → verb/percept/labels; ARC B runtime BSP/trace enumeration), cross-cutting decisions (proto, S-prefixed surface marks, `IPanelSource` seam, leak-safe labels), phase-by-phase with per-phase verifies. **SHIPPED + verified in-game 2026-06-30:** the BSP-file enumerator (Track B, B0–B8, sidecar removed) + the verb (A7–A13); next = portal-aware traversal + A15/A16 polish. Read before any `place_portal`/enumerator/traversal code. |
 | `locomotion_tech.md` | **`go_to` pathfinding (local controller + A*) + reliable place-on-button + the laser-routing frontier** — phased plan, substrate recon, ROADMAP #2 |
 | `astar_routing_design.md` | **A\* global routing for `go_to`** (lazy hull-probed grid) + why save/restore tree-search is parked at the puzzle layer (C9), not locomotion |

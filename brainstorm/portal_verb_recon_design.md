@@ -105,11 +105,20 @@ requested point across a white wall / black wall / fizzler-cross / existing-port
 raw `ePlacementResult` + the requested↔placed drift**. This is the laser-intercept-spike analogue: it
 **proves a portal places + auto-links programmatically before any verb code.** Go/no-go.
 
-### Phase R5-probe — reuse `sar_harness_laser_reachability_test` ([GoToPlanner.cpp:305](../src/Features/Harness/GoToPlanner.cpp#L305))
-Stand across an open linked pair; run the reachability test at a mark behind the far portal — does the
-far island read **severed** (needs an explicit edge) or already reachable? Then `navigate` toward it
-and **look at the rendered frames** — does the body teleport through (blunder) or stall? Records the
-data the halt-vs-traverse decision needs; **builds nothing.**
+### Phase R5-probe — `sar_harness_portal_reachability_test [x y z]` (BUILT 2026-07-01, read-only)
+The laser `reachability_test` only paints a player-centred window; the R5 question is point-to-point
+(feet → far island), so this is a dedicated command that runs the real `GoToPlanner::Plan(feet, target)`
+— the *same* flat A\* `go_to` uses. Target = the crosshair world-trace hit (aim across the gap at the
+far-island floor) or an explicit `x y z`. Prints **REACHABLE** (grid already bridges the point — a portal
+edge isn't required to reach it) vs **SEVERED** (no foot route → intended traversal needs an explicit
+portal edge). Disambiguation baked in so an empty `Plan()` isn't misread: goal-cell state, `dz` vs the
+±96u flat floor-probe window (large `dz` ⇒ z-anchor severance, not a gap), and cell-distance vs the
+400-cell expansion cap. Sanity-warns if < 2 activated `prop_portal`s (a SEVERED verdict is meaningless
+without an open pair placed). **Run recipe:** place both portals across a gap, stand at the near one,
+`sar_harness_portal_reachability_test` aimed at the far floor → read the verdict; then `navigate` toward
+the far island and **look at the rendered frames** — does the body teleport through (blunder) or stall?
+The command records the reachability half of the decision; the blunder-through half is frame inspection.
+**Builds the probe, not the edge.**
 
 > **Lessons baked into the commands** (from [dual_role_cube_postmortem.md §7](dual_role_cube_postmortem.md#L254)):
 > read the engine's own field (never infer); **skip player + held cube** in any placement trace
@@ -223,8 +232,13 @@ look-loop (the reasoning-vs-actuation confound this harness exists to remove) se
 2. **`where` vocabulary — keep the full set** `{CENTER,TOP,BOTTOM,LEFT,RIGHT,4 corners}`. M=0.678 says
    panels are multi-tile-dominant, so the sub-panel DOF is real; don't trim it pre-emptively. `where`
    defaults to `CENTER`, so single-tile panels collapse to "just name the panel".
-3. **R5 / fork B — `launch`-only for now.** `navigate` stays portal-blind; portal traversal routes
-   through `launch` until the `GoToPlanner` portal-edge workstream. Unchanged.
+3. **R5 / fork B — RAN 2026-07-01, both halves confirmed.** The flat planner reads the far side of an
+   open pair as a **disconnected component** (SEVERED, symmetric both directions, pristine WALKABLE goal,
+   `dz=0`, well under the expansion cap), and the **engine teleports the player through on mouth-contact**
+   (getpos before/after = a clean portal transit: same z/pitch/roll, yaw flipped ~180°, mirrored standoff).
+   So: `go_to` can't smuggle a solve (never routes across a severance) but *can* be derailed if its local
+   path grazes an open mouth. Portal traversal now needs an **explicit `GoToPlanner` portal edge** if we
+   want it; else it stays `launch`-only. Decision (build fork-B vs launch-only) teed, no longer recon-blocked.
 
 ---
 
@@ -251,7 +265,11 @@ and the dual-role-cube post-mortem lessons.*
 Ran `sar_harness_portal_probe` + `sar_harness_portal_fire_spike <blue|orange>` on
 `sp_a2_triple_laser`. **The compute→commit spine is proven end-to-end: `TraceFirePortal` preview →
 `portal_place` commit places a portal that settles, activates, and auto-links.** R0/R2/R3/R4 closed;
-only the R1 surface enumerator + chamber census remains, and R5 was not run.
+the R1 surface enumerator + `place_portal` verb shipped (2026-06-30). The **R5 reachability probe
+(`sar_harness_portal_reachability_test`) RAN 2026-07-01 on `sp_a2_laser_over_goo`: far side reads
+SEVERED (symmetric, pristine WALKABLE goal) and the engine blunders the player through on mouth-contact
+(portal-transit getpos signature). Both halves closed — the portal-edge decision is teed, not blocked
+(§5.3).
 
 | Unknown | Verdict |
 |---|---|

@@ -9,6 +9,7 @@
 
 #include "Command.hpp"
 #include "Entity.hpp"
+#include "Features/Camera.hpp"
 #include "Features/EntityList.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
@@ -393,4 +394,107 @@ CON_COMMAND(sar_harness_laser_reachability_test,
     }
     console->Print("%s\n", row.c_str());
   }
+}
+
+// Does the flat go_to planner treat the far side of an open portal pair as
+// reachable on foot? Stand in front of the near portal with both placed; aim
+// across the gap at the far-island floor (or pass an explicit target). Runs the
+// real GoToPlanner::Plan feet->target and prints REACHABLE vs SEVERED. Read-only.
+CON_COMMAND(
+    sar_harness_portal_reachability_test,
+    "sar_harness_portal_reachability_test [x y z] - go_to reachability "
+    "from the player to the crosshair-hit floor (or explicit x y z). "
+    "Prints REACHABLE/SEVERED for the flat planner. Read-only recon.\n") {
+  ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
+  if (!pl) {
+    console->Print("portal_reachability: no player (load a map first).\n");
+    return;
+  }
+
+  // Sanity: a SEVERED verdict is only meaningful with an open pair placed.
+  int activated = 0;
+  for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
+    auto info = entityList ? entityList->GetEntityInfoByIndex(i) : nullptr;
+    if (!info || !info->m_pEntity) continue;
+    const char* cn = server->GetEntityClassName(info->m_pEntity);
+    if (cn && !std::strcmp(cn, "prop_portal") &&
+        SE(info->m_pEntity)->field<bool>("m_bActivated"))
+      ++activated;
+  }
+  if (activated < 2)
+    console->Print(
+        "portal_reachability: WARNING only %d activated prop_portal(s) — place "
+        "both portals first, else SEVERED is meaningless.\n",
+        activated);
+
+  Vector feet = pl->abs_origin();
+  Vector target;
+  if (args.ArgC() >= 4) {
+    target = {(float)std::atof(args[1]), (float)std::atof(args[2]),
+              (float)std::atof(args[3])};
+  } else {
+    Vector eye;
+    QAngle ang;
+    if (!camera || !camera->GetEyePos<true>(0, eye, ang)) {
+      console->Print("portal_reachability: no eye position.\n");
+      return;
+    }
+    CTraceFilterSimple filter;
+    filter.SetPassEntity(pl);
+    CGameTrace tr;
+    if (!engine->Trace(eye, ang, 4096.0f, MASK_SOLID, filter, tr) ||
+        tr.fraction >= 1.0f) {
+      console->Print(
+          "portal_reachability: no surface under the crosshair — aim at the "
+          "far floor, or pass an explicit x y z.\n");
+      return;
+    }
+    target = tr.endpos;
+  }
+
+  ICollideable& coll = pl->collision();
+  GoToPlanner planner(coll.OBBMins(), coll.OBBMaxs(), feet.z);
+  int gx = GoToPlanner::CellX(target.x), gy = GoToPlanner::CellY(target.y);
+  int cellDist = std::max(std::abs(gx - GoToPlanner::CellX(feet.x)),
+                          std::abs(gy - GoToPlanner::CellY(feet.y)));
+  const GoToPlanner::Cell& goalCell = planner.At(gx, gy);
+  const char* goalState =
+      goalCell.state == GoToPlanner::WALKABLE    ? "WALKABLE"
+      : goalCell.reason == GoToPlanner::NO_FLOOR ? "NO_FLOOR"
+      : goalCell.reason == GoToPlanner::IN_WALL  ? "IN_WALL"
+                                                 : "OBSTACLE";
+
+  console->Print(
+      "portal_reachability: feet %.0f %.0f %.0f  target %.0f %.0f %.0f\n",
+      feet.x, feet.y, feet.z, target.x, target.y, target.z);
+  console->Msg("    dz=%.0f  cell_dist=%d  goal_cell=%s\n", target.z - feet.z,
+               cellDist, goalState);
+
+  std::vector<Vector> path = planner.Plan(feet, target);
+  if (!path.empty()) {
+    console->Print(
+        "    REACHABLE on foot (flat planner): %d waypoints — "
+        "the grid already bridges this point (portal edge not "
+        "required to reach it).\n",
+        (int)path.size());
+    return;
+  }
+  console->Print("    SEVERED (flat planner): no foot route.\n");
+  if (std::abs(target.z - feet.z) > 96.0f)
+    console->Msg(
+        "    caveat: |dz|=%.0f > ~96u exceeds the flat floor-probe "
+        "window — severance may be the z-anchor, not the gap.\n",
+        std::abs(target.z - feet.z));
+  if (cellDist > 60)
+    console->Msg(
+        "    caveat: cell_dist=%d may hit the 400-cell expansion cap "
+        "— move closer or target a nearer point to be sure.\n",
+        cellDist);
+  if (std::strcmp(goalState, "WALKABLE"))
+    console->Msg(
+        "    caveat: goal cell is %s — aim at open floor on the "
+        "island so the target is stand-able.\n",
+        goalState);
+  console->Print(
+      "    => intended portal traversal needs an explicit go_to portal edge.\n");
 }
