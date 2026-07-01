@@ -19,6 +19,7 @@
 #include "Modules/Engine.hpp"
 #include "Modules/FileSystem.hpp"
 #include "Modules/Server.hpp"
+#include "PortalRead.hpp"
 #include "PuzzleExit.hpp"
 #include "RolloutRecorder.hpp"
 #include "SAR.hpp"
@@ -212,7 +213,8 @@ bool Portal2HarnessImpl::InternalObserve(portal2_harness::GameState* response) {
   response->set_chamber_complete(PuzzleExit::Get());
   response->set_exit_signal_mask(PuzzleExit::GetMask());
 
-  // Chamber-static portalable wall panels; full list every observe (~O(panels)).
+  // Chamber-static portalable wall panels; full list every observe
+  // (~O(panels)).
   auto setVec = [](auto* v, const Vector& s) {
     v->set_x(s.x);
     v->set_y(s.y);
@@ -227,6 +229,17 @@ bool Portal2HarnessImpl::InternalObserve(portal2_harness::GameState* response) {
     setVec(sm->mutable_maxs(), panel.maxs);
     sm->set_anchor_flags(panel.anchorFlags);
   }
+
+  // The placed portal pair, by color (two fixed slots, not the mark table).
+  auto fillPortal = [&](portal2_harness::PortalInfo* pi, bool orange) {
+    LivePortal lp = ReadPortal(orange);
+    pi->set_active(lp.active);
+    pi->set_linked(lp.linked);
+    setVec(pi->mutable_mouth_center(), lp.center);
+    setVec(pi->mutable_mouth_normal(), lp.normal);
+  };
+  fillPortal(response->mutable_blue_portal(), false);
+  fillPortal(response->mutable_orange_portal(), true);
 
   Vector position;
   Vector velocity;
@@ -330,11 +343,12 @@ bool Portal2HarnessImpl::InternalObserve(portal2_harness::GameState* response) {
   response->set_server_tick(serverTick);
 
   // Held-cube mark from the player's m_hAttachedObject handle (0 = empty hands
-  // or unmarked). The grab handle lives on the player, not as a flag on the prop.
+  // or unmarked). The grab handle lives on the player, not as a flag on the
+  // prop.
   CBaseHandle held = pl->field<CBaseHandle>("m_hAttachedObject");
   if (held)
-    response->set_held_mark(
-        markTable.GetMark(held.GetEntryIndex(), (uint16_t)held.GetSerialNumber()));
+    response->set_held_mark(markTable.GetMark(
+        held.GetEntryIndex(), (uint16_t)held.GetSerialNumber()));
 
   if (harness && harness->entitySnapshotter) {
     if (observeLastVersion.size() != (size_t)Offsets::NUM_ENT_ENTRIES) {

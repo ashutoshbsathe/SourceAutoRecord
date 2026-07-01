@@ -637,6 +637,66 @@ def check_pixels(ctx):
     return f'{len(frames)} frames saved, nonzero≈{nonzero:.2f}, varying'
 
 
+def check_portal_percept(ctx):
+    """place_portal fills the blue/orange portal percept slots (by color).
+
+    Fire a portal onto a portalable wall panel (S-mark), then assert the observed
+    GameState carries blue_portal.active with a real mouth_center + outward
+    normal, and that the parsed percept surfaces a single `Pb` entry. Needs a map
+    with at least one portalable wall panel."""
+    reset_to_spawn(ctx)
+    ctx.harness.start_agent_loop()
+    try:
+        env = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(verb='wait', ticks=1)
+            ),
+            timeout=30.0,
+        )
+        panels = env.state.surface_marks
+        require(len(panels) > 0, 'no portalable wall panel (S-mark); need a portal map')
+        s = panels[0].mark
+
+        res = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(
+                    verb='place_portal', color='blue', surface_mark=s
+                )
+            ),
+            timeout=30.0,
+        )
+        rc = res.macro_result.result_code
+        require(rc == 'PLACED', f'place_portal blue S{s} -> {rc} (expected PLACED)')
+
+        bp = res.state.blue_portal
+        require(bp.active, 'blue_portal.active is False after a PLACED portal')
+        c = bp.mouth_center
+        require(
+            math.isfinite(c.x) and (c.x or c.y or c.z),
+            f'blue_portal mouth_center is zero/nan: ({c.x:.1f},{c.y:.1f},{c.z:.1f})',
+        )
+        n = bp.mouth_normal
+        require(
+            abs(n.x) + abs(n.y) + abs(n.z) > 0.5,
+            f'blue_portal mouth_normal degenerate: ({n.x:.2f},{n.y:.2f},{n.z:.2f})',
+        )
+
+        percept = WorldView().observe(res.state)
+        pb = [d for d in percept if d['mark'] == 'Pb']
+        require(
+            len(pb) == 1,
+            f"percept has no single 'Pb' entry: {sorted(d['mark'] for d in percept)}",
+        )
+
+        ctx.observations.append(gamestate_dict(res.state, 'portal_percept'))
+        return (
+            f'place_portal blue S{s} -> PLACED; blue_portal active at '
+            f'({c.x:.0f},{c.y:.0f},{c.z:.0f}) linked={bp.linked}; percept has Pb'
+        )
+    finally:
+        ctx.harness.stop_agent_loop()
+
+
 def check_execute_command(ctx):
     """ExecuteCommand runs a console command and reports success."""
     resp = ctx.harness.execute_command('echo harness_smoke', timeout=30.0)
@@ -655,6 +715,7 @@ CHECKS = [
     ('place_on_button', check_place_on_button),
     ('interpose', check_interpose),
     ('redirect_to', check_redirect),
+    ('portal_percept', check_portal_percept),
     ('client', check_client),
     ('pixels', check_pixels),
     ('execute_command', check_execute_command),

@@ -94,6 +94,26 @@ def _panel_dict(sm, player, eye_yaw):
     }
 
 
+def _portal_dict(color, pinfo, player, eye_yaw):
+    """Project a placed portal (a color slot) into the LLM-facing dict.
+
+    Portal marks are `Pb`/`Po`, their own namespace; the outward `normal` and
+    `linked` are surfaced so the model can reason the exit / fling geometry.
+    """
+    center = (pinfo.mouth_center.x, pinfo.mouth_center.y, pinfo.mouth_center.z)
+    dist, bearing = _dist_bearing(player, eye_yaw, center)
+    normal = (pinfo.mouth_normal.x, pinfo.mouth_normal.y, pinfo.mouth_normal.z)
+    return {
+        'mark': 'Pb' if color == 'blue' else 'Po',
+        'class': 'portal',
+        'name': color,
+        'pos': [round(c, 1) for c in center],
+        'dist': round(dist, 1),
+        'bearing': round(bearing, 1),
+        'state': {'normal': [round(c, 2) for c in normal], 'linked': pinfo.linked},
+    }
+
+
 class WorldView:
     """Running merged view of the marked world over the delta-snapshot stream.
 
@@ -143,7 +163,13 @@ class WorldView:
         marks.sort(key=lambda d: d['mark'])
         panels = [_panel_dict(sm, player, eye_yaw) for sm in state.surface_marks]
         panels.sort(key=lambda d: int(d['mark'][1:]))
-        return marks + panels
+        portals = [
+            _portal_dict(color, pinfo, player, eye_yaw)
+            for color, pinfo in (('blue', state.blue_portal),
+                                 ('orange', state.orange_portal))
+            if pinfo.active
+        ]
+        return marks + panels + portals
 
 
 def parse_snapshot(state):

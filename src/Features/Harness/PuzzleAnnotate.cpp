@@ -17,12 +17,13 @@
 #include "Features/OverlayRender.hpp"
 #include "LaserGeometry.hpp"
 #include "MarkTable.hpp"
-#include "SurfaceMarkTable.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
 #include "Modules/FileSystem.hpp"
 #include "Modules/Server.hpp"
 #include "Offsets.hpp"
+#include "PortalRead.hpp"
+#include "SurfaceMarkTable.hpp"
 #include "Utils/Math.hpp"
 #include "Utils/Memory.hpp"
 #include "Utils/SDK/Class.hpp"
@@ -76,14 +77,15 @@ bool IsHarnessMarkedClass(const char* className) {
   return className && kClassColors.find(className) != kClassColors.end();
 }
 
-// Mark gate: class membership, plus reject env_portal_laser/prop_portal sitting
-// at (0,0,0). Both ghost there -- transient laser re-emit segments carry an
-// identity transform, and a prop_portal leaves abs_origin zeroed -- and marking
-// them churns the mark table. A real emitter always has a true origin.
+// Mark gate: class membership, minus two carve-outs. Portals are referenced by
+// color (the blue_portal / orange_portal percept slots + a dedicated overlay),
+// never a generic integer mark, so they stay out of the mark table entirely.
+// Transient laser re-emit segments ghost at (0,0,0) with an identity transform;
+// a real emitter always has a true origin.
 bool IsHarnessMarkedEntity(void* ent, const char* className) {
   if (!IsHarnessMarkedClass(className)) return false;
-  if (!std::strcmp(className, "env_portal_laser") ||
-      !std::strcmp(className, "prop_portal")) {
+  if (!std::strcmp(className, "prop_portal")) return false;
+  if (!std::strcmp(className, "env_portal_laser")) {
     Vector o = SE(ent)->abs_origin();
     if (o.x == 0.0f && o.y == 0.0f && o.z == 0.0f) return false;
   }
@@ -185,11 +187,6 @@ ON_EVENT(RENDER) {
 
     auto se = SE(ent);
     Color color = colorIt->second;
-    // Orange for the secondary portal, blue (the map default) otherwise.
-    if (std::strcmp(className, "prop_portal") == 0 &&
-        se->field<bool>("m_bIsPortal2")) {
-      color = {255, 128, 0};
-    }
 
     Vector origin = se->abs_origin();
     Vector mins = se->collision().OBBMins();
@@ -208,13 +205,13 @@ ON_EVENT(RENDER) {
     // onto a screen edge).
     if (!InFrame(origin, mins, maxs, angles)) continue;
 
-    // The number draws on top via clamp_to_screen, so cull it when the entity is
-    // occluded; otherwise marks behind walls float through.
+    // The number draws on top via clamp_to_screen, so cull it when the entity
+    // is occluded; otherwise marks behind walls float through.
     if (doCull && !EntityVisible(eye, player, ent, origin, mins, maxs, angles))
       continue;
 
-    // Mark label above the box. clamp_to_screen keeps the number in the viewport
-    // and on top of geometry.
+    // Mark label above the box. clamp_to_screen keeps the number in the
+    // viewport and on top of geometry.
     int mark =
         markTable.GetMark(i, static_cast<uint16_t>(info->m_SerialNumber));
     // Declutter alternates: box bottom, then either side along the camera-right
@@ -261,15 +258,34 @@ ON_EVENT(RENDER) {
                            {210, 210, 210}, /*bg_col*/ {0, 0, 0, 200},
                            /*clamp_to_screen*/ true, /*alts*/ {});
   }
+
+  // The placed portal pair, referenced by color (Pb/Po), never a generic mark.
+  for (bool orange : {false, true}) {
+    LivePortal lp = ReadPortal(orange);
+    if (!lp.active) continue;
+    auto se = SE(lp.ent);
+    Color color = orange ? Color{255, 128, 0} : Color{64, 160, 255};
+    OverlayRender::addBoxMesh(
+        lp.center, se->collision().OBBMins(), se->collision().OBBMaxs(),
+        se->abs_angles(),
+        RenderCallback::constant({color.r, color.g, color.b, 5}),
+        RenderCallback::constant(color));
+    if (doCull && !MarkVisible(eye, player, lp.ent, lp.center)) continue;
+    OverlayRender::addText(lp.center, orange ? "Po" : "Pb", kMarkHeight,
+                           /*visibility_scale*/ true, /*no_depth*/ false,
+                           OverlayRender::TextAlign::CENTER, color,
+                           /*bg_col*/ {0, 0, 0, 200}, /*clamp_to_screen*/ true,
+                           /*alts*/ {});
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Recon: dump candidate "status" fields for puzzle entities, to find which
-// engine field encodes each element's status (button pressed / door open / ...).
-// Run twice -- before vs after a state change -- and diff to see which flipped.
-// Reads via getServerOffset, which resolves the datamap and the SendTable, so
-// datamap-only fields (e.g. m_toggle_state on doors) show up even though the
-// snapshotter (SendTable-only) would miss them.
+// engine field encodes each element's status (button pressed / door open /
+// ...). Run twice -- before vs after a state change -- and diff to see which
+// flipped. Reads via getServerOffset, which resolves the datamap and the
+// SendTable, so datamap-only fields (e.g. m_toggle_state on doors) show up even
+// though the snapshotter (SendTable-only) would miss them.
 
 // Hand-picked likely status encodings across the puzzle classes. If the field
 // you need isn't here, the name-substring scan below should still surface it;
@@ -559,10 +575,10 @@ CON_COMMAND(
 
 // ---------------------------------------------------------------------------
 // Mutating recon: teleport the free reflector cube onto a point on a chosen
-// emitter's beam ray (param t along the ray + optional lateral offset), oriented
-// so its local +X redirect axis aims at a chosen target, then read m_bPowered.
-// Sweep t + lateral to map the interception envelope. The cube must not be held;
-// reload to reset.
+// emitter's beam ray (param t along the ray + optional lateral offset),
+// oriented so its local +X redirect axis aims at a chosen target, then read
+// m_bPowered. Sweep t + lateral to map the interception envelope. The cube must
+// not be held; reload to reset.
 
 static void ReconTeleportFree(void* ent, const Vector& origin,
                               const QAngle& angles) {
@@ -716,11 +732,10 @@ CON_COMMAND(
     console->Print("portalgun: active_weapon=%s is_portalgun=%s\n",
                    gc ? gc : "<none>", isGun ? "yes" : "no");
     if (isGun) {
-      console->Msg(
-          "    m_bCanFirePortal1=%s m_bCanFirePortal2=%s linkage=%s\n",
-          ReconReadField(gun, "m_bCanFirePortal1").c_str(),
-          ReconReadField(gun, "m_bCanFirePortal2").c_str(),
-          ReconReadField(gun, "m_iPortalLinkageGroupID").c_str());
+      console->Msg("    m_bCanFirePortal1=%s m_bCanFirePortal2=%s linkage=%s\n",
+                   ReconReadField(gun, "m_bCanFirePortal1").c_str(),
+                   ReconReadField(gun, "m_bCanFirePortal2").c_str(),
+                   ReconReadField(gun, "m_iPortalLinkageGroupID").c_str());
       console->Msg("    m_hPrimaryPortal -> [%d]  m_hSecondaryPortal -> [%d]\n",
                    ReconReadHandleIndex(gun, "m_hPrimaryPortal"),
                    ReconReadHandleIndex(gun, "m_hSecondaryPortal"));
@@ -740,7 +755,8 @@ CON_COMMAND(
     Vector oAbs = SE(ent)->abs_origin();
     Vector oSrv = server->GetAbsOrigin(ent);
     const char* nm = server->GetEntityName(ent);
-    console->Print("[%d] prop_portal \"%s\"\n", i, (nm && *nm) ? nm : "<no name>");
+    console->Print("[%d] prop_portal \"%s\"\n", i,
+                   (nm && *nm) ? nm : "<no name>");
     console->Msg(
         "    abs_origin %.1f %.1f %.1f  server_origin %.1f %.1f %.1f\n", oAbs.x,
         oAbs.y, oAbs.z, oSrv.x, oSrv.y, oSrv.z);
@@ -787,13 +803,16 @@ CON_COMMAND(
 
   // Prime the gun's portal entities so the placement has a backing prop_portal,
   // as TraceFirePortal expects.
-  unsigned char linkage = SE(gun)->field<unsigned char>("m_iPortalLinkageGroupID");
-  if (!entityList->LookupEntity(SE(gun)->field<CBaseHandle>("m_hPrimaryPortal"))) {
+  unsigned char linkage =
+      SE(gun)->field<unsigned char>("m_iPortalLinkageGroupID");
+  if (!entityList->LookupEntity(
+          SE(gun)->field<CBaseHandle>("m_hPrimaryPortal"))) {
     auto b = server->FindPortal(linkage, false, true);
     SE(gun)->field<CBaseHandle>("m_hPrimaryPortal") =
         ((IHandleEntity*)b)->GetRefEHandle();
   }
-  if (!entityList->LookupEntity(SE(gun)->field<CBaseHandle>("m_hSecondaryPortal"))) {
+  if (!entityList->LookupEntity(
+          SE(gun)->field<CBaseHandle>("m_hSecondaryPortal"))) {
     auto o = server->FindPortal(linkage, true, true);
     SE(gun)->field<CBaseHandle>("m_hSecondaryPortal") =
         ((IHandleEntity*)o)->GetRefEHandle();
@@ -811,15 +830,13 @@ CON_COMMAND(
   TracePortalPlacementInfo_t pinfo;
   int ret = server->TraceFirePortal(gun, eye, dir, orange, 2, pinfo);
   static const char* kResultName[] = {
-      "SUCCESS",        "USED_HELPER",          "BUMPED",
-      "CANT_FIT",       "CLEANSER",             "OVERLAP_LINKED",
-      "OVERLAP_PARTNER", "INVALID_VOLUME",      "INVALID_SURFACE",
-      "PASSTHROUGH"};
+      "SUCCESS",         "USED_HELPER",    "BUMPED",          "CANT_FIT",
+      "CLEANSER",        "OVERLAP_LINKED", "OVERLAP_PARTNER", "INVALID_VOLUME",
+      "INVALID_SURFACE", "PASSTHROUGH"};
   int r = (int)pinfo.ePlacementResult;
   const char* rn = (r >= 0 && r < 10) ? kResultName[r] : "?";
-  console->Print(
-      "portal fire spike: %s  ret=%d ePlacementResult=%d (%s)\n",
-      orange ? "orange" : "blue", ret, r, rn);
+  console->Print("portal fire spike: %s  ret=%d ePlacementResult=%d (%s)\n",
+                 orange ? "orange" : "blue", ret, r, rn);
   console->Msg(
       "    finalPos %.1f %.1f %.1f  finalAngle %.1f %.1f %.1f  helper=%s\n",
       pinfo.finalPos.x, pinfo.finalPos.y, pinfo.finalPos.z, pinfo.finalAngle.x,
@@ -833,10 +850,10 @@ CON_COMMAND(
 
   char cmd[160];
   std::snprintf(cmd, sizeof(cmd),
-                "portal_place %d %d %.6f %.6f %.6f %.6f %.6f %.6f", (int)linkage,
-                orange ? 1 : 0, pinfo.finalPos.x, pinfo.finalPos.y,
-                pinfo.finalPos.z, pinfo.finalAngle.x, pinfo.finalAngle.y,
-                pinfo.finalAngle.z);
+                "portal_place %d %d %.6f %.6f %.6f %.6f %.6f %.6f",
+                (int)linkage, orange ? 1 : 0, pinfo.finalPos.x,
+                pinfo.finalPos.y, pinfo.finalPos.z, pinfo.finalAngle.x,
+                pinfo.finalAngle.y, pinfo.finalAngle.z);
   engine->ExecuteCommand(cmd);
 
   void* portal = (void*)server->FindPortal(linkage, orange, false);
@@ -860,8 +877,8 @@ CON_COMMAND(
 // ---------------------------------------------------------------------------
 // Read-only portal-surface recon (no portal placed): lists every
 // info_placement_helper (origin/radius/state), then sweeps a coarse
-// TraceFirePortal preview grid across the wall under the crosshair and prints it
-// as an ASCII portalability map, marking which cells snapped to a helper.
+// TraceFirePortal preview grid across the wall under the crosshair and prints
+// it as an ASCII portalability map, marking which cells snapped to a helper.
 
 static void PlaneAxes(Vector n, Vector* ax1, Vector* ax2) {
   Vector up = (n.z < 0.9f && n.z > -0.9f) ? Vector{0, 0, 1} : Vector{1, 0, 0};
@@ -1091,8 +1108,8 @@ CON_COMMAND(
   f.read((char*)&version, 4);
   char id4[5] = {0};
   std::memcpy(id4, &ident, 4);
-  console->Print("bsp \"%s\"\n    ident \"%s\"  version %d\n", path.c_str(), id4,
-                 version);
+  console->Print("bsp \"%s\"\n    ident \"%s\"  version %d\n", path.c_str(),
+                 id4, version);
 
   struct LumpRef {
     int idx;

@@ -114,6 +114,10 @@ class MacroResult;
 struct MacroResultDefaultTypeInternal;
 extern MacroResultDefaultTypeInternal _MacroResult_default_instance_;
 extern const ::google::protobuf::internal::ClassDataFull MacroResult_class_data_;
+class PortalInfo;
+struct PortalInfoDefaultTypeInternal;
+extern PortalInfoDefaultTypeInternal _PortalInfo_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull PortalInfo_class_data_;
 class RenderDemoRequest;
 struct RenderDemoRequestDefaultTypeInternal;
 extern RenderDemoRequestDefaultTypeInternal _RenderDemoRequest_default_instance_;
@@ -429,7 +433,7 @@ class RolloutHeader final : public ::google::protobuf::Message
     return *reinterpret_cast<const RolloutHeader*>(
         &_RolloutHeader_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 18;
+  static constexpr int kIndexInFileMessages = 19;
   friend void swap(RolloutHeader& a, RolloutHeader& b) { a.Swap(&b); }
   inline void Swap(RolloutHeader* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -678,7 +682,7 @@ class ResetRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const ResetRequest*>(
         &_ResetRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 14;
+  static constexpr int kIndexInFileMessages = 15;
   friend void swap(ResetRequest& a, ResetRequest& b) { a.Swap(&b); }
   inline void Swap(ResetRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -874,7 +878,7 @@ class RenderDemoResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const RenderDemoResponse*>(
         &_RenderDemoResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 22;
+  static constexpr int kIndexInFileMessages = 23;
   friend void swap(RenderDemoResponse& a, RenderDemoResponse& b) { a.Swap(&b); }
   inline void Swap(RenderDemoResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1123,7 +1127,7 @@ class RenderDemoRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const RenderDemoRequest*>(
         &_RenderDemoRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 21;
+  static constexpr int kIndexInFileMessages = 22;
   friend void swap(RenderDemoRequest& a, RenderDemoRequest& b) { a.Swap(&b); }
   inline void Swap(RenderDemoRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1964,7 +1968,7 @@ class HandshakeResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const HandshakeResponse*>(
         &_HandshakeResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 17;
+  static constexpr int kIndexInFileMessages = 18;
   friend void swap(HandshakeResponse& a, HandshakeResponse& b) { a.Swap(&b); }
   inline void Swap(HandshakeResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2230,7 +2234,7 @@ class HandshakeRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const HandshakeRequest*>(
         &_HandshakeRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 16;
+  static constexpr int kIndexInFileMessages = 17;
   friend void swap(HandshakeRequest& a, HandshakeRequest& b) { a.Swap(&b); }
   inline void Swap(HandshakeRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2442,7 +2446,7 @@ class Empty final : public ::google::protobuf::internal::ZeroFieldsBase
     return *reinterpret_cast<const Empty*>(
         &_Empty_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 20;
+  static constexpr int kIndexInFileMessages = 21;
   friend void swap(Empty& a, Empty& b) { a.Swap(&b); }
   inline void Swap(Empty* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2589,7 +2593,7 @@ class CommandResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const CommandResponse*>(
         &_CommandResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 13;
+  static constexpr int kIndexInFileMessages = 14;
   friend void swap(CommandResponse& a, CommandResponse& b) { a.Swap(&b); }
   inline void Swap(CommandResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2797,7 +2801,7 @@ class CommandRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const CommandRequest*>(
         &_CommandRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 12;
+  static constexpr int kIndexInFileMessages = 13;
   friend void swap(CommandRequest& a, CommandRequest& b) { a.Swap(&b); }
   inline void Swap(CommandRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2993,7 +2997,7 @@ class ActionResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const ActionResponse*>(
         &_ActionResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 11;
+  static constexpr int kIndexInFileMessages = 12;
   friend void swap(ActionResponse& a, ActionResponse& b) { a.Swap(&b); }
   inline void Swap(ActionResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -3201,7 +3205,7 @@ class ActionRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const ActionRequest*>(
         &_ActionRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 10;
+  static constexpr int kIndexInFileMessages = 11;
   friend void swap(ActionRequest& a, ActionRequest& b) { a.Swap(&b); }
   inline void Swap(ActionRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -3762,6 +3766,243 @@ class SurfaceMark final : public ::google::protobuf::Message
 };
 
 extern const ::google::protobuf::internal::ClassDataFull SurfaceMark_class_data_;
+// -------------------------------------------------------------------
+
+class PortalInfo final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:portal2_harness.PortalInfo) */ {
+ public:
+  inline PortalInfo() : PortalInfo(nullptr) {}
+  ~PortalInfo() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(PortalInfo* PROTOBUF_NONNULL msg, std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(PortalInfo));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR PortalInfo(::google::protobuf::internal::ConstantInitialized);
+
+  inline PortalInfo(const PortalInfo& from) : PortalInfo(nullptr, from) {}
+  inline PortalInfo(PortalInfo&& from) noexcept
+      : PortalInfo(nullptr, ::std::move(from)) {}
+  inline PortalInfo& operator=(const PortalInfo& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline PortalInfo& operator=(PortalInfo&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const PortalInfo& default_instance() {
+    return *reinterpret_cast<const PortalInfo*>(
+        &_PortalInfo_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 9;
+  friend void swap(PortalInfo& a, PortalInfo& b) { a.Swap(&b); }
+  inline void Swap(PortalInfo* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(PortalInfo* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  PortalInfo* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<PortalInfo>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const PortalInfo& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const PortalInfo& from) { PortalInfo::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(PortalInfo* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "portal2_harness.PortalInfo"; }
+
+ protected:
+  explicit PortalInfo(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  PortalInfo(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const PortalInfo& from);
+  PortalInfo(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, PortalInfo&& from) noexcept
+      : PortalInfo(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kMouthCenterFieldNumber = 2,
+    kMouthNormalFieldNumber = 3,
+    kActiveFieldNumber = 1,
+    kLinkedFieldNumber = 4,
+  };
+  // .portal2_harness.Vector3 mouth_center = 2;
+  bool has_mouth_center() const;
+  void clear_mouth_center() ;
+  const ::portal2_harness::Vector3& mouth_center() const;
+  [[nodiscard]] ::portal2_harness::Vector3* PROTOBUF_NULLABLE release_mouth_center();
+  ::portal2_harness::Vector3* PROTOBUF_NONNULL mutable_mouth_center();
+  void set_allocated_mouth_center(::portal2_harness::Vector3* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_mouth_center(::portal2_harness::Vector3* PROTOBUF_NULLABLE value);
+  ::portal2_harness::Vector3* PROTOBUF_NULLABLE unsafe_arena_release_mouth_center();
+
+  private:
+  const ::portal2_harness::Vector3& _internal_mouth_center() const;
+  ::portal2_harness::Vector3* PROTOBUF_NONNULL _internal_mutable_mouth_center();
+
+  public:
+  // .portal2_harness.Vector3 mouth_normal = 3;
+  bool has_mouth_normal() const;
+  void clear_mouth_normal() ;
+  const ::portal2_harness::Vector3& mouth_normal() const;
+  [[nodiscard]] ::portal2_harness::Vector3* PROTOBUF_NULLABLE release_mouth_normal();
+  ::portal2_harness::Vector3* PROTOBUF_NONNULL mutable_mouth_normal();
+  void set_allocated_mouth_normal(::portal2_harness::Vector3* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_mouth_normal(::portal2_harness::Vector3* PROTOBUF_NULLABLE value);
+  ::portal2_harness::Vector3* PROTOBUF_NULLABLE unsafe_arena_release_mouth_normal();
+
+  private:
+  const ::portal2_harness::Vector3& _internal_mouth_normal() const;
+  ::portal2_harness::Vector3* PROTOBUF_NONNULL _internal_mutable_mouth_normal();
+
+  public:
+  // bool active = 1;
+  void clear_active() ;
+  bool active() const;
+  void set_active(bool value);
+
+  private:
+  bool _internal_active() const;
+  void _internal_set_active(bool value);
+
+  public:
+  // bool linked = 4;
+  void clear_linked() ;
+  bool linked() const;
+  void set_linked(bool value);
+
+  private:
+  bool _internal_linked() const;
+  void _internal_set_linked(bool value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:portal2_harness.PortalInfo)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<2, 4,
+                                   2, 0,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const PortalInfo& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::portal2_harness::Vector3* PROTOBUF_NULLABLE mouth_center_;
+    ::portal2_harness::Vector3* PROTOBUF_NULLABLE mouth_normal_;
+    bool active_;
+    bool linked_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_harness_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull PortalInfo_class_data_;
 // -------------------------------------------------------------------
 
 class EntityField final : public ::google::protobuf::Message
@@ -4908,7 +5149,7 @@ class GameState final : public ::google::protobuf::Message
     return *reinterpret_cast<const GameState*>(
         &_GameState_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 9;
+  static constexpr int kIndexInFileMessages = 10;
   friend void swap(GameState& a, GameState& b) { a.Swap(&b); }
   inline void Swap(GameState* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -5001,6 +5242,8 @@ class GameState final : public ::google::protobuf::Message
     kVelocityFieldNumber = 2,
     kCameraFieldNumber = 3,
     kEntitySnapshotFieldNumber = 7,
+    kBluePortalFieldNumber = 12,
+    kOrangePortalFieldNumber = 13,
     kHealthFieldNumber = 4,
     kServerTickFieldNumber = 6,
     kIsCrouchingFieldNumber = 5,
@@ -5085,6 +5328,36 @@ class GameState final : public ::google::protobuf::Message
   ::portal2_harness::EntitySnapshot* PROTOBUF_NONNULL _internal_mutable_entity_snapshot();
 
   public:
+  // .portal2_harness.PortalInfo blue_portal = 12;
+  bool has_blue_portal() const;
+  void clear_blue_portal() ;
+  const ::portal2_harness::PortalInfo& blue_portal() const;
+  [[nodiscard]] ::portal2_harness::PortalInfo* PROTOBUF_NULLABLE release_blue_portal();
+  ::portal2_harness::PortalInfo* PROTOBUF_NONNULL mutable_blue_portal();
+  void set_allocated_blue_portal(::portal2_harness::PortalInfo* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_blue_portal(::portal2_harness::PortalInfo* PROTOBUF_NULLABLE value);
+  ::portal2_harness::PortalInfo* PROTOBUF_NULLABLE unsafe_arena_release_blue_portal();
+
+  private:
+  const ::portal2_harness::PortalInfo& _internal_blue_portal() const;
+  ::portal2_harness::PortalInfo* PROTOBUF_NONNULL _internal_mutable_blue_portal();
+
+  public:
+  // .portal2_harness.PortalInfo orange_portal = 13;
+  bool has_orange_portal() const;
+  void clear_orange_portal() ;
+  const ::portal2_harness::PortalInfo& orange_portal() const;
+  [[nodiscard]] ::portal2_harness::PortalInfo* PROTOBUF_NULLABLE release_orange_portal();
+  ::portal2_harness::PortalInfo* PROTOBUF_NONNULL mutable_orange_portal();
+  void set_allocated_orange_portal(::portal2_harness::PortalInfo* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_orange_portal(::portal2_harness::PortalInfo* PROTOBUF_NULLABLE value);
+  ::portal2_harness::PortalInfo* PROTOBUF_NULLABLE unsafe_arena_release_orange_portal();
+
+  private:
+  const ::portal2_harness::PortalInfo& _internal_orange_portal() const;
+  ::portal2_harness::PortalInfo* PROTOBUF_NONNULL _internal_mutable_orange_portal();
+
+  public:
   // int32 health = 4;
   void clear_health() ;
   ::int32_t health() const;
@@ -5149,8 +5422,8 @@ class GameState final : public ::google::protobuf::Message
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<4, 11,
-                                   5, 0,
+  static const ::google::protobuf::internal::TcParseTable<4, 13,
+                                   7, 0,
                                    2>
       _table_;
 
@@ -5176,6 +5449,8 @@ class GameState final : public ::google::protobuf::Message
     ::portal2_harness::Vector3* PROTOBUF_NULLABLE velocity_;
     ::portal2_harness::Vector3* PROTOBUF_NULLABLE camera_;
     ::portal2_harness::EntitySnapshot* PROTOBUF_NULLABLE entity_snapshot_;
+    ::portal2_harness::PortalInfo* PROTOBUF_NULLABLE blue_portal_;
+    ::portal2_harness::PortalInfo* PROTOBUF_NULLABLE orange_portal_;
     ::int32_t health_;
     ::int32_t server_tick_;
     bool is_crouching_;
@@ -5246,7 +5521,7 @@ class RolloutStep final : public ::google::protobuf::Message
     return *reinterpret_cast<const RolloutStep*>(
         &_RolloutStep_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 19;
+  static constexpr int kIndexInFileMessages = 20;
   friend void swap(RolloutStep& a, RolloutStep& b) { a.Swap(&b); }
   inline void Swap(RolloutStep* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -5476,7 +5751,7 @@ class ResetResponse final : public ::google::protobuf::Message
     return *reinterpret_cast<const ResetResponse*>(
         &_ResetResponse_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 15;
+  static constexpr int kIndexInFileMessages = 16;
   friend void swap(ResetResponse& a, ResetResponse& b) { a.Swap(&b); }
   inline void Swap(ResetResponse* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -8696,6 +8971,254 @@ inline void SurfaceMark::_internal_set_anchor_flags(::int32_t value) {
 
 // -------------------------------------------------------------------
 
+// PortalInfo
+
+// bool active = 1;
+inline void PortalInfo::clear_active() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.active_ = false;
+  _impl_._has_bits_[0] &= ~0x00000004u;
+}
+inline bool PortalInfo::active() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.PortalInfo.active)
+  return _internal_active();
+}
+inline void PortalInfo::set_active(bool value) {
+  _internal_set_active(value);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  // @@protoc_insertion_point(field_set:portal2_harness.PortalInfo.active)
+}
+inline bool PortalInfo::_internal_active() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.active_;
+}
+inline void PortalInfo::_internal_set_active(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.active_ = value;
+}
+
+// .portal2_harness.Vector3 mouth_center = 2;
+inline bool PortalInfo::has_mouth_center() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.mouth_center_ != nullptr);
+  return value;
+}
+inline void PortalInfo::clear_mouth_center() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.mouth_center_ != nullptr) _impl_.mouth_center_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline const ::portal2_harness::Vector3& PortalInfo::_internal_mouth_center() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  const ::portal2_harness::Vector3* p = _impl_.mouth_center_;
+  return p != nullptr ? *p : reinterpret_cast<const ::portal2_harness::Vector3&>(::portal2_harness::_Vector3_default_instance_);
+}
+inline const ::portal2_harness::Vector3& PortalInfo::mouth_center() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.PortalInfo.mouth_center)
+  return _internal_mouth_center();
+}
+inline void PortalInfo::unsafe_arena_set_allocated_mouth_center(
+    ::portal2_harness::Vector3* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (GetArena() == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.mouth_center_);
+  }
+  _impl_.mouth_center_ = reinterpret_cast<::portal2_harness::Vector3*>(value);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:portal2_harness.PortalInfo.mouth_center)
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NULLABLE PortalInfo::release_mouth_center() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  ::portal2_harness::Vector3* released = _impl_.mouth_center_;
+  _impl_.mouth_center_ = nullptr;
+  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
+    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
+    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    if (GetArena() == nullptr) {
+      delete old;
+    }
+  } else {
+    if (GetArena() != nullptr) {
+      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    }
+  }
+  return released;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NULLABLE PortalInfo::unsafe_arena_release_mouth_center() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.PortalInfo.mouth_center)
+
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  ::portal2_harness::Vector3* temp = _impl_.mouth_center_;
+  _impl_.mouth_center_ = nullptr;
+  return temp;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NONNULL PortalInfo::_internal_mutable_mouth_center() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.mouth_center_ == nullptr) {
+    auto* p = ::google::protobuf::Message::DefaultConstruct<::portal2_harness::Vector3>(GetArena());
+    _impl_.mouth_center_ = reinterpret_cast<::portal2_harness::Vector3*>(p);
+  }
+  return _impl_.mouth_center_;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NONNULL PortalInfo::mutable_mouth_center()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  ::portal2_harness::Vector3* _msg = _internal_mutable_mouth_center();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.PortalInfo.mouth_center)
+  return _msg;
+}
+inline void PortalInfo::set_allocated_mouth_center(::portal2_harness::Vector3* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (message_arena == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.mouth_center_);
+  }
+
+  if (value != nullptr) {
+    ::google::protobuf::Arena* submessage_arena = value->GetArena();
+    if (message_arena != submessage_arena) {
+      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+
+  _impl_.mouth_center_ = reinterpret_cast<::portal2_harness::Vector3*>(value);
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.PortalInfo.mouth_center)
+}
+
+// .portal2_harness.Vector3 mouth_normal = 3;
+inline bool PortalInfo::has_mouth_normal() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.mouth_normal_ != nullptr);
+  return value;
+}
+inline void PortalInfo::clear_mouth_normal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.mouth_normal_ != nullptr) _impl_.mouth_normal_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline const ::portal2_harness::Vector3& PortalInfo::_internal_mouth_normal() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  const ::portal2_harness::Vector3* p = _impl_.mouth_normal_;
+  return p != nullptr ? *p : reinterpret_cast<const ::portal2_harness::Vector3&>(::portal2_harness::_Vector3_default_instance_);
+}
+inline const ::portal2_harness::Vector3& PortalInfo::mouth_normal() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.PortalInfo.mouth_normal)
+  return _internal_mouth_normal();
+}
+inline void PortalInfo::unsafe_arena_set_allocated_mouth_normal(
+    ::portal2_harness::Vector3* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (GetArena() == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.mouth_normal_);
+  }
+  _impl_.mouth_normal_ = reinterpret_cast<::portal2_harness::Vector3*>(value);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:portal2_harness.PortalInfo.mouth_normal)
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NULLABLE PortalInfo::release_mouth_normal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  ::portal2_harness::Vector3* released = _impl_.mouth_normal_;
+  _impl_.mouth_normal_ = nullptr;
+  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
+    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
+    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    if (GetArena() == nullptr) {
+      delete old;
+    }
+  } else {
+    if (GetArena() != nullptr) {
+      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    }
+  }
+  return released;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NULLABLE PortalInfo::unsafe_arena_release_mouth_normal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.PortalInfo.mouth_normal)
+
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  ::portal2_harness::Vector3* temp = _impl_.mouth_normal_;
+  _impl_.mouth_normal_ = nullptr;
+  return temp;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NONNULL PortalInfo::_internal_mutable_mouth_normal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.mouth_normal_ == nullptr) {
+    auto* p = ::google::protobuf::Message::DefaultConstruct<::portal2_harness::Vector3>(GetArena());
+    _impl_.mouth_normal_ = reinterpret_cast<::portal2_harness::Vector3*>(p);
+  }
+  return _impl_.mouth_normal_;
+}
+inline ::portal2_harness::Vector3* PROTOBUF_NONNULL PortalInfo::mutable_mouth_normal()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  _impl_._has_bits_[0] |= 0x00000002u;
+  ::portal2_harness::Vector3* _msg = _internal_mutable_mouth_normal();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.PortalInfo.mouth_normal)
+  return _msg;
+}
+inline void PortalInfo::set_allocated_mouth_normal(::portal2_harness::Vector3* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (message_arena == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.mouth_normal_);
+  }
+
+  if (value != nullptr) {
+    ::google::protobuf::Arena* submessage_arena = value->GetArena();
+    if (message_arena != submessage_arena) {
+      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+
+  _impl_.mouth_normal_ = reinterpret_cast<::portal2_harness::Vector3*>(value);
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.PortalInfo.mouth_normal)
+}
+
+// bool linked = 4;
+inline void PortalInfo::clear_linked() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.linked_ = false;
+  _impl_._has_bits_[0] &= ~0x00000008u;
+}
+inline bool PortalInfo::linked() const {
+  // @@protoc_insertion_point(field_get:portal2_harness.PortalInfo.linked)
+  return _internal_linked();
+}
+inline void PortalInfo::set_linked(bool value) {
+  _internal_set_linked(value);
+  _impl_._has_bits_[0] |= 0x00000008u;
+  // @@protoc_insertion_point(field_set:portal2_harness.PortalInfo.linked)
+}
+inline bool PortalInfo::_internal_linked() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.linked_;
+}
+inline void PortalInfo::_internal_set_linked(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.linked_ = value;
+}
+
+// -------------------------------------------------------------------
+
 // GameState
 
 // .portal2_harness.Vector3 position = 1;
@@ -8996,7 +9519,7 @@ inline void GameState::set_allocated_camera(::portal2_harness::Vector3* PROTOBUF
 inline void GameState::clear_health() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.health_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000010u;
+  _impl_._has_bits_[0] &= ~0x00000040u;
 }
 inline ::int32_t GameState::health() const {
   // @@protoc_insertion_point(field_get:portal2_harness.GameState.health)
@@ -9004,7 +9527,7 @@ inline ::int32_t GameState::health() const {
 }
 inline void GameState::set_health(::int32_t value) {
   _internal_set_health(value);
-  _impl_._has_bits_[0] |= 0x00000010u;
+  _impl_._has_bits_[0] |= 0x00000040u;
   // @@protoc_insertion_point(field_set:portal2_harness.GameState.health)
 }
 inline ::int32_t GameState::_internal_health() const {
@@ -9020,7 +9543,7 @@ inline void GameState::_internal_set_health(::int32_t value) {
 inline void GameState::clear_is_crouching() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.is_crouching_ = false;
-  _impl_._has_bits_[0] &= ~0x00000040u;
+  _impl_._has_bits_[0] &= ~0x00000100u;
 }
 inline bool GameState::is_crouching() const {
   // @@protoc_insertion_point(field_get:portal2_harness.GameState.is_crouching)
@@ -9028,7 +9551,7 @@ inline bool GameState::is_crouching() const {
 }
 inline void GameState::set_is_crouching(bool value) {
   _internal_set_is_crouching(value);
-  _impl_._has_bits_[0] |= 0x00000040u;
+  _impl_._has_bits_[0] |= 0x00000100u;
   // @@protoc_insertion_point(field_set:portal2_harness.GameState.is_crouching)
 }
 inline bool GameState::_internal_is_crouching() const {
@@ -9044,7 +9567,7 @@ inline void GameState::_internal_set_is_crouching(bool value) {
 inline void GameState::clear_server_tick() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.server_tick_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000020u;
+  _impl_._has_bits_[0] &= ~0x00000080u;
 }
 inline ::int32_t GameState::server_tick() const {
   // @@protoc_insertion_point(field_get:portal2_harness.GameState.server_tick)
@@ -9052,7 +9575,7 @@ inline ::int32_t GameState::server_tick() const {
 }
 inline void GameState::set_server_tick(::int32_t value) {
   _internal_set_server_tick(value);
-  _impl_._has_bits_[0] |= 0x00000020u;
+  _impl_._has_bits_[0] |= 0x00000080u;
   // @@protoc_insertion_point(field_set:portal2_harness.GameState.server_tick)
 }
 inline ::int32_t GameState::_internal_server_tick() const {
@@ -9166,7 +9689,7 @@ inline void GameState::set_allocated_entity_snapshot(::portal2_harness::EntitySn
 inline void GameState::clear_chamber_complete() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.chamber_complete_ = false;
-  _impl_._has_bits_[0] &= ~0x00000080u;
+  _impl_._has_bits_[0] &= ~0x00000200u;
 }
 inline bool GameState::chamber_complete() const {
   // @@protoc_insertion_point(field_get:portal2_harness.GameState.chamber_complete)
@@ -9174,7 +9697,7 @@ inline bool GameState::chamber_complete() const {
 }
 inline void GameState::set_chamber_complete(bool value) {
   _internal_set_chamber_complete(value);
-  _impl_._has_bits_[0] |= 0x00000080u;
+  _impl_._has_bits_[0] |= 0x00000200u;
   // @@protoc_insertion_point(field_set:portal2_harness.GameState.chamber_complete)
 }
 inline bool GameState::_internal_chamber_complete() const {
@@ -9190,7 +9713,7 @@ inline void GameState::_internal_set_chamber_complete(bool value) {
 inline void GameState::clear_exit_signal_mask() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.exit_signal_mask_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000100u;
+  _impl_._has_bits_[0] &= ~0x00000400u;
 }
 inline ::int32_t GameState::exit_signal_mask() const {
   // @@protoc_insertion_point(field_get:portal2_harness.GameState.exit_signal_mask)
@@ -9198,7 +9721,7 @@ inline ::int32_t GameState::exit_signal_mask() const {
 }
 inline void GameState::set_exit_signal_mask(::int32_t value) {
   _internal_set_exit_signal_mask(value);
-  _impl_._has_bits_[0] |= 0x00000100u;
+  _impl_._has_bits_[0] |= 0x00000400u;
   // @@protoc_insertion_point(field_set:portal2_harness.GameState.exit_signal_mask)
 }
 inline ::int32_t GameState::_internal_exit_signal_mask() const {
@@ -9214,7 +9737,7 @@ inline void GameState::_internal_set_exit_signal_mask(::int32_t value) {
 inline void GameState::clear_held_mark() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.held_mark_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000200u;
+  _impl_._has_bits_[0] &= ~0x00000800u;
 }
 inline ::int32_t GameState::held_mark() const {
   // @@protoc_insertion_point(field_get:portal2_harness.GameState.held_mark)
@@ -9222,7 +9745,7 @@ inline ::int32_t GameState::held_mark() const {
 }
 inline void GameState::set_held_mark(::int32_t value) {
   _internal_set_held_mark(value);
-  _impl_._has_bits_[0] |= 0x00000200u;
+  _impl_._has_bits_[0] |= 0x00000800u;
   // @@protoc_insertion_point(field_set:portal2_harness.GameState.held_mark)
 }
 inline ::int32_t GameState::_internal_held_mark() const {
@@ -9282,6 +9805,202 @@ inline ::google::protobuf::RepeatedPtrField<::portal2_harness::SurfaceMark>* PRO
 GameState::_internal_mutable_surface_marks() {
   ::google::protobuf::internal::TSanRead(&_impl_);
   return &_impl_.surface_marks_;
+}
+
+// .portal2_harness.PortalInfo blue_portal = 12;
+inline bool GameState::has_blue_portal() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000010u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.blue_portal_ != nullptr);
+  return value;
+}
+inline void GameState::clear_blue_portal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.blue_portal_ != nullptr) _impl_.blue_portal_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000010u;
+}
+inline const ::portal2_harness::PortalInfo& GameState::_internal_blue_portal() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  const ::portal2_harness::PortalInfo* p = _impl_.blue_portal_;
+  return p != nullptr ? *p : reinterpret_cast<const ::portal2_harness::PortalInfo&>(::portal2_harness::_PortalInfo_default_instance_);
+}
+inline const ::portal2_harness::PortalInfo& GameState::blue_portal() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.GameState.blue_portal)
+  return _internal_blue_portal();
+}
+inline void GameState::unsafe_arena_set_allocated_blue_portal(
+    ::portal2_harness::PortalInfo* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (GetArena() == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.blue_portal_);
+  }
+  _impl_.blue_portal_ = reinterpret_cast<::portal2_harness::PortalInfo*>(value);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000010u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000010u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:portal2_harness.GameState.blue_portal)
+}
+inline ::portal2_harness::PortalInfo* PROTOBUF_NULLABLE GameState::release_blue_portal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+
+  _impl_._has_bits_[0] &= ~0x00000010u;
+  ::portal2_harness::PortalInfo* released = _impl_.blue_portal_;
+  _impl_.blue_portal_ = nullptr;
+  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
+    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
+    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    if (GetArena() == nullptr) {
+      delete old;
+    }
+  } else {
+    if (GetArena() != nullptr) {
+      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    }
+  }
+  return released;
+}
+inline ::portal2_harness::PortalInfo* PROTOBUF_NULLABLE GameState::unsafe_arena_release_blue_portal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.GameState.blue_portal)
+
+  _impl_._has_bits_[0] &= ~0x00000010u;
+  ::portal2_harness::PortalInfo* temp = _impl_.blue_portal_;
+  _impl_.blue_portal_ = nullptr;
+  return temp;
+}
+inline ::portal2_harness::PortalInfo* PROTOBUF_NONNULL GameState::_internal_mutable_blue_portal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.blue_portal_ == nullptr) {
+    auto* p = ::google::protobuf::Message::DefaultConstruct<::portal2_harness::PortalInfo>(GetArena());
+    _impl_.blue_portal_ = reinterpret_cast<::portal2_harness::PortalInfo*>(p);
+  }
+  return _impl_.blue_portal_;
+}
+inline ::portal2_harness::PortalInfo* PROTOBUF_NONNULL GameState::mutable_blue_portal()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  _impl_._has_bits_[0] |= 0x00000010u;
+  ::portal2_harness::PortalInfo* _msg = _internal_mutable_blue_portal();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.GameState.blue_portal)
+  return _msg;
+}
+inline void GameState::set_allocated_blue_portal(::portal2_harness::PortalInfo* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (message_arena == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.blue_portal_);
+  }
+
+  if (value != nullptr) {
+    ::google::protobuf::Arena* submessage_arena = value->GetArena();
+    if (message_arena != submessage_arena) {
+      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000010u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000010u;
+  }
+
+  _impl_.blue_portal_ = reinterpret_cast<::portal2_harness::PortalInfo*>(value);
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.GameState.blue_portal)
+}
+
+// .portal2_harness.PortalInfo orange_portal = 13;
+inline bool GameState::has_orange_portal() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000020u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.orange_portal_ != nullptr);
+  return value;
+}
+inline void GameState::clear_orange_portal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.orange_portal_ != nullptr) _impl_.orange_portal_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000020u;
+}
+inline const ::portal2_harness::PortalInfo& GameState::_internal_orange_portal() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  const ::portal2_harness::PortalInfo* p = _impl_.orange_portal_;
+  return p != nullptr ? *p : reinterpret_cast<const ::portal2_harness::PortalInfo&>(::portal2_harness::_PortalInfo_default_instance_);
+}
+inline const ::portal2_harness::PortalInfo& GameState::orange_portal() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.GameState.orange_portal)
+  return _internal_orange_portal();
+}
+inline void GameState::unsafe_arena_set_allocated_orange_portal(
+    ::portal2_harness::PortalInfo* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (GetArena() == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.orange_portal_);
+  }
+  _impl_.orange_portal_ = reinterpret_cast<::portal2_harness::PortalInfo*>(value);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000020u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000020u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:portal2_harness.GameState.orange_portal)
+}
+inline ::portal2_harness::PortalInfo* PROTOBUF_NULLABLE GameState::release_orange_portal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+
+  _impl_._has_bits_[0] &= ~0x00000020u;
+  ::portal2_harness::PortalInfo* released = _impl_.orange_portal_;
+  _impl_.orange_portal_ = nullptr;
+  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
+    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
+    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    if (GetArena() == nullptr) {
+      delete old;
+    }
+  } else {
+    if (GetArena() != nullptr) {
+      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    }
+  }
+  return released;
+}
+inline ::portal2_harness::PortalInfo* PROTOBUF_NULLABLE GameState::unsafe_arena_release_orange_portal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.GameState.orange_portal)
+
+  _impl_._has_bits_[0] &= ~0x00000020u;
+  ::portal2_harness::PortalInfo* temp = _impl_.orange_portal_;
+  _impl_.orange_portal_ = nullptr;
+  return temp;
+}
+inline ::portal2_harness::PortalInfo* PROTOBUF_NONNULL GameState::_internal_mutable_orange_portal() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.orange_portal_ == nullptr) {
+    auto* p = ::google::protobuf::Message::DefaultConstruct<::portal2_harness::PortalInfo>(GetArena());
+    _impl_.orange_portal_ = reinterpret_cast<::portal2_harness::PortalInfo*>(p);
+  }
+  return _impl_.orange_portal_;
+}
+inline ::portal2_harness::PortalInfo* PROTOBUF_NONNULL GameState::mutable_orange_portal()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  _impl_._has_bits_[0] |= 0x00000020u;
+  ::portal2_harness::PortalInfo* _msg = _internal_mutable_orange_portal();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.GameState.orange_portal)
+  return _msg;
+}
+inline void GameState::set_allocated_orange_portal(::portal2_harness::PortalInfo* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (message_arena == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.orange_portal_);
+  }
+
+  if (value != nullptr) {
+    ::google::protobuf::Arena* submessage_arena = value->GetArena();
+    if (message_arena != submessage_arena) {
+      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000020u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000020u;
+  }
+
+  _impl_.orange_portal_ = reinterpret_cast<::portal2_harness::PortalInfo*>(value);
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.GameState.orange_portal)
 }
 
 // -------------------------------------------------------------------
