@@ -65,6 +65,21 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
   naming + percept → (C) `pass_through(color)` → `drop_into` → (A) fractional-`(u,v)`. Zero new offsets. Key
   subst: engine laser is portal-native (`m_bPowered` confirms through the pair FREE); our `ComputeBeamSegment`
   is portal-blind.
+- **SPINE BUILD PROGRESS (2026-07-01, branch `yeeh`).** ✅ **B — portal naming + percept SHIPPED + VERIFIED**
+  (`68b00d74`): portals excluded from generic marks, drawn `Pb`/`Po`; `GameState.blue_portal`/`orange_portal`
+  via the `ReadPortal` helper; Python `_portal_dict`; `agentloop_smoke check_portal_percept`. ✅ **C —
+  `pass_through(color)` SHIPPED + VERIFIED in-game** (`2f77374f`): march to mouth → push in → engine transits →
+  confirm emergence at the partner. **RESUME QUEUE, priority order:**
+  1. **⭐ STRING-MARK TARGETING (the real gap the user hit).** `go_to`/`aim_at`/`look` take an **int** `mark`
+     only, so the model **cannot target `Pb`/`Po` portals or `S`-panel marks** — portals aren't yet *usable* for
+     traversal. Fix: proto `oneof`/string target on `MacroRequest` + a unified resolver (int→`markTable` ·
+     `S`→`surfaceMarkTable` · `Pb`/`Po`→`ReadPortal`) → world pos, shared across go_to/aim_at/look. THE blocker
+     for portals paying off; do this FIRST next session.
+  2. **Residual-velocity quirk** — after `pass_through` the player keeps emerged velocity (`SetMoveFramebulk(0,0)`
+     clears input, not `m_vecVelocity`), so a following `place_portal` "moves me forward". Mirror `GoTo`'s
+     velocity-kill at `pass_through`'s stop. Quick.
+  3. **D — `drop_into(portal, object=None)`** (object-drop + player self-drop into a ground portal).
+  4. **A — fractional `(u,v)` placement** (gravity-anchored frame, all panels).
 - **`aim_at`/`look` at a panel** — both take int *entity* marks today; orienting at an `S`-panel-mark is unwired.
 - **portal × cube/laser/button composition** — how the shipped element verbs interact with portals in a real
   chamber (eval-driven). Then a **portal eval chamber** (the M3 analogue of first/laser light).
