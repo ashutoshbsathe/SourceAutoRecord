@@ -25,6 +25,7 @@
 #include "Modules/Engine.hpp"
 #include "Modules/Server.hpp"
 #include "Offsets.hpp"
+#include "PortalRead.hpp"
 #include "Scheduler.hpp"
 #include "SurfaceMarkTable.hpp"
 #include "Utils.hpp"
@@ -50,6 +51,14 @@ constexpr int kGoToTickBatch = 4;   // ticks advanced per march iteration
 constexpr int kGoToMaxTicks = 400;  // give up after this many ticks
 constexpr int kGoToSettle = 24;  // ticks to bleed off walk velocity at the end
 constexpr float kReachRadius = 48.0f;  // horizontal dist that counts as arrived
+// pass_through: approach the mouth, then push straight in until the engine
+// transits the body (feet jump to the far side).
+constexpr float kMouthStandoff = 28.0f;  // approach point in front of the mouth
+constexpr float kMouthReach = 80.0f;  // march must leave us at least this near
+constexpr int kPassBatch = 2;         // ticks per push-into-mouth batch
+constexpr int kPassMaxTicks = 160;    // give up pushing into the mouth
+constexpr float kPassJump = 48.0f;    // feet displacement that flags a transit
+constexpr float kEmergeRadius = 128.0f;  // emerged this near the partner = ok
 constexpr float kApproachGap =
     20.0f;  // extra standoff past an obstacle-target's footprint (hull gap +
             // post-arrival coast) so go_to stops beside it, not into it
@@ -78,7 +87,7 @@ constexpr int kWedgeCooldown = 16;  // batches a wedged heading stays blocked
 // Interaction-verb tuning (pick_up / release / interact).
 constexpr int kSettle = 20;       // ticks to let a grab/drop/use resolve
 constexpr int kUseHoldTicks = 3;  // hold +use past the press/tick-advance race
-constexpr float kGrabRange = 96.0f;   // reach gate: ~80u radius + half a cube
+constexpr float kGrabRange = 96.0f;     // reach gate: ~80u radius + half a cube
 constexpr float kReleasePitch = 75.0f;  // mark-less release: look-down pitch
 constexpr int kReleaseDropSettle = 4;   // ticks to free the grab before a seat
 constexpr int kDropTries =
@@ -1011,8 +1020,8 @@ std::string InterposeGate(void* emitter, void* cube, float percent,
   ServerEnt* pl = server->GetPlayer(1);
   if (!pl) return "NO_PLAYER";
 
-  // Skip the player + held cube so a player standing in the beam doesn't shorten
-  // it and pull the seat back onto the emitter housing.
+  // Skip the player + held cube so a player standing in the beam doesn't
+  // shorten it and pull the seat back onto the emitter housing.
   Vector E, F, hit;
   float len;
   if (!ComputeBeamSegment(emitter, &E, &F, &hit, &len, pl, cube) || len <= 0.0f)
@@ -1024,9 +1033,9 @@ std::string InterposeGate(void* emitter, void* cube, float percent,
   // A seat in slime/goo wrongly passes NO_FLOOR -- the down-trace lands on the
   // goo-bottom brush. Needs a point-contents read to catch.
 
-  // Reachability is the carry's job: interpose marches to the seat with the same
-  // VFH as go_to (MarchTo + RouteAround) and reports BLOCKED if it can't get
-  // there.
+  // Reachability is the carry's job: interpose marches to the seat with the
+  // same VFH as go_to (MarchTo + RouteAround) and reports BLOCKED if it can't
+  // get there.
   return "SEAT_OK";
 }
 
@@ -1099,6 +1108,7 @@ portal2_harness::MacroResult MacroExecutor::Execute(
   if (verb == "interpose") return Interpose(req);
   if (verb == "redirect_to") return RedirectTo(req);
   if (verb == "place_portal") return PlacePortal(req);
+  if (verb == "pass_through") return PassThrough(req);
 
   // press (a pedestal-button alias of interact) is not wired yet.
   r.set_ok(false);
@@ -1430,7 +1440,8 @@ portal2_harness::MacroResult MacroExecutor::PlacePortal(
     return r;
   }
 
-  // 2. Settle so the portal activates + auto-links, then read m_bActivated back.
+  // 2. Settle so the portal activates + auto-links, then read m_bActivated
+  // back.
   AdvanceTicksBlocking(kSettle);
   auto active = std::make_shared<bool>(false);
   if (!RunOnMainThreadSync(context_, [active, g, orange]() {
@@ -1441,10 +1452,136 @@ portal2_harness::MacroResult MacroExecutor::PlacePortal(
 
   r.set_ok(true);
   r.set_result_code("PLACED");
-  r.set_detail(Utils::ssprintf(
-      "place_portal: %s at (%.0f %.0f %.0f)%s%s", color.c_str(), g->placed.x,
-      g->placed.y, g->placed.z, g->usedHelper ? " (helper)" : "",
-      *active ? "" : " [inactive]"));
+  r.set_detail(Utils::ssprintf("place_portal: %s at (%.0f %.0f %.0f)%s%s",
+                               color.c_str(), g->placed.x, g->placed.y,
+                               g->placed.z, g->usedHelper ? " (helper)" : "",
+                               *active ? "" : " [inactive]"));
+  return r;
+}
+
+portal2_harness::MacroResult MacroExecutor::PassThrough(
+    const portal2_harness::MacroRequest& req) {
+  portal2_harness::MacroResult r;
+  bool orange = (req.color() == "orange");
+
+  auto cancelled = []() {
+    portal2_harness::MacroResult c;
+    c.set_ok(false);
+    c.set_result_code("CANCELLED");
+    return c;
+  };
+
+  // 1. Resolve the portal + its linked partner and the approach front cell.
+  struct Setup {
+    std::string code = "NO_SUCH_PORTAL";
+    Vector center{0, 0, 0}, front{0, 0, 0}, startFeet{0, 0, 0};
+    float initialDist = 0;
+  };
+  auto s = std::make_shared<Setup>();
+  if (!RunOnMainThreadSync(context_, [s, orange]() {
+        LivePortal lp = ReadPortal(orange);
+        if (!lp.active) return;
+        s->code = "UNLINKED";
+        if (!lp.linked || !ReadPortal(!orange).active) return;
+        ServerEnt* pl = server->GetPlayer(1);
+        if (!pl) {
+          s->code = "NO_PLAYER";
+          return;
+        }
+        s->center = lp.center;
+        s->front = lp.center + lp.normal * kMouthStandoff;
+        s->startFeet = pl->abs_origin();
+        s->initialDist =
+            Vector{s->front.x - s->startFeet.x, s->front.y - s->startFeet.y, 0}
+                .Length2D();
+        s->code = "OK";
+      }))
+    return cancelled();
+  if (s->code != "OK") {
+    r.set_ok(false);
+    r.set_result_code(s->code);
+    r.set_detail("pass_through: " + s->code);
+    return r;
+  }
+
+  // 2. Walk to the mouth's front cell (go_to backend). BLOCKED only if the
+  // march leaves us too far to reach the disc by pushing.
+  MarchOutcome m = MarchTo(context_, s->front, kReachRadius, kGoToMaxTicks, 0,
+                           0, s->startFeet, s->initialDist);
+  if (!m.cancelled && m.code == "BLOCKED")
+    m = RouteAround(context_, s->front, 0, 0, kReachRadius, m.dist);
+  if (m.cancelled) return cancelled();
+  if (!m.reached && m.dist > kMouthReach) {
+    r.set_ok(false);
+    r.set_result_code("BLOCKED");
+    r.set_detail("pass_through: could not reach the mouth");
+    return r;
+  }
+
+  // 3. Push straight into the mouth (VFH off) until the engine transits.
+  auto prevFeet = std::make_shared<Vector>(s->startFeet);
+  RunOnMainThreadSync(context_, [prevFeet]() {
+    ServerEnt* pl = server->GetPlayer(1);
+    if (pl) *prevFeet = pl->abs_origin();
+  });
+  auto emerged = std::make_shared<Vector>(*prevFeet);
+  bool transited = false;
+  for (int t = 0; t < kPassMaxTicks; t += kPassBatch) {
+    auto feet = std::make_shared<Vector>();
+    auto jumped = std::make_shared<bool>(false);
+    if (!RunOnMainThreadSync(context_, [feet, jumped, prevFeet, s]() {
+          ServerEnt* pl = server->GetPlayer(1);
+          if (!pl) return;
+          *feet = pl->abs_origin();
+          if (Vector{feet->x - prevFeet->x, feet->y - prevFeet->y,
+                     feet->z - prevFeet->z}
+                  .Length() > kPassJump)
+            *jumped = true;
+          Vector toMouth{s->center.x - feet->x, s->center.y - feet->y, 0};
+          Vector up{0, 0, 1};
+          QAngle a;
+          Math::VectorAngles(toMouth, up, &a);
+          ApplyAbsoluteView(QAngle{0, a.y, 0});
+          SetMoveFramebulk(0, 1);  // straight into the mouth, no wall-avoid
+        }))
+      return cancelled();
+    if (*jumped) {
+      transited = true;
+      *emerged = *feet;
+      break;
+    }
+    *prevFeet = *feet;
+    AdvanceTicksBlocking(kPassBatch);
+  }
+
+  RunOnMainThreadSync(context_, []() { SetMoveFramebulk(0, 0); });
+  AdvanceTicksBlocking(kSettle);
+
+  if (!transited) {
+    r.set_ok(false);
+    r.set_result_code("NOT_AT_MOUTH");
+    r.set_detail("pass_through: never entered the mouth (no transit)");
+    return r;
+  }
+
+  // 4. Pose consistent with the pair transform: emerged in front of the
+  // partner.
+  auto ok = std::make_shared<bool>(false);
+  auto pos = std::make_shared<Vector>(*emerged);
+  RunOnMainThreadSync(context_, [ok, pos, orange]() {
+    ServerEnt* pl = server->GetPlayer(1);
+    if (pl) *pos = pl->abs_origin();
+    LivePortal partner = ReadPortal(!orange);
+    if (!partner.active) return;
+    *ok = Vector{pos->x - partner.center.x, pos->y - partner.center.y, 0}
+              .Length2D() < kEmergeRadius;
+  });
+
+  r.set_ok(*ok);
+  r.set_result_code(*ok ? "TRANSITED" : "NOT_AT_MOUTH");
+  r.set_detail(Utils::ssprintf("pass_through: %s at (%.0f %.0f %.0f)",
+                               *ok ? "TRANSITED" : "emerged off-partner",
+                               pos->x, pos->y, pos->z));
   return r;
 }
 
@@ -1657,10 +1794,10 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
       res->startFeet = feet;
       res->initialDist =
           Vector{res->center.x - feet.x, res->center.y - feet.y, 0}.Length2D();
-      // Stand off only from a PUSHABLE target (cube/box/turret) at its footprint
-      // edge + body + gap, so the approach stops beside it instead of bulldozing
-      // it. A button is immovable and a follow-up release needs a CLOSE approach
-      // to reach it, so it keeps the plain kReachRadius.
+      // Stand off only from a PUSHABLE target (cube/box/turret) at its
+      // footprint edge + body + gap, so the approach stops beside it instead of
+      // bulldozing it. A button is immovable and a follow-up release needs a
+      // CLOSE approach to reach it, so it keeps the plain kReachRadius.
       CEntInfo* tInfo = nullptr;
       std::string tcode;
       Vector tC;
@@ -1961,7 +2098,8 @@ portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
     post->moved = (center - preCenter).Length();
     post->dist = (center - eye).Length();
     ServerEnt* pl = server->GetPlayer(1);
-    CBaseHandle h = pl ? pl->field<CBaseHandle>("m_hAttachedObject") : CBaseHandle();
+    CBaseHandle h =
+        pl ? pl->field<CBaseHandle>("m_hAttachedObject") : CBaseHandle();
     auto [hidx, hser] = markTable.GetEntityFromMark(mark);
     post->held =
         h && h.GetEntryIndex() == hidx && (uint16_t)h.GetSerialNumber() == hser;
@@ -2415,8 +2553,8 @@ CON_COMMAND(sar_harness_seat_check,
 
 // Debug: snap the held (or given) cube onto a button mark via seat-find +
 // CBaseEntity::Teleport, with NO fairness or verify. Mutates state (moves the
-// cube). Prefer a free cube-mark: a still-held cube gets yanked back by the grab
-// controller on the next tick.
+// cube). Prefer a free cube-mark: a still-held cube gets yanked back by the
+// grab controller on the next tick.
 CON_COMMAND(
     sar_harness_seat_place,
     "sar_harness_seat_place <button-mark> [cube-mark] - teleport the "

@@ -124,6 +124,14 @@ VERB_SPECS = {
         'drop a blue portal on wall panel S1; place orange on another panel to '
         'link them.',
     ),
+    'pass_through': Verb(
+        'Walk through a placed portal, named by color (blue=Pb, orange=Po in the '
+        'percept). You emerge from the linked portal. To fling, build speed first '
+        '-- the momentum you carry in comes out redirected. Fails NO_SUCH_PORTAL '
+        '/ UNLINKED / NOT_AT_MOUTH / BLOCKED.',
+        'pass_through blue',
+        'walk into the blue portal (Pb); you come out the linked orange one.',
+    ),
     'move': Verb(
         'Hold a movement direction for N ticks.',
         'move forward 10',
@@ -177,6 +185,8 @@ def build_macro(verb, args):
     elif verb == 'place_portal':
         m.color = args[0]
         m.surface_mark = int(args[1].lstrip('S'))
+    elif verb == 'pass_through':
+        m.color = {'Pb': 'blue', 'Po': 'orange'}.get(args[0], args[0])
     elif verb == 'move':
         m.dir = args[0]
         m.ticks = int(args[1])
@@ -264,6 +274,17 @@ def _check_place_portal(req, by_mark):
     return req
 
 
+def _check_pass_through(req, by_mark):
+    """pass_through checks: a blue|orange color whose portal is actually placed."""
+    if req.color not in ('blue', 'orange'):
+        return f'pass_through: color must be blue|orange, got {req.color!r}'
+    key = 'Pb' if req.color == 'blue' else 'Po'
+    if key not in by_mark:
+        present = sorted(k for k in by_mark if isinstance(k, str))
+        return f'pass_through: no {key} portal placed; present: {present}'
+    return req
+
+
 def validate(text, entities, held_mark=None):
     """Parse a command string ('go_to 7') and check it against grammar + percept.
 
@@ -291,6 +312,8 @@ def validate(text, entities, held_mark=None):
         return _check_redirect(req, by_mark)
     if verb == 'place_portal':
         return _check_place_portal(req, by_mark)
+    if verb == 'pass_through':
+        return _check_pass_through(req, by_mark)
     if spec.mark:
         err = _check_mark(verb, spec, req.mark, by_mark)
         if err:
@@ -317,6 +340,8 @@ def _signature(verb, spec):
         return 'redirect_to <cube> <target>'
     if verb == 'place_portal':
         return 'place_portal <blue|orange> <S-mark>'
+    if verb == 'pass_through':
+        return 'pass_through <blue|orange>'
     args = []
     if spec.mark == 'optional':
         args.append('[mark]')
