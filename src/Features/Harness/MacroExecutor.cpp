@@ -517,21 +517,54 @@ struct TargetRef {
   enum Kind { NONE, ENTITY, PANEL, PORTAL } kind = NONE;
   int mark = 0;         // ENTITY: entity mark; PANEL: surface mark
   bool orange = false;  // PORTAL: orange vs blue
+  float u = 0.5f,
+        v = 0.5f;  // PANEL: fractional target point, (0.5,0.5) = center
 };
 
+// "Pb"/"Po", "Sn", or "Sn@u,v" (fractional panel point, u,v in [0,1]), or a
+// bare entity mark. A malformed "@u,v" (no comma) rejects to NONE.
 TargetRef ClassifyTarget(const std::string& t) {
   TargetRef r;
   if (t == "Pb" || t == "Po") {
     r.kind = TargetRef::PORTAL;
     r.orange = (t == "Po");
-  } else if (t.size() >= 2 && t[0] == 'S' && AllDigits(t.c_str() + 1)) {
-    r.kind = TargetRef::PANEL;
-    r.mark = atoi(t.c_str() + 1);
+  } else if (t.size() >= 2 && t[0] == 'S') {
+    size_t at = t.find('@');
+    std::string digits =
+        t.substr(1, at == std::string::npos ? std::string::npos : at - 1);
+    if (AllDigits(digits.c_str())) {
+      r.kind = TargetRef::PANEL;
+      r.mark = atoi(digits.c_str());
+      if (at != std::string::npos) {
+        size_t comma = t.find(',', at + 1);
+        if (comma == std::string::npos) {
+          r.kind = TargetRef::NONE;
+          return r;
+        }
+        auto clamp01 = [](float x) {
+          return std::min(std::max(x, 0.0f), 1.0f);
+        };
+        r.u = clamp01((float)atof(t.substr(at + 1, comma - at - 1).c_str()));
+        r.v = clamp01((float)atof(t.substr(comma + 1).c_str()));
+      }
+    }
   } else if (AllDigits(t.c_str())) {
     r.kind = TargetRef::ENTITY;
     r.mark = atoi(t.c_str());
   }
   return r;
+}
+
+// Fractional (u,v) in [0,1]^2 -> world point on the panel rect (bilinear over
+// the four corners; (0.5,0.5) is the center). Correct for any tilt, so an
+// off-center aim lands on the surface even for angled panels.
+Vector ResolvePanelPoint(const PanelDesc& p, float u, float v) {
+  auto lerp = [](const Vector& a, const Vector& b, float t) {
+    return Vector{a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t,
+                  a.z + (b.z - a.z) * t};
+  };
+  return lerp(lerp(p.corners[0], p.corners[1], u),
+              lerp(p.corners[3], p.corners[2], u), v);
 }
 
 // A target label -> world center. Sets *code = "BAD_MARK" on an absent/garbage
@@ -554,7 +587,7 @@ bool ResolveTarget(const std::string& target, Vector* outCenter,
       *code = "BAD_MARK";
       return false;
     }
-    *outCenter = panel.center;
+    *outCenter = ResolvePanelPoint(panel, ref.u, ref.v);
     return true;
   }
   if (ref.kind == TargetRef::ENTITY)
@@ -1504,7 +1537,8 @@ portal2_harness::MacroResult MacroExecutor::PlacePortal(
     QAngle view{0, 0, 0};
   };
   auto aim = std::make_shared<Aim>();
-  bool aimRan = RunOnMainThreadSync(context_, [aim, surfaceMark]() {
+  bool aimRan = RunOnMainThreadSync(context_, [aim, surfaceMark, pu = ref.u,
+                                               pv = ref.v]() {
     PanelDesc panel;
     if (!surfaceMarkTable.GetPanelFromMark(surfaceMark, &panel)) return;
     Vector eye;
@@ -1512,7 +1546,8 @@ portal2_harness::MacroResult MacroExecutor::PlacePortal(
       aim->code = "NO_PLAYER";
       return;
     }
-    aim->view = ApplyAbsoluteView(AimAnglesTo(eye, panel.center));
+    aim->view =
+        ApplyAbsoluteView(AimAnglesTo(eye, ResolvePanelPoint(panel, pu, pv)));
     aim->ok = true;
   });
   if (!aimRan) return cancelled();

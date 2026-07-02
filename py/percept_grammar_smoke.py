@@ -272,7 +272,7 @@ def test_examples_validate():
                 synth(int(tokens[2]), 'point_laser_target'),  # aim
             ]
         elif verb == 'place_portal':
-            ents = [synth(tokens[2], 'wall_panel')]  # the Sn panel
+            ents = [synth(tokens[2].split('@')[0], 'wall_panel')]  # the Sn panel
         elif verb in ('pass_through', 'jump_into'):
             ents = [synth(tokens[1], 'prop_portal')]  # the Pb/Po portal label
         elif spec.target:  # 'any' or 'entity' -> a plain entity mark

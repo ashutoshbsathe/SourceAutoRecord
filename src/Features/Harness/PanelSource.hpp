@@ -16,6 +16,8 @@ struct PanelDesc {
   Vector center;
   Vector mins;
   Vector maxs;
+  Vector corners[4];  // in-plane rect:
+                      // (umin,vmin)(umax,vmin)(umax,vmax)(umin,vmax)
   int anchorFlags;
 };
 

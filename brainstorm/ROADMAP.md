@@ -83,6 +83,26 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
      forward". Mirror `GoTo`'s velocity-kill at `pass_through`'s stop. Quick.
   2. **D — `drop_into(portal, object=None)`** (object-drop + player self-drop into a ground portal).
   3. **A — fractional `(u,v)` placement** (gravity-anchored frame, all panels).
+- **SPINE BUILD PROGRESS (2026-07-02, branch `yeeh`).** ✅ **velocity-kill + `jump_into` SHIPPED** (`45ff8ec6`):
+  `move`/`pass_through` end in a clean stop (kill `m_vecVelocity`, not just input); `jump_into <Pb|Po>` jumps a
+  FLOOR portal, the funnel pulls you in, and FREEZE mid-flight with momentum intact for the model to reason about
+  (`wait N` resumes) — same-z verified; ledge/portal-below is the money case (more funnel margin). The recon's
+  `go_to`-approach was wrong for same-z (kills speed → shallow down-aim → no funnel); a **gentle forward** that
+  arcs to the mouth works. Miss → `NOT_ALIGNED` reports `closest/peak/ended` so the failing knob is readable.
+  Design + P0 funnel recon: [jump_into_design.md](jump_into_design.md). ✅ **fractional `(u,v)` SHIPPED** (this
+  commit): `place_portal <color> Sn@u,v` (`u,v∈[0,1]`, `(0.5,0.5)`=center, omit=center) aims at a point on the
+  panel; `PanelDesc` now keeps the true `corners[4]` (was discarding them for a lossy AABB), bilerp resolve,
+  correct for tilted panels; proto-free, flows to `aim_at`/`go_to` too. Arbitrary off-center portals verified
+  in-game — but the **in-game `(u,v)` axis orientation is not legible** (needs a temp grid overlay). **⚠️
+  inclined panels get NO S-mark**: `sar_harness_bsp_geo_dump` shows all 27 panels cardinal; PeTI angled panels are
+  entity/prop geometry, NOT static `LUMP_FACES` world faces → a separate feature, not a filter tweak. Full
+  finding + design: [uv_targeting_and_panels.md](uv_targeting_and_panels.md). **RESUME QUEUE (2026-07-02),
+  priority:**
+  1. **`(u,v)` grid overlay on panels** (temp debug vis — the axis orientation/corner origin is unclear in-game).
+  2. **Angled/inclined-panel enumeration recon** (entity/prop geometry reconstruction vs runtime trace;
+     `dump_ents.py` to identify what the angled-panel entity is first).
+  3. **Ledge fling end-to-end** (floor portal near an edge via `Sn@u,v` → `jump_into` → the money fling).
+  4. **D — `drop_into`** (gentle self step-through / object-drop into a ground portal).
 - **`aim_at` at a panel/portal — DONE** (folded into the unified target model above). `look` stays relative
   (yaw/pitch), by design — it takes no target.
 - **portal × cube/laser/button composition** — how the shipped element verbs interact with portals in a real

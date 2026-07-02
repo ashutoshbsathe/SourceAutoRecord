@@ -337,7 +337,10 @@ std::vector<PanelDesc> ClusterPanels(const BspFile& bsp) {
       r.distR = std::lround(grp.dist);
       r.mincu = mincu;
       r.mincv = mincv;
-      r.desc = PanelDesc{0, grp.normal, center, mins, maxs, 0};
+      r.desc = PanelDesc{
+          0,    grp.normal, center,
+          mins, maxs,       {corners[0], corners[1], corners[2], corners[3]},
+          0};
       raw.push_back(r);
     }
   }

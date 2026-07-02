@@ -122,12 +122,14 @@ VERB_SPECS = {
     ),
     'place_portal': Verb(
         'Place a portal of a color (blue|orange) on a portalable wall panel, '
-        'named by its S-mark. The blue/orange pair auto-links; re-placing a '
-        'color moves that portal. Fails NOT_PORTALABLE / CANT_FIT / OVERLAP / '
-        'FIZZLED / NO_LOS.',
-        'place_portal blue S1',
-        'drop a blue portal on wall panel S1; place orange on another panel to '
-        'link them.',
+        'named by its S-mark. Aims at the panel center by default; append '
+        '"@u,v" (fractions in [0,1], (0.5,0.5)=center) to aim at a point on the '
+        'panel -- e.g. S1@0.5,0.95 near an edge. The blue/orange pair '
+        'auto-links; re-placing a color moves that portal. Fails '
+        'NOT_PORTALABLE / CANT_FIT / OVERLAP / FIZZLED / NO_LOS.',
+        'place_portal blue S1@0.5,0.95',
+        'drop a blue portal near the top edge of wall panel S1; place orange on '
+        'another panel to link them.',
     ),
     'pass_through': Verb(
         'Walk through a placed portal, named by its percept label (Pb = blue, '
@@ -293,19 +295,40 @@ def _check_redirect(req, by_mark):
     return req
 
 
+def _panel_base(target):
+    """Split a panel target 'Sn' or 'Sn@u,v' into (base 'Sn', error|None),
+    validating the optional fractional (u,v) is two floats in [0,1]."""
+    base, sep, frac = target.partition('@')
+    if not sep:
+        return base, None
+    parts = frac.split(',')
+    try:
+        if len(parts) != 2:
+            raise ValueError
+        u, v = float(parts[0]), float(parts[1])
+    except ValueError:
+        return base, f'bad (u,v) suffix in {target!r} -- want Sn@u,v'
+    if not (0.0 <= u <= 1.0 and 0.0 <= v <= 1.0):
+        return base, f'(u,v) out of range in {target!r} -- each must be in [0,1]'
+    return base, None
+
+
 def _check_place_portal(req, by_mark):
     """place_portal checks: a blue|orange color + a portalable wall-panel Sn
-    target. Error string or the ready req."""
+    target (optionally Sn@u,v). Error string or the ready req."""
     if req.color not in ('blue', 'orange'):
         return f'place_portal: color must be blue|orange, got {req.color!r}'
-    if _target_kind(req.target) != 'panel':
+    base, uverr = _panel_base(req.target)
+    if uverr:
+        return f'place_portal: {uverr}'
+    if _target_kind(base) != 'panel':
         return f'place_portal: target must be a wall panel Sn, got {req.target!r}'
-    panel = by_mark.get(req.target)
+    panel = by_mark.get(base)
     if panel is None:
         present = sorted(k for k in by_mark if isinstance(k, str) and k[:1] == 'S')
-        return f'place_portal: no panel {req.target}; panels present: {present}'
+        return f'place_portal: no panel {base}; panels present: {present}'
     if panel['class'] != 'wall_panel':
-        return f'place_portal: {req.target} is a {panel["class"]}, not a wall panel'
+        return f'place_portal: {base} is a {panel["class"]}, not a wall panel'
     return req
 
 
