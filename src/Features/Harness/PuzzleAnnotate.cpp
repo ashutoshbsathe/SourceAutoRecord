@@ -1150,3 +1150,94 @@ CON_COMMAND(
       anyLzma ? "LZMA-compressed lump(s) present — a decoder is required."
               : "geometry lumps uncompressed — no LZMA decoder needed.");
 }
+
+// --- Fling recon: per-tick telemetry logger for characterizing Source's portal
+// funnel on a jump-into-floor-portal fling. Run in a plain, playable session
+// (no harness instance, so the game isn't paused for Act):
+// `sar_harness_fling_recon on`, play a fling by hand, `off`. Each on/off cycle
+// is one `run` in fling_recon.csv. See brainstorm/jump_into_design.md.
+static bool g_flingReconActive = false;
+static std::ofstream g_flingCsv;
+static Vector g_flingPrevPos{0, 0, 0};
+static bool g_flingHavePrev = false;
+static int g_flingRun = 0;  // increments per `on`; the row's run id
+
+// The placed portal that faces up (a floor portal), else inactive.
+static LivePortal FloorPortal() {
+  LivePortal blue = ReadPortal(false);
+  if (blue.active && blue.normal.z > 0.5f) return blue;
+  LivePortal orange = ReadPortal(true);
+  if (orange.active && orange.normal.z > 0.5f) return orange;
+  return LivePortal{};
+}
+
+ON_EVENT(POST_TICK) {
+  if (!g_flingReconActive || !server || !engine || !server->gpGlobals) return;
+  void* player = server->GetPlayer(1);
+  if (!player) return;
+  Vector pos = SE(player)->abs_origin();
+  Vector vel = SE(player)->field<Vector>("m_vecVelocity");
+  QAngle ang = engine->GetAngles(0);
+  bool onGround = SE(player)->field<int>("m_fFlags") & (1 << 0);  // FL_ONGROUND
+
+  LivePortal fp = FloorPortal();
+  float horiz = -1.0f, vert = 0.0f;
+  if (fp.active) {
+    horiz = Vector{pos.x - fp.center.x, pos.y - fp.center.y, 0}.Length2D();
+    vert = pos.z - fp.center.z;
+  }
+  // A portal transit is a large single-tick position jump (emergence at the
+  // partner). Approximate -- the CSV positions show the discontinuity anyway.
+  int transit =
+      (g_flingHavePrev && (pos - g_flingPrevPos).Length() > 96.0f) ? 1 : 0;
+  g_flingPrevPos = pos;
+  g_flingHavePrev = true;
+
+  g_flingCsv << g_flingRun << ',' << server->gpGlobals->tickcount << ','
+             << pos.x << ',' << pos.y << ',' << pos.z << ',' << vel.x << ','
+             << vel.y << ',' << vel.z << ',' << ang.x << ',' << ang.y << ','
+             << (onGround ? 1 : 0) << ',' << horiz << ',' << vert << ','
+             << transit << '\n';
+}
+
+CON_COMMAND(
+    sar_harness_fling_recon,
+    "sar_harness_fling_recon <on|off> - per-tick fling telemetry to "
+    "fling_recon.csv for characterizing the portal funnel. Play a "
+    "floor-portal fling by hand between on/off; each cycle is one `run`. "
+    "Needs a placed floor portal.\n") {
+  if (args.ArgC() < 2 ||
+      (std::strcmp(args[1], "on") && std::strcmp(args[1], "off"))) {
+    console->Print("usage: sar_harness_fling_recon <on|off>\n");
+    return;
+  }
+  if (!std::strcmp(args[1], "off")) {
+    g_flingReconActive = false;
+    if (g_flingCsv.is_open()) g_flingCsv.close();
+    console->Print("fling recon: run %d stopped.\n", g_flingRun);
+    return;
+  }
+  if (g_flingReconActive) {
+    console->Print("fling recon: already on (run %d); 'off' first.\n",
+                   g_flingRun);
+    return;
+  }
+  std::string dir = engine ? engine->GetGameDirectory() : ".";
+  std::string path = dir + "/fling_recon.csv";
+  bool firstRun = (g_flingRun == 0);  // truncate + header once per game session
+  g_flingCsv.open(path, firstRun ? (std::ios::out | std::ios::trunc)
+                                 : (std::ios::out | std::ios::app));
+  if (!g_flingCsv.is_open()) {
+    console->Print("fling recon: could not open %s\n", path.c_str());
+    return;
+  }
+  if (firstRun)
+    g_flingCsv << "run,tick,px,py,pz,vx,vy,vz,pitch,yaw,on_ground,horiz_dist,"
+                  "vert_dist,transit\n";
+  g_flingRun++;
+  g_flingHavePrev = false;
+  g_flingReconActive = true;
+  console->Print(
+      "fling recon: run %d logging to %s (play the fling, then 'off').\n",
+      g_flingRun, path.c_str());
+}
