@@ -1443,6 +1443,24 @@ static const char* PortalRejectCode(int res) {
   }
 }
 
+// A portal that hit the target panel sits on its plane, inside its tile AABB
+// (edge slack covers the placement helper's nudge). A shot that grazed an
+// occluder or an adjacent surface lands off it -> place_portal fails NO_LOS.
+constexpr float kPanelPlaneTol = 16.0f;
+constexpr float kPanelEdgeTol = 16.0f;
+bool PortalOnPanel(const Vector& p, const PanelDesc& panel) {
+  Vector d{p.x - panel.center.x, p.y - panel.center.y, p.z - panel.center.z};
+  float offPlane = std::abs(d.x * panel.planeNormal.x +
+                            d.y * panel.planeNormal.y +
+                            d.z * panel.planeNormal.z);
+  if (offPlane > kPanelPlaneTol) return false;
+  return p.x >= panel.mins.x - kPanelEdgeTol &&
+         p.x <= panel.maxs.x + kPanelEdgeTol &&
+         p.y >= panel.mins.y - kPanelEdgeTol &&
+         p.y <= panel.maxs.y + kPanelEdgeTol &&
+         p.z >= panel.mins.z - kPanelEdgeTol && p.z <= panel.maxs.z + kPanelEdgeTol;
+}
+
 portal2_harness::MacroResult MacroExecutor::PlacePortal(
     const portal2_harness::MacroRequest& req) {
   portal2_harness::MacroResult r;
@@ -1465,21 +1483,53 @@ portal2_harness::MacroResult MacroExecutor::PlacePortal(
     return c;
   };
 
-  // 1. Gate (main thread): resolve the panel, prime the gun's portal entities,
-  // preview placement with TraceFirePortal, and on a placeable result commit it
-  // via portal_place. Fire from just off the panel center, along -normal.
-  struct Gate {
+  // 1. Aim the view at the panel center, so the shot comes from the player's
+  // eye -- a portal you can't line a shot up on shouldn't be placeable.
+  struct Aim {
+    bool ok = false;
     std::string code = "BAD_MARK";
+    QAngle view{0, 0, 0};
+  };
+  auto aim = std::make_shared<Aim>();
+  bool aimRan = RunOnMainThreadSync(context_, [aim, surfaceMark]() {
+    PanelDesc panel;
+    if (!surfaceMarkTable.GetPanelFromMark(surfaceMark, &panel)) return;
+    Vector eye;
+    if (!PlayerEye(&eye)) {
+      aim->code = "NO_PLAYER";
+      return;
+    }
+    aim->view = ApplyAbsoluteView(AimAnglesTo(eye, panel.center));
+    aim->ok = true;
+  });
+  if (!aimRan) return cancelled();
+  if (!aim->ok) {
+    r.set_ok(false);
+    r.set_result_code(aim->code);
+    r.set_detail("place_portal: " + aim->code);
+    return r;
+  }
+  AdvanceTicksBlocking(1);  // camera rides to the panel + the view takes
+
+  // 2. Gate (main thread): prime the gun, fire from the eye along the aimed
+  // view, and commit only if the shot lands ON the target panel -- an occluded
+  // or off-surface shot fails NO_LOS instead of magically placing.
+  struct Gate {
+    std::string code = "NO_LOS";
     unsigned char linkage = 0;
     Vector placed{0, 0, 0};
     bool usedHelper = false;
   };
   auto g = std::make_shared<Gate>();
-  bool ran = RunOnMainThreadSync(context_, [g, surfaceMark, orange]() {
+  bool ran = RunOnMainThreadSync(context_, [g, surfaceMark, orange, aim]() {
     PanelDesc panel;
-    if (!surfaceMarkTable.GetPanelFromMark(surfaceMark, &panel)) return;
+    if (!surfaceMarkTable.GetPanelFromMark(surfaceMark, &panel)) {
+      g->code = "BAD_MARK";
+      return;
+    }
     void* player = server->GetPlayer(1);
-    if (!player) {
+    Vector eye;
+    if (!player || !PlayerEye(&eye)) {
       g->code = "NO_PLAYER";
       return;
     }
@@ -1503,19 +1553,17 @@ portal2_harness::MacroResult MacroExecutor::PlacePortal(
           ((IHandleEntity*)o)->GetRefEHandle();
     }
 
-    Vector origin = panel.center + panel.planeNormal * 10.0f;
-    Vector dir = panel.planeNormal * -1.0f;
+    Vector dir;
+    Math::AngleVectors(aim->view, &dir);
     TracePortalPlacementInfo_t pinfo;
-    int ret = server->TraceFirePortal(gun, origin, dir, orange, 2, pinfo);
+    int ret = server->TraceFirePortal(gun, eye, dir, orange, 2, pinfo);
     int res = (int)pinfo.ePlacementResult;
-    if (ret == 0) {
-      g->code = "NO_LOS";
-      return;
-    }
+    if (ret == 0) return;  // NO_LOS: the shot hit nothing placeable
     if (res > (int)PORTAL_PLACEMENT_BUMPED) {
       g->code = PortalRejectCode(res);
       return;
     }
+    if (!PortalOnPanel(pinfo.finalPos, panel)) return;  // shot landed off-panel
 
     char cmd[160];
     std::snprintf(cmd, sizeof(cmd),
@@ -1659,7 +1707,14 @@ portal2_harness::MacroResult MacroExecutor::PassThrough(
     AdvanceTicksBlocking(kPassBatch);
   }
 
-  RunOnMainThreadSync(context_, []() { SetMoveFramebulk(0, 0); });
+  // Stop dead: clear the push input AND the emerged velocity, else the transit
+  // momentum coasts the player forward through the settle and derails the next
+  // verb (e.g. a following place_portal fires from a drifted spot).
+  RunOnMainThreadSync(context_, []() {
+    SetMoveFramebulk(0, 0);
+    ServerEnt* pl = server->GetPlayer(1);
+    if (pl) pl->field<Vector>("m_vecVelocity") = {0, 0, 0};
+  });
   AdvanceTicksBlocking(kSettle);
 
   if (!transited) {
@@ -2103,6 +2158,16 @@ portal2_harness::MacroResult MacroExecutor::Move(const std::string& dir,
 
     AdvanceTicksBlocking(batch);
   }
+
+  // Stop dead: clear the held key AND the walk velocity, then settle, so the
+  // move ends where it stopped instead of coasting into the next verb (as go_to
+  // does -- Portal puzzle movement has no run-jump speed worth preserving).
+  Scheduler::OnMainThread([]() {
+    ClearFramebulk();
+    ServerEnt* pl = server->GetPlayer(1);
+    if (pl) pl->field<Vector>("m_vecVelocity") = {0, 0, 0};
+  });
+  AdvanceTicksBlocking(kGoToSettle);
 
   // True final position after the last advance.
   auto fin = std::make_shared<Vector>(finalPos);

@@ -131,8 +131,7 @@ VERB_SPECS = {
     ),
     'pass_through': Verb(
         'Walk through a placed portal, named by its percept label (Pb = blue, '
-        'Po = orange). You emerge from the linked portal. To fling, build speed '
-        'first -- the momentum you carry in comes out redirected. Fails '
+        'Po = orange). You emerge from the linked portal and stop. Fails '
         'NO_SUCH_PORTAL / UNLINKED / NOT_AT_MOUTH / BLOCKED.',
         'pass_through Pb',
         'walk into the blue portal (Pb); you come out the linked orange one.',
