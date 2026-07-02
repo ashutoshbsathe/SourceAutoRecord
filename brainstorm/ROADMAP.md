@@ -69,18 +69,22 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
   (`68b00d74`): portals excluded from generic marks, drawn `Pb`/`Po`; `GameState.blue_portal`/`orange_portal`
   via the `ReadPortal` helper; Python `_portal_dict`; `agentloop_smoke check_portal_percept`. ✅ **C —
   `pass_through(color)` SHIPPED + VERIFIED in-game** (`2f77374f`): march to mouth → push in → engine transits →
-  confirm emergence at the partner. **RESUME QUEUE, priority order:**
-  1. **⭐ STRING-MARK TARGETING (the real gap the user hit).** `go_to`/`aim_at`/`look` take an **int** `mark`
-     only, so the model **cannot target `Pb`/`Po` portals or `S`-panel marks** — portals aren't yet *usable* for
-     traversal. Fix: proto `oneof`/string target on `MacroRequest` + a unified resolver (int→`markTable` ·
-     `S`→`surfaceMarkTable` · `Pb`/`Po`→`ReadPortal`) → world pos, shared across go_to/aim_at/look. THE blocker
-     for portals paying off; do this FIRST next session.
-  2. **Residual-velocity quirk** — after `pass_through` the player keeps emerged velocity (`SetMoveFramebulk(0,0)`
-     clears input, not `m_vecVelocity`), so a following `place_portal` "moves me forward". Mirror `GoTo`'s
-     velocity-kill at `pass_through`'s stop. Quick.
-  3. **D — `drop_into(portal, object=None)`** (object-drop + player self-drop into a ground portal).
-  4. **A — fractional `(u,v)` placement** (gravity-anchored frame, all panels).
-- **`aim_at`/`look` at a panel** — both take int *entity* marks today; orienting at an `S`-panel-mark is unwired.
+  confirm emergence at the partner. ✅ **STRING-MARK TARGETING SHIPPED + VERIFIED in-game** (`c3053955`) — landed
+  as a **clean unified-target model**, not a bolted-on field: `MacroRequest`'s four reference fields
+  (`mark`/`target_mark`/`surface_mark` + the aborted `string target`) collapse to **`target` + `aim`**, both
+  flat percept-label strings (`"<n>"` entity · `"S<n>"` panel · `"Pb"/"Po"` portal — the on-screen Set-of-Marks
+  tokens). One `ClassifyTarget` parse feeds `ResolveTarget` (→ world center, any kind, for `aim_at`/`go_to`) and
+  `RequireEntityMark` (entity-only gate → `WRONG_TARGET` on a panel/portal). Every verb migrated; `place_portal`
+  takes an `Sn` target, `pass_through` takes `Pb`/`Po` (color-word alias removed). Grammar unified onto
+  `target`/`aim` with kind-aware validation; smoke `aim_target` added. User picked flat-string over a structured
+  `oneof` (mirrors the perceptual token; zero classify-before-send). **RESUME QUEUE, priority order:**
+  1. **⭐ Residual-velocity quirk (NEXT)** — after `pass_through` the player keeps emerged velocity
+     (`SetMoveFramebulk(0,0)` clears input, not `m_vecVelocity`), so a following `place_portal` "moves me
+     forward". Mirror `GoTo`'s velocity-kill at `pass_through`'s stop. Quick.
+  2. **D — `drop_into(portal, object=None)`** (object-drop + player self-drop into a ground portal).
+  3. **A — fractional `(u,v)` placement** (gravity-anchored frame, all panels).
+- **`aim_at` at a panel/portal — DONE** (folded into the unified target model above). `look` stays relative
+  (yaw/pitch), by design — it takes no target.
 - **portal × cube/laser/button composition** — how the shipped element verbs interact with portals in a real
   chamber (eval-driven). Then a **portal eval chamber** (the M3 analogue of first/laser light).
 
