@@ -60,6 +60,18 @@ constexpr int kPassBatch = 2;         // ticks per push-into-mouth batch
 constexpr int kPassMaxTicks = 160;    // give up pushing into the mouth
 constexpr float kPassJump = 48.0f;    // feet displacement that flags a transit
 constexpr float kEmergeRadius = 128.0f;  // emerged this near the partner = ok
+// jump_into fling (from the P0 fling recon): jump = a +207 impulse, the funnel
+// centers us over a floor portal given a held down-aim, transit = a huge
+// single-tick position jump (observed 700-880u; 128 clears any real movement).
+constexpr int kJumpHold = 2;            // ticks to hold key_jump (edge-triggered)
+constexpr int kJumpMaxTicks = 200;      // give up waiting for the funnel transit
+constexpr float kJumpTransit = 128.0f;  // single-tick pos jump that flags transit
+constexpr float kFloorNormalZ = 0.7f;   // portal normal.z gate: floor-ish, <45deg
+constexpr float kJumpApproach = 40.0f;  // approach stops this far short of center
+constexpr int kJumpRunTicks = 120;      // give up approaching the mouth
+constexpr float kJumpMoveSpeed = 0.5f;  // gentle forward: arc lands at the mouth
+                                        // with little horizontal for the funnel to
+                                        // zero (a full run overshoots)
 constexpr float kApproachGap =
     20.0f;  // extra standoff past an obstacle-target's footprint (hull gap +
             // post-arrival coast) so go_to stops beside it, not into it
@@ -1183,6 +1195,7 @@ portal2_harness::MacroResult MacroExecutor::Execute(
   if (verb == "redirect_to") return RedirectTo(req);
   if (verb == "place_portal") return PlacePortal(req);
   if (verb == "pass_through") return PassThrough(req);
+  if (verb == "jump_into") return JumpInto(req.target());
 
   // press (a pedestal-button alias of interact) is not wired yet.
   r.set_ok(false);
@@ -1742,6 +1755,179 @@ portal2_harness::MacroResult MacroExecutor::PassThrough(
   r.set_detail(Utils::ssprintf("pass_through: %s at (%.0f %.0f %.0f)",
                                *ok ? "TRANSITED" : "emerged off-partner",
                                pos->x, pos->y, pos->z));
+  return r;
+}
+
+portal2_harness::MacroResult MacroExecutor::JumpInto(const std::string& target) {
+  portal2_harness::MacroResult r;
+  TargetRef ref = ClassifyTarget(target);
+  if (ref.kind != TargetRef::PORTAL) {
+    r.set_ok(false);
+    r.set_result_code(ref.kind == TargetRef::NONE ? "NO_SUCH_PORTAL"
+                                                  : "WRONG_TARGET");
+    r.set_detail("jump_into needs a portal Pb/Po, got \"" + target + "\"");
+    return r;
+  }
+  bool orange = ref.orange;
+
+  auto cancelled = []() {
+    portal2_harness::MacroResult c;
+    c.set_ok(false);
+    c.set_result_code("CANCELLED");
+    return c;
+  };
+
+  // 1. Resolve the portal + gate on an up-facing normal (a floor portal you fall
+  // INTO; a wall portal is pass_through's job).
+  struct Setup {
+    std::string code = "NO_SUCH_PORTAL";
+    Vector center{0, 0, 0};
+  };
+  auto s = std::make_shared<Setup>();
+  if (!RunOnMainThreadSync(context_, [s, orange]() {
+        LivePortal lp = ReadPortal(orange);
+        if (!lp.active) return;
+        if (lp.normal.z < kFloorNormalZ) {
+          s->code = "NOT_GROUND";
+          return;
+        }
+        s->center = lp.center;
+        s->code = "OK";
+      }))
+    return cancelled();
+  if (s->code != "OK") {
+    r.set_ok(false);
+    r.set_result_code(s->code);
+    r.set_detail("jump_into: " + s->code);
+    return r;
+  }
+  Vector center = s->center;
+
+  // 2. Position tracking + a transit detector (a huge single-tick position
+  // jump). Set up BEFORE the approach so a transit at ANY point is caught --
+  // running flat onto a ground portal, or the funnel drop -- and never lost.
+  auto prev = std::make_shared<Vector>();
+  auto exitPos = std::make_shared<Vector>();
+  auto entryPos = std::make_shared<Vector>();  // pos the tick before the transit
+  bool transited = false;
+  RunOnMainThreadSync(context_, [prev]() {
+    ServerEnt* pl = server->GetPlayer(1);
+    if (pl) *prev = pl->abs_origin();
+  });
+  auto detect = [&]() -> int {  // 1 transited, 0 not, -1 stream dropped
+    auto j = std::make_shared<bool>(false);
+    if (!RunOnMainThreadSync(context_, [prev, j, exitPos, entryPos]() {
+          ServerEnt* pl = server->GetPlayer(1);
+          if (!pl) return;
+          Vector p = pl->abs_origin();
+          if ((p - *prev).Length() > kJumpTransit) {
+            *j = true;
+            *entryPos = *prev;
+            *exitPos = p;
+          }
+          *prev = p;
+        }))
+      return -1;
+    return *j ? 1 : 0;
+  };
+
+  // Flight diagnostics: closest we get to the mouth center + how high we get
+  // above it. On a miss these say whether we overshot, undershot, or the funnel
+  // just never closed the last few units.
+  float minHoriz = 1e9f, maxUp = -1e9f;
+  auto trackFlight = [&]() {
+    minHoriz = std::min(
+        minHoriz, Vector{prev->x - center.x, prev->y - center.y, 0}.Length2D());
+    maxUp = std::max(maxUp, prev->z - center.z);
+  };
+
+  // 3. Approach the mouth (gentle forward + aim) until within jump range, and
+  // stop SHORT so the jump, not a walk, enters (walking flat onto a ground
+  // portal transits here, which detect() catches).
+  for (int t = 0; t < kJumpRunTicks; ++t) {
+    auto h = std::make_shared<float>(-1.0f);
+    if (!RunOnMainThreadSync(context_, [center, h]() {
+          ServerEnt* pl = server->GetPlayer(1);
+          if (!pl) return;
+          Vector f = pl->abs_origin();
+          *h = Vector{f.x - center.x, f.y - center.y, 0}.Length2D();
+          Vector eye;
+          if (PlayerEye(&eye)) ApplyAbsoluteView(AimAnglesTo(eye, center));
+          SetMoveFramebulk(0, kJumpMoveSpeed);
+        }))
+      return cancelled();
+    if (*h <= kJumpApproach) break;  // close enough -- jump from here
+    AdvanceTicksBlocking(1);
+    int tr = detect();
+    if (tr < 0) return cancelled();
+    if (tr == 1) {
+      transited = true;
+      break;
+    }
+  }
+
+  // 4. Jump into it -- keep the gentle forward (arcs us over the mouth) + add
+  // height. A slower approach leaves less horizontal for the funnel to zero.
+  if (!transited) {
+    if (!RunOnMainThreadSync(context_, [center]() {
+          Vector eye;
+          if (!PlayerEye(&eye)) return;
+          ApplyAbsoluteView(AimAnglesTo(eye, center));
+          SetMoveFramebulk(0, kJumpMoveSpeed);  // clears buttons
+          tasPlayer->playbackInfo.slots[0].framebulks[0].buttonStates[Jump] = true;
+        }))
+      return cancelled();
+    AdvanceTicksBlocking(kJumpHold);
+    int tr = detect();
+    if (tr < 0) return cancelled();
+    transited = (tr == 1);
+    trackFlight();
+  }
+
+  // 5. Funnel descent: re-assert the down-aim every tick (the view drifts
+  // otherwise, killing the funnel), free-fall, until transit.
+  int flightTicks = kJumpHold;
+  for (int t = 0; !transited && t < kJumpMaxTicks; ++t) {
+    if (!RunOnMainThreadSync(context_, [center]() {
+          Vector eye;
+          if (PlayerEye(&eye)) ApplyAbsoluteView(AimAnglesTo(eye, center));
+        }))
+      return cancelled();
+    AdvanceTicksBlocking(1);
+    int tr = detect();
+    if (tr < 0) return cancelled();
+    transited = (tr == 1);
+    trackFlight();
+    flightTicks = kJumpHold + t + 1;
+  }
+
+  if (!transited) {
+    RunOnMainThreadSync(context_, []() { ClearFramebulk(); });
+    r.set_ok(false);
+    r.set_result_code("NOT_ALIGNED");
+    r.set_detail(Utils::ssprintf(
+        "jump_into: no transit -- closest %.0fu from mouth, peak %.0fu up, "
+        "ended (%.0f %.0f %.0f)",
+        minHoriz, maxUp, prev->x, prev->y, prev->z));
+    return r;
+  }
+
+  // 6. FREEZE mid-flight: clear the input but LEAVE m_vecVelocity (the fling
+  // momentum), and stop advancing -- the game is now paused for the model to
+  // reason about the airborne state. `wait N` resumes gravity/flight.
+  auto vel = std::make_shared<Vector>();
+  RunOnMainThreadSync(context_, [vel]() {
+    SetMoveFramebulk(0, 0);
+    ServerEnt* pl = server->GetPlayer(1);
+    if (pl) *vel = pl->field<Vector>("m_vecVelocity");
+  });
+  r.set_ok(true);
+  r.set_result_code("FLUNG");
+  r.set_detail(Utils::ssprintf(
+      "jump_into: flung after %d ticks, (%.0f %.0f %.0f) -> (%.0f %.0f %.0f) "
+      "vel=(%.0f %.0f %.0f)",
+      flightTicks, entryPos->x, entryPos->y, entryPos->z, exitPos->x, exitPos->y,
+      exitPos->z, vel->x, vel->y, vel->z));
   return r;
 }
 

@@ -136,6 +136,16 @@ VERB_SPECS = {
         'pass_through Pb',
         'walk into the blue portal (Pb); you come out the linked orange one.',
     ),
+    'jump_into': Verb(
+        'Jump into a FLOOR portal (Pb/Po) for a fling: you jump, the portal '
+        'funnel pulls you in as you fall, and you FREEZE mid-flight out the '
+        'linked portal with your momentum. For a big fling, stand on a ledge '
+        'ABOVE the floor portal first. Fails NOT_GROUND (portal is not on the '
+        'floor -- use pass_through) / NOT_ALIGNED.',
+        'jump_into Pb',
+        'jump into floor portal Pb; you fly out the linked portal and pause '
+        'mid-air -- `wait` to resume falling.',
+    ),
     'move': Verb(
         'Hold a movement direction for N ticks.',
         'move forward 10',
@@ -190,7 +200,7 @@ def build_macro(verb, args):
     elif verb == 'place_portal':
         m.color = args[0]
         m.target = args[1]  # wall panel Sn
-    elif verb == 'pass_through':
+    elif verb in ('pass_through', 'jump_into'):
         m.target = args[0]  # Pb/Po
     elif verb == 'move':
         m.dir = args[0]
@@ -299,13 +309,14 @@ def _check_place_portal(req, by_mark):
     return req
 
 
-def _check_pass_through(req, by_mark):
-    """pass_through checks: a Pb/Po target whose portal is actually placed."""
+def _check_portal_target(req, by_mark):
+    """pass_through / jump_into: a Pb/Po target whose portal is actually placed
+    (the floor-vs-wall gate is the executor's job -- the percept has no normal)."""
     if _target_kind(req.target) != 'portal':
-        return f'pass_through: target must be a portal Pb/Po, got {req.target!r}'
+        return f'{req.verb}: target must be a portal Pb/Po, got {req.target!r}'
     if req.target not in by_mark:
         present = sorted(k for k in by_mark if k in ('Pb', 'Po'))
-        return f'pass_through: no {req.target} portal placed; present: {present}'
+        return f'{req.verb}: no {req.target} portal placed; present: {present}'
     return req
 
 
@@ -336,8 +347,8 @@ def validate(text, entities, held_mark=None):
         return _check_redirect(req, by_mark)
     if verb == 'place_portal':
         return _check_place_portal(req, by_mark)
-    if verb == 'pass_through':
-        return _check_pass_through(req, by_mark)
+    if verb in ('pass_through', 'jump_into'):
+        return _check_portal_target(req, by_mark)
     if spec.target:
         err = _check_target(verb, spec, req.target, by_mark)
         if err:
@@ -364,8 +375,8 @@ def _signature(verb, spec):
         return 'redirect_to <cube> <target>'
     if verb == 'place_portal':
         return 'place_portal <blue|orange> <Sn>'
-    if verb == 'pass_through':
-        return 'pass_through <Pb|Po>'
+    if verb in ('pass_through', 'jump_into'):
+        return f'{verb} <Pb|Po>'
     args = []
     if spec.target == 'any':
         args.append('<target: N|Sn|Pb|Po>')

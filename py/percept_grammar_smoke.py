@@ -273,7 +273,7 @@ def test_examples_validate():
             ]
         elif verb == 'place_portal':
             ents = [synth(tokens[2], 'wall_panel')]  # the Sn panel
-        elif verb == 'pass_through':
+        elif verb in ('pass_through', 'jump_into'):
             ents = [synth(tokens[1], 'prop_portal')]  # the Pb/Po portal label
         elif spec.target:  # 'any' or 'entity' -> a plain entity mark
             ents = [synth(int(tokens[1]), 'prop_floor_button')]

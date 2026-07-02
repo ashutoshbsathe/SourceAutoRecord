@@ -122,20 +122,36 @@ No hand-tuned funnel math: the engine's funnel does the aligning; the verb suppl
 down-aim + free ticks + freeze. It's the `pass_through` skeleton with the stop swapped for a
 momentum-preserving freeze.
 
+## P1 SHIPPED (2026-07-02) — verb flings, verified in-game
+
+`jump_into(target)` in `MacroExecutor.cpp`: floor-gate (`normal.z >= 0.7`, else `NOT_GROUND`) →
+gentle-forward approach → `key_jump` → re-assert `aim_at(center)` per tick (funnel) → transit-detect
+→ freeze with `m_vecVelocity` intact (`FLUNG`). Proto-free (reuses `target`). Same-z verified.
+
+**The locked mechanic's `go_to` approach was wrong for the same-z case** (the build's real finding).
+`go_to` kills velocity at ~100u out; a standing jump from there rises only ~36u (`vz=+207`), so the
+down-aim to a same-z mouth stays shallow → the funnel never engages. And a *full-speed* run overshoots
+the mouth by 100u+ — the funnel can only zero horizontal velocity when you're nearly **over** the
+mouth aiming steep-down. What works: a **gentle forward** (`kJumpMoveSpeed=0.5`) that stops ~`40u`
+short, so the jump arc lands at the mouth with little horizontal for the funnel to kill. The
+ledge/portal-below money case is more forgiving (the fall supplies both height and steep aim).
+
+On a miss, `NOT_ALIGNED` reports `closest Nu from mouth, peak Nu up, ended (x y z)` — the knob to turn
+(overshoot vs funnel-didn't-close vs jump-didn't-fire) is readable from the numbers.
+
 ## Phasing
 
 - ✅ **P0** — `sar_harness_fling_recon` logger + CSV; funnel characterized (above). SHIPPED.
-- **P1 (NEXT)** — `jump_into(portal)` verb on P0's numbers: floor-gate + coarse `go_to` approach +
-  `key_jump` + funnel-descent (re-assert `aim_at` each tick) + transit-detect + freeze-with-momentum.
-  Proto-free; dispatch + header.
-- **P2** — grammar (`jump_into <Pb|Po>`, floor-portal validation) + macro_repl/smoke; verify the
-  fling end-to-end (paused mid-flight, momentum intact).
+- ✅ **P1** — `jump_into(portal)` verb: floor-gate + gentle-forward approach + `key_jump` +
+  funnel-descent + transit-detect + freeze-with-momentum + miss diagnostics. SHIPPED (above).
+- ✅ **P2** — grammar (`jump_into <Pb|Po>`, shares `_check_portal_target` with `pass_through`) +
+  `percept_grammar_smoke`; fling verified end-to-end in-game (paused mid-flight, momentum intact).
 - **Later** — `drop_into` (gentle self step-through / object-drop of a held cube).
 
-## Open — settle during the P1 build (not blockers)
+## Open — not blockers
 
-- **Ledge clearance:** the jump may need a small **forward** component to clear the ledge edge (the
-  funnel supplies the horizontal pull once airborne). Try jump-only first; add forward if the player
-  lands back on the ledge.
+- **Ledge case untested in the verb.** Same-z is verified; the portal-below fling (the money case)
+  should just work (more funnel margin) but hasn't been run through the verb — confirm when a ledge
+  chamber is handy.
 - **Jump timing:** an extra jump *at entry* (vs only at launch) is a speedrun refinement — not v0.
 - Object-drop mechanics (track the cube's transit, not the player's) — the later `drop_into`.
