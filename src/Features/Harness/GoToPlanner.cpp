@@ -399,7 +399,8 @@ CON_COMMAND(sar_harness_laser_reachability_test,
 // Does the flat go_to planner treat the far side of an open portal pair as
 // reachable on foot? Stand in front of the near portal with both placed; aim
 // across the gap at the far-island floor (or pass an explicit target). Runs the
-// real GoToPlanner::Plan feet->target and prints REACHABLE vs SEVERED. Read-only.
+// real GoToPlanner::Plan feet->target and prints REACHABLE vs SEVERED.
+// Read-only.
 CON_COMMAND(
     sar_harness_portal_reachability_test,
     "sar_harness_portal_reachability_test [x y z] - go_to reachability "
@@ -496,5 +497,6 @@ CON_COMMAND(
         "island so the target is stand-able.\n",
         goalState);
   console->Print(
-      "    => intended portal traversal needs an explicit go_to portal edge.\n");
+      "    => intended portal traversal needs an explicit go_to portal "
+      "edge.\n");
 }

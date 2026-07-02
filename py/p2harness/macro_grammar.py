@@ -251,7 +251,9 @@ def _check_target(verb, spec, target, by_mark):
         return None  # release with no target = drop at the player's feet
     kind = _target_kind(target)
     if kind is None:
-        return f'{verb}: bad target {target!r}; expected mark N, panel Sn, or portal Pb/Po'
+        return (
+            f'{verb}: bad target {target!r}; expected mark N, panel Sn, or portal Pb/Po'
+        )
     if spec.target != 'any' and kind != 'entity':
         return f'{verb}: {target} is a {kind}; {verb} needs an entity mark'
     ent = _lookup(target, by_mark)

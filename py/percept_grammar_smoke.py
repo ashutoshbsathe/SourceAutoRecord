@@ -262,7 +262,9 @@ def test_examples_validate():
             ents = [synth(int(tokens[1]), 'prop_weighted_cube')]  # must be grabbable
         elif verb == 'release':
             held = 99  # release requires holding something
-            ents = [synth(int(tokens[1]), 'prop_floor_button')] if len(tokens) > 1 else []
+            ents = (
+                [synth(int(tokens[1]), 'prop_floor_button')] if len(tokens) > 1 else []
+            )
         elif verb == 'interpose':
             held = 99  # interpose requires a held cube
             ents = [synth(int(tokens[1]), 'env_portal_laser')]  # emitter
@@ -296,8 +298,14 @@ def test_validate_target():
     for text in ('aim_at 2', 'aim_at S1', 'aim_at Pb', 'go_to Pb'):
         r = mg.validate(text, ents)
         check(isinstance(r, pb.MacroRequest) and r.target == text.split()[1], r)
-    for text in ('aim_at 9', 'aim_at S7', 'aim_at Po', 'aim_at foo',
-                 'interact Pb', 'pick_up S1'):
+    for text in (
+        'aim_at 9',
+        'aim_at S7',
+        'aim_at Po',
+        'aim_at foo',
+        'interact Pb',
+        'pick_up S1',
+    ):
         r = mg.validate(text, ents)
         check(isinstance(r, str), f'expected rejection, got {r!r} for {text!r}')
     return 'any-verbs take N/Sn/Pb; entity-only verbs reject panels/portals'

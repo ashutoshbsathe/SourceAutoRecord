@@ -40,7 +40,8 @@ void MarkTable::RebuildFromWorld() {
   std::lock_guard<std::mutex> lock(mutex);
 
   // Assign marks to unseen entities in deterministic order (index, rounded
-  // origin), appended after existing ones so a mark never moves on spawn/despawn.
+  // origin), appended after existing ones so a mark never moves on
+  // spawn/despawn.
   std::vector<const Cand*> fresh;
   for (const auto& c : cands)
     if (!assigned.count(c.key)) fresh.push_back(&c);

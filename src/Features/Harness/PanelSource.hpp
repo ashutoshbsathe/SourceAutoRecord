@@ -6,10 +6,10 @@
 
 #include "Utils/SDK/Math.hpp"
 
-// One portalable wall panel: a cluster of coplanar 128u tiles. Panel marks are a
-// namespace separate from entity marks. Sources number panels deterministically
-// (sort by plane then min corner) so the offline sidecar and a runtime walk
-// agree where the geometry agrees.
+// One portalable wall panel: a cluster of coplanar 128u tiles. Panel marks are
+// a namespace separate from entity marks. Sources number panels
+// deterministically (sort by plane then min corner) so the offline sidecar and
+// a runtime walk agree where the geometry agrees.
 struct PanelDesc {
   int mark;
   Vector planeNormal;
@@ -26,5 +26,6 @@ struct PanelDesc {
 class IPanelSource {
  public:
   virtual ~IPanelSource() = default;
-  virtual std::vector<PanelDesc> EnumeratePanels(const std::string& mapName) = 0;
+  virtual std::vector<PanelDesc> EnumeratePanels(
+      const std::string& mapName) = 0;
 };

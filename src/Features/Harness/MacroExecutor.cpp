@@ -63,15 +63,19 @@ constexpr float kEmergeRadius = 128.0f;  // emerged this near the partner = ok
 // jump_into fling (from the P0 fling recon): jump = a +207 impulse, the funnel
 // centers us over a floor portal given a held down-aim, transit = a huge
 // single-tick position jump (observed 700-880u; 128 clears any real movement).
-constexpr int kJumpHold = 2;            // ticks to hold key_jump (edge-triggered)
-constexpr int kJumpMaxTicks = 200;      // give up waiting for the funnel transit
-constexpr float kJumpTransit = 128.0f;  // single-tick pos jump that flags transit
-constexpr float kFloorNormalZ = 0.7f;   // portal normal.z gate: floor-ish, <45deg
-constexpr float kJumpApproach = 40.0f;  // approach stops this far short of center
-constexpr int kJumpRunTicks = 120;      // give up approaching the mouth
-constexpr float kJumpMoveSpeed = 0.5f;  // gentle forward: arc lands at the mouth
-                                        // with little horizontal for the funnel to
-                                        // zero (a full run overshoots)
+constexpr int kJumpHold = 2;        // ticks to hold key_jump (edge-triggered)
+constexpr int kJumpMaxTicks = 200;  // give up waiting for the funnel transit
+constexpr float kJumpTransit =
+    128.0f;  // single-tick pos jump that flags transit
+constexpr float kFloorNormalZ =
+    0.7f;  // portal normal.z gate: floor-ish, <45deg
+constexpr float kJumpApproach =
+    40.0f;                          // approach stops this far short of center
+constexpr int kJumpRunTicks = 120;  // give up approaching the mouth
+constexpr float kJumpMoveSpeed =
+    0.5f;  // gentle forward: arc lands at the mouth
+           // with little horizontal for the funnel to
+           // zero (a full run overshoots)
 constexpr float kApproachGap =
     20.0f;  // extra standoff past an obstacle-target's footprint (hull gap +
             // post-arrival coast) so go_to stops beside it, not into it
@@ -1302,7 +1306,8 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
     return r;
   }
   int targetMark = 0;  // optional redirect aim (`aim`)
-  if (!req.aim().empty() && !RequireEntityMark(req.aim(), &targetMark, &tcode)) {
+  if (!req.aim().empty() &&
+      !RequireEntityMark(req.aim(), &targetMark, &tcode)) {
     r.set_ok(false);
     r.set_result_code(tcode);
     r.set_detail("interpose aim must be a mark, got \"" + req.aim() + "\"");
@@ -1496,15 +1501,16 @@ constexpr float kPanelPlaneTol = 16.0f;
 constexpr float kPanelEdgeTol = 16.0f;
 bool PortalOnPanel(const Vector& p, const PanelDesc& panel) {
   Vector d{p.x - panel.center.x, p.y - panel.center.y, p.z - panel.center.z};
-  float offPlane = std::abs(d.x * panel.planeNormal.x +
-                            d.y * panel.planeNormal.y +
-                            d.z * panel.planeNormal.z);
+  float offPlane =
+      std::abs(d.x * panel.planeNormal.x + d.y * panel.planeNormal.y +
+               d.z * panel.planeNormal.z);
   if (offPlane > kPanelPlaneTol) return false;
   return p.x >= panel.mins.x - kPanelEdgeTol &&
          p.x <= panel.maxs.x + kPanelEdgeTol &&
          p.y >= panel.mins.y - kPanelEdgeTol &&
          p.y <= panel.maxs.y + kPanelEdgeTol &&
-         p.z >= panel.mins.z - kPanelEdgeTol && p.z <= panel.maxs.z + kPanelEdgeTol;
+         p.z >= panel.mins.z - kPanelEdgeTol &&
+         p.z <= panel.maxs.z + kPanelEdgeTol;
 }
 
 portal2_harness::MacroResult MacroExecutor::PlacePortal(
@@ -1515,7 +1521,8 @@ portal2_harness::MacroResult MacroExecutor::PlacePortal(
   TargetRef ref = ClassifyTarget(req.target());
   if (ref.kind != TargetRef::PANEL) {
     r.set_ok(false);
-    r.set_result_code(ref.kind == TargetRef::NONE ? "BAD_MARK" : "WRONG_TARGET");
+    r.set_result_code(ref.kind == TargetRef::NONE ? "BAD_MARK"
+                                                  : "WRONG_TARGET");
     r.set_detail("place_portal needs a wall panel Sn, got \"" + req.target() +
                  "\"");
     return r;
@@ -1793,7 +1800,8 @@ portal2_harness::MacroResult MacroExecutor::PassThrough(
   return r;
 }
 
-portal2_harness::MacroResult MacroExecutor::JumpInto(const std::string& target) {
+portal2_harness::MacroResult MacroExecutor::JumpInto(
+    const std::string& target) {
   portal2_harness::MacroResult r;
   TargetRef ref = ClassifyTarget(target);
   if (ref.kind != TargetRef::PORTAL) {
@@ -1812,8 +1820,8 @@ portal2_harness::MacroResult MacroExecutor::JumpInto(const std::string& target) 
     return c;
   };
 
-  // 1. Resolve the portal + gate on an up-facing normal (a floor portal you fall
-  // INTO; a wall portal is pass_through's job).
+  // 1. Resolve the portal + gate on an up-facing normal (a floor portal you
+  // fall INTO; a wall portal is pass_through's job).
   struct Setup {
     std::string code = "NO_SUCH_PORTAL";
     Vector center{0, 0, 0};
@@ -1843,7 +1851,8 @@ portal2_harness::MacroResult MacroExecutor::JumpInto(const std::string& target) 
   // running flat onto a ground portal, or the funnel drop -- and never lost.
   auto prev = std::make_shared<Vector>();
   auto exitPos = std::make_shared<Vector>();
-  auto entryPos = std::make_shared<Vector>();  // pos the tick before the transit
+  auto entryPos =
+      std::make_shared<Vector>();  // pos the tick before the transit
   bool transited = false;
   RunOnMainThreadSync(context_, [prev]() {
     ServerEnt* pl = server->GetPlayer(1);
@@ -1909,7 +1918,8 @@ portal2_harness::MacroResult MacroExecutor::JumpInto(const std::string& target) 
           if (!PlayerEye(&eye)) return;
           ApplyAbsoluteView(AimAnglesTo(eye, center));
           SetMoveFramebulk(0, kJumpMoveSpeed);  // clears buttons
-          tasPlayer->playbackInfo.slots[0].framebulks[0].buttonStates[Jump] = true;
+          tasPlayer->playbackInfo.slots[0].framebulks[0].buttonStates[Jump] =
+              true;
         }))
       return cancelled();
     AdvanceTicksBlocking(kJumpHold);
@@ -1961,8 +1971,8 @@ portal2_harness::MacroResult MacroExecutor::JumpInto(const std::string& target) 
   r.set_detail(Utils::ssprintf(
       "jump_into: flung after %d ticks, (%.0f %.0f %.0f) -> (%.0f %.0f %.0f) "
       "vel=(%.0f %.0f %.0f)",
-      flightTicks, entryPos->x, entryPos->y, entryPos->z, exitPos->x, exitPos->y,
-      exitPos->z, vel->x, vel->y, vel->z));
+      flightTicks, entryPos->x, entryPos->y, entryPos->z, exitPos->x,
+      exitPos->y, exitPos->z, vel->x, vel->y, vel->z));
   return r;
 }
 
@@ -2178,7 +2188,8 @@ portal2_harness::MacroResult MacroExecutor::GoTo(const std::string& target) {
     TargetRef ref = ClassifyTarget(target);
     if (ref.kind == TargetRef::ENTITY) {
       auto [idx, ser] = markTable.GetEntityFromMark(ref.mark);
-      if (idx >= 0) res->targetKey = PackEntKey(idx, static_cast<uint16_t>(ser));
+      if (idx >= 0)
+        res->targetKey = PackEntKey(idx, static_cast<uint16_t>(ser));
     }
     ServerEnt* pl = server->GetPlayer(1);
     if (pl) {
@@ -2792,13 +2803,15 @@ portal2_harness::MacroResult MacroExecutor::Release(const std::string& target) {
   return r;
 }
 
-portal2_harness::MacroResult MacroExecutor::Interact(const std::string& target) {
+portal2_harness::MacroResult MacroExecutor::Interact(
+    const std::string& target) {
   // +use acts on an entity (a button/switch), not a panel or portal.
   TargetRef ref = ClassifyTarget(target);
   if (ref.kind != TargetRef::ENTITY) {
     portal2_harness::MacroResult r;
     r.set_ok(false);
-    r.set_result_code(ref.kind == TargetRef::NONE ? "BAD_MARK" : "WRONG_TARGET");
+    r.set_result_code(ref.kind == TargetRef::NONE ? "BAD_MARK"
+                                                  : "WRONG_TARGET");
     r.set_detail("interact needs an entity mark, got \"" + target + "\"");
     return r;
   }

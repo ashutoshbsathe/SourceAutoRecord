@@ -165,8 +165,10 @@ class WorldView:
         panels.sort(key=lambda d: int(d['mark'][1:]))
         portals = [
             _portal_dict(color, pinfo, player, eye_yaw)
-            for color, pinfo in (('blue', state.blue_portal),
-                                 ('orange', state.orange_portal))
+            for color, pinfo in (
+                ('blue', state.blue_portal),
+                ('orange', state.orange_portal),
+            )
             if pinfo.active
         ]
         return marks + panels + portals

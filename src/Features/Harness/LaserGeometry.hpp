@@ -2,7 +2,8 @@
 #include "Utils/SDK/Math.hpp"
 #include "Utils/SDK/Trace.hpp"
 
-// Shared laser-seat geometry: beam ray, down-trace rest, redirect yaw, line-clear.
+// Shared laser-seat geometry: beam ray, down-trace rest, redirect yaw,
+// line-clear.
 
 // Trace filter skipping two entities, so a ray's own endpoints don't self-stop
 // it at fraction 0.
@@ -14,9 +15,9 @@ class SkipTwoEntities : public CTraceFilter {
 };
 
 // Forward beam ray: emitter -> first opaque world/prop hit (MASK_OPAQUE).
-// E/fwd/hit/length filled; false if nothing is hit within range. skipA/skipB are
-// extra entities the ray ignores (e.g. player + held cube) so they don't shorten
-// the beam.
+// E/fwd/hit/length filled; false if nothing is hit within range. skipA/skipB
+// are extra entities the ray ignores (e.g. player + held cube) so they don't
+// shorten the beam.
 bool ComputeBeamSegment(void* emitter, Vector* E, Vector* fwd, Vector* hit,
                         float* length, void* skipA = nullptr,
                         void* skipB = nullptr);

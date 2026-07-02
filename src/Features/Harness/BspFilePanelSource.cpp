@@ -21,7 +21,8 @@ namespace {
 
 const float kTile = 128.0f;
 
-// Source BSP v21 on-disk lump structs; layout must match the file byte-for-byte.
+// Source BSP v21 on-disk lump structs; layout must match the file
+// byte-for-byte.
 #pragma pack(push, 1)
 struct Plane {
   Vector normal;

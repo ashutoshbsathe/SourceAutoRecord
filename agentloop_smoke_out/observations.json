@@ -3,9 +3,9 @@
     "label": "reset.initial_state",
     "server_tick": 352,
     "position": [
-      -1904.0,
-      2096.0,
-      -142.46875
+      8704.0,
+      -5184.0,
+      -143.96875
     ],
     "velocity": [
       0.0,
@@ -14,23 +14,23 @@
     ],
     "camera": [
       0.0,
-      90.0,
+      180.0,
       0.0
     ],
     "health": 100,
     "is_crouching": false,
     "chamber_complete": false,
     "exit_signal_mask": 0,
-    "entities": 791,
+    "entities": 645,
     "is_full_snapshot": true
   },
   {
     "label": "observe",
     "server_tick": 352,
     "position": [
-      -1904.0,
-      2096.0,
-      -142.46875
+      8704.0,
+      -5184.0,
+      -143.96875
     ],
     "velocity": [
       0.0,
@@ -39,107 +39,107 @@
     ],
     "camera": [
       0.0,
-      90.0,
+      180.0,
       0.0
     ],
     "health": 100,
     "is_crouching": false,
     "chamber_complete": false,
     "exit_signal_mask": 0,
-    "entities": 1,
+    "entities": 0,
     "is_full_snapshot": false
   },
   {
     "label": "agentloop[0]",
     "server_tick": 360,
     "position": [
-      -1902.740234375,
-      2104.39892578125,
-      -142.46875
+      8690.16015625,
+      -5181.37060546875,
+      -143.96875
     ],
     "velocity": [
-      27.845420837402344,
-      137.04713439941406,
+      -171.18702697753906,
+      45.76144790649414,
       0.0
     ],
     "camera": [
       0.0,
-      66.0,
+      156.0,
       0.0
     ],
     "health": 100,
     "is_crouching": false,
     "chamber_complete": false,
     "exit_signal_mask": 0,
-    "entities": 791,
+    "entities": 645,
     "is_full_snapshot": true
   },
   {
     "label": "agentloop[1]",
     "server_tick": 364,
     "position": [
-      -1899.68701171875,
-      2115.562255859375,
-      -142.46875
+      8678.69921875,
+      -5177.7333984375,
+      -143.96875
     ],
     "velocity": [
-      52.26486587524414,
-      171.89744567871094,
+      -172.06082153320312,
+      60.90631866455078,
       0.0
     ],
     "camera": [
       0.0,
-      54.0,
+      144.0,
       0.0
     ],
     "health": 100,
     "is_crouching": false,
     "chamber_complete": false,
     "exit_signal_mask": 0,
-    "entities": 2,
+    "entities": 5,
     "is_full_snapshot": false
   },
   {
     "label": "agentloop[2]",
     "server_tick": 368,
     "position": [
-      -1895.445068359375,
-      2127.01513671875,
-      -142.46875
+      8667.3232421875,
+      -5172.77392578125,
+      -143.96875
     ],
     "velocity": [
-      71.34378051757812,
-      171.2474822998047,
+      -169.11903381347656,
+      83.21026611328125,
       0.0
     ],
     "camera": [
       0.0,
-      42.0,
+      132.0,
       0.0
     ],
     "health": 100,
     "is_crouching": false,
     "chamber_complete": false,
     "exit_signal_mask": 0,
-    "entities": 3,
+    "entities": 4,
     "is_full_snapshot": false
   },
   {
     "label": "agentloop[3]",
     "server_tick": 372,
     "position": [
-      -1889.6781005859375,
-      2138.221435546875,
-      -142.46875
+      8656.3935546875,
+      -5166.13623046875,
+      -143.96875
     ],
     "velocity": [
-      96.12596130371094,
-      165.42172241210938,
+      -159.97938537597656,
+      109.70841979980469,
       0.0
     ],
     "camera": [
       0.0,
-      30.0,
+      120.0,
       0.0
     ],
     "health": 100,
@@ -153,18 +153,18 @@
     "label": "agentloop[4]",
     "server_tick": 376,
     "position": [
-      -1882.1318359375,
-      2148.757080078125,
-      -142.46875
+      8646.375,
+      -5157.66796875,
+      -143.96875
     ],
     "velocity": [
-      123.58101654052734,
-      152.68626403808594,
+      -143.5001678466797,
+      137.3798370361328,
       0.0
     ],
     "camera": [
       0.0,
-      18.0,
+      108.0,
       0.0
     ],
     "health": 100,
@@ -178,143 +178,93 @@
     "label": "agentloop[5]",
     "server_tick": 380,
     "position": [
-      -1872.751953125,
-      2158.13134765625,
-      -142.46875
+      8637.7685546875,
+      -5147.41015625,
+      -143.96875
     ],
     "velocity": [
-      150.7595977783203,
-      132.43536376953125,
+      -119.55619049072266,
+      163.39805603027344,
       0.0
     ],
     "camera": [
       0.0,
-      6.0,
+      96.0,
       0.0
     ],
     "health": 100,
     "is_crouching": false,
     "chamber_complete": false,
     "exit_signal_mask": 0,
-    "entities": 2,
+    "entities": 3,
     "is_full_snapshot": false
   },
   {
     "label": "agentloop[6]",
     "server_tick": 384,
     "position": [
-      -1861.6697998046875,
-      2165.8515625,
-      -142.46875
+      8631.046875,
+      -5135.57763671875,
+      -143.96875
     ],
     "velocity": [
-      174.99998474121094,
-      104.97047424316406,
+      -88.82359313964844,
+      185.29965209960938,
       0.0
     ],
     "camera": [
       0.0,
-      -6.0,
+      84.0,
       0.0
     ],
     "health": 100,
     "is_crouching": false,
     "chamber_complete": false,
     "exit_signal_mask": 0,
-    "entities": 2,
+    "entities": 4,
     "is_full_snapshot": false
   },
   {
     "label": "agentloop[7]",
     "server_tick": 388,
     "position": [
-      -1849.1767578125,
-      2171.47509765625,
-      -142.46875
+      8626.611328125,
+      -5122.5302734375,
+      -143.96875
     ],
     "velocity": [
-      194.0632781982422,
-      71.29244995117188,
+      -52.580265045166016,
+      201.09024047851562,
       0.0
     ],
     "camera": [
       0.0,
-      -18.0,
+      72.0,
       0.0
     ],
     "health": 100,
     "is_crouching": false,
     "chamber_complete": false,
     "exit_signal_mask": 0,
-    "entities": 2,
+    "entities": 4,
     "is_full_snapshot": false
   },
   {
     "label": "agentloop[8]",
     "server_tick": 392,
     "position": [
-      -1835.6932373046875,
-      2174.6484375,
-      -142.46875
+      8624.759765625,
+      -5108.73974609375,
+      -143.96875
     ],
     "velocity": [
-      206.21424865722656,
-      32.9109992980957,
+      -12.52477741241455,
+      209.3037567138672,
       0.0
     ],
     "camera": [
       0.0,
-      -30.0,
-      0.0
-    ],
-    "health": 100,
-    "is_crouching": false,
-    "chamber_complete": false,
-    "exit_signal_mask": 0,
-    "entities": 3,
-    "is_full_snapshot": false
-  },
-  {
-    "label": "agentloop[9]",
-    "server_tick": 396,
-    "position": [
-      -1821.7325439453125,
-      2175.134033203125,
-      -143.96875
-    ],
-    "velocity": [
-      210.26193237304688,
-      -8.32702922821045,
-      0.0
-    ],
-    "camera": [
-      0.0,
-      -42.0,
-      0.0
-    ],
-    "health": 100,
-    "is_crouching": false,
-    "chamber_complete": false,
-    "exit_signal_mask": 0,
-    "entities": 3,
-    "is_full_snapshot": false
-  },
-  {
-    "label": "macro.aim_at[3]",
-    "server_tick": 411,
-    "position": [
-      -1772.7269287109375,
-      2150.986328125,
-      -143.96875
-    ],
-    "velocity": [
-      136.04405212402344,
-      -126.93307495117188,
-      0.0
-    ],
-    "camera": [
-      -9.843198776245117,
-      100.20782470703125,
+      60.0,
       0.0
     ],
     "health": 100,
@@ -325,61 +275,61 @@
     "is_full_snapshot": false
   },
   {
-    "label": "macro.go_to[3]",
-    "server_tick": 1232,
+    "label": "agentloop[9]",
+    "server_tick": 396,
     "position": [
-      30.02313232421875,
-      736.2192993164062,
-      0.03125
+      8625.6669921875,
+      -5094.751953125,
+      -143.96875
     ],
     "velocity": [
-      0.0,
-      0.0,
+      29.385942459106445,
+      209.02647399902344,
       0.0
     ],
     "camera": [
       0.0,
-      131.9530029296875,
+      48.0,
       0.0
     ],
     "health": 100,
     "is_crouching": false,
     "chamber_complete": false,
     "exit_signal_mask": 0,
-    "entities": 11,
+    "entities": 2,
     "is_full_snapshot": false
   },
   {
-    "label": "macro.release[7]",
-    "server_tick": 1471,
+    "label": "macro.aim_at[7]",
+    "server_tick": 413,
     "position": [
-      566.9537963867188,
-      704.0,
-      0.03125
+      8654.72265625,
+      -5048.38134765625,
+      -143.96875
     ],
     "velocity": [
-      0.0,
-      0.0,
+      140.41819763183594,
+      122.41106414794922,
       0.0
     ],
     "camera": [
-      15.04407787322998,
-      -179.0759735107422,
+      -5.13814115524292,
+      -168.1926727294922,
       0.0
     ],
     "health": 100,
     "is_crouching": false,
     "chamber_complete": false,
     "exit_signal_mask": 0,
-    "entities": 22,
+    "entities": 2,
     "is_full_snapshot": false
   },
   {
-    "label": "macro.interpose[8]",
-    "server_tick": 1363,
+    "label": "macro.go_to[1]",
+    "server_tick": 1052,
     "position": [
-      390.75091552734375,
-      375.984375,
+      8181.0966796875,
+      -5807.96728515625,
       0.03125
     ],
     "velocity": [
@@ -388,8 +338,8 @@
       0.0
     ],
     "camera": [
-      37.743995666503906,
-      -0.47152772545814514,
+      0.0,
+      -64.92596435546875,
       0.0
     ],
     "health": 100,
@@ -400,11 +350,11 @@
     "is_full_snapshot": false
   },
   {
-    "label": "macro.redirect_to[11]",
-    "server_tick": 1400,
+    "label": "macro.interpose[1]",
+    "server_tick": 1283,
     "position": [
-      390.75091552734375,
-      375.984375,
+      8042.703125,
+      -5703.64013671875,
       0.03125
     ],
     "velocity": [
@@ -413,15 +363,40 @@
       0.0
     ],
     "camera": [
-      37.743995666503906,
-      -0.47152772545814514,
+      37.99930953979492,
+      29.271778106689453,
       0.0
     ],
     "health": 100,
     "is_crouching": false,
     "chamber_complete": false,
     "exit_signal_mask": 0,
-    "entities": 20,
+    "entities": 15,
+    "is_full_snapshot": false
+  },
+  {
+    "label": "macro.redirect_to[8]",
+    "server_tick": 1382,
+    "position": [
+      8042.703125,
+      -5703.64013671875,
+      0.03125
+    ],
+    "velocity": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "camera": [
+      37.99930953979492,
+      29.271778106689453,
+      0.0
+    ],
+    "health": 100,
+    "is_crouching": false,
+    "chamber_complete": false,
+    "exit_signal_mask": 0,
+    "entities": 8,
     "is_full_snapshot": false
   }
 ]

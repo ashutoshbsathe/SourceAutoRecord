@@ -464,7 +464,9 @@ def check_interpose(ctx):
             )
 
         run(harness_pb2.MacroRequest(verb='go_to', target=str(cube.mark)), 90.0)
-        grab = run(harness_pb2.MacroRequest(verb='pick_up', target=str(cube.mark)), 30.0)
+        grab = run(
+            harness_pb2.MacroRequest(verb='pick_up', target=str(cube.mark)), 30.0
+        )
         require(
             grab.macro_result.result_code == 'SUCCESS',
             f'pick_up cube mark={cube.mark} failed: '
@@ -534,7 +536,9 @@ def check_redirect(ctx):
             )
 
         run(harness_pb2.MacroRequest(verb='go_to', target=str(cube.mark)), 90.0)
-        grab = run(harness_pb2.MacroRequest(verb='pick_up', target=str(cube.mark)), 30.0)
+        grab = run(
+            harness_pb2.MacroRequest(verb='pick_up', target=str(cube.mark)), 30.0
+        )
         require(
             grab.macro_result.result_code == 'SUCCESS',
             f'pick_up cube mark={cube.mark} failed: '
