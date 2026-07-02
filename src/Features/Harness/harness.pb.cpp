@@ -219,6 +219,12 @@ inline constexpr MacroRequest::Impl_::Impl_(
         verb_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
+        target_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        aim_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
         dir_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
@@ -228,13 +234,10 @@ inline constexpr MacroRequest::Impl_::Impl_(
         where_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
-        mark_{0},
         ticks_{0},
         yaw_{0},
         pitch_{0},
-        percent_{0},
-        target_mark_{0},
-        surface_mark_{0} {}
+        percent_{0} {}
 
 template <typename>
 PROTOBUF_CONSTEXPR MacroRequest::MacroRequest(::_pbi::ConstantInitialized)
@@ -803,29 +806,27 @@ const ::uint32_t
         2,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_._has_bits_),
-        14, // hasbit index offset
+        13, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.verb_),
-        PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.mark_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.target_),
+        PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.aim_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.ticks_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.dir_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.yaw_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.pitch_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.percent_),
-        PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.target_mark_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.color_),
-        PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.surface_mark_),
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroRequest, _impl_.where_),
         0,
-        4,
-        5,
         1,
+        2,
         6,
+        3,
         7,
         8,
         9,
-        2,
-        10,
-        3,
+        4,
+        5,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::portal2_harness::MacroResult, _impl_._has_bits_),
         11, // hasbit index offset
@@ -1090,26 +1091,26 @@ static const ::_pbi::MigrationSchema
         {9, sizeof(::portal2_harness::AgentMessage)},
         {18, sizeof(::portal2_harness::EnvironmentMessage)},
         {29, sizeof(::portal2_harness::MacroRequest)},
-        {54, sizeof(::portal2_harness::MacroResult)},
-        {73, sizeof(::portal2_harness::EntityField)},
-        {92, sizeof(::portal2_harness::EntityState)},
-        {115, sizeof(::portal2_harness::EntitySnapshot)},
-        {124, sizeof(::portal2_harness::SurfaceMark)},
-        {139, sizeof(::portal2_harness::PortalInfo)},
-        {150, sizeof(::portal2_harness::GameState)},
-        {179, sizeof(::portal2_harness::ActionRequest)},
-        {210, sizeof(::portal2_harness::ActionResponse)},
-        {217, sizeof(::portal2_harness::CommandRequest)},
-        {222, sizeof(::portal2_harness::CommandResponse)},
-        {229, sizeof(::portal2_harness::ResetRequest)},
-        {234, sizeof(::portal2_harness::ResetResponse)},
-        {243, sizeof(::portal2_harness::HandshakeRequest)},
-        {250, sizeof(::portal2_harness::HandshakeResponse)},
-        {265, sizeof(::portal2_harness::RolloutHeader)},
-        {278, sizeof(::portal2_harness::RolloutStep)},
-        {287, sizeof(::portal2_harness::Empty)},
-        {288, sizeof(::portal2_harness::RenderDemoRequest)},
-        {297, sizeof(::portal2_harness::RenderDemoResponse)},
+        {52, sizeof(::portal2_harness::MacroResult)},
+        {71, sizeof(::portal2_harness::EntityField)},
+        {90, sizeof(::portal2_harness::EntityState)},
+        {113, sizeof(::portal2_harness::EntitySnapshot)},
+        {122, sizeof(::portal2_harness::SurfaceMark)},
+        {137, sizeof(::portal2_harness::PortalInfo)},
+        {148, sizeof(::portal2_harness::GameState)},
+        {177, sizeof(::portal2_harness::ActionRequest)},
+        {208, sizeof(::portal2_harness::ActionResponse)},
+        {215, sizeof(::portal2_harness::CommandRequest)},
+        {220, sizeof(::portal2_harness::CommandResponse)},
+        {227, sizeof(::portal2_harness::ResetRequest)},
+        {232, sizeof(::portal2_harness::ResetResponse)},
+        {241, sizeof(::portal2_harness::HandshakeRequest)},
+        {248, sizeof(::portal2_harness::HandshakeResponse)},
+        {263, sizeof(::portal2_harness::RolloutHeader)},
+        {276, sizeof(::portal2_harness::RolloutStep)},
+        {285, sizeof(::portal2_harness::Empty)},
+        {286, sizeof(::portal2_harness::RenderDemoRequest)},
+        {295, sizeof(::portal2_harness::RenderDemoResponse)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::portal2_harness::_Vector3_default_instance_._instance,
@@ -1148,104 +1149,103 @@ const char descriptor_table_protodef_harness_2eproto[] ABSL_ATTRIBUTE_SECTION_VA
     "\n\005state\030\001 \001(\0132\032.portal2_harness.GameStat"
     "e\022\017\n\007success\030\002 \001(\010\022\025\n\rerror_message\030\003 \001("
     "\t\0222\n\014macro_result\030\004 \001(\0132\034.portal2_harnes"
-    "s.MacroResult\"\274\001\n\014MacroRequest\022\014\n\004verb\030\001"
-    " \001(\t\022\014\n\004mark\030\002 \001(\005\022\r\n\005ticks\030\003 \001(\005\022\013\n\003dir"
-    "\030\004 \001(\t\022\013\n\003yaw\030\005 \001(\005\022\r\n\005pitch\030\006 \001(\005\022\017\n\007pe"
-    "rcent\030\007 \001(\002\022\023\n\013target_mark\030\010 \001(\005\022\r\n\005colo"
-    "r\030\t \001(\t\022\024\n\014surface_mark\030\n \001(\005\022\r\n\005where\030\013"
-    " \001(\t\"\233\001\n\013MacroResult\022\n\n\002ok\030\001 \001(\010\022\023\n\013resu"
-    "lt_code\030\002 \001(\t\022\016\n\006detail\030\003 \001(\t\022\017\n\007reached"
-    "\030\004 \001(\010\022\022\n\nfinal_dist\030\005 \001(\002\022\022\n\nmoved_dist"
-    "\030\006 \001(\002\022\021\n\taim_pitch\030\007 \001(\002\022\017\n\007aim_yaw\030\010 \001"
-    "(\002\"\272\001\n\013EntityField\022\014\n\004name\030\001 \001(\t\022\023\n\tfloa"
-    "t_val\030\002 \001(\002H\000\022\021\n\007int_val\030\003 \001(\005H\000\022,\n\010vec3"
-    "_val\030\004 \001(\0132\030.portal2_harness.Vector3H\000\022\022"
-    "\n\010bool_val\030\005 \001(\010H\000\022\024\n\nstring_val\030\006 \001(\tH\000"
-    "\022\024\n\nhandle_val\030\007 \001(\005H\000B\007\n\005value\"\262\002\n\013Enti"
-    "tyState\022\024\n\014entity_index\030\001 \001(\005\022\025\n\rserial_"
-    "number\030\002 \001(\005\022\022\n\nclass_name\030\003 \001(\t\022\023\n\013targ"
-    "et_name\030\004 \001(\t\022*\n\010position\030\005 \001(\0132\030.portal"
-    "2_harness.Vector3\022(\n\006angles\030\006 \001(\0132\030.port"
-    "al2_harness.Vector3\022*\n\010velocity\030\007 \001(\0132\030."
-    "portal2_harness.Vector3\022,\n\006fields\030\010 \003(\0132"
-    "\034.portal2_harness.EntityField\022\017\n\007deleted"
-    "\030\t \001(\010\022\014\n\004mark\030\n \001(\005\"h\n\016EntitySnapshot\022."
-    "\n\010entities\030\001 \003(\0132\034.portal2_harness.Entit"
-    "yState\022\030\n\020is_full_snapshot\030\002 \001(\010\022\014\n\004tick"
-    "\030\003 \001(\005\"\333\001\n\013SurfaceMark\022\014\n\004mark\030\001 \001(\005\022.\n\014"
-    "plane_normal\030\002 \001(\0132\030.portal2_harness.Vec"
-    "tor3\022(\n\006center\030\003 \001(\0132\030.portal2_harness.V"
-    "ector3\022&\n\004mins\030\004 \001(\0132\030.portal2_harness.V"
-    "ector3\022&\n\004maxs\030\005 \001(\0132\030.portal2_harness.V"
-    "ector3\022\024\n\014anchor_flags\030\006 \001(\005\"\214\001\n\nPortalI"
-    "nfo\022\016\n\006active\030\001 \001(\010\022.\n\014mouth_center\030\002 \001("
-    "\0132\030.portal2_harness.Vector3\022.\n\014mouth_nor"
-    "mal\030\003 \001(\0132\030.portal2_harness.Vector3\022\016\n\006l"
-    "inked\030\004 \001(\010\"\344\003\n\tGameState\022*\n\010position\030\001 "
-    "\001(\0132\030.portal2_harness.Vector3\022*\n\010velocit"
-    "y\030\002 \001(\0132\030.portal2_harness.Vector3\022(\n\006cam"
-    "era\030\003 \001(\0132\030.portal2_harness.Vector3\022\016\n\006h"
-    "ealth\030\004 \001(\005\022\024\n\014is_crouching\030\005 \001(\010\022\023\n\013ser"
-    "ver_tick\030\006 \001(\005\0228\n\017entity_snapshot\030\007 \001(\0132"
-    "\037.portal2_harness.EntitySnapshot\022\030\n\020cham"
-    "ber_complete\030\010 \001(\010\022\030\n\020exit_signal_mask\030\t"
-    " \001(\005\022\021\n\theld_mark\030\n \001(\005\0223\n\rsurface_marks"
-    "\030\013 \003(\0132\034.portal2_harness.SurfaceMark\0220\n\013"
-    "blue_portal\030\014 \001(\0132\033.portal2_harness.Port"
-    "alInfo\0222\n\rorange_portal\030\r \001(\0132\033.portal2_"
-    "harness.PortalInfo\"\250\002\n\rActionRequest\022\021\n\t"
-    "num_ticks\030\001 \001(\005\022\023\n\013key_forward\030\002 \001(\010\022\020\n\010"
-    "key_left\030\003 \001(\010\022\024\n\014key_backward\030\004 \001(\010\022\021\n\t"
-    "key_right\030\005 \001(\010\022\017\n\007key_use\030\006 \001(\010\022\022\n\nkey_"
-    "zoomin\030\007 \001(\010\022\023\n\013key_zoomout\030\010 \001(\010\022\022\n\nkey"
-    "_crouch\030\t \001(\010\022\026\n\016portal_primary\030\n \001(\010\022\030\n"
-    "\020portal_secondary\030\013 \001(\010\022\020\n\010key_jump\030\014 \001("
-    "\010\022\020\n\010mouse_dx\030\r \001(\002\022\020\n\010mouse_dy\030\016 \001(\002\"8\n"
-    "\016ActionResponse\022\017\n\007success\030\001 \001(\010\022\025\n\rerro"
-    "r_message\030\002 \001(\t\"!\n\016CommandRequest\022\017\n\007com"
-    "mand\030\001 \001(\t\"9\n\017CommandResponse\022\017\n\007success"
-    "\030\001 \001(\010\022\025\n\rerror_message\030\002 \001(\t\" \n\014ResetRe"
-    "quest\022\020\n\010map_name\030\001 \001(\t\"j\n\rResetResponse"
-    "\022\017\n\007success\030\001 \001(\010\022\025\n\rerror_message\030\002 \001(\t"
-    "\0221\n\rinitial_state\030\003 \001(\0132\032.portal2_harnes"
-    "s.GameState\"=\n\020HandshakeRequest\022\026\n\016clien"
-    "t_version\030\001 \001(\t\022\021\n\tclient_id\030\002 \001(\t\"\206\001\n\021H"
-    "andshakeResponse\022\024\n\014game_version\030\001 \001(\t\022\020"
-    "\n\010map_name\030\002 \001(\t\022\021\n\tshm_width\030\003 \001(\005\022\022\n\ns"
-    "hm_height\030\004 \001(\005\022\020\n\010shm_size\030\005 \001(\005\022\020\n\010shm"
-    "_name\030\006 \001(\t\"l\n\rRolloutHeader\022\020\n\010map_name"
-    "\030\001 \001(\t\022\021\n\tshm_width\030\002 \001(\005\022\022\n\nshm_height\030"
-    "\003 \001(\005\022\020\n\010tickrate\030\004 \001(\002\022\020\n\010shm_name\030\005 \001("
-    "\t\"|\n\013RolloutStep\022)\n\005state\030\001 \001(\0132\032.portal"
-    "2_harness.GameState\022.\n\006action\030\002 \001(\0132\036.po"
-    "rtal2_harness.ActionRequest\022\022\n\nimage_dat"
-    "a\030\003 \001(\014\"\007\n\005Empty\"S\n\021RenderDemoRequest\022\021\n"
-    "\tdemo_path\030\001 \001(\t\022\023\n\013output_path\030\002 \001(\t\022\026\n"
-    "\016capture_pixels\030\003 \001(\010\"\204\001\n\022RenderDemoResp"
-    "onse\022\017\n\007success\030\001 \001(\010\022\025\n\rerror_message\030\002"
-    " \001(\t\022\031\n\021final_output_path\030\003 \001(\t\022\026\n\016recor"
-    "ded_ticks\030\004 \001(\005\022\023\n\013total_bytes\030\005 \001(\0032\273\004\n"
-    "\016Portal2Harness\022Y\n\020InitialHandshake\022!.po"
-    "rtal2_harness.HandshakeRequest\032\".portal2"
-    "_harness.HandshakeResponse\022=\n\007Observe\022\026."
-    "portal2_harness.Empty\032\032.portal2_harness."
-    "GameState\022F\n\003Act\022\036.portal2_harness.Actio"
-    "nRequest\032\037.portal2_harness.ActionRespons"
-    "e\022S\n\016ExecuteCommand\022\037.portal2_harness.Co"
-    "mmandRequest\032 .portal2_harness.CommandRe"
-    "sponse\022F\n\005Reset\022\035.portal2_harness.ResetR"
-    "equest\032\036.portal2_harness.ResetResponse\022S"
-    "\n\tAgentLoop\022\035.portal2_harness.AgentMessa"
-    "ge\032#.portal2_harness.EnvironmentMessage("
-    "\0010\001\022U\n\nRenderDemo\022\".portal2_harness.Rend"
-    "erDemoRequest\032#.portal2_harness.RenderDe"
-    "moResponseb\006proto3"
+    "s.MacroResult\"\240\001\n\014MacroRequest\022\014\n\004verb\030\001"
+    " \001(\t\022\016\n\006target\030\002 \001(\t\022\013\n\003aim\030\003 \001(\t\022\r\n\005tic"
+    "ks\030\004 \001(\005\022\013\n\003dir\030\005 \001(\t\022\013\n\003yaw\030\006 \001(\005\022\r\n\005pi"
+    "tch\030\007 \001(\005\022\017\n\007percent\030\010 \001(\002\022\r\n\005color\030\t \001("
+    "\t\022\r\n\005where\030\n \001(\t\"\233\001\n\013MacroResult\022\n\n\002ok\030\001"
+    " \001(\010\022\023\n\013result_code\030\002 \001(\t\022\016\n\006detail\030\003 \001("
+    "\t\022\017\n\007reached\030\004 \001(\010\022\022\n\nfinal_dist\030\005 \001(\002\022\022"
+    "\n\nmoved_dist\030\006 \001(\002\022\021\n\taim_pitch\030\007 \001(\002\022\017\n"
+    "\007aim_yaw\030\010 \001(\002\"\272\001\n\013EntityField\022\014\n\004name\030\001"
+    " \001(\t\022\023\n\tfloat_val\030\002 \001(\002H\000\022\021\n\007int_val\030\003 \001"
+    "(\005H\000\022,\n\010vec3_val\030\004 \001(\0132\030.portal2_harness"
+    ".Vector3H\000\022\022\n\010bool_val\030\005 \001(\010H\000\022\024\n\nstring"
+    "_val\030\006 \001(\tH\000\022\024\n\nhandle_val\030\007 \001(\005H\000B\007\n\005va"
+    "lue\"\262\002\n\013EntityState\022\024\n\014entity_index\030\001 \001("
+    "\005\022\025\n\rserial_number\030\002 \001(\005\022\022\n\nclass_name\030\003"
+    " \001(\t\022\023\n\013target_name\030\004 \001(\t\022*\n\010position\030\005 "
+    "\001(\0132\030.portal2_harness.Vector3\022(\n\006angles\030"
+    "\006 \001(\0132\030.portal2_harness.Vector3\022*\n\010veloc"
+    "ity\030\007 \001(\0132\030.portal2_harness.Vector3\022,\n\006f"
+    "ields\030\010 \003(\0132\034.portal2_harness.EntityFiel"
+    "d\022\017\n\007deleted\030\t \001(\010\022\014\n\004mark\030\n \001(\005\"h\n\016Enti"
+    "tySnapshot\022.\n\010entities\030\001 \003(\0132\034.portal2_h"
+    "arness.EntityState\022\030\n\020is_full_snapshot\030\002"
+    " \001(\010\022\014\n\004tick\030\003 \001(\005\"\333\001\n\013SurfaceMark\022\014\n\004ma"
+    "rk\030\001 \001(\005\022.\n\014plane_normal\030\002 \001(\0132\030.portal2"
+    "_harness.Vector3\022(\n\006center\030\003 \001(\0132\030.porta"
+    "l2_harness.Vector3\022&\n\004mins\030\004 \001(\0132\030.porta"
+    "l2_harness.Vector3\022&\n\004maxs\030\005 \001(\0132\030.porta"
+    "l2_harness.Vector3\022\024\n\014anchor_flags\030\006 \001(\005"
+    "\"\214\001\n\nPortalInfo\022\016\n\006active\030\001 \001(\010\022.\n\014mouth"
+    "_center\030\002 \001(\0132\030.portal2_harness.Vector3\022"
+    ".\n\014mouth_normal\030\003 \001(\0132\030.portal2_harness."
+    "Vector3\022\016\n\006linked\030\004 \001(\010\"\344\003\n\tGameState\022*\n"
+    "\010position\030\001 \001(\0132\030.portal2_harness.Vector"
+    "3\022*\n\010velocity\030\002 \001(\0132\030.portal2_harness.Ve"
+    "ctor3\022(\n\006camera\030\003 \001(\0132\030.portal2_harness."
+    "Vector3\022\016\n\006health\030\004 \001(\005\022\024\n\014is_crouching\030"
+    "\005 \001(\010\022\023\n\013server_tick\030\006 \001(\005\0228\n\017entity_sna"
+    "pshot\030\007 \001(\0132\037.portal2_harness.EntitySnap"
+    "shot\022\030\n\020chamber_complete\030\010 \001(\010\022\030\n\020exit_s"
+    "ignal_mask\030\t \001(\005\022\021\n\theld_mark\030\n \001(\005\0223\n\rs"
+    "urface_marks\030\013 \003(\0132\034.portal2_harness.Sur"
+    "faceMark\0220\n\013blue_portal\030\014 \001(\0132\033.portal2_"
+    "harness.PortalInfo\0222\n\rorange_portal\030\r \001("
+    "\0132\033.portal2_harness.PortalInfo\"\250\002\n\rActio"
+    "nRequest\022\021\n\tnum_ticks\030\001 \001(\005\022\023\n\013key_forwa"
+    "rd\030\002 \001(\010\022\020\n\010key_left\030\003 \001(\010\022\024\n\014key_backwa"
+    "rd\030\004 \001(\010\022\021\n\tkey_right\030\005 \001(\010\022\017\n\007key_use\030\006"
+    " \001(\010\022\022\n\nkey_zoomin\030\007 \001(\010\022\023\n\013key_zoomout\030"
+    "\010 \001(\010\022\022\n\nkey_crouch\030\t \001(\010\022\026\n\016portal_prim"
+    "ary\030\n \001(\010\022\030\n\020portal_secondary\030\013 \001(\010\022\020\n\010k"
+    "ey_jump\030\014 \001(\010\022\020\n\010mouse_dx\030\r \001(\002\022\020\n\010mouse"
+    "_dy\030\016 \001(\002\"8\n\016ActionResponse\022\017\n\007success\030\001"
+    " \001(\010\022\025\n\rerror_message\030\002 \001(\t\"!\n\016CommandRe"
+    "quest\022\017\n\007command\030\001 \001(\t\"9\n\017CommandRespons"
+    "e\022\017\n\007success\030\001 \001(\010\022\025\n\rerror_message\030\002 \001("
+    "\t\" \n\014ResetRequest\022\020\n\010map_name\030\001 \001(\t\"j\n\rR"
+    "esetResponse\022\017\n\007success\030\001 \001(\010\022\025\n\rerror_m"
+    "essage\030\002 \001(\t\0221\n\rinitial_state\030\003 \001(\0132\032.po"
+    "rtal2_harness.GameState\"=\n\020HandshakeRequ"
+    "est\022\026\n\016client_version\030\001 \001(\t\022\021\n\tclient_id"
+    "\030\002 \001(\t\"\206\001\n\021HandshakeResponse\022\024\n\014game_ver"
+    "sion\030\001 \001(\t\022\020\n\010map_name\030\002 \001(\t\022\021\n\tshm_widt"
+    "h\030\003 \001(\005\022\022\n\nshm_height\030\004 \001(\005\022\020\n\010shm_size\030"
+    "\005 \001(\005\022\020\n\010shm_name\030\006 \001(\t\"l\n\rRolloutHeader"
+    "\022\020\n\010map_name\030\001 \001(\t\022\021\n\tshm_width\030\002 \001(\005\022\022\n"
+    "\nshm_height\030\003 \001(\005\022\020\n\010tickrate\030\004 \001(\002\022\020\n\010s"
+    "hm_name\030\005 \001(\t\"|\n\013RolloutStep\022)\n\005state\030\001 "
+    "\001(\0132\032.portal2_harness.GameState\022.\n\006actio"
+    "n\030\002 \001(\0132\036.portal2_harness.ActionRequest\022"
+    "\022\n\nimage_data\030\003 \001(\014\"\007\n\005Empty\"S\n\021RenderDe"
+    "moRequest\022\021\n\tdemo_path\030\001 \001(\t\022\023\n\013output_p"
+    "ath\030\002 \001(\t\022\026\n\016capture_pixels\030\003 \001(\010\"\204\001\n\022Re"
+    "nderDemoResponse\022\017\n\007success\030\001 \001(\010\022\025\n\rerr"
+    "or_message\030\002 \001(\t\022\031\n\021final_output_path\030\003 "
+    "\001(\t\022\026\n\016recorded_ticks\030\004 \001(\005\022\023\n\013total_byt"
+    "es\030\005 \001(\0032\273\004\n\016Portal2Harness\022Y\n\020InitialHa"
+    "ndshake\022!.portal2_harness.HandshakeReque"
+    "st\032\".portal2_harness.HandshakeResponse\022="
+    "\n\007Observe\022\026.portal2_harness.Empty\032\032.port"
+    "al2_harness.GameState\022F\n\003Act\022\036.portal2_h"
+    "arness.ActionRequest\032\037.portal2_harness.A"
+    "ctionResponse\022S\n\016ExecuteCommand\022\037.portal"
+    "2_harness.CommandRequest\032 .portal2_harne"
+    "ss.CommandResponse\022F\n\005Reset\022\035.portal2_ha"
+    "rness.ResetRequest\032\036.portal2_harness.Res"
+    "etResponse\022S\n\tAgentLoop\022\035.portal2_harnes"
+    "s.AgentMessage\032#.portal2_harness.Environ"
+    "mentMessage(\0010\001\022U\n\nRenderDemo\022\".portal2_"
+    "harness.RenderDemoRequest\032#.portal2_harn"
+    "ess.RenderDemoResponseb\006proto3"
 };
 static ::absl::once_flag descriptor_table_harness_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_harness_2eproto = {
     false,
     false,
-    4018,
+    3990,
     descriptor_table_protodef_harness_2eproto,
     "harness.proto",
     &descriptor_table_harness_2eproto_once,
@@ -2309,6 +2309,8 @@ PROTOBUF_NDEBUG_INLINE MacroRequest::Impl_::Impl_(
       : _has_bits_{from._has_bits_},
         _cached_size_{0},
         verb_(arena, from.verb_),
+        target_(arena, from.target_),
+        aim_(arena, from.aim_),
         dir_(arena, from.dir_),
         color_(arena, from.color_),
         where_(arena, from.where_) {}
@@ -2327,12 +2329,12 @@ MacroRequest::MacroRequest(
       from._internal_metadata_);
   new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
   ::memcpy(reinterpret_cast<char *>(&_impl_) +
-               offsetof(Impl_, mark_),
+               offsetof(Impl_, ticks_),
            reinterpret_cast<const char *>(&from._impl_) +
-               offsetof(Impl_, mark_),
-           offsetof(Impl_, surface_mark_) -
-               offsetof(Impl_, mark_) +
-               sizeof(Impl_::surface_mark_));
+               offsetof(Impl_, ticks_),
+           offsetof(Impl_, percent_) -
+               offsetof(Impl_, ticks_) +
+               sizeof(Impl_::percent_));
 
   // @@protoc_insertion_point(copy_constructor:portal2_harness.MacroRequest)
 }
@@ -2341,6 +2343,8 @@ PROTOBUF_NDEBUG_INLINE MacroRequest::Impl_::Impl_(
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
       : _cached_size_{0},
         verb_(arena),
+        target_(arena),
+        aim_(arena),
         dir_(arena),
         color_(arena),
         where_(arena) {}
@@ -2348,11 +2352,11 @@ PROTOBUF_NDEBUG_INLINE MacroRequest::Impl_::Impl_(
 inline void MacroRequest::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   new (&_impl_) Impl_(internal_visibility(), arena);
   ::memset(reinterpret_cast<char *>(&_impl_) +
-               offsetof(Impl_, mark_),
+               offsetof(Impl_, ticks_),
            0,
-           offsetof(Impl_, surface_mark_) -
-               offsetof(Impl_, mark_) +
-               sizeof(Impl_::surface_mark_));
+           offsetof(Impl_, percent_) -
+               offsetof(Impl_, ticks_) +
+               sizeof(Impl_::percent_));
 }
 MacroRequest::~MacroRequest() {
   // @@protoc_insertion_point(destructor:portal2_harness.MacroRequest)
@@ -2363,6 +2367,8 @@ inline void MacroRequest::SharedDtor(MessageLite& self) {
   this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
   ABSL_DCHECK(this_.GetArena() == nullptr);
   this_._impl_.verb_.Destroy();
+  this_._impl_.target_.Destroy();
+  this_._impl_.aim_.Destroy();
   this_._impl_.dir_.Destroy();
   this_._impl_.color_.Destroy();
   this_._impl_.where_.Destroy();
@@ -2412,16 +2418,16 @@ MacroRequest::GetClassData() const {
   return MacroRequest_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<4, 11, 0, 62, 2>
+const ::_pbi::TcParseTable<4, 10, 0, 71, 2>
 MacroRequest::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_._has_bits_),
     0, // no _extensions_
-    11, 120,  // max_field_number, fast_idx_mask
+    10, 120,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294965248,  // skipmap
+    4294966272,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    11,  // num_field_entries
+    10,  // num_field_entries
     0,  // num_aux_entries
     offsetof(decltype(_table_), field_names),  // no aux_entries
     MacroRequest_class_data_.base(),
@@ -2435,36 +2441,34 @@ MacroRequest::_table_ = {
     // string verb = 1;
     {::_pbi::TcParser::FastUS1,
      {10, 0, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.verb_)}},
-    // int32 mark = 2;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.mark_), 4>(),
-     {16, 4, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.mark_)}},
-    // int32 ticks = 3;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.ticks_), 5>(),
-     {24, 5, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.ticks_)}},
-    // string dir = 4;
+    // string target = 2;
     {::_pbi::TcParser::FastUS1,
-     {34, 1, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.dir_)}},
-    // int32 yaw = 5;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.yaw_), 6>(),
-     {40, 6, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.yaw_)}},
-    // int32 pitch = 6;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.pitch_), 7>(),
-     {48, 7, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.pitch_)}},
-    // float percent = 7;
+     {18, 1, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.target_)}},
+    // string aim = 3;
+    {::_pbi::TcParser::FastUS1,
+     {26, 2, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.aim_)}},
+    // int32 ticks = 4;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.ticks_), 6>(),
+     {32, 6, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.ticks_)}},
+    // string dir = 5;
+    {::_pbi::TcParser::FastUS1,
+     {42, 3, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.dir_)}},
+    // int32 yaw = 6;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.yaw_), 7>(),
+     {48, 7, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.yaw_)}},
+    // int32 pitch = 7;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.pitch_), 8>(),
+     {56, 8, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.pitch_)}},
+    // float percent = 8;
     {::_pbi::TcParser::FastF32S1,
-     {61, 8, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.percent_)}},
-    // int32 target_mark = 8;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.target_mark_), 9>(),
-     {64, 9, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.target_mark_)}},
+     {69, 9, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.percent_)}},
     // string color = 9;
     {::_pbi::TcParser::FastUS1,
-     {74, 2, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.color_)}},
-    // int32 surface_mark = 10;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MacroRequest, _impl_.surface_mark_), 10>(),
-     {80, 10, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.surface_mark_)}},
-    // string where = 11;
+     {74, 4, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.color_)}},
+    // string where = 10;
     {::_pbi::TcParser::FastUS1,
-     {90, 3, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.where_)}},
+     {82, 5, 0, PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.where_)}},
+    {::_pbi::TcParser::MiniParse, {}},
     {::_pbi::TcParser::MiniParse, {}},
     {::_pbi::TcParser::MiniParse, {}},
     {::_pbi::TcParser::MiniParse, {}},
@@ -2475,42 +2479,41 @@ MacroRequest::_table_ = {
     // string verb = 1;
     {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.verb_), _Internal::kHasBitsOffset + 0, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-    // int32 mark = 2;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.mark_), _Internal::kHasBitsOffset + 4, 0,
-    (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
-    // int32 ticks = 3;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.ticks_), _Internal::kHasBitsOffset + 5, 0,
-    (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
-    // string dir = 4;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.dir_), _Internal::kHasBitsOffset + 1, 0,
+    // string target = 2;
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.target_), _Internal::kHasBitsOffset + 1, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-    // int32 yaw = 5;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.yaw_), _Internal::kHasBitsOffset + 6, 0,
+    // string aim = 3;
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.aim_), _Internal::kHasBitsOffset + 2, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    // int32 ticks = 4;
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.ticks_), _Internal::kHasBitsOffset + 6, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
-    // int32 pitch = 6;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.pitch_), _Internal::kHasBitsOffset + 7, 0,
+    // string dir = 5;
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.dir_), _Internal::kHasBitsOffset + 3, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    // int32 yaw = 6;
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.yaw_), _Internal::kHasBitsOffset + 7, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
-    // float percent = 7;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.percent_), _Internal::kHasBitsOffset + 8, 0,
+    // int32 pitch = 7;
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.pitch_), _Internal::kHasBitsOffset + 8, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    // float percent = 8;
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.percent_), _Internal::kHasBitsOffset + 9, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kFloat)},
-    // int32 target_mark = 8;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.target_mark_), _Internal::kHasBitsOffset + 9, 0,
-    (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // string color = 9;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.color_), _Internal::kHasBitsOffset + 2, 0,
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.color_), _Internal::kHasBitsOffset + 4, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-    // int32 surface_mark = 10;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.surface_mark_), _Internal::kHasBitsOffset + 10, 0,
-    (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
-    // string where = 11;
-    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.where_), _Internal::kHasBitsOffset + 3, 0,
+    // string where = 10;
+    {PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.where_), _Internal::kHasBitsOffset + 5, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
   }},
   // no aux_entries
   {{
-    "\34\4\0\0\3\0\0\0\0\5\0\5\0\0\0\0"
+    "\34\4\6\3\0\3\0\0\0\5\5\0\0\0\0\0"
     "portal2_harness.MacroRequest"
     "verb"
+    "target"
+    "aim"
     "dir"
     "color"
     "where"
@@ -2524,29 +2527,35 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
   (void) cached_has_bits;
 
   cached_has_bits = _impl_._has_bits_[0];
-  if ((cached_has_bits & 0x0000000fu) != 0) {
+  if ((cached_has_bits & 0x0000003fu) != 0) {
     if ((cached_has_bits & 0x00000001u) != 0) {
       _impl_.verb_.ClearNonDefaultToEmpty();
     }
     if ((cached_has_bits & 0x00000002u) != 0) {
-      _impl_.dir_.ClearNonDefaultToEmpty();
+      _impl_.target_.ClearNonDefaultToEmpty();
     }
     if ((cached_has_bits & 0x00000004u) != 0) {
-      _impl_.color_.ClearNonDefaultToEmpty();
+      _impl_.aim_.ClearNonDefaultToEmpty();
     }
     if ((cached_has_bits & 0x00000008u) != 0) {
+      _impl_.dir_.ClearNonDefaultToEmpty();
+    }
+    if ((cached_has_bits & 0x00000010u) != 0) {
+      _impl_.color_.ClearNonDefaultToEmpty();
+    }
+    if ((cached_has_bits & 0x00000020u) != 0) {
       _impl_.where_.ClearNonDefaultToEmpty();
     }
   }
-  if ((cached_has_bits & 0x000000f0u) != 0) {
-    ::memset(&_impl_.mark_, 0, static_cast<::size_t>(
-        reinterpret_cast<char*>(&_impl_.pitch_) -
-        reinterpret_cast<char*>(&_impl_.mark_)) + sizeof(_impl_.pitch_));
+  if ((cached_has_bits & 0x000000c0u) != 0) {
+    ::memset(&_impl_.ticks_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.yaw_) -
+        reinterpret_cast<char*>(&_impl_.ticks_)) + sizeof(_impl_.yaw_));
   }
-  if ((cached_has_bits & 0x00000700u) != 0) {
-    ::memset(&_impl_.percent_, 0, static_cast<::size_t>(
-        reinterpret_cast<char*>(&_impl_.surface_mark_) -
-        reinterpret_cast<char*>(&_impl_.percent_)) + sizeof(_impl_.surface_mark_));
+  if ((cached_has_bits & 0x00000300u) != 0) {
+    ::memset(&_impl_.pitch_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.percent_) -
+        reinterpret_cast<char*>(&_impl_.pitch_)) + sizeof(_impl_.percent_));
   }
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
@@ -2577,72 +2586,74 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
     }
   }
 
-  // int32 mark = 2;
-  if ((this_._impl_._has_bits_[0] & 0x00000010u) != 0) {
-    if (this_._internal_mark() != 0) {
-      target =
-          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<2>(
-              stream, this_._internal_mark(), target);
+  // string target = 2;
+  if ((this_._impl_._has_bits_[0] & 0x00000002u) != 0) {
+    if (!this_._internal_target().empty()) {
+      const ::std::string& _s = this_._internal_target();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "portal2_harness.MacroRequest.target");
+      target = stream->WriteStringMaybeAliased(2, _s, target);
     }
   }
 
-  // int32 ticks = 3;
-  if ((this_._impl_._has_bits_[0] & 0x00000020u) != 0) {
+  // string aim = 3;
+  if ((this_._impl_._has_bits_[0] & 0x00000004u) != 0) {
+    if (!this_._internal_aim().empty()) {
+      const ::std::string& _s = this_._internal_aim();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "portal2_harness.MacroRequest.aim");
+      target = stream->WriteStringMaybeAliased(3, _s, target);
+    }
+  }
+
+  // int32 ticks = 4;
+  if ((this_._impl_._has_bits_[0] & 0x00000040u) != 0) {
     if (this_._internal_ticks() != 0) {
       target =
-          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<3>(
+          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<4>(
               stream, this_._internal_ticks(), target);
     }
   }
 
-  // string dir = 4;
-  if ((this_._impl_._has_bits_[0] & 0x00000002u) != 0) {
+  // string dir = 5;
+  if ((this_._impl_._has_bits_[0] & 0x00000008u) != 0) {
     if (!this_._internal_dir().empty()) {
       const ::std::string& _s = this_._internal_dir();
       ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
           _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "portal2_harness.MacroRequest.dir");
-      target = stream->WriteStringMaybeAliased(4, _s, target);
+      target = stream->WriteStringMaybeAliased(5, _s, target);
     }
   }
 
-  // int32 yaw = 5;
-  if ((this_._impl_._has_bits_[0] & 0x00000040u) != 0) {
+  // int32 yaw = 6;
+  if ((this_._impl_._has_bits_[0] & 0x00000080u) != 0) {
     if (this_._internal_yaw() != 0) {
       target =
-          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<5>(
+          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<6>(
               stream, this_._internal_yaw(), target);
     }
   }
 
-  // int32 pitch = 6;
-  if ((this_._impl_._has_bits_[0] & 0x00000080u) != 0) {
+  // int32 pitch = 7;
+  if ((this_._impl_._has_bits_[0] & 0x00000100u) != 0) {
     if (this_._internal_pitch() != 0) {
       target =
-          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<6>(
+          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<7>(
               stream, this_._internal_pitch(), target);
     }
   }
 
-  // float percent = 7;
-  if ((this_._impl_._has_bits_[0] & 0x00000100u) != 0) {
+  // float percent = 8;
+  if ((this_._impl_._has_bits_[0] & 0x00000200u) != 0) {
     if (::absl::bit_cast<::uint32_t>(this_._internal_percent()) != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteFloatToArray(
-          7, this_._internal_percent(), target);
-    }
-  }
-
-  // int32 target_mark = 8;
-  if ((this_._impl_._has_bits_[0] & 0x00000200u) != 0) {
-    if (this_._internal_target_mark() != 0) {
-      target =
-          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<8>(
-              stream, this_._internal_target_mark(), target);
+          8, this_._internal_percent(), target);
     }
   }
 
   // string color = 9;
-  if ((this_._impl_._has_bits_[0] & 0x00000004u) != 0) {
+  if ((this_._impl_._has_bits_[0] & 0x00000010u) != 0) {
     if (!this_._internal_color().empty()) {
       const ::std::string& _s = this_._internal_color();
       ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
@@ -2651,22 +2662,13 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
     }
   }
 
-  // int32 surface_mark = 10;
-  if ((this_._impl_._has_bits_[0] & 0x00000400u) != 0) {
-    if (this_._internal_surface_mark() != 0) {
-      target =
-          ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<10>(
-              stream, this_._internal_surface_mark(), target);
-    }
-  }
-
-  // string where = 11;
-  if ((this_._impl_._has_bits_[0] & 0x00000008u) != 0) {
+  // string where = 10;
+  if ((this_._impl_._has_bits_[0] & 0x00000020u) != 0) {
     if (!this_._internal_where().empty()) {
       const ::std::string& _s = this_._internal_where();
       ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
           _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "portal2_harness.MacroRequest.where");
-      target = stream->WriteStringMaybeAliased(11, _s, target);
+      target = stream->WriteStringMaybeAliased(10, _s, target);
     }
   }
 
@@ -2703,75 +2705,68 @@ PROTOBUF_NOINLINE void MacroRequest::Clear() {
                                         this_._internal_verb());
       }
     }
-    // string dir = 4;
+    // string target = 2;
     if ((cached_has_bits & 0x00000002u) != 0) {
+      if (!this_._internal_target().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_target());
+      }
+    }
+    // string aim = 3;
+    if ((cached_has_bits & 0x00000004u) != 0) {
+      if (!this_._internal_aim().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_aim());
+      }
+    }
+    // string dir = 5;
+    if ((cached_has_bits & 0x00000008u) != 0) {
       if (!this_._internal_dir().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
                                         this_._internal_dir());
       }
     }
     // string color = 9;
-    if ((cached_has_bits & 0x00000004u) != 0) {
+    if ((cached_has_bits & 0x00000010u) != 0) {
       if (!this_._internal_color().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
                                         this_._internal_color());
       }
     }
-    // string where = 11;
-    if ((cached_has_bits & 0x00000008u) != 0) {
+    // string where = 10;
+    if ((cached_has_bits & 0x00000020u) != 0) {
       if (!this_._internal_where().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
                                         this_._internal_where());
       }
     }
-    // int32 mark = 2;
-    if ((cached_has_bits & 0x00000010u) != 0) {
-      if (this_._internal_mark() != 0) {
-        total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
-            this_._internal_mark());
-      }
-    }
-    // int32 ticks = 3;
-    if ((cached_has_bits & 0x00000020u) != 0) {
+    // int32 ticks = 4;
+    if ((cached_has_bits & 0x00000040u) != 0) {
       if (this_._internal_ticks() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_ticks());
       }
     }
-    // int32 yaw = 5;
-    if ((cached_has_bits & 0x00000040u) != 0) {
+    // int32 yaw = 6;
+    if ((cached_has_bits & 0x00000080u) != 0) {
       if (this_._internal_yaw() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_yaw());
       }
     }
-    // int32 pitch = 6;
-    if ((cached_has_bits & 0x00000080u) != 0) {
+  }
+  if ((cached_has_bits & 0x00000300u) != 0) {
+    // int32 pitch = 7;
+    if ((cached_has_bits & 0x00000100u) != 0) {
       if (this_._internal_pitch() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_pitch());
       }
     }
-  }
-  if ((cached_has_bits & 0x00000700u) != 0) {
-    // float percent = 7;
-    if ((cached_has_bits & 0x00000100u) != 0) {
+    // float percent = 8;
+    if ((cached_has_bits & 0x00000200u) != 0) {
       if (::absl::bit_cast<::uint32_t>(this_._internal_percent()) != 0) {
         total_size += 5;
-      }
-    }
-    // int32 target_mark = 8;
-    if ((cached_has_bits & 0x00000200u) != 0) {
-      if (this_._internal_target_mark() != 0) {
-        total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
-            this_._internal_target_mark());
-      }
-    }
-    // int32 surface_mark = 10;
-    if ((cached_has_bits & 0x00000400u) != 0) {
-      if (this_._internal_surface_mark() != 0) {
-        total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
-            this_._internal_surface_mark());
       }
     }
   }
@@ -2799,6 +2794,24 @@ void MacroRequest::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::go
       }
     }
     if ((cached_has_bits & 0x00000002u) != 0) {
+      if (!from._internal_target().empty()) {
+        _this->_internal_set_target(from._internal_target());
+      } else {
+        if (_this->_impl_.target_.IsDefault()) {
+          _this->_internal_set_target("");
+        }
+      }
+    }
+    if ((cached_has_bits & 0x00000004u) != 0) {
+      if (!from._internal_aim().empty()) {
+        _this->_internal_set_aim(from._internal_aim());
+      } else {
+        if (_this->_impl_.aim_.IsDefault()) {
+          _this->_internal_set_aim("");
+        }
+      }
+    }
+    if ((cached_has_bits & 0x00000008u) != 0) {
       if (!from._internal_dir().empty()) {
         _this->_internal_set_dir(from._internal_dir());
       } else {
@@ -2807,7 +2820,7 @@ void MacroRequest::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::go
         }
       }
     }
-    if ((cached_has_bits & 0x00000004u) != 0) {
+    if ((cached_has_bits & 0x00000010u) != 0) {
       if (!from._internal_color().empty()) {
         _this->_internal_set_color(from._internal_color());
       } else {
@@ -2816,7 +2829,7 @@ void MacroRequest::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::go
         }
       }
     }
-    if ((cached_has_bits & 0x00000008u) != 0) {
+    if ((cached_has_bits & 0x00000020u) != 0) {
       if (!from._internal_where().empty()) {
         _this->_internal_set_where(from._internal_where());
       } else {
@@ -2825,41 +2838,26 @@ void MacroRequest::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::go
         }
       }
     }
-    if ((cached_has_bits & 0x00000010u) != 0) {
-      if (from._internal_mark() != 0) {
-        _this->_impl_.mark_ = from._impl_.mark_;
-      }
-    }
-    if ((cached_has_bits & 0x00000020u) != 0) {
+    if ((cached_has_bits & 0x00000040u) != 0) {
       if (from._internal_ticks() != 0) {
         _this->_impl_.ticks_ = from._impl_.ticks_;
       }
     }
-    if ((cached_has_bits & 0x00000040u) != 0) {
+    if ((cached_has_bits & 0x00000080u) != 0) {
       if (from._internal_yaw() != 0) {
         _this->_impl_.yaw_ = from._impl_.yaw_;
       }
     }
-    if ((cached_has_bits & 0x00000080u) != 0) {
+  }
+  if ((cached_has_bits & 0x00000300u) != 0) {
+    if ((cached_has_bits & 0x00000100u) != 0) {
       if (from._internal_pitch() != 0) {
         _this->_impl_.pitch_ = from._impl_.pitch_;
       }
     }
-  }
-  if ((cached_has_bits & 0x00000700u) != 0) {
-    if ((cached_has_bits & 0x00000100u) != 0) {
+    if ((cached_has_bits & 0x00000200u) != 0) {
       if (::absl::bit_cast<::uint32_t>(from._internal_percent()) != 0) {
         _this->_impl_.percent_ = from._impl_.percent_;
-      }
-    }
-    if ((cached_has_bits & 0x00000200u) != 0) {
-      if (from._internal_target_mark() != 0) {
-        _this->_impl_.target_mark_ = from._impl_.target_mark_;
-      }
-    }
-    if ((cached_has_bits & 0x00000400u) != 0) {
-      if (from._internal_surface_mark() != 0) {
-        _this->_impl_.surface_mark_ = from._impl_.surface_mark_;
       }
     }
   }
@@ -2882,15 +2880,17 @@ void MacroRequest::InternalSwap(MacroRequest* PROTOBUF_RESTRICT PROTOBUF_NONNULL
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.verb_, &other->_impl_.verb_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_, &other->_impl_.target_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.aim_, &other->_impl_.aim_, arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.dir_, &other->_impl_.dir_, arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.color_, &other->_impl_.color_, arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.where_, &other->_impl_.where_, arena);
   ::google::protobuf::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.surface_mark_)
-      + sizeof(MacroRequest::_impl_.surface_mark_)
-      - PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.mark_)>(
-          reinterpret_cast<char*>(&_impl_.mark_),
-          reinterpret_cast<char*>(&other->_impl_.mark_));
+      PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.percent_)
+      + sizeof(MacroRequest::_impl_.percent_)
+      - PROTOBUF_FIELD_OFFSET(MacroRequest, _impl_.ticks_)>(
+          reinterpret_cast<char*>(&_impl_.ticks_),
+          reinterpret_cast<char*>(&other->_impl_.ticks_));
 }
 
 ::google::protobuf::Metadata MacroRequest::GetMetadata() const {

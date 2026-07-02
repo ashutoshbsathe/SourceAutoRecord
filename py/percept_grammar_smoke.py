@@ -196,11 +196,11 @@ def test_validate_ok():
     """Well-formed command strings validate into the right MacroRequest."""
     ents = parse_snapshot(FULL)
     r = mg.validate('go_to 2', ents)
-    check(isinstance(r, pb.MacroRequest) and r.verb == 'go_to' and r.mark == 2, r)
+    check(isinstance(r, pb.MacroRequest) and r.verb == 'go_to' and r.target == '2', r)
     r = mg.validate('pick_up 1', ents)
     check(isinstance(r, pb.MacroRequest), f'cube pick_up rejected: {r}')
     r = mg.validate('release', ents, held_mark=1)
-    check(isinstance(r, pb.MacroRequest) and r.mark == 0, r)
+    check(isinstance(r, pb.MacroRequest) and r.target == '', r)
     r = mg.validate('move forward 20', ents)
     check(isinstance(r, pb.MacroRequest) and r.dir == 'forward' and r.ticks == 20, r)
     r = mg.validate('done', ents)
@@ -257,27 +257,26 @@ def test_examples_validate():
     for verb, spec in mg.VERB_SPECS.items():
         tokens = spec.example.split()
         check(tokens[0] == verb, f'{verb}: example verb is {tokens[0]!r}')
-        mark = int(tokens[1]) if spec.mark and len(tokens) > 1 else 0
         held = None
-        if spec.mark == 'grabbable':
-            ents = [synth(mark, 'prop_weighted_cube')]  # must be grabbable
+        if spec.target == 'grabbable':
+            ents = [synth(int(tokens[1]), 'prop_weighted_cube')]  # must be grabbable
         elif verb == 'release':
             held = 99  # release requires holding something
-            ents = [synth(mark, 'prop_floor_button')] if mark else []
+            ents = [synth(int(tokens[1]), 'prop_floor_button')] if len(tokens) > 1 else []
         elif verb == 'interpose':
-            mark = int(tokens[1])  # emitter mark (spec.mark is unset for interpose)
             held = 99  # interpose requires a held cube
-            ents = [synth(mark, 'env_portal_laser')]
+            ents = [synth(int(tokens[1]), 'env_portal_laser')]  # emitter
         elif verb == 'redirect_to':
-            mark = int(tokens[1])  # cube mark
             ents = [
-                synth(mark, 'prop_weighted_cube'),
-                synth(int(tokens[2]), 'point_laser_target'),
+                synth(int(tokens[1]), 'prop_weighted_cube'),  # cube
+                synth(int(tokens[2]), 'point_laser_target'),  # aim
             ]
         elif verb == 'place_portal':
-            ents = [synth(tokens[2], 'wall_panel')]  # the S-mark panel
-        elif spec.mark:
-            ents = [synth(mark, 'prop_floor_button')]
+            ents = [synth(tokens[2], 'wall_panel')]  # the Sn panel
+        elif verb == 'pass_through':
+            ents = [synth(tokens[1], 'prop_portal')]  # the Pb/Po portal label
+        elif spec.target:  # 'any' or 'entity' -> a plain entity mark
+            ents = [synth(int(tokens[1]), 'prop_floor_button')]
         else:
             ents = []
         r = mg.validate(spec.example, ents, held_mark=held)
@@ -286,12 +285,31 @@ def test_examples_validate():
     return f'{len(mg.VERB_SPECS)} verb examples valid; CAVEAT len={len(mg.CAVEAT)}'
 
 
+def test_validate_target():
+    """The any-kind verbs take entity/panel/portal targets; entity-only verbs
+    reject a panel/portal; absent or garbage targets reject."""
+    ents = [
+        {'mark': 2, 'class': 'prop_floor_button', 'pos': [0.0, 0.0, 0.0]},
+        {'mark': 'S1', 'class': 'wall_panel', 'pos': [0.0, 0.0, 0.0]},
+        {'mark': 'Pb', 'class': 'prop_portal', 'pos': [0.0, 0.0, 0.0]},
+    ]
+    for text in ('aim_at 2', 'aim_at S1', 'aim_at Pb', 'go_to Pb'):
+        r = mg.validate(text, ents)
+        check(isinstance(r, pb.MacroRequest) and r.target == text.split()[1], r)
+    for text in ('aim_at 9', 'aim_at S7', 'aim_at Po', 'aim_at foo',
+                 'interact Pb', 'pick_up S1'):
+        r = mg.validate(text, ents)
+        check(isinstance(r, str), f'expected rejection, got {r!r} for {text!r}')
+    return 'any-verbs take N/Sn/Pb; entity-only verbs reject panels/portals'
+
+
 CHECKS = [
     ('projection', test_projection),
     ('delta_merge', test_delta_merge),
     ('delete_serial_reuse', test_delete_and_serial_reuse),
     ('validate_ok', test_validate_ok),
     ('validate_reject', test_validate_reject),
+    ('validate_target', test_validate_target),
     ('examples_validate', test_examples_validate),
 ]
 

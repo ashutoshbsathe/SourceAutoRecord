@@ -223,7 +223,7 @@ def check_macro(ctx):
 
         env = ctx.harness.step_agent_loop(
             harness_pb2.AgentMessage(
-                macro=harness_pb2.MacroRequest(verb='aim_at', mark=best.mark)
+                macro=harness_pb2.MacroRequest(verb='aim_at', target=str(best.mark))
             ),
             timeout=30.0,
         )
@@ -315,7 +315,7 @@ def check_go_to(ctx):
 
         env = ctx.harness.step_agent_loop(
             harness_pb2.AgentMessage(
-                macro=harness_pb2.MacroRequest(verb='go_to', mark=best.mark)
+                macro=harness_pb2.MacroRequest(verb='go_to', target=str(best.mark))
             ),
             timeout=90.0,  # go_to may run up to kGoToMaxTicks (400) ticks
         )
@@ -386,10 +386,10 @@ def check_place_on_button(ctx):
         require(cube is not None, 'no grabbable cube mark (need a cube+button chamber)')
         require(button is not None, 'no button mark (need a cube+button chamber)')
 
-        def run(verb, mark, timeout):
+        def run(verb, mark, timeout):  # mark: int entity mark -> string target
             return ctx.harness.step_agent_loop(
                 harness_pb2.AgentMessage(
-                    macro=harness_pb2.MacroRequest(verb=verb, mark=mark)
+                    macro=harness_pb2.MacroRequest(verb=verb, target=str(mark))
                 ),
                 timeout=timeout,
             )
@@ -463,8 +463,8 @@ def check_interpose(ctx):
                 harness_pb2.AgentMessage(macro=macro), timeout=timeout
             )
 
-        run(harness_pb2.MacroRequest(verb='go_to', mark=cube.mark), 90.0)
-        grab = run(harness_pb2.MacroRequest(verb='pick_up', mark=cube.mark), 30.0)
+        run(harness_pb2.MacroRequest(verb='go_to', target=str(cube.mark)), 90.0)
+        grab = run(harness_pb2.MacroRequest(verb='pick_up', target=str(cube.mark)), 30.0)
         require(
             grab.macro_result.result_code == 'SUCCESS',
             f'pick_up cube mark={cube.mark} failed: '
@@ -472,7 +472,9 @@ def check_interpose(ctx):
             f'cannot test interpose',
         )
         env = run(
-            harness_pb2.MacroRequest(verb='interpose', mark=emitter.mark, percent=0.5),
+            harness_pb2.MacroRequest(
+                verb='interpose', target=str(emitter.mark), percent=0.5
+            ),
             90.0,  # interpose carries the cube, may run many ticks
         )
     finally:
@@ -531,20 +533,22 @@ def check_redirect(ctx):
                 harness_pb2.AgentMessage(macro=macro), timeout=timeout
             )
 
-        run(harness_pb2.MacroRequest(verb='go_to', mark=cube.mark), 90.0)
-        grab = run(harness_pb2.MacroRequest(verb='pick_up', mark=cube.mark), 30.0)
+        run(harness_pb2.MacroRequest(verb='go_to', target=str(cube.mark)), 90.0)
+        grab = run(harness_pb2.MacroRequest(verb='pick_up', target=str(cube.mark)), 30.0)
         require(
             grab.macro_result.result_code == 'SUCCESS',
             f'pick_up cube mark={cube.mark} failed: '
             f'{grab.macro_result.result_code} -- cannot test redirect_to',
         )
         run(
-            harness_pb2.MacroRequest(verb='interpose', mark=emitter.mark, percent=0.5),
+            harness_pb2.MacroRequest(
+                verb='interpose', target=str(emitter.mark), percent=0.5
+            ),
             90.0,
         )
         env = run(
             harness_pb2.MacroRequest(
-                verb='redirect_to', mark=cube.mark, target_mark=target.mark
+                verb='redirect_to', target=str(cube.mark), aim=str(target.mark)
             ),
             60.0,
         )
@@ -660,7 +664,7 @@ def check_portal_percept(ctx):
         res = ctx.harness.step_agent_loop(
             harness_pb2.AgentMessage(
                 macro=harness_pb2.MacroRequest(
-                    verb='place_portal', color='blue', surface_mark=s
+                    verb='place_portal', color='blue', target=f'S{s}'
                 )
             ),
             timeout=30.0,
@@ -697,6 +701,81 @@ def check_portal_percept(ctx):
         ctx.harness.stop_agent_loop()
 
 
+def check_aim_target(ctx):
+    """aim_at resolves a string target (portal Pb/Po, panel Sn), not just an int
+    mark. Place a blue portal on a wall panel, then aim_at Pb and aim_at S<n>:
+    require SUCCESS, that the post-tick camera matches the commanded yaw (SetAngles
+    survived), and that the Pb aim points at the portal's mouth_center -- so the
+    string target actually resolved to the portal. Needs a map with a portalable
+    wall panel."""
+    reset_to_spawn(ctx)
+    ctx.harness.start_agent_loop()
+    try:
+        env = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(verb='wait', ticks=1)
+            ),
+            timeout=30.0,
+        )
+        panels = env.state.surface_marks
+        require(len(panels) > 0, 'no portalable wall panel (S-mark); need a portal map')
+        s = panels[0].mark
+
+        placed = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(
+                    verb='place_portal', color='blue', target=f'S{s}'
+                )
+            ),
+            timeout=30.0,
+        )
+        rc = placed.macro_result.result_code
+        require(rc == 'PLACED', f'place_portal blue S{s} -> {rc} (expected PLACED)')
+
+        def aim(target):
+            env = ctx.harness.step_agent_loop(
+                harness_pb2.AgentMessage(
+                    macro=harness_pb2.MacroRequest(verb='aim_at', target=target)
+                ),
+                timeout=30.0,
+            )
+            mr = env.macro_result
+            require(
+                mr.ok and mr.result_code == 'SUCCESS',
+                f'aim_at {target} -> {mr.result_code} ({mr.detail})',
+            )
+            yaw_err = abs(_norm_deg(env.state.camera.y - mr.aim_yaw))
+            require(
+                yaw_err < 3.0,
+                f'aim_at {target}: camera yaw {env.state.camera.y:.1f} != commanded '
+                f'{mr.aim_yaw:.1f} (err {yaw_err:.1f}) -- SetAngles did not survive',
+            )
+            return env
+
+        aim(f'S{s}')
+        env = aim('Pb')
+
+        # The Pb aim points at the blue portal's mouth -- proves the string target
+        # resolved to the portal (a stale/absent target would be BAD_MARK, not
+        # SUCCESS). Skip the bearing when point-blank (bearing is then unstable).
+        c = env.state.blue_portal.mouth_center
+        px, py = env.state.position.x, env.state.position.y
+        ctx.observations.append(gamestate_dict(env.state, 'macro.aim_at[Pb]'))
+        bearing_detail = 'point-blank, bearing skipped'
+        if math.hypot(c.x - px, c.y - py) > 48.0:
+            bearing = math.degrees(math.atan2(c.y - py, c.x - px))
+            err = abs(_norm_deg(env.macro_result.aim_yaw - bearing))
+            require(
+                err < 12.0,
+                f'aim_at Pb yaw {env.macro_result.aim_yaw:.1f} != bearing to portal '
+                f'{bearing:.1f} (err {err:.1f}) -- Pb did not resolve to the portal',
+            )
+            bearing_detail = f'bearing err {err:.1f} deg'
+        return f'aim_at Pb and S{s} resolve + aim ({bearing_detail})'
+    finally:
+        ctx.harness.stop_agent_loop()
+
+
 def check_execute_command(ctx):
     """ExecuteCommand runs a console command and reports success."""
     resp = ctx.harness.execute_command('echo harness_smoke', timeout=30.0)
@@ -716,6 +795,7 @@ CHECKS = [
     ('interpose', check_interpose),
     ('redirect_to', check_redirect),
     ('portal_percept', check_portal_percept),
+    ('aim_target', check_aim_target),
     ('client', check_client),
     ('pixels', check_pixels),
     ('execute_command', check_execute_command),

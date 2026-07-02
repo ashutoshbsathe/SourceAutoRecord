@@ -29,8 +29,10 @@ def _decode_action(b):
     m = harness_pb2.MacroRequest()
     m.ParseFromString(b)
     d = {'verb': m.verb}
-    if m.mark:
-        d['mark'] = m.mark
+    if m.target:
+        d['target'] = m.target
+    if m.aim:
+        d['aim'] = m.aim
     if m.ticks:
         d['ticks'] = m.ticks
     if m.dir:

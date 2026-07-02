@@ -3,9 +3,12 @@
 One declarative spec (VERB_SPECS) drives both the LLM tool schema and local
 validation, so the prompt and the gate can't drift. validate() checks a model
 action against the grammar AND the live percept -- unknown verb, bad arg
-type/range, a mark that doesn't exist or is the wrong kind for the verb,
+type/range, a target that doesn't exist or is the wrong kind for the verb,
 holding-state -- and on failure returns a structured string fed straight back to
 the model, with no gRPC round-trip and no game step.
+
+A target is a percept mark label -- the same token the annotation shows on
+screen: "<n>" entity mark, "S<n>" surface panel, or "Pb"/"Po" portal.
 """
 
 from dataclasses import dataclass
@@ -46,7 +49,7 @@ class Verb:
     doc: str
     example: str  # one valid command string that exercises this verb
     hint: str  # one-line teaching note paired with `example` in the prompt
-    mark: str | None = None  # 'required' | 'grabbable' | 'optional' | None
+    target: str | None = None  # target kind: 'any'|'entity'|'grabbable'|'optional'
     ticks_max: int | None = None  # set => required `ticks` in [1, ticks_max]
     dirs: tuple | None = None  # set => required `dir` from this set
     look: bool = False  # set => required signed `yaw` + optional `pitch` (15deg)
@@ -56,25 +59,27 @@ class Verb:
 # prompt. Examples are kept valid by percept_grammar_smoke.test_examples_validate.
 VERB_SPECS = {
     'aim_at': Verb(
-        'Point the view at a mark.',
+        'Point the view at a target -- an entity mark N, a wall panel Sn, or a '
+        'placed portal Pb/Po.',
         'aim_at 9',
-        'point the view at mark 9 to orient.',
-        mark='required',
+        'point the view at mark 9 (or a panel Sn / portal Pb|Po) to orient.',
+        target='any',
     ),
     'go_to': Verb(
-        'Walk to a mark, routing AROUND obstacles (cubes, buttons, walls). Stops '
-        'just BESIDE a cube/box it is sent to (it will not shove it). BLOCKED only '
-        'if no walk path exists; ADVANCED if a gap/edge stopped it short.',
+        'Walk to a target (mark N, panel Sn, or portal Pb/Po), routing AROUND '
+        'obstacles (cubes, buttons, walls). Stops just BESIDE a cube/box it is '
+        'sent to (it will not shove it). BLOCKED only if no walk path exists; '
+        'ADVANCED if a gap/edge stopped it short.',
         'go_to 3',
         'walk to mark 3, routing around anything in the way.',
-        mark='required',
+        target='any',
     ),
     'interact': Verb(
-        'Walk to a mark (routing around obstacles, like go_to) and press it '
-        '(+use) -- a button or switch. BLOCKED if no walk path exists.',
+        'Walk to an entity mark (routing around obstacles, like go_to) and press '
+        'it (+use) -- a button or switch. BLOCKED if no walk path exists.',
         'interact 5',
         'walk to mark 5 and press it.',
-        mark='required',
+        target='entity',
     ),
     'pick_up': Verb(
         'Grab the cube/box/turret at a mark. Does NOT walk you there -- you must '
@@ -83,7 +88,7 @@ VERB_SPECS = {
         'pick_up 3',
         'grab grabbable mark 3 you are ALREADY standing next to (empty-handed); '
         'it does not move you -- go_to it first.',
-        mark='grabbable',
+        target='grabbable',
     ),
     'release': Verb(
         'Drop the held object. On a button mark you are in reach of, it places '
@@ -93,12 +98,12 @@ VERB_SPECS = {
         'release 5',
         'on a button you are standing next to, release ON it to seat and press '
         'the cube (SEATED); otherwise it just drops.',
-        mark='optional',
+        target='optional',
     ),
     'interpose': Verb(
         'Seat the cube you are HOLDING onto a laser beam to block it. Give the '
         'emitter mark and how far along its beam to place the cube (percent 0-1 '
-        'from the emitter). Optionally add a target mark to also aim the redirect '
+        'from the emitter). Optionally add an aim mark to also point the redirect '
         'at it. Fails NO_FLOOR (over a pit), NOT_REACHABLE (no walk path), '
         'NOT_INTERCEPTING (the cube misses the beam).',
         'interpose 4 0.5',
@@ -125,11 +130,11 @@ VERB_SPECS = {
         'link them.',
     ),
     'pass_through': Verb(
-        'Walk through a placed portal, named by color (blue=Pb, orange=Po in the '
-        'percept). You emerge from the linked portal. To fling, build speed first '
-        '-- the momentum you carry in comes out redirected. Fails NO_SUCH_PORTAL '
-        '/ UNLINKED / NOT_AT_MOUTH / BLOCKED.',
-        'pass_through blue',
+        'Walk through a placed portal, named by its percept label (Pb = blue, '
+        'Po = orange). You emerge from the linked portal. To fling, build speed '
+        'first -- the momentum you carry in comes out redirected. Fails '
+        'NO_SUCH_PORTAL / UNLINKED / NOT_AT_MOUTH / BLOCKED.',
+        'pass_through Pb',
         'walk into the blue portal (Pb); you come out the linked orange one.',
     ),
     'move': Verb(
@@ -167,26 +172,27 @@ def build_macro(verb, args):
     """Map a verb + positional string args to a MacroRequest (raises on bad args).
 
     The imperative twin of validate(): no percept checks, just the arg shapes a
-    typed or scripted command supplies.
+    typed or scripted command supplies. Targets stay strings (the percept mark
+    label); the executor resolves them.
     """
     m = harness_pb2.MacroRequest(verb=verb)
     if verb in ('aim_at', 'go_to', 'pick_up', 'interact'):
-        m.mark = int(args[0])
+        m.target = args[0]
     elif verb == 'release':
-        m.mark = int(args[0]) if args else 0
+        m.target = args[0] if args else ''
     elif verb == 'interpose':
-        m.mark = int(args[0])  # emitter
+        m.target = args[0]  # emitter
         m.percent = float(args[1])
         if len(args) > 2:
-            m.target_mark = int(args[2])
+            m.aim = args[2]
     elif verb == 'redirect_to':
-        m.mark = int(args[0])  # the seated cube
-        m.target_mark = int(args[1])  # the target to power
+        m.target = args[0]  # the seated cube
+        m.aim = args[1]  # the target to power
     elif verb == 'place_portal':
         m.color = args[0]
-        m.surface_mark = int(args[1].lstrip('S'))
+        m.target = args[1]  # wall panel Sn
     elif verb == 'pass_through':
-        m.color = {'Pb': 'blue', 'Po': 'orange'}.get(args[0], args[0])
+        m.target = args[0]  # Pb/Po
     elif verb == 'move':
         m.dir = args[0]
         m.ticks = int(args[1])
@@ -203,85 +209,104 @@ def _snap(deg, step):
     return int(round(deg / step)) * step
 
 
-def _check_mark(verb, spec, mark, by_mark):
-    """Check the built macro's mark against the percept. Error string or None."""
-    if spec.mark == 'optional' and not mark:
-        return None  # release with no mark = drop at the player's feet
-    if mark <= 0:
-        return f'{verb}: requires a positive integer mark'
-    ent = by_mark.get(mark)
+def _target_kind(target):
+    """The kind of a target label: 'entity' | 'panel' | 'portal' | None."""
+    if target in ('Pb', 'Po'):
+        return 'portal'
+    if target[:1] == 'S' and target[1:].isdigit():
+        return 'panel'
+    if target.isdigit():
+        return 'entity'
+    return None
+
+
+def _lookup(target, by_mark):
+    """The percept entry for a target label, or None. by_mark keys entities by
+    int mark and panels/portals by their string label (Sn/Pb/Po)."""
+    if _target_kind(target) == 'entity':
+        return by_mark.get(int(target))
+    return by_mark.get(target)
+
+
+def _present(by_mark):
+    """The sorted target labels the percept currently carries (for error text)."""
+    return sorted(str(k) for k in by_mark)
+
+
+def _check_target(verb, spec, target, by_mark):
+    """Check a target label against the verb's kind requirement + the percept.
+    Error string or None."""
+    if spec.target == 'optional' and not target:
+        return None  # release with no target = drop at the player's feet
+    kind = _target_kind(target)
+    if kind is None:
+        return f'{verb}: bad target {target!r}; expected mark N, panel Sn, or portal Pb/Po'
+    if spec.target != 'any' and kind != 'entity':
+        return f'{verb}: {target} is a {kind}; {verb} needs an entity mark'
+    ent = _lookup(target, by_mark)
     if ent is None:
-        return f'{verb}: no entity with mark {mark}; marks present: {sorted(by_mark)}'
-    if spec.mark == 'grabbable' and ent['class'] not in GRABBABLE_CLASSES:
-        return f'{verb}: mark {mark} is a {ent["class"]}, not grabbable'
+        return f'{verb}: no target {target}; present: {_present(by_mark)}'
+    if spec.target == 'grabbable' and ent['class'] not in GRABBABLE_CLASSES:
+        return f'{verb}: mark {target} is a {ent["class"]}, not grabbable'
     return None
 
 
 def _check_interpose(req, held_mark, by_mark):
-    """interpose checks: holding a cube, a valid laser-emitter mark, percent in
-    range, and a valid target mark if given. Error string or the ready req."""
+    """interpose checks: holding a cube, a valid laser-emitter target, percent in
+    range, and a valid aim target if given. Error string or the ready req."""
     if held_mark is None:
         return 'interpose: nothing is being held; pick_up a cube first'
-    em = by_mark.get(req.mark)
+    em = _lookup(req.target, by_mark)
     if em is None:
-        return (
-            f'interpose: no entity with emitter mark {req.mark}; '
-            f'marks present: {sorted(by_mark)}'
-        )
+        return f'interpose: no emitter {req.target}; present: {_present(by_mark)}'
     if em['class'] != 'env_portal_laser':
-        return f'interpose: mark {req.mark} is a {em["class"]}, not a laser emitter'
+        return f'interpose: {req.target} is a {em["class"]}, not a laser emitter'
     if not 0.0 <= req.percent <= 1.0:
         return f'interpose: percent must be in [0, 1], got {req.percent}'
-    if req.target_mark and req.target_mark not in by_mark:
-        return f'interpose: no entity with target mark {req.target_mark}'
+    if req.aim and _lookup(req.aim, by_mark) is None:
+        return f'interpose: no aim target {req.aim}'
     return req
 
 
 def _check_redirect(req, by_mark):
-    """redirect_to checks: a placed reflector cube + a laser-target mark. Error
-    string or the ready req."""
-    cube = by_mark.get(req.mark)
+    """redirect_to checks: a placed reflector cube (target) + a laser-target
+    (aim). Error string or the ready req."""
+    cube = _lookup(req.target, by_mark)
     if cube is None:
-        return (
-            f'redirect_to: no entity with cube mark {req.mark}; '
-            f'marks present: {sorted(by_mark)}'
-        )
+        return f'redirect_to: no cube {req.target}; present: {_present(by_mark)}'
     if cube['class'] != 'prop_weighted_cube':
-        return f'redirect_to: mark {req.mark} is a {cube["class"]}, not a cube'
-    tgt = by_mark.get(req.target_mark)
+        return f'redirect_to: {req.target} is a {cube["class"]}, not a cube'
+    tgt = _lookup(req.aim, by_mark)
     if tgt is None:
-        return f'redirect_to: no entity with target mark {req.target_mark}'
+        return f'redirect_to: no laser target {req.aim}'
     if tgt['class'] != 'point_laser_target':
-        return (
-            f'redirect_to: mark {req.target_mark} is a {tgt["class"]}, '
-            f'not a laser target'
-        )
+        return f'redirect_to: {req.aim} is a {tgt["class"]}, not a laser target'
     return req
 
 
 def _check_place_portal(req, by_mark):
-    """place_portal checks: a blue|orange color + a portalable wall-panel S-mark.
-    Error string or the ready req."""
+    """place_portal checks: a blue|orange color + a portalable wall-panel Sn
+    target. Error string or the ready req."""
     if req.color not in ('blue', 'orange'):
         return f'place_portal: color must be blue|orange, got {req.color!r}'
-    key = f'S{req.surface_mark}'
-    panel = by_mark.get(key)
+    if _target_kind(req.target) != 'panel':
+        return f'place_portal: target must be a wall panel Sn, got {req.target!r}'
+    panel = by_mark.get(req.target)
     if panel is None:
-        present = sorted(k for k in by_mark if isinstance(k, str))
-        return f'place_portal: no panel {key}; panels present: {present}'
+        present = sorted(k for k in by_mark if isinstance(k, str) and k[:1] == 'S')
+        return f'place_portal: no panel {req.target}; panels present: {present}'
     if panel['class'] != 'wall_panel':
-        return f'place_portal: mark {key} is a {panel["class"]}, not a wall panel'
+        return f'place_portal: {req.target} is a {panel["class"]}, not a wall panel'
     return req
 
 
 def _check_pass_through(req, by_mark):
-    """pass_through checks: a blue|orange color whose portal is actually placed."""
-    if req.color not in ('blue', 'orange'):
-        return f'pass_through: color must be blue|orange, got {req.color!r}'
-    key = 'Pb' if req.color == 'blue' else 'Po'
-    if key not in by_mark:
-        present = sorted(k for k in by_mark if isinstance(k, str))
-        return f'pass_through: no {key} portal placed; present: {present}'
+    """pass_through checks: a Pb/Po target whose portal is actually placed."""
+    if _target_kind(req.target) != 'portal':
+        return f'pass_through: target must be a portal Pb/Po, got {req.target!r}'
+    if req.target not in by_mark:
+        present = sorted(k for k in by_mark if k in ('Pb', 'Po'))
+        return f'pass_through: no {req.target} portal placed; present: {present}'
     return req
 
 
@@ -289,7 +314,7 @@ def validate(text, entities, held_mark=None):
     """Parse a command string ('go_to 7') and check it against grammar + percept.
 
     Same surface the REPL types: build_macro does the parsing, this adds the
-    range / dir / look-snap / mark / holding checks. Returns a ready-to-send
+    range / dir / look-snap / target / holding checks. Returns a ready-to-send
     MacroRequest, or a structured error string to feed back to the model (no
     gRPC, no game step).
     """
@@ -302,7 +327,7 @@ def validate(text, entities, held_mark=None):
         return f'unknown verb {verb!r}; valid: {", ".join(VERB_SPECS)}'
     try:
         req = build_macro(verb, args)
-    except ValueError, IndexError:
+    except Exception:  # any parse failure (bad int/float, missing arg) = bad args
         return f'{verb}: bad args {" ".join(args)!r}; expected {_signature(verb, spec)}'
 
     by_mark = {e['mark']: e for e in entities}
@@ -314,8 +339,8 @@ def validate(text, entities, held_mark=None):
         return _check_place_portal(req, by_mark)
     if verb == 'pass_through':
         return _check_pass_through(req, by_mark)
-    if spec.mark:
-        err = _check_mark(verb, spec, req.mark, by_mark)
+    if spec.target:
+        err = _check_target(verb, spec, req.target, by_mark)
         if err:
             return err
     if verb == 'pick_up' and held_mark is not None:
@@ -335,17 +360,19 @@ def validate(text, entities, held_mark=None):
 def _signature(verb, spec):
     """Plain-command form 'verb <arg>' -- the surface the model types."""
     if verb == 'interpose':
-        return 'interpose <emitter> <percent 0-1> [target]'
+        return 'interpose <emitter> <percent 0-1> [aim]'
     if verb == 'redirect_to':
         return 'redirect_to <cube> <target>'
     if verb == 'place_portal':
-        return 'place_portal <blue|orange> <S-mark>'
+        return 'place_portal <blue|orange> <Sn>'
     if verb == 'pass_through':
-        return 'pass_through <blue|orange>'
+        return 'pass_through <Pb|Po>'
     args = []
-    if spec.mark == 'optional':
+    if spec.target == 'any':
+        args.append('<target: N|Sn|Pb|Po>')
+    elif spec.target == 'optional':
         args.append('[mark]')
-    elif spec.mark:
+    elif spec.target:
         args.append('<mark>')
     if spec.dirs is not None:
         args.append('<' + '|'.join(spec.dirs) + '>')

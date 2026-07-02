@@ -70,21 +70,18 @@ message EnvironmentMessage {
 // See brainstorm/macro_executor_impl_plan.md and llm_percept_act_grammar.md.
 
 message MacroRequest {
-  string verb =
-      1;  // aim_at|look|go_to|move|pick_up|release|interact|interpose|wait|done
-  int32 mark =
-      2;  // anchored verbs: target mark (0 = unset); interpose: emitter
-  int32 ticks = 3;  // wait() AND move(): hold duration in ticks
-  string dir = 4;   // move(): forward|back|left|right (relative to facing)
-  int32 yaw = 5;    // look(): signed degrees, lexer-snapped to 15
-  int32 pitch =
-      6;  // look(): signed degrees, lexer-snapped to 15, engine-clamped
-  float percent = 7;        // interpose: position along the beam [0,1]
-  int32 target_mark = 8;    // interpose: optional redirect aim (0 = unset)
-  string color = 9;         // place_portal: blue|orange
-  int32 surface_mark = 10;  // place_portal: target wall-panel surface mark
-  string where =
-      11;  // place_portal: sub-panel anchor (reserved; CENTER for v0)
+  string verb = 1;  // aim_at|look|go_to|move|pick_up|release|interact|...
+  // The thing the verb acts on, as a percept mark label: "<n>" entity mark |
+  // "S<n>" surface panel | "Pb"/"Po" portal. Empty for verbs that take none.
+  string target = 2;
+  string aim = 3;     // secondary target: interpose/redirect_to redirect aim
+  int32 ticks = 4;    // wait() AND move(): hold duration in ticks
+  string dir = 5;     // move(): forward|back|left|right (relative to facing)
+  int32 yaw = 6;      // look(): signed degrees, lexer-snapped to 15
+  int32 pitch = 7;    // look(): signed degrees, snapped to 15, engine-clamped
+  float percent = 8;  // interpose: position along the beam [0,1]
+  string color = 9;   // place_portal: blue|orange (which portal to create)
+  string where = 10;  // place_portal: sub-panel anchor (reserved; CENTER v0)
 }
 
 message MacroResult {

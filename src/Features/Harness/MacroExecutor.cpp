@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -489,6 +490,79 @@ bool ResolveMarkCenter(int mark, Vector* outCenter, std::string* code) {
   if (!ResolveMarkInfo(mark, &info, code)) return false;
   *outCenter = EntityCenter(SE(info->m_pEntity));
   return true;
+}
+
+bool AllDigits(const char* s) {
+  if (!*s) return false;
+  for (; *s; ++s)
+    if (!std::isdigit(static_cast<unsigned char>(*s))) return false;
+  return true;
+}
+
+// A target label from the percept's Set-of-Marks namespace: "<n>" entity mark,
+// "S<n>" surface panel, "Pb"/"Po" portal. NONE for an empty/garbage label.
+struct TargetRef {
+  enum Kind { NONE, ENTITY, PANEL, PORTAL } kind = NONE;
+  int mark = 0;         // ENTITY: entity mark; PANEL: surface mark
+  bool orange = false;  // PORTAL: orange vs blue
+};
+
+TargetRef ClassifyTarget(const std::string& t) {
+  TargetRef r;
+  if (t == "Pb" || t == "Po") {
+    r.kind = TargetRef::PORTAL;
+    r.orange = (t == "Po");
+  } else if (t.size() >= 2 && t[0] == 'S' && AllDigits(t.c_str() + 1)) {
+    r.kind = TargetRef::PANEL;
+    r.mark = atoi(t.c_str() + 1);
+  } else if (AllDigits(t.c_str())) {
+    r.kind = TargetRef::ENTITY;
+    r.mark = atoi(t.c_str());
+  }
+  return r;
+}
+
+// A target label -> world center. Sets *code = "BAD_MARK" on an absent/garbage
+// target. Main thread only (touches the entity list / portal read).
+bool ResolveTarget(const std::string& target, Vector* outCenter,
+                   std::string* code) {
+  TargetRef ref = ClassifyTarget(target);
+  if (ref.kind == TargetRef::PORTAL) {
+    LivePortal lp = ReadPortal(ref.orange);
+    if (!lp.active) {
+      *code = "BAD_MARK";
+      return false;
+    }
+    *outCenter = lp.center;
+    return true;
+  }
+  if (ref.kind == TargetRef::PANEL) {
+    PanelDesc panel;
+    if (!surfaceMarkTable.GetPanelFromMark(ref.mark, &panel)) {
+      *code = "BAD_MARK";
+      return false;
+    }
+    *outCenter = panel.center;
+    return true;
+  }
+  if (ref.kind == TargetRef::ENTITY)
+    return ResolveMarkCenter(ref.mark, outCenter, code);
+  *code = "BAD_MARK";
+  return false;
+}
+
+// The entity mark for a verb that needs an entity target. False with *code set
+// on a panel/portal target ("WRONG_TARGET") or an empty/garbage one
+// ("BAD_MARK"). Pure string parse -- no entity list, callable off any thread.
+bool RequireEntityMark(const std::string& target, int* outMark,
+                       std::string* code) {
+  TargetRef ref = ClassifyTarget(target);
+  if (ref.kind == TargetRef::ENTITY) {
+    *outMark = ref.mark;
+    return true;
+  }
+  *code = ref.kind == TargetRef::NONE ? "BAD_MARK" : "WRONG_TARGET";
+  return false;
 }
 
 QAngle AimAnglesTo(const Vector& eye, const Vector& target) {
@@ -1096,15 +1170,15 @@ portal2_harness::MacroResult MacroExecutor::Execute(
   }
 
   const std::string& verb = req.verb();
-  if (verb == "aim_at") return AimAt(req.mark());
+  if (verb == "aim_at") return AimAt(req.target());
   if (verb == "look") return Look(req.yaw(), req.pitch());
-  if (verb == "go_to") return GoTo(req.mark());
+  if (verb == "go_to") return GoTo(req.target());
   if (verb == "move") return Move(req.dir(), req.ticks());
   if (verb == "wait") return Wait(req.ticks());
   if (verb == "done") return Done();
-  if (verb == "pick_up") return PickUp(req.mark());
-  if (verb == "release") return Release(req.mark());
-  if (verb == "interact") return Interact(req.mark());
+  if (verb == "pick_up") return PickUp(req.target());
+  if (verb == "release") return Release(req.target());
+  if (verb == "interact") return Interact(req.target());
   if (verb == "interpose") return Interpose(req);
   if (verb == "redirect_to") return RedirectTo(req);
   if (verb == "place_portal") return PlacePortal(req);
@@ -1172,7 +1246,22 @@ std::string MacroExecutor::RedirectConfirm(uint32_t cubeKey, int targetMark,
 portal2_harness::MacroResult MacroExecutor::Interpose(
     const portal2_harness::MacroRequest& req) {
   portal2_harness::MacroResult r;
-  int emitterMark = req.mark();
+  int emitterMark;
+  std::string tcode;
+  if (!RequireEntityMark(req.target(), &emitterMark, &tcode)) {
+    r.set_ok(false);
+    r.set_result_code(tcode);
+    r.set_detail("interpose emitter must be a laser mark, got \"" +
+                 req.target() + "\"");
+    return r;
+  }
+  int targetMark = 0;  // optional redirect aim (`aim`)
+  if (!req.aim().empty() && !RequireEntityMark(req.aim(), &targetMark, &tcode)) {
+    r.set_ok(false);
+    r.set_result_code(tcode);
+    r.set_detail("interpose aim must be a mark, got \"" + req.aim() + "\"");
+    return r;
+  }
   float percent = req.percent();
 
   auto cancelled = []() {
@@ -1264,11 +1353,10 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
       }))
     return cancelled();
 
-  // 4. Re-seat at the known seat (with +X aimed at target= if given) until the
+  // 4. Re-seat at the known seat (with +X aimed at `aim` if given) until the
   // hull intercepts the beam (and powers the target), re-rolling the random
   // vphysics settle jank each attempt. Re-seating at g->seat -- not the cube's
   // drifted origin -- re-centres a cube that walked off the previous try.
-  int targetMark = req.target_mark();
   struct Conf {
     bool intercept = false;
     bool powered = false;
@@ -1359,8 +1447,16 @@ portal2_harness::MacroResult MacroExecutor::PlacePortal(
     const portal2_harness::MacroRequest& req) {
   portal2_harness::MacroResult r;
   const std::string color = req.color();
-  int surfaceMark = req.surface_mark();
   bool orange = (color == "orange");
+  TargetRef ref = ClassifyTarget(req.target());
+  if (ref.kind != TargetRef::PANEL) {
+    r.set_ok(false);
+    r.set_result_code(ref.kind == TargetRef::NONE ? "BAD_MARK" : "WRONG_TARGET");
+    r.set_detail("place_portal needs a wall panel Sn, got \"" + req.target() +
+                 "\"");
+    return r;
+  }
+  int surfaceMark = ref.mark;
 
   auto cancelled = []() {
     portal2_harness::MacroResult c;
@@ -1462,7 +1558,16 @@ portal2_harness::MacroResult MacroExecutor::PlacePortal(
 portal2_harness::MacroResult MacroExecutor::PassThrough(
     const portal2_harness::MacroRequest& req) {
   portal2_harness::MacroResult r;
-  bool orange = (req.color() == "orange");
+  TargetRef ref = ClassifyTarget(req.target());
+  if (ref.kind != TargetRef::PORTAL) {
+    r.set_ok(false);
+    r.set_result_code(ref.kind == TargetRef::NONE ? "NO_SUCH_PORTAL"
+                                                  : "WRONG_TARGET");
+    r.set_detail("pass_through needs a portal Pb/Po, got \"" + req.target() +
+                 "\"");
+    return r;
+  }
+  bool orange = ref.orange;
 
   auto cancelled = []() {
     portal2_harness::MacroResult c;
@@ -1588,8 +1693,16 @@ portal2_harness::MacroResult MacroExecutor::PassThrough(
 portal2_harness::MacroResult MacroExecutor::RedirectTo(
     const portal2_harness::MacroRequest& req) {
   portal2_harness::MacroResult r;
-  int cubeMark = req.mark();
-  int targetMark = req.target_mark();
+  int cubeMark;
+  int targetMark;
+  std::string tcode;
+  if (!RequireEntityMark(req.target(), &cubeMark, &tcode) ||
+      !RequireEntityMark(req.aim(), &targetMark, &tcode)) {
+    r.set_ok(false);
+    r.set_result_code(tcode);
+    r.set_detail("redirect_to needs a cube mark (target) + a laser mark (aim)");
+    return r;
+  }
 
   // Gate (main thread): the object must be a type-2 reflector cube currently
   // catching a beam, within arm's reach of the player (re-aiming a cube means
@@ -1662,26 +1775,26 @@ portal2_harness::MacroResult MacroExecutor::RedirectTo(
   return r;
 }
 
-portal2_harness::MacroResult MacroExecutor::AimAt(int mark) {
+portal2_harness::MacroResult MacroExecutor::AimAt(const std::string& target) {
   portal2_harness::MacroResult r;
 
   // Resolve + aim in one main-thread hop. Heap output so a late (post-cancel)
-  // closure run never writes a dead stack slot. `target` is the commanded view.
+  // closure run never writes a dead stack slot. `angles` is the commanded view.
   struct AimOut {
     bool ok = false;
     std::string code = "BAD_MARK";
-    QAngle target{0, 0, 0};
+    QAngle angles{0, 0, 0};
   };
   auto out = std::make_shared<AimOut>();
-  bool ran = RunOnMainThreadSync(context_, [out, mark]() {
+  bool ran = RunOnMainThreadSync(context_, [out, target]() {
     Vector eye;
     if (!PlayerEye(&eye)) {
       out->code = "NO_PLAYER";
       return;
     }
     Vector center;
-    if (!ResolveMarkCenter(mark, &center, &out->code)) return;
-    out->target = ApplyAbsoluteView(AimAnglesTo(eye, center));
+    if (!ResolveTarget(target, &center, &out->code)) return;
+    out->angles = ApplyAbsoluteView(AimAnglesTo(eye, center));
     out->ok = true;
   });
   if (!ran) {
@@ -1692,7 +1805,7 @@ portal2_harness::MacroResult MacroExecutor::AimAt(int mark) {
   if (!out->ok) {
     r.set_ok(false);
     r.set_result_code(out->code);
-    r.set_detail("aim_at could not resolve mark " + std::to_string(mark));
+    r.set_detail("aim_at could not resolve target " + target);
     return r;
   }
 
@@ -1703,10 +1816,10 @@ portal2_harness::MacroResult MacroExecutor::AimAt(int mark) {
 
   r.set_ok(true);
   r.set_result_code("SUCCESS");
-  r.set_aim_pitch(out->target.x);
-  r.set_aim_yaw(out->target.y);
+  r.set_aim_pitch(out->angles.x);
+  r.set_aim_yaw(out->angles.y);
   r.set_detail(
-      Utils::ssprintf("aim pitch=%.1f yaw=%.1f", out->target.x, out->target.y));
+      Utils::ssprintf("aim pitch=%.1f yaw=%.1f", out->angles.x, out->angles.y));
   return r;
 }
 
@@ -1768,7 +1881,7 @@ portal2_harness::MacroResult MacroExecutor::Done() {
   return r;
 }
 
-portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
+portal2_harness::MacroResult MacroExecutor::GoTo(const std::string& target) {
   portal2_harness::MacroResult r;
 
   // Resolve the target once and capture the starting distance, so an early
@@ -1783,26 +1896,31 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
     float reachRadius = kReachRadius;  // standoff (bigger for obstacle targets)
   };
   auto res = std::make_shared<Resolve>();
-  bool ran = RunOnMainThreadSync(context_, [res, mark]() {
-    if (!ResolveMarkCenter(mark, &res->center, &res->code)) return;
+  bool ran = RunOnMainThreadSync(context_, [res, target]() {
+    if (!ResolveTarget(target, &res->center, &res->code)) return;
     res->ok = true;
-    auto [idx, ser] = markTable.GetEntityFromMark(mark);
-    if (idx >= 0) res->targetKey = PackEntKey(idx, static_cast<uint16_t>(ser));
+    TargetRef ref = ClassifyTarget(target);
+    if (ref.kind == TargetRef::ENTITY) {
+      auto [idx, ser] = markTable.GetEntityFromMark(ref.mark);
+      if (idx >= 0) res->targetKey = PackEntKey(idx, static_cast<uint16_t>(ser));
+    }
     ServerEnt* pl = server->GetPlayer(1);
     if (pl) {
       Vector feet = pl->abs_origin();
       res->startFeet = feet;
       res->initialDist =
           Vector{res->center.x - feet.x, res->center.y - feet.y, 0}.Length2D();
-      // Stand off only from a PUSHABLE target (cube/box/turret) at its
+      // Stand off only from a PUSHABLE entity (cube/box/turret) at its
       // footprint edge + body + gap, so the approach stops beside it instead of
       // bulldozing it. A button is immovable and a follow-up release needs a
-      // CLOSE approach to reach it, so it keeps the plain kReachRadius.
+      // CLOSE approach to reach it, so it keeps the plain kReachRadius. A
+      // panel/portal target has no footprint -- plain kReachRadius too.
       CEntInfo* tInfo = nullptr;
       std::string tcode;
       Vector tC;
       float tR = TargetFootprint(res->targetKey, &tC);
-      if (tR >= 0 && ResolveMarkInfo(mark, &tInfo, &tcode) &&
+      if (ref.kind == TargetRef::ENTITY && tR >= 0 &&
+          ResolveMarkInfo(ref.mark, &tInfo, &tcode) &&
           IsGrabbableClass(server->GetEntityClassName(tInfo->m_pEntity))) {
         Vector pmx = pl->collision().OBBMaxs();
         res->reachRadius =
@@ -1818,22 +1936,22 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
   if (!res->ok) {
     r.set_ok(false);
     r.set_result_code(res->code);
-    r.set_detail("go_to could not resolve mark " + std::to_string(mark));
+    r.set_detail("go_to could not resolve target " + target);
     return r;
   }
 
   // VFH march to the resolved target. targetKey/heldKey skip the destination
   // and any carried cube in the obstacle histogram.
-  Vector target = res->center;
+  Vector dest = res->center;
   uint32_t heldKey = g_heldEntityKey.load();
   MarchOutcome m =
-      MarchTo(context_, target, res->reachRadius, kGoToMaxTicks, res->targetKey,
+      MarchTo(context_, dest, res->reachRadius, kGoToMaxTicks, res->targetKey,
               heldKey, res->startFeet, res->initialDist);
   // Straight march stalled in a pocket -> route around it with A* (continues
   // from the blocked feet, so the plan stays short and well under the cell
   // cap).
   if (!m.cancelled && m.code == "BLOCKED")
-    m = RouteAround(context_, target, res->targetKey, heldKey, res->reachRadius,
+    m = RouteAround(context_, dest, res->targetKey, heldKey, res->reachRadius,
                     m.dist);
   if (m.cancelled) {
     r.set_ok(false);
@@ -1859,11 +1977,11 @@ portal2_harness::MacroResult MacroExecutor::GoTo(int mark) {
   {
     auto fin = std::make_shared<float>(finalDist);
     auto feet = std::make_shared<Vector>(res->startFeet);
-    bool finRan = RunOnMainThreadSync(context_, [fin, feet, target]() {
+    bool finRan = RunOnMainThreadSync(context_, [fin, feet, dest]() {
       ServerEnt* pl = server->GetPlayer(1);
       if (pl) {
         *feet = pl->abs_origin();
-        *fin = Vector{target.x - feet->x, target.y - feet->y, 0}.Length2D();
+        *fin = Vector{dest.x - feet->x, dest.y - feet->y, 0}.Length2D();
       }
     });
     if (!finRan) {  // stream dropped during settle -- don't claim a result
@@ -2015,8 +2133,16 @@ portal2_harness::MacroResult MacroExecutor::Move(const std::string& dir,
   return r;
 }
 
-portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
+portal2_harness::MacroResult MacroExecutor::PickUp(const std::string& target) {
   portal2_harness::MacroResult r;
+  int mark;
+  std::string tcode;
+  if (!RequireEntityMark(target, &mark, &tcode)) {
+    r.set_ok(false);
+    r.set_result_code(tcode);
+    r.set_detail("pick_up needs an entity mark, got \"" + target + "\"");
+    return r;
+  }
 
   // Resolve + grabbable-class + reach check, snapshot the pre-grab pos (main
   // thread). Heap output survives a post-cancel closure run; the class gate
@@ -2067,7 +2193,7 @@ portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
 
   // Face the target, then pulse +use to grab it (holding the aim across the
   // pulse so the view doesn't drift to the ceiling mid-grab).
-  portal2_harness::MacroResult aim = AimAt(mark);
+  portal2_harness::MacroResult aim = AimAt(std::to_string(mark));
   if (!aim.ok()) return aim;  // BAD_MARK / NO_PLAYER / CANCELLED bubble up
   PulseUse(kSettle, QAngle{aim.aim_pitch(), aim.aim_yaw(), 0});
 
@@ -2139,7 +2265,20 @@ portal2_harness::MacroResult MacroExecutor::PickUp(int mark) {
   return r;
 }
 
-portal2_harness::MacroResult MacroExecutor::Release(int mark) {
+portal2_harness::MacroResult MacroExecutor::Release(const std::string& target) {
+  int mark = 0;  // 0 = no target: drop at the player's feet
+  if (!target.empty()) {
+    std::string tcode;
+    if (!RequireEntityMark(target, &mark, &tcode)) {
+      portal2_harness::MacroResult r;
+      r.set_ok(false);
+      r.set_result_code(tcode);
+      r.set_detail("release target must be an entity mark, got \"" + target +
+                   "\"");
+      return r;
+    }
+  }
+
   // Cache the held cube before clearing held-state -- the seat path resolves it
   // again after the drop, once g_heldEntityKey is gone.
   uint32_t heldKey = g_heldEntityKey.load();
@@ -2159,7 +2298,7 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
   // (pre-drift) angle.
   QAngle view{0, 0, 0};
   if (mark > 0) {
-    portal2_harness::MacroResult aim = AimAt(mark);
+    portal2_harness::MacroResult aim = AimAt(std::to_string(mark));
     if (!aim.ok()) return aim;  // BAD_MARK / NO_PLAYER / CANCELLED bubble up
     view = QAngle{aim.aim_pitch(), aim.aim_yaw(), 0};
   } else {
@@ -2367,11 +2506,21 @@ portal2_harness::MacroResult MacroExecutor::Release(int mark) {
   return r;
 }
 
-portal2_harness::MacroResult MacroExecutor::Interact(int mark) {
+portal2_harness::MacroResult MacroExecutor::Interact(const std::string& target) {
+  // +use acts on an entity (a button/switch), not a panel or portal.
+  TargetRef ref = ClassifyTarget(target);
+  if (ref.kind != TargetRef::ENTITY) {
+    portal2_harness::MacroResult r;
+    r.set_ok(false);
+    r.set_result_code(ref.kind == TargetRef::NONE ? "BAD_MARK" : "WRONG_TARGET");
+    r.set_detail("interact needs an entity mark, got \"" + target + "\"");
+    return r;
+  }
+
   // Walk into reach, face the mark, pulse +use. The engine decides what +use
   // does from world state (press a button, activate a thing); the verb name is
   // the intent. press will alias this once wired -- identical mechanics.
-  portal2_harness::MacroResult nav = GoTo(mark);
+  portal2_harness::MacroResult nav = GoTo(target);
   if (!nav.reached()) {
     // Frame a genuine nav failure as a reachability problem, but pass CANCELLED
     // (a dropped stream, which carries no detail by convention) through clean.
@@ -2379,14 +2528,14 @@ portal2_harness::MacroResult MacroExecutor::Interact(int mark) {
       nav.set_detail("interact: not in reach (" + nav.detail() + ")");
     return nav;  // carries BLOCKED / STUCK / BAD_MARK / CANCELLED
   }
-  portal2_harness::MacroResult aim = AimAt(mark);
+  portal2_harness::MacroResult aim = AimAt(target);
   if (!aim.ok()) return aim;
   PulseUse(kSettle, QAngle{aim.aim_pitch(), aim.aim_yaw(), 0});
 
   portal2_harness::MacroResult r;
   r.set_ok(true);
   r.set_result_code("SUCCESS");
-  r.set_detail("interacted with mark " + std::to_string(mark));
+  r.set_detail("interacted with mark " + target);
   return r;
 }
 

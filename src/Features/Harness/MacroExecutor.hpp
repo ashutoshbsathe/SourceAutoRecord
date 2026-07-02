@@ -20,15 +20,15 @@ class MacroExecutor {
  private:
   grpc::ServerContext* context_;
 
-  portal2_harness::MacroResult AimAt(int mark);
+  portal2_harness::MacroResult AimAt(const std::string& target);
   portal2_harness::MacroResult Look(int yaw, int pitch);
-  portal2_harness::MacroResult GoTo(int mark);
+  portal2_harness::MacroResult GoTo(const std::string& target);
   portal2_harness::MacroResult Move(const std::string& dir, int ticks);
   portal2_harness::MacroResult Wait(int ticks);
   portal2_harness::MacroResult Done();
-  portal2_harness::MacroResult PickUp(int mark);
-  portal2_harness::MacroResult Release(int mark);
-  portal2_harness::MacroResult Interact(int mark);
+  portal2_harness::MacroResult PickUp(const std::string& target);
+  portal2_harness::MacroResult Release(const std::string& target);
+  portal2_harness::MacroResult Interact(const std::string& target);
   portal2_harness::MacroResult Interpose(
       const portal2_harness::MacroRequest& req);
   // Yaw a seated cube's +X at a target and confirm power, re-seating to retry

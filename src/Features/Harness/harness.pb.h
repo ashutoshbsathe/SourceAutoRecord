@@ -1726,16 +1726,15 @@ class MacroRequest final : public ::google::protobuf::Message
   // accessors -------------------------------------------------------
   enum : int {
     kVerbFieldNumber = 1,
-    kDirFieldNumber = 4,
+    kTargetFieldNumber = 2,
+    kAimFieldNumber = 3,
+    kDirFieldNumber = 5,
     kColorFieldNumber = 9,
-    kWhereFieldNumber = 11,
-    kMarkFieldNumber = 2,
-    kTicksFieldNumber = 3,
-    kYawFieldNumber = 5,
-    kPitchFieldNumber = 6,
-    kPercentFieldNumber = 7,
-    kTargetMarkFieldNumber = 8,
-    kSurfaceMarkFieldNumber = 10,
+    kWhereFieldNumber = 10,
+    kTicksFieldNumber = 4,
+    kYawFieldNumber = 6,
+    kPitchFieldNumber = 7,
+    kPercentFieldNumber = 8,
   };
   // string verb = 1;
   void clear_verb() ;
@@ -1752,7 +1751,37 @@ class MacroRequest final : public ::google::protobuf::Message
   ::std::string* PROTOBUF_NONNULL _internal_mutable_verb();
 
   public:
-  // string dir = 4;
+  // string target = 2;
+  void clear_target() ;
+  const ::std::string& target() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_target(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_target();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_target();
+  void set_allocated_target(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_target() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_target(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_target();
+
+  public:
+  // string aim = 3;
+  void clear_aim() ;
+  const ::std::string& aim() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_aim(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_aim();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_aim();
+  void set_allocated_aim(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_aim() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_aim(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_aim();
+
+  public:
+  // string dir = 5;
   void clear_dir() ;
   const ::std::string& dir() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
@@ -1782,7 +1811,7 @@ class MacroRequest final : public ::google::protobuf::Message
   ::std::string* PROTOBUF_NONNULL _internal_mutable_color();
 
   public:
-  // string where = 11;
+  // string where = 10;
   void clear_where() ;
   const ::std::string& where() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
@@ -1797,17 +1826,7 @@ class MacroRequest final : public ::google::protobuf::Message
   ::std::string* PROTOBUF_NONNULL _internal_mutable_where();
 
   public:
-  // int32 mark = 2;
-  void clear_mark() ;
-  ::int32_t mark() const;
-  void set_mark(::int32_t value);
-
-  private:
-  ::int32_t _internal_mark() const;
-  void _internal_set_mark(::int32_t value);
-
-  public:
-  // int32 ticks = 3;
+  // int32 ticks = 4;
   void clear_ticks() ;
   ::int32_t ticks() const;
   void set_ticks(::int32_t value);
@@ -1817,7 +1836,7 @@ class MacroRequest final : public ::google::protobuf::Message
   void _internal_set_ticks(::int32_t value);
 
   public:
-  // int32 yaw = 5;
+  // int32 yaw = 6;
   void clear_yaw() ;
   ::int32_t yaw() const;
   void set_yaw(::int32_t value);
@@ -1827,7 +1846,7 @@ class MacroRequest final : public ::google::protobuf::Message
   void _internal_set_yaw(::int32_t value);
 
   public:
-  // int32 pitch = 6;
+  // int32 pitch = 7;
   void clear_pitch() ;
   ::int32_t pitch() const;
   void set_pitch(::int32_t value);
@@ -1837,7 +1856,7 @@ class MacroRequest final : public ::google::protobuf::Message
   void _internal_set_pitch(::int32_t value);
 
   public:
-  // float percent = 7;
+  // float percent = 8;
   void clear_percent() ;
   float percent() const;
   void set_percent(float value);
@@ -1847,32 +1866,12 @@ class MacroRequest final : public ::google::protobuf::Message
   void _internal_set_percent(float value);
 
   public:
-  // int32 target_mark = 8;
-  void clear_target_mark() ;
-  ::int32_t target_mark() const;
-  void set_target_mark(::int32_t value);
-
-  private:
-  ::int32_t _internal_target_mark() const;
-  void _internal_set_target_mark(::int32_t value);
-
-  public:
-  // int32 surface_mark = 10;
-  void clear_surface_mark() ;
-  ::int32_t surface_mark() const;
-  void set_surface_mark(::int32_t value);
-
-  private:
-  ::int32_t _internal_surface_mark() const;
-  void _internal_set_surface_mark(::int32_t value);
-
-  public:
   // @@protoc_insertion_point(class_scope:portal2_harness.MacroRequest)
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<4, 11,
-                                   0, 62,
+  static const ::google::protobuf::internal::TcParseTable<4, 10,
+                                   0, 71,
                                    2>
       _table_;
 
@@ -1894,16 +1893,15 @@ class MacroRequest final : public ::google::protobuf::Message
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
     ::google::protobuf::internal::ArenaStringPtr verb_;
+    ::google::protobuf::internal::ArenaStringPtr target_;
+    ::google::protobuf::internal::ArenaStringPtr aim_;
     ::google::protobuf::internal::ArenaStringPtr dir_;
     ::google::protobuf::internal::ArenaStringPtr color_;
     ::google::protobuf::internal::ArenaStringPtr where_;
-    ::int32_t mark_;
     ::int32_t ticks_;
     ::int32_t yaw_;
     ::int32_t pitch_;
     float percent_;
-    ::int32_t target_mark_;
-    ::int32_t surface_mark_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -6832,35 +6830,141 @@ inline void MacroRequest::set_allocated_verb(::std::string* PROTOBUF_NULLABLE va
   // @@protoc_insertion_point(field_set_allocated:portal2_harness.MacroRequest.verb)
 }
 
-// int32 mark = 2;
-inline void MacroRequest::clear_mark() {
+// string target = 2;
+inline void MacroRequest::clear_target() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.mark_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000010u;
+  _impl_.target_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000002u;
 }
-inline ::int32_t MacroRequest::mark() const {
-  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.mark)
-  return _internal_mark();
+inline const ::std::string& MacroRequest::target() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.target)
+  return _internal_target();
 }
-inline void MacroRequest::set_mark(::int32_t value) {
-  _internal_set_mark(value);
-  _impl_._has_bits_[0] |= 0x00000010u;
-  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.mark)
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MacroRequest::set_target(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.target_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.target)
 }
-inline ::int32_t MacroRequest::_internal_mark() const {
+inline ::std::string* PROTOBUF_NONNULL MacroRequest::mutable_target()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_target();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.MacroRequest.target)
+  return _s;
+}
+inline const ::std::string& MacroRequest::_internal_target() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.mark_;
+  return _impl_.target_.Get();
 }
-inline void MacroRequest::_internal_set_mark(::int32_t value) {
+inline void MacroRequest::_internal_set_target(const ::std::string& value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.mark_ = value;
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.target_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MacroRequest::_internal_mutable_target() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002u;
+  return _impl_.target_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MacroRequest::release_target() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.MacroRequest.target)
+  if ((_impl_._has_bits_[0] & 0x00000002u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  auto* released = _impl_.target_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.target_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MacroRequest::set_allocated_target(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+  _impl_.target_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.target_.IsDefault()) {
+    _impl_.target_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.MacroRequest.target)
 }
 
-// int32 ticks = 3;
+// string aim = 3;
+inline void MacroRequest::clear_aim() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.aim_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000004u;
+}
+inline const ::std::string& MacroRequest::aim() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.aim)
+  return _internal_aim();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MacroRequest::set_aim(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_.aim_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.aim)
+}
+inline ::std::string* PROTOBUF_NONNULL MacroRequest::mutable_aim()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_aim();
+  // @@protoc_insertion_point(field_mutable:portal2_harness.MacroRequest.aim)
+  return _s;
+}
+inline const ::std::string& MacroRequest::_internal_aim() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.aim_.Get();
+}
+inline void MacroRequest::_internal_set_aim(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_.aim_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MacroRequest::_internal_mutable_aim() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000004u;
+  return _impl_.aim_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MacroRequest::release_aim() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:portal2_harness.MacroRequest.aim)
+  if ((_impl_._has_bits_[0] & 0x00000004u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000004u;
+  auto* released = _impl_.aim_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.aim_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MacroRequest::set_allocated_aim(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000004u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004u;
+  }
+  _impl_.aim_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.aim_.IsDefault()) {
+    _impl_.aim_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:portal2_harness.MacroRequest.aim)
+}
+
+// int32 ticks = 4;
 inline void MacroRequest::clear_ticks() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.ticks_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000020u;
+  _impl_._has_bits_[0] &= ~0x00000040u;
 }
 inline ::int32_t MacroRequest::ticks() const {
   // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.ticks)
@@ -6868,7 +6972,7 @@ inline ::int32_t MacroRequest::ticks() const {
 }
 inline void MacroRequest::set_ticks(::int32_t value) {
   _internal_set_ticks(value);
-  _impl_._has_bits_[0] |= 0x00000020u;
+  _impl_._has_bits_[0] |= 0x00000040u;
   // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.ticks)
 }
 inline ::int32_t MacroRequest::_internal_ticks() const {
@@ -6880,11 +6984,11 @@ inline void MacroRequest::_internal_set_ticks(::int32_t value) {
   _impl_.ticks_ = value;
 }
 
-// string dir = 4;
+// string dir = 5;
 inline void MacroRequest::clear_dir() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.dir_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000002u;
+  _impl_._has_bits_[0] &= ~0x00000008u;
 }
 inline const ::std::string& MacroRequest::dir() const
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -6894,7 +6998,7 @@ inline const ::std::string& MacroRequest::dir() const
 template <typename Arg_, typename... Args_>
 PROTOBUF_ALWAYS_INLINE void MacroRequest::set_dir(Arg_&& arg, Args_... args) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_._has_bits_[0] |= 0x00000008u;
   _impl_.dir_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
   // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.dir)
 }
@@ -6910,21 +7014,21 @@ inline const ::std::string& MacroRequest::_internal_dir() const {
 }
 inline void MacroRequest::_internal_set_dir(const ::std::string& value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_._has_bits_[0] |= 0x00000008u;
   _impl_.dir_.Set(value, GetArena());
 }
 inline ::std::string* PROTOBUF_NONNULL MacroRequest::_internal_mutable_dir() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_._has_bits_[0] |= 0x00000008u;
   return _impl_.dir_.Mutable( GetArena());
 }
 inline ::std::string* PROTOBUF_NULLABLE MacroRequest::release_dir() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   // @@protoc_insertion_point(field_release:portal2_harness.MacroRequest.dir)
-  if ((_impl_._has_bits_[0] & 0x00000002u) == 0) {
+  if ((_impl_._has_bits_[0] & 0x00000008u) == 0) {
     return nullptr;
   }
-  _impl_._has_bits_[0] &= ~0x00000002u;
+  _impl_._has_bits_[0] &= ~0x00000008u;
   auto* released = _impl_.dir_.Release();
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
     _impl_.dir_.Set("", GetArena());
@@ -6934,9 +7038,9 @@ inline ::std::string* PROTOBUF_NULLABLE MacroRequest::release_dir() {
 inline void MacroRequest::set_allocated_dir(::std::string* PROTOBUF_NULLABLE value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000002u;
+    _impl_._has_bits_[0] |= 0x00000008u;
   } else {
-    _impl_._has_bits_[0] &= ~0x00000002u;
+    _impl_._has_bits_[0] &= ~0x00000008u;
   }
   _impl_.dir_.SetAllocated(value, GetArena());
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.dir_.IsDefault()) {
@@ -6945,11 +7049,11 @@ inline void MacroRequest::set_allocated_dir(::std::string* PROTOBUF_NULLABLE val
   // @@protoc_insertion_point(field_set_allocated:portal2_harness.MacroRequest.dir)
 }
 
-// int32 yaw = 5;
+// int32 yaw = 6;
 inline void MacroRequest::clear_yaw() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.yaw_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000040u;
+  _impl_._has_bits_[0] &= ~0x00000080u;
 }
 inline ::int32_t MacroRequest::yaw() const {
   // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.yaw)
@@ -6957,7 +7061,7 @@ inline ::int32_t MacroRequest::yaw() const {
 }
 inline void MacroRequest::set_yaw(::int32_t value) {
   _internal_set_yaw(value);
-  _impl_._has_bits_[0] |= 0x00000040u;
+  _impl_._has_bits_[0] |= 0x00000080u;
   // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.yaw)
 }
 inline ::int32_t MacroRequest::_internal_yaw() const {
@@ -6969,11 +7073,11 @@ inline void MacroRequest::_internal_set_yaw(::int32_t value) {
   _impl_.yaw_ = value;
 }
 
-// int32 pitch = 6;
+// int32 pitch = 7;
 inline void MacroRequest::clear_pitch() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.pitch_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000080u;
+  _impl_._has_bits_[0] &= ~0x00000100u;
 }
 inline ::int32_t MacroRequest::pitch() const {
   // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.pitch)
@@ -6981,7 +7085,7 @@ inline ::int32_t MacroRequest::pitch() const {
 }
 inline void MacroRequest::set_pitch(::int32_t value) {
   _internal_set_pitch(value);
-  _impl_._has_bits_[0] |= 0x00000080u;
+  _impl_._has_bits_[0] |= 0x00000100u;
   // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.pitch)
 }
 inline ::int32_t MacroRequest::_internal_pitch() const {
@@ -6993,11 +7097,11 @@ inline void MacroRequest::_internal_set_pitch(::int32_t value) {
   _impl_.pitch_ = value;
 }
 
-// float percent = 7;
+// float percent = 8;
 inline void MacroRequest::clear_percent() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.percent_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000100u;
+  _impl_._has_bits_[0] &= ~0x00000200u;
 }
 inline float MacroRequest::percent() const {
   // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.percent)
@@ -7005,7 +7109,7 @@ inline float MacroRequest::percent() const {
 }
 inline void MacroRequest::set_percent(float value) {
   _internal_set_percent(value);
-  _impl_._has_bits_[0] |= 0x00000100u;
+  _impl_._has_bits_[0] |= 0x00000200u;
   // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.percent)
 }
 inline float MacroRequest::_internal_percent() const {
@@ -7017,35 +7121,11 @@ inline void MacroRequest::_internal_set_percent(float value) {
   _impl_.percent_ = value;
 }
 
-// int32 target_mark = 8;
-inline void MacroRequest::clear_target_mark() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.target_mark_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000200u;
-}
-inline ::int32_t MacroRequest::target_mark() const {
-  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.target_mark)
-  return _internal_target_mark();
-}
-inline void MacroRequest::set_target_mark(::int32_t value) {
-  _internal_set_target_mark(value);
-  _impl_._has_bits_[0] |= 0x00000200u;
-  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.target_mark)
-}
-inline ::int32_t MacroRequest::_internal_target_mark() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.target_mark_;
-}
-inline void MacroRequest::_internal_set_target_mark(::int32_t value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.target_mark_ = value;
-}
-
 // string color = 9;
 inline void MacroRequest::clear_color() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.color_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000004u;
+  _impl_._has_bits_[0] &= ~0x00000010u;
 }
 inline const ::std::string& MacroRequest::color() const
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -7055,7 +7135,7 @@ inline const ::std::string& MacroRequest::color() const
 template <typename Arg_, typename... Args_>
 PROTOBUF_ALWAYS_INLINE void MacroRequest::set_color(Arg_&& arg, Args_... args) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_._has_bits_[0] |= 0x00000010u;
   _impl_.color_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
   // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.color)
 }
@@ -7071,21 +7151,21 @@ inline const ::std::string& MacroRequest::_internal_color() const {
 }
 inline void MacroRequest::_internal_set_color(const ::std::string& value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_._has_bits_[0] |= 0x00000010u;
   _impl_.color_.Set(value, GetArena());
 }
 inline ::std::string* PROTOBUF_NONNULL MacroRequest::_internal_mutable_color() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_._has_bits_[0] |= 0x00000010u;
   return _impl_.color_.Mutable( GetArena());
 }
 inline ::std::string* PROTOBUF_NULLABLE MacroRequest::release_color() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   // @@protoc_insertion_point(field_release:portal2_harness.MacroRequest.color)
-  if ((_impl_._has_bits_[0] & 0x00000004u) == 0) {
+  if ((_impl_._has_bits_[0] & 0x00000010u) == 0) {
     return nullptr;
   }
-  _impl_._has_bits_[0] &= ~0x00000004u;
+  _impl_._has_bits_[0] &= ~0x00000010u;
   auto* released = _impl_.color_.Release();
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
     _impl_.color_.Set("", GetArena());
@@ -7095,9 +7175,9 @@ inline ::std::string* PROTOBUF_NULLABLE MacroRequest::release_color() {
 inline void MacroRequest::set_allocated_color(::std::string* PROTOBUF_NULLABLE value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000004u;
+    _impl_._has_bits_[0] |= 0x00000010u;
   } else {
-    _impl_._has_bits_[0] &= ~0x00000004u;
+    _impl_._has_bits_[0] &= ~0x00000010u;
   }
   _impl_.color_.SetAllocated(value, GetArena());
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.color_.IsDefault()) {
@@ -7106,35 +7186,11 @@ inline void MacroRequest::set_allocated_color(::std::string* PROTOBUF_NULLABLE v
   // @@protoc_insertion_point(field_set_allocated:portal2_harness.MacroRequest.color)
 }
 
-// int32 surface_mark = 10;
-inline void MacroRequest::clear_surface_mark() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.surface_mark_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000400u;
-}
-inline ::int32_t MacroRequest::surface_mark() const {
-  // @@protoc_insertion_point(field_get:portal2_harness.MacroRequest.surface_mark)
-  return _internal_surface_mark();
-}
-inline void MacroRequest::set_surface_mark(::int32_t value) {
-  _internal_set_surface_mark(value);
-  _impl_._has_bits_[0] |= 0x00000400u;
-  // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.surface_mark)
-}
-inline ::int32_t MacroRequest::_internal_surface_mark() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.surface_mark_;
-}
-inline void MacroRequest::_internal_set_surface_mark(::int32_t value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.surface_mark_ = value;
-}
-
-// string where = 11;
+// string where = 10;
 inline void MacroRequest::clear_where() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.where_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000008u;
+  _impl_._has_bits_[0] &= ~0x00000020u;
 }
 inline const ::std::string& MacroRequest::where() const
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -7144,7 +7200,7 @@ inline const ::std::string& MacroRequest::where() const
 template <typename Arg_, typename... Args_>
 PROTOBUF_ALWAYS_INLINE void MacroRequest::set_where(Arg_&& arg, Args_... args) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000008u;
+  _impl_._has_bits_[0] |= 0x00000020u;
   _impl_.where_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
   // @@protoc_insertion_point(field_set:portal2_harness.MacroRequest.where)
 }
@@ -7160,21 +7216,21 @@ inline const ::std::string& MacroRequest::_internal_where() const {
 }
 inline void MacroRequest::_internal_set_where(const ::std::string& value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000008u;
+  _impl_._has_bits_[0] |= 0x00000020u;
   _impl_.where_.Set(value, GetArena());
 }
 inline ::std::string* PROTOBUF_NONNULL MacroRequest::_internal_mutable_where() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000008u;
+  _impl_._has_bits_[0] |= 0x00000020u;
   return _impl_.where_.Mutable( GetArena());
 }
 inline ::std::string* PROTOBUF_NULLABLE MacroRequest::release_where() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   // @@protoc_insertion_point(field_release:portal2_harness.MacroRequest.where)
-  if ((_impl_._has_bits_[0] & 0x00000008u) == 0) {
+  if ((_impl_._has_bits_[0] & 0x00000020u) == 0) {
     return nullptr;
   }
-  _impl_._has_bits_[0] &= ~0x00000008u;
+  _impl_._has_bits_[0] &= ~0x00000020u;
   auto* released = _impl_.where_.Release();
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
     _impl_.where_.Set("", GetArena());
@@ -7184,9 +7240,9 @@ inline ::std::string* PROTOBUF_NULLABLE MacroRequest::release_where() {
 inline void MacroRequest::set_allocated_where(::std::string* PROTOBUF_NULLABLE value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000008u;
+    _impl_._has_bits_[0] |= 0x00000020u;
   } else {
-    _impl_._has_bits_[0] &= ~0x00000008u;
+    _impl_._has_bits_[0] &= ~0x00000020u;
   }
   _impl_.where_.SetAllocated(value, GetArena());
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.where_.IsDefault()) {

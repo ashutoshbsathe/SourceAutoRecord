@@ -92,14 +92,16 @@ def write_transcript(path, map_name, steps):
 
 
 def report(macro, obs):
-    """Print the macro result plus the player and (if anchored) the mark's pos."""
+    """Print the macro result plus the player and (if targeted) the target's pos."""
     mr = obs.result
     extra = ''
-    if macro.mark:
-        for m in obs.marks:
-            if m['mark'] == macro.mark:
-                extra = f' mark{macro.mark}={fmt_pos(m["pos"])}'
-                break
+    if macro.target:
+        extra = f' target={macro.target}'
+        if macro.target.isdigit():
+            for m in obs.marks:
+                if m['mark'] == int(macro.target):
+                    extra = f' target={macro.target}@{fmt_pos(m["pos"])}'
+                    break
     print(f'  {mr.result_code:<13} {mr.detail}   player={fmt_pos(obs.player)}{extra}')
     print(f'  held={obs.held_mark}')
     if obs.state.chamber_complete:
