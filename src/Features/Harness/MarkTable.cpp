@@ -1,7 +1,9 @@
 #include "MarkTable.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <unordered_set>
 #include <vector>
 
 #include "Entity.hpp"
@@ -14,6 +16,23 @@
 
 MarkTable markTable;
 
+// Respawn-stable identity: classname + targetname, with a template name-fixup
+// suffix ("&0001") stripped. Empty for unnamed entities.
+static std::string CanonicalName(const char* className, const char* name) {
+  if (!name || !*name) return {};
+  std::string s(className);
+  s += ':';
+  s += name;
+  size_t amp = s.rfind('&');
+  if (amp != std::string::npos && amp + 1 < s.size()) {
+    bool digits = true;
+    for (size_t i = amp + 1; i < s.size(); ++i)
+      digits = digits && std::isdigit(static_cast<unsigned char>(s[i]));
+    if (digits) s.resize(amp);
+  }
+  return s;
+}
+
 void MarkTable::RebuildFromWorld() {
   if (!server || !entityList) return;
 
@@ -23,6 +42,7 @@ void MarkTable::RebuildFromWorld() {
     uint32_t key;  // index << 16 | serial
     int index;
     long rx, ry, rz;
+    std::string cname;
   };
   std::vector<Cand> cands;
   for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
@@ -34,14 +54,22 @@ void MarkTable::RebuildFromWorld() {
     uint32_t key = (static_cast<uint32_t>(i) << 16) |
                    static_cast<uint16_t>(info->m_SerialNumber);
     cands.push_back(
-        {key, i, std::lround(o.x), std::lround(o.y), std::lround(o.z)});
+        {key, i, std::lround(o.x), std::lround(o.y), std::lround(o.z),
+         CanonicalName(className, server->GetEntityName(info->m_pEntity))});
   }
 
   std::lock_guard<std::mutex> lock(mutex);
 
   // Assign marks to unseen entities in deterministic order (index, rounded
   // origin), appended after existing ones so a mark never moves on
-  // spawn/despawn.
+  // spawn/despawn. An entity whose canonical name held a mark with no living
+  // owner inherits it (a respawned dropper cube keeps its number); otherwise
+  // a fresh mark is appended.
+  std::unordered_set<int> liveMarks;
+  for (const auto& c : cands) {
+    auto it = assigned.find(c.key);
+    if (it != assigned.end()) liveMarks.insert(it->second);
+  }
   std::vector<const Cand*> fresh;
   for (const auto& c : cands)
     if (!assigned.count(c.key)) fresh.push_back(&c);
@@ -51,7 +79,18 @@ void MarkTable::RebuildFromWorld() {
     if (a->ry != b->ry) return a->ry < b->ry;
     return a->rz < b->rz;
   });
-  for (const Cand* c : fresh) assigned[c->key] = nextMark++;
+  for (const Cand* c : fresh) {
+    int mark = 0;
+    if (!c->cname.empty()) {
+      auto nm = nameMark.find(c->cname);
+      if (nm != nameMark.end() && !liveMarks.count(nm->second))
+        mark = nm->second;
+    }
+    if (!mark) mark = nextMark++;
+    assigned[c->key] = mark;
+    liveMarks.insert(mark);
+    if (!c->cname.empty()) nameMark.emplace(c->cname, mark);
+  }
 
   // Mirror only live entities; a despawned mark drops out so its reverse
   // lookup correctly misses.
@@ -84,6 +123,7 @@ void MarkTable::Clear() {
   assigned.clear();
   forward.clear();
   reverse.clear();
+  nameMark.clear();
   nextMark = 1;
 }
 

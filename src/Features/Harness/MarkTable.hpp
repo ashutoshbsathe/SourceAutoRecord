@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <mutex>
+#include <string>
 #include <unordered_map>
 #include <utility>
 
@@ -10,8 +11,10 @@
 // dynamic chambers (e.g. cube droppers) never renumber existing marks mid-run.
 // New entities are appended in deterministic order (index, rounded origin as
 // tiebreak), so the same chamber yields the same assignment across runs.
-// A respawned entity (new serial) counts as new and gets a fresh mark, so marks
-// only grow over an episode and never shift under an entity.
+// A respawned entity (new serial) whose classname + targetname matches a
+// no-longer-live mark INHERITS that mark: a dropper respawns its cube under
+// the same name, so the "same" cube keeps one mark instead of minting a new
+// one per fizzle. A mark still never moves off a living entity.
 class MarkTable {
  public:
   // Recompute marks from the live server entity list. Walks the engine entity
@@ -35,7 +38,10 @@ class MarkTable {
   std::unordered_map<uint32_t, int> assigned;  // key -> mark (persistent)
   std::unordered_map<uint32_t, int> forward;   // live key -> mark
   std::unordered_map<int, uint32_t> reverse;   // live mark -> key
-  int nextMark = 1;                            // next mark to hand out
+  // "classname:targetname" -> the first mark handed to that identity, for
+  // respawn inheritance. Only consulted when that mark has no live owner.
+  std::unordered_map<std::string, int> nameMark;
+  int nextMark = 1;  // next mark to hand out
 };
 
 extern MarkTable markTable;

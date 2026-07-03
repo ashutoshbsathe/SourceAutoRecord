@@ -48,26 +48,35 @@ Rejected alternatives: mark the dropper and expose a "current cube" link
 non-dropper respawns) · position/state-canonical renumbering (the original
 A3 idea — violates "marks never move mid-episode", long since decided).
 
-## Recon before build (2 min in-game, on the infinite-dropper map)
+## Recon results (2026-07-03, in-game dumps across a full respawn cycle)
 
-- **R1 — fixup format.** `sar_harness_dump_fields` prints `[i] classname
-  "name"` headers; run it across two respawn cycles and read the cube's name
-  both times. Expected `cdN-box&0000` → `cdN-box&0001`; confirms the strip
-  rule.
-- **R2 — dissolve signal.** `sar_harness_dump_fields` (baseline), let the
-  cube hit the goo, `sar_harness_dump_fields diff` mid-dissolve. Whatever
-  field flips (m_lifeState / dissolve-related) becomes the "don't mark"
-  filter.
+- **R1 — NO fixup suffix.** The respawned cube's name is verbatim `cdN-box`
+  every cycle (at a recycled low entity index — `[769]→[87]`). Canonical
+  identity is simply `classname:targetname`; the `&NNNN` strip stays as a
+  zero-cost safeguard for preserve-names-off templates elsewhere.
+- **R2 — inconclusive and possibly unnecessary.** No dump caught a dissolving
+  intermediate: the goo kill removes the old entity before the replacement
+  registers at human dump speed (`m_lifeState` 0 throughout). Dissolve
+  exclusion (B2) is therefore gated on actually observing the two-mark
+  oscillation after B1, not built preemptively.
+- **Bonus:** same-name multiplicity is real and common (`rfiz318-fiz` ×7 live
+  fizzler brushes, doors duplicated) — the "inherit only if the mark has no
+  live owner" gate is load-bearing.
 
-## Build (after R1/R2, ~40 LOC)
+## Build
 
-- **B1** — canonical-name map + inherit branch in `MarkTable::RebuildFromWorld`
-  (strip rule from R1). *Verify:* infinite dropper cycles, `panels`/marks dump
-  shows the cube mark bounded (oscillating at worst).
-- **B2** — dissolve exclusion in `IsHarnessMarkedEntity` (field from R2).
-  *Verify:* the cube keeps ONE mark across arbitrary many respawns; the
-  dissolving corpse is unmarked the tick it fizzles.
-- **B3** — `agentloop_smoke`: respawn-stability assertion on a dropper map.
+- **B1 ✅ SHIPPED (2026-07-03)** — `CanonicalName` (classname:targetname,
+  fixup-stripped) + inherit-if-vacant branch in `MarkTable::RebuildFromWorld`;
+  `nameMark` records each identity's first mark for the episode. *Verify:*
+  watch the goo-cycling cube's overlay mark across several respawns — ONE
+  stable number (an A↔B alternation would mean the dissolve overlap is real →
+  build B2).
+- **B2 — dissolve exclusion in `IsHarnessMarkedEntity`.** GATED on observing
+  oscillation post-B1. Needs its own field recon first (the dissolve state
+  never appeared in the standard dump; extend the recon needles with
+  dissolve-specific fields if this activates).
+- **B3** — `agentloop_smoke`: respawn-stability assertion on a dropper map
+  (owed together with the dynamic-panel assertion).
 
 Side benefit: name-keyed inheritance also makes marks stable across
 save/load (serials churn there too), which the checkpoint-deferred grammar
