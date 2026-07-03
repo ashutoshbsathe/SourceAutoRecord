@@ -79,9 +79,11 @@ void MarkTable::RebuildFromWorld() {
   // (a fizzler dissolve runs ~2 s); the wait is invisible -- a just-released
   // cube is simply unmarked while it falls.
   constexpr int kInheritGrace = 150;
-  // A dropper tube settles a cube within ~20u; a full voxel of travel means
-  // it is out of any dropper, however the release was wired.
-  constexpr long kSuppressBackstopSq = 128 * 128;
+  // Stuck-insurance only -- FireUser1 is the release signal. A newborn falls
+  // ~150u INSIDE the housing (the template cube's origin sits high above the
+  // seat), so the threshold must be far past that; six voxels is decisively
+  // outside any dropper.
+  constexpr long kSuppressBackstopSq = 768 * 768;
 
   std::unordered_set<int> liveMarks;
   std::unordered_set<uint32_t> liveKeys;
@@ -193,14 +195,16 @@ void MarkTable::OnEntityInput(void* ent, const char* className,
   // suppressed entity it means the dropper is opening for it. Only
   // suppressed keys react, so veterans keep their engine-side semantics.
   if (!strcasecmp(inputName, "FireUser1")) {
+    if (!IsHarnessMarkedClass(className)) return;
     const CBaseHandle& h = ((IHandleEntity*)ent)->GetRefEHandle();
     uint32_t key = (static_cast<uint32_t>(h.GetEntryIndex()) << 16) |
                    static_cast<uint16_t>(h.GetSerialNumber());
     std::lock_guard<std::mutex> lock(mutex);
-    if (!suppressed.erase(key)) return;
+    bool released = suppressed.erase(key) > 0;
     if (sar_harness_mark_debug.GetBool())
-      console->Print("[markdbg] FireUser1 -> [%d] \"%s\": released\n",
-                     h.GetEntryIndex(), server->GetEntityName(ent));
+      console->Print("[markdbg] FireUser1 -> [%d] \"%s\": %s\n",
+                     h.GetEntryIndex(), server->GetEntityName(ent),
+                     released ? "released" : "not suppressed, no-op");
   }
 }
 

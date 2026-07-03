@@ -58,11 +58,14 @@ Three cooperating rules in `MarkTable`, all engine-event-driven:
    enable/disable timing interleaves with the next spawn). The dropper-open
    `SetAnimation item_dropper_open` (+0.1 s, 455 in corpus) is the documented
    fallback signal if some template ever lacks the FireUser1 ping.
-   Backstop: a suppressed entity that moves a full voxel (128u) from its tag
-   origin is released regardless of wiring — tube settle is ~20u, so this
-   cannot misfire, and it guarantees no cube stays suppressed after leaving
-   an exotically-wired dropper. `sar_harness_mark_debug 1` traces every
-   suppress/release/assign decision.
+   Backstop: a suppressed entity that moves **768u** (six voxels) from its
+   tag origin is released regardless of wiring — stuck-insurance only.
+   The threshold is deliberately huge: the newborn spawns at the template
+   cube's Hammer origin ~150u ABOVE the tube seat, so its in-housing fall
+   alone is ~134–156u (tracer-measured; a 128u "one voxel" backstop released
+   every tube cube on arrival and stole the release from FireUser1 — the
+   v3 bug). `sar_harness_mark_debug 1` traces every suppress/release/assign
+   decision, including no-op FireUser1 arrivals.
 2. **Name-keyed inheritance.** A newly marked entity whose
    `classname:targetname` previously held a mark inherits it **iff no live
    entity owns it**. The dropper's "same" cube keeps one number forever.
