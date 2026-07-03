@@ -67,14 +67,16 @@ A3 idea — violates "marks never move mid-episode", long since decided).
 
 - **B1 ✅ SHIPPED (2026-07-03)** — `CanonicalName` (classname:targetname,
   fixup-stripped) + inherit-if-vacant branch in `MarkTable::RebuildFromWorld`;
-  `nameMark` records each identity's first mark for the episode. *Verify:*
-  watch the goo-cycling cube's overlay mark across several respawns — ONE
-  stable number (an A↔B alternation would mean the dissolve overlap is real →
-  build B2).
-- **B2 — dissolve exclusion in `IsHarnessMarkedEntity`.** GATED on observing
-  oscillation post-B1. Needs its own field recon first (the dissolve state
-  never appeared in the standard dump; extend the recon needles with
-  dissolve-specific fields if this activates).
+  `nameMark` records each identity's first mark for the episode.
+- **B2 ✅ SHIPPED (2026-07-03) — the gate FIRED.** Post-B1 the mark alternated
+  `38 → 42 → 38 → 44` — inherit on the even cycles, fresh on the odd ones,
+  i.e. the dissolve overlap is real (`OnFizzled` → spawn at +0.11 s beats the
+  ~1–2 s dissolve; the earlier dumps were simply slower than the corpse).
+  Fix: `IsHarnessMarkedEntity` rejects entities with `FL_DISSOLVING`
+  (`m_fFlags` bit 28) — the fizzled cube unmarks the tick it starts
+  dissolving, its mark vacates, and the replacement inherits every cycle.
+  *Verify:* the goo cube wears ONE number across arbitrary many respawns; if
+  it still alternates, the flag bit is wrong for this branch → field recon.
 - **B3** — `agentloop_smoke`: respawn-stability assertion on a dropper map
   (owed together with the dynamic-panel assertion).
 
