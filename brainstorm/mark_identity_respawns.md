@@ -72,11 +72,14 @@ A3 idea — violates "marks never move mid-episode", long since decided).
   `38 → 42 → 38 → 44` — inherit on the even cycles, fresh on the odd ones,
   i.e. the dissolve overlap is real (`OnFizzled` → spawn at +0.11 s beats the
   ~1–2 s dissolve; the earlier dumps were simply slower than the corpse).
-  Fix: `IsHarnessMarkedEntity` rejects entities with `FL_DISSOLVING`
-  (`m_fFlags` bit 28) — the fizzled cube unmarks the tick it starts
-  dissolving, its mark vacates, and the replacement inherits every cycle.
-  *Verify:* the goo cube wears ONE number across arbitrary many respawns; if
-  it still alternates, the flag bit is wrong for this branch → field recon.
+  First fix attempt: reject `FL_DISSOLVING` (`m_fFlags` bit 28, from SDK
+  lore) in `IsHarnessMarkedEntity` — **DID NOT FIRE** (mark still alternates
+  after a fresh install; second SDK-lore assumption burned this arc after the
+  plane `side` bit). Recon-first now: `sar_harness_dissolve_recon <on|off>`
+  logs every cube's spawn/remove/field transitions per tick (m_fFlags,
+  m_lifeState, render mode/fx, dissolve fields) — one goo cycle reveals the
+  real corpse signal + the exact overlap timeline. The bit-28 guard stays in
+  (currently inert) until the recon names the right signal.
 - **B3** — `agentloop_smoke`: respawn-stability assertion on a dropper map
   (owed together with the dynamic-panel assertion).
 
