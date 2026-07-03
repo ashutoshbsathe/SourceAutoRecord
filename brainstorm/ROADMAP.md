@@ -108,6 +108,12 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
   1. ✅ **Ledge fling end-to-end VERIFIED (2026-07-03)** — floor portal near an edge via `Sn@u,v` →
      `jump_into` → the money fling, freeze mid-flight. The `(u,v)`+grid unlock paid off.
   2. **D — `drop_into`** (gentle self step-through / object-drop into a ground portal).
+  2b. **⭐ Respawn-stable marks** (found 2026-07-03 via the infinite-dropper trick: a goo-fizzling
+     cube's mark grows without bound — plan-breaking + percept-lying). Design LOCKED:
+     name-keyed mark inheritance (canonical id = classname+targetname minus the `&NNNN` template
+     fixup suffix — "tied to the dropper" for free) + stop marking dissolving cubes. Two 2-min
+     recons (fixup format, dissolve field) then ~40 LOC.
+     → [mark_identity_respawns.md](mark_identity_respawns.md)
   3. **Dynamic-panel build** — design LOCKED 2026-07-03 in
      [dynamic_panel_enumeration.md](dynamic_panel_enumeration.md) (class-agnostic: ALL brush-entity
      bmodels with a portalable white-tile face, posed live per frame — covers both angled-panel
@@ -115,7 +121,8 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
      VERIFIED in-game 2026-07-03** (gates closed; 32 panels; S28 deploy/retract round-trip poses
      live; grid drapes tilted panels; panel outline boxes removed — grid is the visual extent).
      **P4 VERIFIED** (`place_portal Sn@u,v` lands on a deployed angled panel, zero verb changes).
-     Remaining: **P5** (flip-panel map + `agentloop_smoke` dynamic-panel assertion).
+     **P5 VALIDATED** (flip panels ride the pipeline on `workshop/1805355826134795545/1615598981`;
+     black `apN` + unnamed brushes correctly unmarked). Owed: the `agentloop_smoke` assertion.
 - **`aim_at` at a panel/portal — DONE** (folded into the unified target model above). `look` stays relative
   (yaw/pitch), by design — it takes no target.
 - **portal × cube/laser/button composition** — how the shipped element verbs interact with portals in a real
@@ -520,6 +527,7 @@ has crept into `py/` (and likely `src/`). Fix in passing, don't make a project o
 | `portal_traversal_edge_design.md` | **SUPERSEDED (fork-B, dropped 2026-07-01)** — the GoToPlanner A\*-portal-edge plan; kept only for its R5-derived substrate notes. The dossier above replaces it. |
 | `portal_place_verb_plan.md` | **⭐ the `place_portal` build plan** — two arcs (ARC A offline sidecar → verb/percept/labels; ARC B runtime BSP/trace enumeration), cross-cutting decisions (proto, S-prefixed surface marks, `IPanelSource` seam, leak-safe labels), phase-by-phase with per-phase verifies. **SHIPPED + verified in-game 2026-06-30:** the BSP-file enumerator (Track B, B0–B8, sidecar removed) + the verb (A7–A13); next = portal-aware traversal + A15/A16 polish. Read before any `place_portal`/enumerator/traversal code. |
 | `dynamic_panel_enumeration.md` | **dynamic (angled/flip) panel enumeration** — brush-entity portalable surfaces posed from the live entity (recon facts, corpus census, design + phases P1–P5, probe gates G1/G2). Read before any angled-panel/S-mark-dynamism code. |
+| `mark_identity_respawns.md` | **respawn-stable entity marks** — the infinite-dropper mark-churn problem; name-keyed mark inheritance design (canonical id = name minus `&NNNN` fixup) + dissolve exclusion; recon protocol R1/R2 + build plan B1–B3. |
 | `locomotion_tech.md` | **`go_to` pathfinding (local controller + A*) + reliable place-on-button + the laser-routing frontier** — phased plan, substrate recon, ROADMAP #2 |
 | `astar_routing_design.md` | **A\* global routing for `go_to`** (lazy hull-probed grid) + why save/restore tree-search is parked at the puzzle layer (C9), not locomotion |
 | `release_place_on_button_design.md` | **gated-fair central-teleport `release` onto a button** (the P-manip place-on-button design + phased plan C1–D9) — button taxonomy, static-trace fairness check, FCPS `Teleport` reuse, dwell-verify; orientation = preserve-only |
