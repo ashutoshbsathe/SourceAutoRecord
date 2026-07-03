@@ -145,9 +145,11 @@ void MarkTable::OnEntityInput(void* ent, const char* className,
                               const char* inputName) {
   if (!ent || !className || !inputName) return;
 
-  // The dropper template pings its newborn with FireUser4: tag it as held.
-  // Retract any mark a same-tick rebuild already handed it -- nothing can
-  // have observed a mark younger than one frame.
+  // The dropper template pings its newborn with FireUser4. The ping goes to
+  // a name wildcard, so every same-name cube in the chamber receives it --
+  // only a never-marked entity can be the newborn (spawn and ping happen in
+  // one event-queue pass; no rebuild can interleave), veterans are left
+  // alone.
   if (!strcasecmp(inputName, "FireUser4")) {
     if (!IsHarnessMarkedClass(className)) return;
     const CBaseHandle& h = ((IHandleEntity*)ent)->GetRefEHandle();
@@ -155,33 +157,37 @@ void MarkTable::OnEntityInput(void* ent, const char* className,
                    static_cast<uint16_t>(h.GetSerialNumber());
     Vector origin = SE(ent)->abs_origin();
     std::lock_guard<std::mutex> lock(mutex);
-    assigned.erase(key);
+    if (assigned.count(key)) return;
     suppressed[key] = origin;
     return;
   }
 
-  // The dropper releases by Disable-ing the clip brush the cube rests on:
-  // unsuppress anything held inside that entity's box (the cube sits ~20u
-  // above the thin clip, hence the slack).
+  // The dropper releases by Disable-ing the clip the cube RESTS ON, so only
+  // losing the support directly underneath frees a suppressed entity: the
+  // cube must sit over the disabled entity's box, at or above its bottom,
+  // within 48u of its top. (The dropper also Disables its fade brush BESIDE
+  // the tube when a newborn settles -- that one sits above the cube and must
+  // not release it.)
   if (!strcasecmp(inputName, "Disable")) {
     std::lock_guard<std::mutex> lock(mutex);
     if (suppressed.empty() || !entityList) return;
     auto se = SE(ent);
     Vector o = se->abs_origin();
-    Vector mins = o + se->collision().OBBMins() - Vector{48, 48, 48};
-    Vector maxs = o + se->collision().OBBMaxs() + Vector{48, 48, 48};
+    Vector mins = o + se->collision().OBBMins();
+    Vector maxs = o + se->collision().OBBMaxs();
     for (auto it = suppressed.begin(); it != suppressed.end();) {
       int idx = static_cast<int>(it->first >> 16);
       auto info = entityList->GetEntityInfoByIndex(idx);
-      bool inside = false;
+      bool onSupport = false;
       if (info && info->m_pEntity &&
           static_cast<uint16_t>(info->m_SerialNumber) ==
               static_cast<uint16_t>(it->first & 0xFFFF)) {
         Vector p = SE(info->m_pEntity)->abs_origin();
-        inside = p.x >= mins.x && p.x <= maxs.x && p.y >= mins.y &&
-                 p.y <= maxs.y && p.z >= mins.z && p.z <= maxs.z;
+        onSupport = p.x >= mins.x - 8 && p.x <= maxs.x + 8 &&
+                    p.y >= mins.y - 8 && p.y <= maxs.y + 8 &&
+                    p.z >= mins.z - 2 && p.z <= maxs.z + 48;
       }
-      it = inside ? suppressed.erase(it) : std::next(it);
+      it = onSupport ? suppressed.erase(it) : std::next(it);
     }
   }
 }

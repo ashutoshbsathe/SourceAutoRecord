@@ -36,16 +36,25 @@ inflate into noise.
 
 Three cooperating rules in `MarkTable`, all engine-event-driven:
 
-1. **Dropper suppression.** A markable entity that receives `FireUser4` is
-   tagged dropper-held and carries **no mark** — a cube inside the tube is
-   not an affordance (can't be reached), so the percept omits it entirely
-   (Python already filters `mark > 0`; annotate draws nothing for mark 0).
-   When any entity receives `Disable`, suppressed entities inside that
-   entity's box (+48u slack — the cube rests ~20u above the thin clip) are
-   released. Backstop: a suppressed entity that moves a full voxel (128u)
-   from its tag origin is released regardless of wiring — tube settle is
-   ~20u, so this cannot misfire, and it guarantees no cube stays suppressed
-   after leaving an exotically-wired dropper.
+1. **Dropper suppression.** A **never-marked** entity that receives
+   `FireUser4` is tagged dropper-held and carries **no mark** — a cube inside
+   the tube is not an affordance (can't be reached), so the percept omits it
+   entirely (Python already filters `mark > 0`; annotate draws nothing for
+   mark 0). The never-marked gate matters: the template pings a *name
+   wildcard* (`cdN-box*`), so every same-name veteran in the chamber — the
+   cube in the player's hands, a cube on a button — receives the same input
+   and must be left alone; only the newborn can be unmarked at ping time
+   (spawn and ping share one event-queue pass, no rebuild interleaves).
+   Release fires only when the disabled entity is the **support directly
+   under** the cube (over its box, at/above its bottom, within 48u of its
+   top) — that is the drop clip. This discriminator is load-bearing: the
+   dropper also `Disable`s its fade brush *beside* the tube the moment a
+   newborn settles, which sits above the cube and must not release it
+   (v1 used plain proximity and marked tube cubes at settle — user-caught).
+   Backstop: a suppressed entity that moves a full voxel (128u) from its tag
+   origin is released regardless of wiring — tube settle is ~20u, so this
+   cannot misfire, and it guarantees no cube stays suppressed after leaving
+   an exotically-wired dropper.
 2. **Name-keyed inheritance.** A newly marked entity whose
    `classname:targetname` previously held a mark inherits it **iff no live
    entity owns it**. The dropper's "same" cube keeps one number forever.
