@@ -365,6 +365,17 @@ std::vector<PanelDesc> ClusterPanels(const BspFile& bsp) {
 
 }  // namespace
 
+// Bilinear over the four corners, so an off-center point lands on the surface
+// even for a tilted panel.
+Vector ResolvePanelPoint(const PanelDesc& p, float u, float v) {
+  auto lerp = [](const Vector& a, const Vector& b, float t) {
+    return Vector{a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t,
+                  a.z + (b.z - a.z) * t};
+  };
+  return lerp(lerp(p.corners[0], p.corners[1], u),
+              lerp(p.corners[3], p.corners[2], u), v);
+}
+
 std::vector<PanelDesc> BspFilePanelSource::EnumeratePanels(
     const std::string& mapName) {
   BspFile bsp;

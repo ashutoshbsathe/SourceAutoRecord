@@ -559,18 +559,6 @@ TargetRef ClassifyTarget(const std::string& t) {
   return r;
 }
 
-// Fractional (u,v) in [0,1]^2 -> world point on the panel rect (bilinear over
-// the four corners; (0.5,0.5) is the center). Correct for any tilt, so an
-// off-center aim lands on the surface even for angled panels.
-Vector ResolvePanelPoint(const PanelDesc& p, float u, float v) {
-  auto lerp = [](const Vector& a, const Vector& b, float t) {
-    return Vector{a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t,
-                  a.z + (b.z - a.z) * t};
-  };
-  return lerp(lerp(p.corners[0], p.corners[1], u),
-              lerp(p.corners[3], p.corners[2], u), v);
-}
-
 // A target label -> world center. Sets *code = "BAD_MARK" on an absent/garbage
 // target. Main thread only (touches the entity list / portal read).
 bool ResolveTarget(const std::string& target, Vector* outCenter,

@@ -21,6 +21,9 @@ struct PanelDesc {
   int anchorFlags;
 };
 
+// (u,v) in [0,1]^2 -> world point on the panel rect; (0.5,0.5) is the center.
+Vector ResolvePanelPoint(const PanelDesc& p, float u, float v);
+
 // Supplies a chamber's portalable panels. A sidecar backs this today; a runtime
 // BSP/trace walk swaps in behind the same interface.
 class IPanelSource {

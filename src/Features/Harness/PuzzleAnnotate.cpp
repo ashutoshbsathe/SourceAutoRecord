@@ -38,6 +38,15 @@ Variable sar_harness_annotate_los(
     "sar_harness_annotate_los", "1", 0, 1,
     "Cull annotation boxes/marks for entities the camera can't see (LOS).\n");
 
+Variable sar_harness_annotate_uv(
+    "sar_harness_annotate_uv", "0", 0, 1,
+    "Draw the fractional (u,v) grid on portalable panels, shaded white at "
+    "(0,0), red along +u, blue along +v (with sar_harness_annotate 1).\n");
+
+Variable sar_harness_annotate_uv_width(
+    "sar_harness_annotate_uv_width", "1", 0, 8,
+    "(u,v) grid line width in world units; 0 = hairline.\n");
+
 // x_height of the mark label; kept small so labels don't collide and stack.
 static constexpr float kMarkHeight = 4.0f;
 
@@ -232,6 +241,25 @@ ON_EVENT(RENDER) {
                            /*alts*/ alts);
   }
 
+  // (u,v) grid shade pool, shared by every panel: color encodes position --
+  // white at (0,0), red along +u, blue along +v, magenta at (1,1) -- one
+  // constant-color mesh per shade cell. Segments render as thin in-plane
+  // quads (the engine's wireframe lines have no width), so both callbacks get
+  // the shade: solid fills the quads, wireframe draws the hairline fallback.
+  constexpr int kUvShades = 6;
+  MeshId uvShade[kUvShades][kUvShades];
+  bool uvGrid = sar_harness_annotate_uv.GetBool();
+  if (uvGrid)
+    for (int i = 0; i < kUvShades; ++i)
+      for (int j = 0; j < kUvShades; ++j) {
+        float u = (i + 0.5f) / kUvShades, v = (j + 0.5f) / kUvShades;
+        Color shade{(uint8_t)(255 * ((1 - v) + u * v)),
+                    (uint8_t)(255 * (1 - u) * (1 - v)),
+                    (uint8_t)(255 * ((1 - u) + u * v)), 90};
+        uvShade[i][j] = OverlayRender::createMesh(
+            RenderCallback::constant(shade), RenderCallback::constant(shade));
+      }
+
   // Outline + label every portalable wall panel with its S-mark, reusing the
   // entity-mark legibility (LOS cull + on-screen clamp). Uniform neutral style
   // so no panel reads as more portalable than another. The quad floats 1u off
@@ -242,6 +270,48 @@ ON_EVENT(RENDER) {
                               panel.maxs - panel.center, {0, 0, 0},
                               RenderCallback::constant({200, 200, 200, 5}),
                               RenderCallback::constant({90, 90, 90}));
+
+    // (u,v) legibility grid through the verb's own bilerp: quarter-fraction
+    // lines plus the panel edges, each split into segments shaded by the
+    // midpoint's (u,v), so both axes read from color alone. Faint and
+    // depth-tested so it reads as a ruler, not another panel.
+    if (uvGrid) {
+      auto gp = [&](float u, float v) {
+        return ResolvePanelPoint(panel, u, v) + panel.planeNormal * 1.5f;
+      };
+      // Line width in world units -> half-width in (u,v) fractions, clamped so
+      // edge lines stay on the panel.
+      float w = sar_harness_annotate_uv_width.GetFloat();
+      float lenU = (panel.corners[1] - panel.corners[0]).Length();
+      float lenV = (panel.corners[3] - panel.corners[0]).Length();
+      float hu = lenU > 1.0f ? 0.5f * w / lenU : 0.0f;
+      float hv = lenV > 1.0f ? 0.5f * w / lenV : 0.0f;
+      auto cl = [](float x) { return x < 0 ? 0.0f : (x > 1 ? 1.0f : x); };
+      auto seg = [&](float u0, float v0, float u1, float v1) {
+        auto bucket = [](float x) {
+          int s = (int)(x * kUvShades);
+          return s >= kUvShades ? kUvShades - 1 : s;
+        };
+        MeshId& mesh =
+            uvShade[bucket((u0 + u1) * 0.5f)][bucket((v0 + v1) * 0.5f)];
+        if (w <= 0.0f) {
+          OverlayRender::addLine(mesh, gp(u0, v0), gp(u1, v1));
+          return;
+        }
+        float du = u0 == u1 ? hu : 0.0f, dv = u0 == u1 ? 0.0f : hv;
+        OverlayRender::addQuad(
+            mesh, gp(cl(u0 - du), cl(v0 - dv)), gp(cl(u0 + du), cl(v0 + dv)),
+            gp(cl(u1 + du), cl(v1 + dv)), gp(cl(u1 - du), cl(v1 - dv)),
+            /*cull_back*/ false);
+      };
+      constexpr int kUvSegs = 8;
+      for (float f : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f})
+        for (int i = 0; i < kUvSegs; ++i) {
+          float a = (float)i / kUvSegs, b = (float)(i + 1) / kUvSegs;
+          seg(f, a, f, b);
+          seg(a, f, b, f);
+        }
+    }
 
     Vector anchor = panel.center + panel.planeNormal * 2.0f;
     if (doCull && !MarkVisible(eye, player, nullptr, anchor)) continue;
