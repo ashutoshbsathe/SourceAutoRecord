@@ -126,13 +126,13 @@ both angled-panel templates and flip panels with the same code path.
 - **P4 — the verb. ✅ VERIFIED in-game (2026-07-03).** `place_portal` with
   fractional `(u,v)` lands on a deployed angled panel — zero verb changes;
   the bilerp over posed corners was sufficient.
-- **P5 — coverage.** Flip-panel map = **`workshop/1805355826134795545/1615598981`**
-  (offline pre-verified: 8 `fpN-flipping_panel` func_door_rotating with one
-  white face each → expect exactly 8 dynamic marks; 5 black `apN` angled
-  panels and 4 unnamed white brushes correctly get none). Flip live with
-  `ent_fire fp154-flipping_panel toggle` and watch the S-mark's corners swing.
-  Then `agentloop_smoke` gains a dynamic-panel assertion (panel count + a
-  non-cardinal normal on the angled-panel test map).
+- **P5 — coverage. ✅ VALIDATED in-game (2026-07-03)** on
+  `workshop/1805355826134795545/1615598981`: 8 `fpN-flipping_panel`
+  func_door_rotating panels ride the pipeline (flip live via `ent_fire … 
+  toggle`); black `apN` angled panels and unnamed white brushes correctly
+  unmarked. Map quirk found there → the respawn-stable-marks problem,
+  [mark_identity_respawns.md](mark_identity_respawns.md). Still owed:
+  the `agentloop_smoke` dynamic-panel assertion.
 
 Deferred: gravity-anchored `(u,v)` frame (dossier ruling — separate,
 whole-surface change) · a `deployed` percept bit (pose already tells) ·
