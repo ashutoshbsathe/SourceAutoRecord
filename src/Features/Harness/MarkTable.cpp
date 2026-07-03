@@ -11,11 +11,18 @@
 #include "Entity.hpp"
 #include "Event.hpp"
 #include "Features/EntityList.hpp"
+#include "Modules/Console.hpp"
 #include "Modules/Server.hpp"
 #include "Offsets.hpp"
 #include "PuzzleAnnotate.hpp"
 #include "Utils/SDK/EntityEdict.hpp"
 #include "Utils/SDK/Handle.hpp"
+#include "Variable.hpp"
+
+Variable sar_harness_mark_debug(
+    "sar_harness_mark_debug", "0", 0, 1,
+    "Log mark assignments, dropper suppression/release, and the inputs "
+    "driving them.\n");
 
 MarkTable markTable;
 
@@ -93,6 +100,11 @@ void MarkTable::RebuildFromWorld() {
         long dy = c.ry - std::lround(it->second.y);
         long dz = c.rz - std::lround(it->second.z);
         drop = dx * dx + dy * dy + dz * dz > kSuppressBackstopSq;
+        if (drop && sar_harness_mark_debug.GetBool())
+          console->Print(
+              "[markdbg] backstop released [%d] (moved %ldu)\n",
+              (int)(it->first >> 16),
+              std::lround(std::sqrt((double)(dx * dx + dy * dy + dz * dz))));
         break;
       }
     }
@@ -110,13 +122,19 @@ void MarkTable::RebuildFromWorld() {
   });
   for (const Cand* c : fresh) {
     int mark = 0;
+    bool inherited = false;
     if (!c->cname.empty()) {
       auto nm = nameMark.find(c->cname);
       if (nm != nameMark.end()) {
-        if (!liveMarks.count(nm->second))
+        if (!liveMarks.count(nm->second)) {
           mark = nm->second;
-        else if (primed && deferred[c->key]++ < kInheritGrace)
+          inherited = true;
+        } else if (primed && deferred[c->key]++ < kInheritGrace) {
+          if (deferred[c->key] == 1 && sar_harness_mark_debug.GetBool())
+            console->Print("[markdbg] deferring [%d] %s (mark %d busy)\n",
+                           c->index, c->cname.c_str(), nm->second);
           continue;  // predecessor still live; stay unmarked and retry
+        }
       }
     }
     if (!mark) mark = nextMark++;
@@ -124,6 +142,10 @@ void MarkTable::RebuildFromWorld() {
     liveMarks.insert(mark);
     deferred.erase(c->key);
     if (!c->cname.empty()) nameMark.emplace(c->cname, mark);
+    if (primed && sar_harness_mark_debug.GetBool())
+      console->Print("[markdbg] mark %d -> [%d] %s (%s)\n", mark, c->index,
+                     c->cname.empty() ? "<unnamed>" : c->cname.c_str(),
+                     inherited ? "inherited" : "fresh");
   }
   primed = true;
   for (auto it = deferred.begin(); it != deferred.end();)
@@ -157,38 +179,28 @@ void MarkTable::OnEntityInput(void* ent, const char* className,
                    static_cast<uint16_t>(h.GetSerialNumber());
     Vector origin = SE(ent)->abs_origin();
     std::lock_guard<std::mutex> lock(mutex);
-    if (assigned.count(key)) return;
-    suppressed[key] = origin;
+    bool veteran = assigned.count(key) > 0;
+    if (!veteran) suppressed[key] = origin;
+    if (sar_harness_mark_debug.GetBool())
+      console->Print("[markdbg] FireUser4 -> [%d] %s \"%s\": %s\n",
+                     h.GetEntryIndex(), className, server->GetEntityName(ent),
+                     veteran ? "veteran, kept mark" : "suppressed");
     return;
   }
 
-  // The dropper releases by Disable-ing the clip the cube RESTS ON, so only
-  // losing the support directly underneath frees a suppressed entity: the
-  // cube must sit over the disabled entity's box, at or above its bottom,
-  // within 48u of its top. (The dropper also Disables its fade brush BESIDE
-  // the tube when a newborn settles -- that one sits above the cube and must
-  // not release it.)
-  if (!strcasecmp(inputName, "Disable")) {
+  // The dropper's release chain pings the cube family with FireUser1 (an
+  // already-out cube uses the same ping to dissolve itself); for a
+  // suppressed entity it means the dropper is opening for it. Only
+  // suppressed keys react, so veterans keep their engine-side semantics.
+  if (!strcasecmp(inputName, "FireUser1")) {
+    const CBaseHandle& h = ((IHandleEntity*)ent)->GetRefEHandle();
+    uint32_t key = (static_cast<uint32_t>(h.GetEntryIndex()) << 16) |
+                   static_cast<uint16_t>(h.GetSerialNumber());
     std::lock_guard<std::mutex> lock(mutex);
-    if (suppressed.empty() || !entityList) return;
-    auto se = SE(ent);
-    Vector o = se->abs_origin();
-    Vector mins = o + se->collision().OBBMins();
-    Vector maxs = o + se->collision().OBBMaxs();
-    for (auto it = suppressed.begin(); it != suppressed.end();) {
-      int idx = static_cast<int>(it->first >> 16);
-      auto info = entityList->GetEntityInfoByIndex(idx);
-      bool onSupport = false;
-      if (info && info->m_pEntity &&
-          static_cast<uint16_t>(info->m_SerialNumber) ==
-              static_cast<uint16_t>(it->first & 0xFFFF)) {
-        Vector p = SE(info->m_pEntity)->abs_origin();
-        onSupport = p.x >= mins.x - 8 && p.x <= maxs.x + 8 &&
-                    p.y >= mins.y - 8 && p.y <= maxs.y + 8 &&
-                    p.z >= mins.z - 2 && p.z <= maxs.z + 48;
-      }
-      it = onSupport ? suppressed.erase(it) : std::next(it);
-    }
+    if (!suppressed.erase(key)) return;
+    if (sar_harness_mark_debug.GetBool())
+      console->Print("[markdbg] FireUser1 -> [%d] \"%s\": released\n",
+                     h.GetEntryIndex(), server->GetEntityName(ent));
   }
 }
 

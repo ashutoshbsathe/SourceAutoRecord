@@ -45,16 +45,24 @@ Three cooperating rules in `MarkTable`, all engine-event-driven:
    cube in the player's hands, a cube on a button — receives the same input
    and must be left alone; only the newborn can be unmarked at ping time
    (spawn and ping share one event-queue pass, no rebuild interleaves).
-   Release fires only when the disabled entity is the **support directly
-   under** the cube (over its box, at/above its bottom, within 48u of its
-   top) — that is the drop clip. This discriminator is load-bearing: the
-   dropper also `Disable`s its fade brush *beside* the tube the moment a
-   newborn settles, which sits above the cube and must not release it
-   (v1 used plain proximity and marked tube cubes at settle — user-caught).
+   **Release = the cube receiving `FireUser1`.** The dropper's release chain
+   (`spawn_man OnChangeToAllTrue`) pings `cdN-box*` with FireUser1 at +0.01 s
+   — corpus: 223 manager senders ≈ one per dropper — before the open
+   animation (+0.1 s) and the clip disable (+1.1 s). For an out veteran the
+   same ping means "dissolve yourself" (`done_trig` installs
+   `OnUser1 → self:Dissolve` after exit), so only suppressed keys react.
+   Direct-to-entity, zero geometry. Two earlier release designs failed and
+   are recorded as warnings: clip-`Disable` proximity (the dropper Disables
+   its fade brush beside the tube at settle → released at settle) and
+   support-under-the-cube (the clip disable trails release by 1.1 s and its
+   enable/disable timing interleaves with the next spawn). The dropper-open
+   `SetAnimation item_dropper_open` (+0.1 s, 455 in corpus) is the documented
+   fallback signal if some template ever lacks the FireUser1 ping.
    Backstop: a suppressed entity that moves a full voxel (128u) from its tag
    origin is released regardless of wiring — tube settle is ~20u, so this
    cannot misfire, and it guarantees no cube stays suppressed after leaving
-   an exotically-wired dropper.
+   an exotically-wired dropper. `sar_harness_mark_debug 1` traces every
+   suppress/release/assign decision.
 2. **Name-keyed inheritance.** A newly marked entity whose
    `classname:targetname` previously held a mark inherits it **iff no live
    entity owns it**. The dropper's "same" cube keeps one number forever.
