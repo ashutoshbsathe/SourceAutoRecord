@@ -110,9 +110,11 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
   3. **Dynamic-panel build** — design LOCKED 2026-07-03 in
      [dynamic_panel_enumeration.md](dynamic_panel_enumeration.md) (class-agnostic: ALL brush-entity
      bmodels with a portalable white-tile face, posed live per frame — covers both angled-panel
-     templates + flip panels; corpus-censused 217+76+60 across 278 maps). **P1 (rest extraction)
-     SHIPPED + VERIFIED; gates G1/G2 CLOSED in-game** (abs transform carries the pose exactly, both
-     states; hinge math exact). Next = P2 (SurfaceMarkTable refresh) — unblocked, zero open questions.
+     templates + flip panels; corpus-censused 217+76+60 across 278 maps). **P1+P2+P3 SHIPPED +
+     VERIFIED in-game 2026-07-03** (gates closed; 32 panels; S28 deploy/retract round-trip poses
+     live; grid drapes tilted panels; panel outline boxes removed — grid is the visual extent).
+     Remaining: **P4** (`place_portal S29@u,v` on a deployed angled panel) · **P5** (flip-panel map
+     + `agentloop_smoke` dynamic-panel assertion).
 - **`aim_at` at a panel/portal — DONE** (folded into the unified target model above). `look` stays relative
   (yaw/pitch), by design — it takes no target.
 - **portal × cube/laser/button composition** — how the shipped element verbs interact with portals in a real

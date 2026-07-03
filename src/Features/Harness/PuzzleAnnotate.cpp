@@ -260,17 +260,10 @@ ON_EVENT(RENDER) {
             RenderCallback::constant(shade), RenderCallback::constant(shade));
       }
 
-  // Outline + label every portalable wall panel with its S-mark, reusing the
-  // entity-mark legibility (LOS cull + on-screen clamp). Uniform neutral style
-  // so no panel reads as more portalable than another. The quad floats 1u off
-  // the wall to avoid z-fighting the surface.
+  // Label every portalable wall panel with its S-mark, reusing the
+  // entity-mark legibility (LOS cull + on-screen clamp). No outline box --
+  // the (u,v) grid below is the panel's visual extent.
   for (const auto& panel : surfaceMarkTable.Panels()) {
-    OverlayRender::addBoxMesh(panel.center + panel.planeNormal * 1.0f,
-                              panel.mins - panel.center,
-                              panel.maxs - panel.center, {0, 0, 0},
-                              RenderCallback::constant({200, 200, 200, 5}),
-                              RenderCallback::constant({90, 90, 90}));
-
     // (u,v) legibility grid through the verb's own bilerp: quarter-fraction
     // lines plus the panel edges, each split into segments shaded by the
     // midpoint's (u,v), so both axes read from color alone. Faint and

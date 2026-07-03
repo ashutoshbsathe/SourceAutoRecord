@@ -84,10 +84,11 @@ both angled-panel templates and flip panels with the same code path.
 
 ### Edge cases / notes
 
-- The annotate **outline** is an AABB box today — fine for cardinal, a fat
-  diagonal slab for a 45° panel. P3 switches the panel outline to a corner
-  quad (`addQuad` over `corners[4]`), which is strictly better for static
-  panels too.
+- The panel **outline box is gone** (user review, 2026-07-03): the AABB box
+  read as a fat diagonal slab on tilted panels and was redundant next to the
+  `(u,v)` grid, which is now the panel's visual extent (plus the S-label).
+  Note the grid is `sar_harness_annotate_uv`-gated (default 0) — with it off,
+  panels show only their S-label.
 - A retracted slab sits coplanar-flush with neighboring static white tile: two
   adjacent marks that visually read as one surface. Honest (one of them can
   tilt), not a bug.
@@ -104,13 +105,15 @@ both angled-panel templates and flip panels with the same code path.
   entity-lump text parse + `LUMP_MODELS`; rest descriptors printed from
   `sar_harness_bsp_geo_dump`. Verified: 5 slabs, ±64 local quads, outward
   normals correct (winding-derived — see gates).
-- **P2 — table + refresh.** Rest descriptors → `SurfaceMarkTable`;
-  `RefreshDynamic()` on RENDER; `sar_harness_panels_dump` prints dynamic
-  panels with live pose. *Verify (in-game):* retracted panel dumps flush
-  world corners; deploy → corners tilt. Closes G1/G2 alongside the probe.
-- **P3 — percept + annotate.** Dynamic panels get S-marks, corner-quad
-  outlines, and the `(u,v)` grid (rides `Panels()`). *Verify (in-game):*
-  `S28…` labels on the two deployed angled panels; grid drapes the tilt.
+- **P2 — table + refresh. ✅ SHIPPED + VERIFIED in-game (2026-07-03).** Rest
+  descriptors → `SurfaceMarkTable` dynamic slice; per-frame posing in
+  `PanelSession` (RENDER). Verified: 32 panels; the S28 deploy/retract
+  round-trip moves between flush (`0 0 1`, z=256) and 30° (`0 -0.5 0.87`,
+  hinge numbers exact) live in `sar_harness_panels_dump`.
+- **P3 — percept + annotate. ✅ folded into P2's verify.** S-marks + `(u,v)`
+  grid drape tilted panels correctly (screenshot-verified on a 45° panel);
+  percept rides `Panels()` unchanged. The planned corner-quad outline was
+  dropped instead — see edge cases.
 - **P4 — the verb.** `place_portal <color> S28@u,v` on a deployed angled
   panel end-to-end. *Verify (in-game):* portal lands at the grid point;
   `NO_LOS`/`NOT_PORTALABLE` honest on the retracted pose if occluded.
