@@ -950,12 +950,6 @@ CON_COMMAND(
 // TraceFirePortal preview grid across the wall under the crosshair and prints
 // it as an ASCII portalability map, marking which cells snapped to a helper.
 
-static void PlaneAxes(Vector n, Vector* ax1, Vector* ax2) {
-  Vector up = (n.z < 0.9f && n.z > -0.9f) ? Vector{0, 0, 1} : Vector{1, 0, 0};
-  *ax1 = n.Cross(up).Normalize();
-  *ax2 = n.Cross(*ax1).Normalize();
-}
-
 CON_COMMAND(
     sar_harness_portal_surface_census,
     "sar_harness_portal_surface_census - surface recon. Lists every "

@@ -220,13 +220,6 @@ bool IsPortalable(const FaceGeo& g) {
   return !(g.flags & kSurfNoPortal) && IsWhiteTile(g.material);
 }
 
-// In-plane basis: an arbitrary but deterministic (u, v) spanning the plane.
-void PlaneAxes(Vector n, Vector* u, Vector* v) {
-  Vector up = (n.z < 0.9f && n.z > -0.9f) ? Vector{0, 0, 1} : Vector{1, 0, 0};
-  *u = n.Cross(up).Normalize();
-  *v = n.Cross(*u).Normalize();
-}
-
 Vector PlanePoint(float uc, float vc, const Vector& u, const Vector& v,
                   float dist, const Vector& n) {
   return Vector{uc * u.x + vc * v.x + dist * n.x,
@@ -465,6 +458,12 @@ std::vector<PanelDesc> ClusterPanels(const BspFile& bsp) {
 
 }  // namespace
 
+void PlaneAxes(Vector n, Vector* u, Vector* v) {
+  Vector up = (n.z < 0.9f && n.z > -0.9f) ? Vector{0, 0, 1} : Vector{1, 0, 0};
+  *u = n.Cross(up).Normalize();
+  *v = n.Cross(*u).Normalize();
+}
+
 // Bilinear over the four corners, so an off-center point lands on the surface
 // even for a tilted panel.
 Vector ResolvePanelPoint(const PanelDesc& p, float u, float v) {
@@ -481,6 +480,13 @@ std::vector<PanelDesc> BspFilePanelSource::EnumeratePanels(
   BspFile bsp;
   if (!LoadByMap(mapName, &bsp)) return {};
   return ClusterPanels(bsp);
+}
+
+std::vector<DynamicPanelRest> BspFilePanelSource::EnumerateDynamicRests(
+    const std::string& mapName) {
+  BspFile bsp;
+  if (!LoadByMap(mapName, &bsp)) return {};
+  return ExtractDynamicRests(bsp);
 }
 
 CON_COMMAND(sar_harness_bsp_geo_dump,
