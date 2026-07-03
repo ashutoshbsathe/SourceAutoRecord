@@ -90,12 +90,16 @@ name/geometry (template naming already burned us: `angledPanelN` vs `apN` vs
 `{38,41}` shuffle the suppression removes outright) · marking dissolving
 corpses out (no such state exists on the goo path).
 
-## Verify + remaining
+## Status
 
-- *Verify (in-game):* goo loop → one stable number. Catch → tube cube shows
-  no box/label/mark; after the held cube dies, the released cube wears the
-  same number. `sar_harness_dump_fields` still lists tube cubes (recon set
-  is mark-independent) if you need to see them.
-- **B3 (owed):** `agentloop_smoke` respawn-stability assertion on a dropper
-  map — must cover the catch scenario, not just the loop — bundled with the
-  owed dynamic-panel assertion.
+**✅ VERIFIED in-game (2026-07-03, after four iterations, each user-caught or
+tracer-diagnosed):** goo loop → one stable number; catch → the tube spare is
+invisible (no box/label/mark) and the eventual release inherits the same
+number; genuine multi-cube coexistence (the map's double-dispense glitch)
+gets honest distinct marks. `sar_harness_dump_fields` still lists tube cubes
+(recon set is mark-independent); `sar_harness_mark_debug 1` stays in as the
+cvar-gated tracer.
+
+**B3 (owed):** `agentloop_smoke` respawn-stability assertion on a dropper
+map — must cover the catch scenario, not just the loop — bundled with the
+owed dynamic-panel assertion.
