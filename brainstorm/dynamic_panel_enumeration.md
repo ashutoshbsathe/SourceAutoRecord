@@ -114,9 +114,9 @@ both angled-panel templates and flip panels with the same code path.
   grid drape tilted panels correctly (screenshot-verified on a 45° panel);
   percept rides `Panels()` unchanged. The planned corner-quad outline was
   dropped instead — see edge cases.
-- **P4 — the verb.** `place_portal <color> S28@u,v` on a deployed angled
-  panel end-to-end. *Verify (in-game):* portal lands at the grid point;
-  `NO_LOS`/`NOT_PORTALABLE` honest on the retracted pose if occluded.
+- **P4 — the verb. ✅ VERIFIED in-game (2026-07-03).** `place_portal` with
+  fractional `(u,v)` lands on a deployed angled panel — zero verb changes;
+  the bilerp over posed corners was sufficient.
 - **P5 — coverage.** A flip-panel workshop map through the same pipeline;
   `agentloop_smoke` gains a dynamic-panel assertion (panel count + a
   non-cardinal normal on the test map).

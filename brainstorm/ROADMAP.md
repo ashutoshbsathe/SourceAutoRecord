@@ -113,8 +113,8 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
      templates + flip panels; corpus-censused 217+76+60 across 278 maps). **P1+P2+P3 SHIPPED +
      VERIFIED in-game 2026-07-03** (gates closed; 32 panels; S28 deploy/retract round-trip poses
      live; grid drapes tilted panels; panel outline boxes removed — grid is the visual extent).
-     Remaining: **P4** (`place_portal S29@u,v` on a deployed angled panel) · **P5** (flip-panel map
-     + `agentloop_smoke` dynamic-panel assertion).
+     **P4 VERIFIED** (`place_portal Sn@u,v` lands on a deployed angled panel, zero verb changes).
+     Remaining: **P5** (flip-panel map + `agentloop_smoke` dynamic-panel assertion).
 - **`aim_at` at a panel/portal — DONE** (folded into the unified target model above). `look` stays relative
   (yaw/pitch), by design — it takes no target.
 - **portal × cube/laser/button composition** — how the shipped element verbs interact with portals in a real
