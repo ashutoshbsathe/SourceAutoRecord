@@ -8,10 +8,14 @@ client (percept parse + local validation + step_macro), pixels-over-shared-memor
 ExecuteCommand); the process exits non-zero if any fail. Observations and a few
 captured framebuffers are written under --out so you can eyeball them.
 
+The last two checks (dynamic_panels, respawn_marks) reset to their own pinned
+workshop maps regardless of --map; those maps must be installed.
+
 Usage:
     uv run python py/agentloop_smoke.py                 # launch a fresh instance
     uv run python py/agentloop_smoke.py --map sp_a1_intro5
     uv run python py/agentloop_smoke.py --attach --instance 0
+    uv run python py/agentloop_smoke.py --only dynamic_panels,respawn_marks
 
 Notes:
     * Launching needs gamescope + Steam Portal 2 (same as the trainer).
@@ -787,6 +791,246 @@ def check_execute_command(ctx):
     return 'echo ran'
 
 
+# The two checks below run on their own pinned workshop maps (they reset to
+# them, so they come last): dynamic panel posing needs deployable angled
+# panels, respawn-stable marks need an autonomous cube-dropper goo loop.
+PANEL_MAP = 'workshop/596996616964103777/1361778957'  # 5 angledPanelNN + relays
+DROPPER_MAP = 'workshop/1805355826134795545/1615598981'  # cd103/cd104 over goo
+
+
+def _cardinal(n):
+    """True if a unit normal is axis-aligned (a panel at rest sits flush)."""
+    return max(abs(n.x), abs(n.y), abs(n.z)) > 0.99
+
+
+def check_dynamic_panels(ctx):
+    """Dynamic (angled/flip) panel enumeration end to end: at rest every
+    surface-mark normal is axis-aligned; deploying one angled panel via its map
+    relay tilts exactly that panel's normal off-axis (the live entity pose
+    reached the surface table) without disturbing the mark set; and
+    place_portal lands on the deployed slab."""
+    resp = ctx.harness.reset(map_name=PANEL_MAP)
+    require(resp.success, f'reset to {PANEL_MAP} failed: {resp.error_message}')
+    ctx.harness.start_agent_loop()
+    try:
+        env = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(verb='wait', ticks=1)
+            ),
+            timeout=30.0,
+        )
+        rest = env.state.surface_marks
+        require(
+            len(rest) >= 6,
+            f'{len(rest)} surface marks; expected statics + 5 angled panels',
+        )
+        tilted = [p.mark for p in rest if not _cardinal(p.plane_normal)]
+        require(not tilted, f'panels tilted at rest: S{tilted}')
+
+        resp = ctx.harness.execute_command(
+            'ent_fire angledpanel73-ramp_open trigger', timeout=30.0
+        )
+        require(resp.success, f'deploy command failed: {resp.error_message}')
+        env = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(verb='wait', ticks=240)
+            ),
+            timeout=60.0,
+        )
+        panels = env.state.surface_marks
+        require(
+            len(panels) == len(rest),
+            f'mark churn on deploy: {len(rest)} -> {len(panels)} panels',
+        )
+        deployed = [p for p in panels if not _cardinal(p.plane_normal)]
+        require(
+            len(deployed) == 1,
+            f'expected exactly the deployed panel tilted, got '
+            f'S{[p.mark for p in deployed]}',
+        )
+        d = deployed[0]
+
+        env = ctx.harness.step_agent_loop(
+            harness_pb2.AgentMessage(
+                macro=harness_pb2.MacroRequest(
+                    verb='place_portal', color='blue', target=f'S{d.mark}'
+                )
+            ),
+            timeout=30.0,
+        )
+        rc = env.macro_result.result_code
+        require(rc == 'PLACED', f'place_portal blue S{d.mark} (deployed) -> {rc}')
+        ctx.observations.append(gamestate_dict(env.state, 'dynamic_panels'))
+        n = d.plane_normal
+        return (
+            f'{len(panels)} panels; deploy tilts S{d.mark} to '
+            f'({n.x:.2f},{n.y:.2f},{n.z:.2f}); portal PLACED on it'
+        )
+    finally:
+        ctx.harness.stop_agent_loop()
+
+
+class _SnapshotMirror:
+    """Raw merge of the delta-snapshot stream, marked or not -- deliberately
+    independent of WorldView so suppressed mark-0 entities stay visible to
+    assertions (WorldView filters them out, which is itself under test)."""
+
+    def __init__(self):
+        self._ents = {}
+
+    def merge(self, snap):
+        if snap.is_full_snapshot:
+            self._ents.clear()
+        for e in snap.entities:
+            rec = self._ents.get(e.entity_index)
+            if e.deleted:
+                if rec is not None and rec['serial'] == e.serial_number:
+                    del self._ents[e.entity_index]
+                continue
+            if rec is None or rec['serial'] != e.serial_number:
+                rec = {'serial': e.serial_number, 'index': e.entity_index}
+                self._ents[e.entity_index] = rec
+            rec['mark'] = e.mark
+            rec['class'] = e.class_name
+            rec['name'] = e.target_name
+            rec['pos'] = (e.position.x, e.position.y, e.position.z)
+
+    def cubes(self, name=None):
+        return [
+            r
+            for r in self._ents.values()
+            if r['class'] == 'prop_weighted_cube'
+            and (name is None or r['name'] == name)
+        ]
+
+
+def check_respawn_marks(ctx):
+    """Respawn-stable marks on the infinite-dropper map. The goo-loop droppers
+    respawn the same cube identity forever: the mark must hold one number
+    across generations (inheritance). Then the catch scenario: yank a
+    just-released cube to the player (as if caught) -- the dropper spawns a
+    spare into the tube which must stay UNMARKED while the veteran lives, and
+    the percept must keep showing exactly one cube for that identity."""
+    resp = ctx.harness.reset(map_name=DROPPER_MAP)
+    require(resp.success, f'reset to {DROPPER_MAP} failed: {resp.error_message}')
+    mirror = _SnapshotMirror()
+    world = WorldView()
+    marks_worn = {}  # cube name -> every mark ever seen on it
+    releases = {}  # cube name -> 0->1 marked-count transitions
+    prev_marked = {}
+    seeded = False
+    ctx.harness.start_agent_loop()
+    try:
+
+        def poll(ticks=15):
+            nonlocal seeded
+            env = ctx.harness.step_agent_loop(
+                harness_pb2.AgentMessage(
+                    macro=harness_pb2.MacroRequest(verb='wait', ticks=ticks)
+                ),
+                timeout=30.0,
+            )
+            mirror.merge(env.state.entity_snapshot)
+            percept = world.observe(env.state)
+            for r in mirror.cubes():
+                if r['mark'] > 0:
+                    marks_worn.setdefault(r['name'], set()).add(r['mark'])
+            for nm in {r['name'] for r in mirror.cubes()} | set(prev_marked):
+                now = sum(1 for r in mirror.cubes(nm) if r['mark'] > 0)
+                if seeded and prev_marked.get(nm, 0) == 0 and now > 0:
+                    releases[nm] = releases.get(nm, 0) + 1
+                prev_marked[nm] = now
+            seeded = True
+            for nm, worn in marks_worn.items():
+                require(
+                    len(worn) == 1,
+                    f'{nm} wore multiple marks {sorted(worn)} -- inheritance broke',
+                )
+            return env, percept
+
+        poll(1)
+        # Arm the goo-loop droppers exactly as walking into the chamber would.
+        resp = ctx.harness.execute_command(
+            'ent_fire @relay_spawn_on_entrance trigger', timeout=30.0
+        )
+        require(resp.success, f'arming command failed: {resp.error_message}')
+
+        # Loop phase: one identity must cycle (die in goo, respawn, get
+        # re-released wearing the same mark) at least twice.
+        looper = None
+        for _ in range(240):
+            poll()
+            looper = next((nm for nm, n in releases.items() if n >= 2), None)
+            if looper:
+                break
+        require(
+            looper is not None,
+            f'no dropper cycled twice in 60s (releases={releases}) -- '
+            f'goo loop never ran?',
+        )
+        (m0,) = marks_worn[looper]
+
+        # Catch phase: at the next release (marked count 0 -> 1, tube empty),
+        # teleport the cube to the player as if caught mid-drop.
+        catch_pos = None
+        for _ in range(120):
+            base = releases[looper]
+            env, _ = poll()
+            if releases[looper] > base and len(mirror.cubes(looper)) == 1:
+                catch_pos = env.state.position
+                # ent_setpos takes an entity index; +112 clears the player box
+                # so the cube drops in beside them instead of spawning inside.
+                resp = ctx.harness.execute_command(
+                    f'ent_setpos {mirror.cubes(looper)[0]["index"]} '
+                    f'{catch_pos.x:.0f} {catch_pos.y:.0f} {catch_pos.z + 112:.0f}',
+                    timeout=30.0,
+                )
+                require(resp.success, f'catch command failed: {resp.error_message}')
+                break
+        require(catch_pos is not None, f'never saw a clean release of {looper}')
+
+        env, percept = poll()
+        vet = [r for r in mirror.cubes(looper) if r['mark'] > 0]
+        require(
+            vet
+            and math.hypot(
+                vet[0]['pos'][0] - catch_pos.x, vet[0]['pos'][1] - catch_pos.y
+            )
+            < 192,
+            'caught cube is not near the player -- ent_setpos did not stick?',
+        )
+        ctx.observations.append(gamestate_dict(env.state, 'respawn_marks.catch'))
+
+        # The dropper now spawns a spare into the tube. Veteran keeps its mark,
+        # the spare stays unmarked, and no new mark ever appears.
+        coexist = 0
+        for _ in range(60):
+            env, percept = poll()
+            marked = [r for r in mirror.cubes(looper) if r['mark'] > 0]
+            spares = [r for r in mirror.cubes(looper) if r['mark'] == 0]
+            if len(marked) == 1 and marked[0]['mark'] == m0 and spares:
+                coexist += 1
+        require(
+            coexist >= 20,
+            f'marked veteran + unmarked tube spare coexisted in only '
+            f'{coexist}/60 polls -- spare got marked, veteran died, or no '
+            f'respawn fired',
+        )
+        seen = [d for d in percept if d.get('name') == looper]
+        require(
+            len(seen) == 1 and seen[0]['mark'] == m0,
+            f'percept shows {[d["mark"] for d in seen]} for {looper}; '
+            f'expected exactly [{m0}] (tube spare leaked?)',
+        )
+        ctx.observations.append(gamestate_dict(env.state, 'respawn_marks.final'))
+    finally:
+        ctx.harness.stop_agent_loop()
+    return (
+        f'{looper}: mark {m0} across {releases[looper]} releases; catch -> '
+        f'veteran kept {m0}, tube spare unmarked ({coexist}/60 polls)'
+    )
+
+
 CHECKS = [
     ('reset', check_reset),
     ('observe', check_observe),
@@ -803,6 +1047,9 @@ CHECKS = [
     ('client', check_client),
     ('pixels', check_pixels),
     ('execute_command', check_execute_command),
+    # Pinned-map checks: they reset to their own workshop maps, so keep last.
+    ('dynamic_panels', check_dynamic_panels),
+    ('respawn_marks', check_respawn_marks),
 ]
 
 
@@ -827,11 +1074,11 @@ def wait_for_handshake(harness, instance, timeout):
             time.sleep(min(3.0, 1.0 + 0.5 * attempt))
 
 
-def run_checks(ctx):
-    """Run every check, print a PASS/FAIL line each, and return the failure count."""
-    print(f'\n=== harness smoke: {len(CHECKS)} checks ===')
+def run_checks(ctx, checks):
+    """Run the checks, print a PASS/FAIL line each, and return the failure count."""
+    print(f'\n=== harness smoke: {len(checks)} checks ===')
     failures = 0
-    for name, fn in CHECKS:
+    for name, fn in checks:
         start = time.perf_counter()
         try:
             detail = fn(ctx)
@@ -868,7 +1115,21 @@ def main():
         help='walk forward this many ticks after each reset to clear an entry '
         'corridor (0 = off)',
     )
+    parser.add_argument(
+        '--only',
+        default='',
+        help='comma-separated subset of check names to run',
+    )
     args = parser.parse_args()
+
+    checks = CHECKS
+    if args.only:
+        wanted = [w.strip() for w in args.only.split(',') if w.strip()]
+        known = {name for name, _ in CHECKS}
+        unknown = [w for w in wanted if w not in known]
+        if unknown:
+            parser.error(f'unknown checks: {unknown}; available: {sorted(known)}')
+        checks = [(name, fn) for name, fn in CHECKS if name in wanted]
 
     os.makedirs(args.out, exist_ok=True)
     address = f'localhost:{50000 + args.instance}'
@@ -891,13 +1152,13 @@ def main():
         print(f'  handshake ok: {hs.shm_width}x{hs.shm_height} shm, map={hs.map_name}')
 
         ctx = Context(harness, args, args.out)
-        failures = run_checks(ctx)
+        failures = run_checks(ctx, checks)
 
         with open(os.path.join(args.out, 'observations.json'), 'w') as f:
             json.dump(ctx.observations, f, indent=2)
 
-        passed = len(CHECKS) - failures
-        print(f'\n{passed}/{len(CHECKS)} passed. artifacts in {args.out}/')
+        passed = len(checks) - failures
+        print(f'\n{passed}/{len(checks)} passed. artifacts in {args.out}/')
         harness.close()
         exit_code = 1 if failures else 0
     except RuntimeError as e:

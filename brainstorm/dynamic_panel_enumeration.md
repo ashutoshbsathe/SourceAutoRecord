@@ -131,8 +131,13 @@ both angled-panel templates and flip panels with the same code path.
   func_door_rotating panels ride the pipeline (flip live via `ent_fire … 
   toggle`); black `apN` angled panels and unnamed white brushes correctly
   unmarked. Map quirk found there → the respawn-stable-marks problem,
-  [mark_identity_respawns.md](mark_identity_respawns.md). Still owed:
-  the `agentloop_smoke` dynamic-panel assertion.
+  [mark_identity_respawns.md](mark_identity_respawns.md).
+- **Smoke — WRITTEN (2026-07-03), in-game run pending.** `agentloop_smoke`
+  `check_dynamic_panels` (pinned to the angled-panel map): panels rest with
+  axis-aligned normals; `ent_fire angledpanel73-ramp_open trigger` tilts
+  exactly that panel's normal off-axis with no mark churn; `place_portal`
+  lands on the deployed slab. Run:
+  `uv run python py/agentloop_smoke.py --only dynamic_panels,respawn_marks`.
 
 Deferred: gravity-anchored `(u,v)` frame (dossier ruling — separate,
 whole-surface change) · a `deployed` percept bit (pose already tells) ·

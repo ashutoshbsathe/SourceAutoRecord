@@ -100,6 +100,11 @@ gets honest distinct marks. `sar_harness_dump_fields` still lists tube cubes
 (recon set is mark-independent); `sar_harness_mark_debug 1` stays in as the
 cvar-gated tracer.
 
-**B3 (owed):** `agentloop_smoke` respawn-stability assertion on a dropper
-map — must cover the catch scenario, not just the loop — bundled with the
-owed dynamic-panel assertion.
+**Smoke — WRITTEN (2026-07-03), in-game run pending.** `agentloop_smoke`
+`check_respawn_marks` (pinned to the dropper map): arms the goo loop via
+`ent_fire @relay_spawn_on_entrance trigger`, asserts one mark per cube
+identity across ≥2 respawn cycles, then emulates the catch — `ent_setpos`
+yanks a just-released cube to the player, and the tube spare must stay
+mark-0 (raw snapshot) while the veteran keeps its number and the percept
+shows exactly one cube for that identity. Run:
+`uv run python py/agentloop_smoke.py --only dynamic_panels,respawn_marks`.

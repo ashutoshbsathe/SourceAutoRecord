@@ -114,7 +114,8 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
      affordance); the release chain's `FireUser1` ping to the cube itself releases it; 768u
      stuck-insurance backstop — plus name-keyed mark inheritance + 2.5 s corpse grace. One number
      per dropper cube forever; tube spares invisible; genuine coexistence stays distinct.
-     `sar_harness_mark_debug` = the tracer. Owed: the smoke assertion (with the dynamic-panel one).
+     `sar_harness_mark_debug` = the tracer. Smoke `check_respawn_marks` written (catch scenario
+     included); in-game run pending.
      → [mark_identity_respawns.md](mark_identity_respawns.md)
   3. **Dynamic-panel build** — design LOCKED 2026-07-03 in
      [dynamic_panel_enumeration.md](dynamic_panel_enumeration.md) (class-agnostic: ALL brush-entity
@@ -124,7 +125,8 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
      live; grid drapes tilted panels; panel outline boxes removed — grid is the visual extent).
      **P4 VERIFIED** (`place_portal Sn@u,v` lands on a deployed angled panel, zero verb changes).
      **P5 VALIDATED** (flip panels ride the pipeline on `workshop/1805355826134795545/1615598981`;
-     black `apN` + unnamed brushes correctly unmarked). Owed: the `agentloop_smoke` assertion.
+     black `apN` + unnamed brushes correctly unmarked). Smoke `check_dynamic_panels` written;
+     in-game run pending.
 - **`aim_at` at a panel/portal — DONE** (folded into the unified target model above). `look` stays relative
   (yaw/pitch), by design — it takes no target.
 - **portal × cube/laser/button composition** — how the shipped element verbs interact with portals in a real
