@@ -105,7 +105,8 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
   locked: runtime entity pose × BSP bmodel faces** (one new `LUMP_MODELS` read, zero offsets); the open
   design cost is a **dynamic SurfaceMarkTable** (deploy/retract refresh + name-keyed marks). Detail:
   [uv_targeting_and_panels.md](uv_targeting_and_panels.md). **RESUME QUEUE (2026-07-03), priority:**
-  1. **Ledge fling end-to-end** (floor portal near an edge via `Sn@u,v` → `jump_into` → the money fling).
+  1. ✅ **Ledge fling end-to-end VERIFIED (2026-07-03)** — floor portal near an edge via `Sn@u,v` →
+     `jump_into` → the money fling, freeze mid-flight. The `(u,v)`+grid unlock paid off.
   2. **D — `drop_into`** (gentle self step-through / object-drop into a ground portal).
   3. **Dynamic-panel build** — design LOCKED 2026-07-03 in
      [dynamic_panel_enumeration.md](dynamic_panel_enumeration.md) (class-agnostic: ALL brush-entity
