@@ -14,7 +14,11 @@
 // A respawned entity (new serial) whose classname + targetname matches a
 // no-longer-live mark INHERITS that mark: a dropper respawns its cube under
 // the same name, so the "same" cube keeps one mark instead of minting a new
-// one per fizzle. A mark still never moves off a living entity.
+// one per fizzle. Droppers spawn the replacement a tick or two BEFORE
+// removing the fizzled cube, so a newcomer whose identity-mark is still held
+// by a live predecessor stays unmarked for a short grace instead of minting
+// a fresh mark; genuine same-name coexistence times out to a fresh mark.
+// A mark still never moves off a living entity.
 class MarkTable {
  public:
   // Recompute marks from the live server entity list. Walks the engine entity
@@ -41,6 +45,11 @@ class MarkTable {
   // "classname:targetname" -> the first mark handed to that identity, for
   // respawn inheritance. Only consulted when that mark has no live owner.
   std::unordered_map<std::string, int> nameMark;
+  // key -> rebuilds spent waiting for the identity-mark to vacate.
+  std::unordered_map<uint32_t, int> deferred;
+  // The initial cohort never defers (same-name statics get fresh marks at
+  // once); only entities appearing after the first rebuild can be respawns.
+  bool primed = false;
   int nextMark = 1;  // next mark to hand out
 };
 

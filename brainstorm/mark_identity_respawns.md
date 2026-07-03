@@ -68,18 +68,25 @@ A3 idea — violates "marks never move mid-episode", long since decided).
 - **B1 ✅ SHIPPED (2026-07-03)** — `CanonicalName` (classname:targetname,
   fixup-stripped) + inherit-if-vacant branch in `MarkTable::RebuildFromWorld`;
   `nameMark` records each identity's first mark for the episode.
-- **B2 ✅ SHIPPED (2026-07-03) — the gate FIRED.** Post-B1 the mark alternated
-  `38 → 42 → 38 → 44` — inherit on the even cycles, fresh on the odd ones,
-  i.e. the dissolve overlap is real (`OnFizzled` → spawn at +0.11 s beats the
-  ~1–2 s dissolve; the earlier dumps were simply slower than the corpse).
-  First fix attempt: reject `FL_DISSOLVING` (`m_fFlags` bit 28, from SDK
-  lore) in `IsHarnessMarkedEntity` — **DID NOT FIRE** (mark still alternates
-  after a fresh install; second SDK-lore assumption burned this arc after the
-  plane `side` bit). Recon-first now: `sar_harness_dissolve_recon <on|off>`
-  logs every cube's spawn/remove/field transitions per tick (m_fFlags,
-  m_lifeState, render mode/fx, dissolve fields) — one goo cycle reveals the
-  real corpse signal + the exact overlap timeline. The bit-28 guard stays in
-  (currently inert) until the recon names the right signal.
+- **B2 ✅ SHIPPED (2026-07-03) — spawn-grace, after the recon overturned the
+  dissolve theory.** Post-B1 the mark alternated `38 → 42 → 38 → 44`. First
+  fix attempt (reject `FL_DISSOLVING`, bit 28 from SDK lore) **did not fire**
+  — second SDK-lore assumption burned this arc after the plane `side` bit.
+  The per-tick lifecycle logger (`sar_harness_dissolve_recon <on|off>`) then
+  settled it: **there is no dissolve state at all.** Every field is frozen
+  from spawn to remove (`m_fFlags` constant `FL_OBJECT`, `m_lifeState` 0,
+  `m_flDissolveStartTime` 0, `m_takedamage` 1); the goo kill is a direct
+  removal. The real overlap is a **spawn-before-remove race of 0–2 ticks**:
+  the dropper spawns the replacement, the old cube is removed ~2 ticks later
+  (`SPAWN t1224 → REMOVE t1226`, every cycle). Any frame's mark rebuild that
+  lands in that ~33 ms window sees both cubes and permanently mints a fresh
+  mark — landing about every other cycle, hence the alternation.
+  **Fix: inherit-grace.** A newcomer whose identity-mark is still held by a
+  live predecessor stays *unmarked* for up to 10 rebuilds (~166 ms, 5× the
+  race) instead of minting a fresh mark; genuine same-name coexistence times
+  out to fresh, and the initial cohort never defers (same-name statics keep
+  today's behavior). The bit-28 guard is deleted (dead code). Cost: a fresh
+  respawn is markless for ≲166 ms — invisible at macro-step timescales.
 - **B3** — `agentloop_smoke`: respawn-stability assertion on a dropper map
   (owed together with the dynamic-panel assertion).
 

@@ -65,8 +65,14 @@ void MarkTable::RebuildFromWorld() {
   // spawn/despawn. An entity whose canonical name held a mark with no living
   // owner inherits it (a respawned dropper cube keeps its number); otherwise
   // a fresh mark is appended.
+  // The dropper race is spawn-then-remove within ~2 ticks; 10 rebuilds is a
+  // generous cover while keeping a genuine coexistence wait imperceptible.
+  constexpr int kInheritGrace = 10;
+
   std::unordered_set<int> liveMarks;
+  std::unordered_set<uint32_t> liveKeys;
   for (const auto& c : cands) {
+    liveKeys.insert(c.key);
     auto it = assigned.find(c.key);
     if (it != assigned.end()) liveMarks.insert(it->second);
   }
@@ -83,23 +89,32 @@ void MarkTable::RebuildFromWorld() {
     int mark = 0;
     if (!c->cname.empty()) {
       auto nm = nameMark.find(c->cname);
-      if (nm != nameMark.end() && !liveMarks.count(nm->second))
-        mark = nm->second;
+      if (nm != nameMark.end()) {
+        if (!liveMarks.count(nm->second))
+          mark = nm->second;
+        else if (primed && deferred[c->key]++ < kInheritGrace)
+          continue;  // predecessor still live; stay unmarked and retry
+      }
     }
     if (!mark) mark = nextMark++;
     assigned[c->key] = mark;
     liveMarks.insert(mark);
+    deferred.erase(c->key);
     if (!c->cname.empty()) nameMark.emplace(c->cname, mark);
   }
+  primed = true;
+  for (auto it = deferred.begin(); it != deferred.end();)
+    it = liveKeys.count(it->first) ? std::next(it) : deferred.erase(it);
 
   // Mirror only live entities; a despawned mark drops out so its reverse
-  // lookup correctly misses.
+  // lookup correctly misses. A deferred newcomer has no mark yet.
   forward.clear();
   reverse.clear();
   for (const auto& c : cands) {
-    int mark = assigned.at(c.key);  // every live key was just assigned above
-    forward[c.key] = mark;
-    reverse[mark] = c.key;
+    auto it = assigned.find(c.key);
+    if (it == assigned.end()) continue;
+    forward[c.key] = it->second;
+    reverse[it->second] = c.key;
   }
 }
 
@@ -124,6 +139,8 @@ void MarkTable::Clear() {
   forward.clear();
   reverse.clear();
   nameMark.clear();
+  deferred.clear();
+  primed = false;
   nextMark = 1;
 }
 

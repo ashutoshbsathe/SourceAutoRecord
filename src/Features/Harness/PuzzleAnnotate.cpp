@@ -86,19 +86,13 @@ bool IsHarnessMarkedClass(const char* className) {
   return className && kClassColors.find(className) != kClassColors.end();
 }
 
-// Mark gate: class membership, minus three carve-outs. Portals are referenced
-// by color (the blue_portal / orange_portal percept slots + a dedicated
-// overlay), never a generic integer mark, so they stay out of the mark table
-// entirely. Transient laser re-emit segments ghost at (0,0,0) with an identity
-// transform; a real emitter always has a true origin. A dissolving entity is
-// no longer an affordance (can't be grabbed), and unmarking it the tick it
-// fizzles vacates its mark so a dropper's replacement inherits the number
-// immediately instead of minting a fresh one.
-static constexpr int kFlDissolving = 1 << 28;
-
+// Mark gate: class membership, minus two carve-outs. Portals are referenced by
+// color (the blue_portal / orange_portal percept slots + a dedicated overlay),
+// never a generic integer mark, so they stay out of the mark table entirely.
+// Transient laser re-emit segments ghost at (0,0,0) with an identity transform;
+// a real emitter always has a true origin.
 bool IsHarnessMarkedEntity(void* ent, const char* className) {
   if (!IsHarnessMarkedClass(className)) return false;
-  if (SE(ent)->field<int>("m_fFlags") & kFlDissolving) return false;
   if (!std::strcmp(className, "prop_portal")) return false;
   if (!std::strcmp(className, "env_portal_laser")) {
     Vector o = SE(ent)->abs_origin();
