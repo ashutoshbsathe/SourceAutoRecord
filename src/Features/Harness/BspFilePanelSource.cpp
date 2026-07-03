@@ -256,7 +256,9 @@ std::vector<BrushEntRef> ParseBrushEnts(const std::vector<char>& text) {
       else if (key == "model")
         model = val;
     }
-    if (model.size() > 1 && model[0] == '*')
+    // Unnamed brush entities can't be matched to a live entity (and can't be
+    // driven by I/O), so they are skipped rather than mis-posed.
+    if (!targetname.empty() && model.size() > 1 && model[0] == '*')
       out.push_back({targetname, std::atoi(model.c_str() + 1)});
   }
   return out;

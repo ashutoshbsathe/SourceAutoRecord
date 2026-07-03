@@ -95,9 +95,18 @@ both angled-panel templates and flip panels with the same code path.
 - A portal placed on a panel that then moves: engine fizzles it; percept
   already tracks portals live via `ReadPortal`. Assert during P4.
 - Flip panels: `func_door_rotating` rotates its own transform — same read, no
-  parent hop. Both faces white? If the bmodel carries two portalable faces,
-  emit both (they're distinct surfaces back-to-back); verify on a flip-panel
-  map in P5.
+  parent hop. Offline pre-verify (P5 map): each carries exactly **one**
+  white-tile face, so no two-sided surprise. A flip panel resting white-side-
+  in has its S-mark posed inside the wall until flipped — honest, pose is the
+  status.
+- **Unnamed brush entities are skipped** (P5 offline finding: 4 unnamed
+  white-tile func_brushes on the flip-panel map). The posing hook matches by
+  targetname, so unnamed rests would all collide on one entity's transform;
+  unnamed brushes are also I/O-unreachable, hence never puzzle-dynamic. Cost:
+  such surfaces get no S-mark. Rare (first sighting in the corpus).
+- **`apN` = the same angled-panel anatomy with material-decided portalability**
+  (P5 map: all five `apN-brush` are black `metal/*` panels → correctly no
+  mark). The "second template" needs zero special code.
 
 ## Phases (each small + hand-verifiable; C++ only, no proto/Python)
 
@@ -117,9 +126,13 @@ both angled-panel templates and flip panels with the same code path.
 - **P4 — the verb. ✅ VERIFIED in-game (2026-07-03).** `place_portal` with
   fractional `(u,v)` lands on a deployed angled panel — zero verb changes;
   the bilerp over posed corners was sufficient.
-- **P5 — coverage.** A flip-panel workshop map through the same pipeline;
-  `agentloop_smoke` gains a dynamic-panel assertion (panel count + a
-  non-cardinal normal on the test map).
+- **P5 — coverage.** Flip-panel map = **`workshop/1805355826134795545/1615598981`**
+  (offline pre-verified: 8 `fpN-flipping_panel` func_door_rotating with one
+  white face each → expect exactly 8 dynamic marks; 5 black `apN` angled
+  panels and 4 unnamed white brushes correctly get none). Flip live with
+  `ent_fire fp154-flipping_panel toggle` and watch the S-mark's corners swing.
+  Then `agentloop_smoke` gains a dynamic-panel assertion (panel count + a
+  non-cardinal normal on the angled-panel test map).
 
 Deferred: gravity-anchored `(u,v)` frame (dossier ruling — separate,
 whole-surface change) · a `deployed` percept bit (pose already tells) ·
