@@ -24,6 +24,17 @@ struct PanelDesc {
 // (u,v) in [0,1]^2 -> world point on the panel rect; (0.5,0.5) is the center.
 Vector ResolvePanelPoint(const PanelDesc& p, float u, float v);
 
+// A brush-entity portalable surface (angled panel, flip panel, ...) at its
+// compile-time rest pose. Brush models compile about the entity origin, so the
+// corners are entity-local; the live entity's transform poses them in the
+// world.
+struct DynamicPanelRest {
+  std::string targetname;
+  Vector normal;      // local outward normal
+  Vector corners[4];  // local in-plane rect:
+                      // (umin,vmin)(umax,vmin)(umax,vmax)(umin,vmax)
+};
+
 // Supplies a chamber's portalable panels. A sidecar backs this today; a runtime
 // BSP/trace walk swaps in behind the same interface.
 class IPanelSource {

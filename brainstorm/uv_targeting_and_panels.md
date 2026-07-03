@@ -64,17 +64,89 @@ actually is on this map — brush vs prop — which sets the fix shape).
 Crucially, this does **not** block the `(u,v)` win or the ledge fling: floors are
 cardinal (`S15 = 0 0 1 @ z=0`), so `(u,v)` on a floor panel is exact today.
 
-## Open follow-ups (tomorrow)
+## `(u,v)` grid overlay — SHIPPED (2026-07-03)
 
-1. **`(u,v)` grid overlay on panels (temp vis).** Draw a labeled `(u,v)` grid on
-   each panel (debug cvar, off by default) so the axis orientation and corner
-   origin are legible in-game. Pure annotation; no gameplay change. Makes `(u,v)`
-   actually usable by a human (and later legible to the model in screenshots).
-2. **Angled/inclined-panel enumeration recon.** Identify what PeTI angled panels
-   compile to (`dump_ents.py`), then decide: entity/prop-geometry reconstruction
-   vs runtime-trace enumeration. Its own design pass.
-3. **Ledge fling end-to-end.** With `(u,v)`: place a floor portal near an edge
+`sar_harness_annotate_uv 1` (with `sar_harness_annotate 1`) draws a faint
+quarter-fraction grid (plus edges) on every panel, **shaded white at `(0,0)`
+blending to red at `(1,1)`** — the corner origin reads from color alone, no
+labels (v2 after in-game review: corner text labels were clutter). Segments
+pool into 8 constant-color shade meshes shared across panels. The grid points
+go through the same `ResolvePanelPoint` bilerp the verb aims with (now declared
+in `PanelSource.hpp`, defined with the rest of the panel geometry in
+`BspFilePanelSource.cpp`), so the overlay cannot disagree with where a portal
+actually lands. Known tradeoff: the `(u+v)/2` shade is symmetric in u/v, so
+`(1,0)` vs `(0,1)` share a shade — if the mirror ambiguity ever bites, give v
+its own hue. Line width is `sar_harness_annotate_uv_width` (world units,
+default 1; 0 = hairline) — thickness renders as in-plane quads because the
+engine's wireframe lines are fixed 1px.
+
+## Angled-panel recon — DONE (2026-07-03): they're func_brush slabs at the BSP origin
+
+`dump_ents.py --geometry` on the test map (`workshop/596996616964103777/1361778957`)
+closed every open question. Anatomy of a PeTI angled panel:
+
+- **Portalable surface = `func_brush` named `angledPanelNN_panel_top`** — a
+  128×128×2 brush-model slab (5 on this map). Its white-tile face **is in
+  `LUMP_FACES`, portalability baked, `IsPortalable` passes** — but brush-entity
+  models compile in **origin-relative local coords**, so all five slabs sit at
+  `(0,0,0)`. That is precisely the cluster our "PeTI origin-junk" filter drops:
+  the panels were never absent from the BSP, they're entity-local geometry.
+  Confirmed: five 128×128 white-tile portalable faces centered at the origin,
+  one floor-oriented + four wall-oriented, matching the five arms' mounts.
+- **Pose = parent `prop_dynamic` `angledPanelNN-model_arms`**
+  (`models/props_ingame/arm_4panel.mdl`, shared by every PeTI angled panel).
+  The deploy angle lives in the **animation name** (`ramp_30_deg_open`,
+  `ramp_45_deg_open`); mount orientation in `angles`; toggled panels via
+  `logic_branch → angledPanelNN-ramp_open`. So the surface set is **dynamic** —
+  panels can start deployed or deploy mid-episode.
+- No double-mark risk: behind a deployed panel the map compiles a SQUAREBEAMS
+  recess, not white tile, and the retracted rest pose only exists origin-local.
+  The 27 static world panels stay correct; the new source is purely additive.
+
+### Recon phase 2 (2026-07-03) — offline read path VERIFIED end-to-end
+
+srctools walk of the same map, per `*_panel_top` bmodel (`*2 *3 *4 *12 *13`,
+carried by the raw entity lump's `model` kv — `dump_ents.py` silently drops it
+because srctools pops `model` when linking `bsp.bmodels`):
+
+- exactly **6 faces** each: 1 white-tile + 1 backpanel + 4 frame bevels;
+- the tile face has **no `SURF_NOPORTAL`** while the backpanel does (0x20) —
+  the existing `IsPortalable` filter selects the correct face unchanged;
+- tile corners are **exact origin-local quads** (±64, thickness 2, cardinal at
+  rest): floor-mount for panel 11, wall-mounts for the rest, matching the arms.
+
+So the entire file-side pipeline is proven: entity lump `targetname` → `*N` →
+`LUMP_MODELS` firstface/numfaces → face extraction → `IsPortalable` → 4 local
+corners. What's left is the **runtime half**, and a probe for it is built:
+`sar_harness_angled_panel_probe` dumps each `*_panel_top`'s live
+`abs_origin`/`abs_angles`/OBB plus the parent arm's angles + `m_nSequence` +
+`m_flCycle`. **Protocol: run once retracted → deploy the panel → run again.**
+That answers the two open runtime questions: (a) does the func_brush abs
+transform carry the tilt (local corners × abs transform = the deployed quad),
+and (b) which arm field is the deploy/retract status signal.
+
+**Fix shape (decided by the recon): runtime pose × BSP bmodel faces.**
+Enumerate live `func_brush` entities named `*_panel_top` → read their `*N`
+brush-model index → pull that model's white-tile face from the already-parsed
+`.bsp` (`LUMP_MODELS` partitions `LUMP_FACES` by firstface/numfaces — one new
+lump read) → transform the local-coord corners by the entity's **current** abs
+transform and emit a `PanelDesc`. The engine has already done all hinge +
+animation math; `(u,v)` bilerp already handles tilt. Zero new offsets, no
+`.mdl` parsing. Rejected: static reconstruction (anim-name angle + hinge RE —
+strictly worse) and trace enumeration (already rejected for world panels).
+The real design cost is **dynamism**: `SurfaceMarkTable` is session-static
+today, so deploy/retract needs a refresh path + name-keyed stable marks.
+**The design pass is written →
+[dynamic_panel_enumeration.md](dynamic_panel_enumeration.md)** (broadened by a
+corpus census: two angled-panel templates + flip panels → class-agnostic
+brush-entity enumeration, phases P1–P5, probe gates G1/G2).
+
+## Open follow-ups
+
+1. **Ledge fling end-to-end.** With `(u,v)`: place a floor portal near an edge
    below you (`place_portal blue S_floor@…`) → `jump_into Pb` → confirm the money
    fling (long fall → big momentum) freezes mid-air. jump_into's ledge path is
    still unverified because you couldn't aim the portal there until now.
-4. **`drop_into`** — the gentle sibling (step through / drop a held cube).
+2. **`drop_into`** — the gentle sibling (step through / drop a held cube).
+3. **Angled-panel verb/percept build** — the design pass above (dynamic
+   SurfaceMarkTable), then the implementation.

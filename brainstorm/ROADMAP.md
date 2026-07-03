@@ -96,13 +96,23 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
   in-game — but the **in-game `(u,v)` axis orientation is not legible** (needs a temp grid overlay). **⚠️
   inclined panels get NO S-mark**: `sar_harness_bsp_geo_dump` shows all 27 panels cardinal; PeTI angled panels are
   entity/prop geometry, NOT static `LUMP_FACES` world faces → a separate feature, not a filter tweak. Full
-  finding + design: [uv_targeting_and_panels.md](uv_targeting_and_panels.md). **RESUME QUEUE (2026-07-02),
-  priority:**
-  1. **`(u,v)` grid overlay on panels** (temp debug vis — the axis orientation/corner origin is unclear in-game).
-  2. **Angled/inclined-panel enumeration recon** (entity/prop geometry reconstruction vs runtime trace;
-     `dump_ents.py` to identify what the angled-panel entity is first).
-  3. **Ledge fling end-to-end** (floor portal near an edge via `Sn@u,v` → `jump_into` → the money fling).
-  4. **D — `drop_into`** (gentle self step-through / object-drop into a ground portal).
+  finding + design: [uv_targeting_and_panels.md](uv_targeting_and_panels.md). ✅ **`(u,v)` grid overlay
+  SHIPPED (2026-07-03):** `sar_harness_annotate_uv 1` — faint quarter-fraction grid + `0,0`/`1,0`/`0,1`
+  corner labels through the verb's own `ResolvePanelPoint` bilerp (overlay can't disagree with the aim).
+  ✅ **Angled-panel recon DONE (2026-07-03):** they're `func_brush` `*_panel_top` slabs whose white-tile
+  faces ARE in `LUMP_FACES` but **origin-relative** (brush-entity local coords) — exactly what the
+  origin-junk filter drops; pose comes from the parent `arm_4panel.mdl` prop at runtime. **Fix shape
+  locked: runtime entity pose × BSP bmodel faces** (one new `LUMP_MODELS` read, zero offsets); the open
+  design cost is a **dynamic SurfaceMarkTable** (deploy/retract refresh + name-keyed marks). Detail:
+  [uv_targeting_and_panels.md](uv_targeting_and_panels.md). **RESUME QUEUE (2026-07-03), priority:**
+  1. **Ledge fling end-to-end** (floor portal near an edge via `Sn@u,v` → `jump_into` → the money fling).
+  2. **D — `drop_into`** (gentle self step-through / object-drop into a ground portal).
+  3. **Dynamic-panel build** — design LOCKED 2026-07-03 in
+     [dynamic_panel_enumeration.md](dynamic_panel_enumeration.md) (class-agnostic: ALL brush-entity
+     bmodels with a portalable white-tile face, posed live per frame — covers both angled-panel
+     templates + flip panels; corpus-censused 217+76+60 across 278 maps). **P1 (rest extraction)
+     SHIPPED + VERIFIED; gates G1/G2 CLOSED in-game** (abs transform carries the pose exactly, both
+     states; hinge math exact). Next = P2 (SurfaceMarkTable refresh) — unblocked, zero open questions.
 - **`aim_at` at a panel/portal — DONE** (folded into the unified target model above). `look` stays relative
   (yaw/pitch), by design — it takes no target.
 - **portal × cube/laser/button composition** — how the shipped element verbs interact with portals in a real
@@ -506,6 +516,7 @@ has crept into `py/` (and likely `src/`). Fix in passing, don't make a project o
 | `portal_unified_grammar_options_dossier.md` | **⭐ THE live portal-grammar dossier** — 28-agent brainstorm of the unified Portal-2 verb grammar across 6 axes (pass_through · flings · fractional-`(u,v)` · laser×portal · portal-naming · percept), all sharing `M`=`m_matrixThisToLinked`. Per-axis options + tradeoffs, 3 finalist grammars, per-finalist impl sketch, 7 crux decisions. User rulings recorded at top (dumb-laser · all-panel-`(u,v)` · spine-only · fling reopened). Read before any portal-grammar/verb code. |
 | `portal_traversal_edge_design.md` | **SUPERSEDED (fork-B, dropped 2026-07-01)** — the GoToPlanner A\*-portal-edge plan; kept only for its R5-derived substrate notes. The dossier above replaces it. |
 | `portal_place_verb_plan.md` | **⭐ the `place_portal` build plan** — two arcs (ARC A offline sidecar → verb/percept/labels; ARC B runtime BSP/trace enumeration), cross-cutting decisions (proto, S-prefixed surface marks, `IPanelSource` seam, leak-safe labels), phase-by-phase with per-phase verifies. **SHIPPED + verified in-game 2026-06-30:** the BSP-file enumerator (Track B, B0–B8, sidecar removed) + the verb (A7–A13); next = portal-aware traversal + A15/A16 polish. Read before any `place_portal`/enumerator/traversal code. |
+| `dynamic_panel_enumeration.md` | **dynamic (angled/flip) panel enumeration** — brush-entity portalable surfaces posed from the live entity (recon facts, corpus census, design + phases P1–P5, probe gates G1/G2). Read before any angled-panel/S-mark-dynamism code. |
 | `locomotion_tech.md` | **`go_to` pathfinding (local controller + A*) + reliable place-on-button + the laser-routing frontier** — phased plan, substrate recon, ROADMAP #2 |
 | `astar_routing_design.md` | **A\* global routing for `go_to`** (lazy hull-probed grid) + why save/restore tree-search is parked at the puzzle layer (C9), not locomotion |
 | `release_place_on_button_design.md` | **gated-fair central-teleport `release` onto a button** (the P-manip place-on-button design + phased plan C1–D9) — button taxonomy, static-trace fairness check, FCPS `Teleport` reuse, dwell-verify; orientation = preserve-only |

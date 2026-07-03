@@ -63,9 +63,16 @@ struct TexData {
   int width, height;
   int viewWidth, viewHeight;
 };
+struct Model {
+  Vector mins, maxs;
+  Vector origin;
+  int headnode;
+  int firstface, numfaces;
+};
 #pragma pack(pop)
 
 enum {
+  LUMP_ENTITIES = 0,
   LUMP_PLANES = 1,
   LUMP_TEXDATA = 2,
   LUMP_VERTEXES = 3,
@@ -73,6 +80,7 @@ enum {
   LUMP_FACES = 7,
   LUMP_EDGES = 12,
   LUMP_SURFEDGES = 13,
+  LUMP_MODELS = 14,
   LUMP_TEXDATA_STRING_DATA = 43,
   LUMP_TEXDATA_STRING_TABLE = 44,
 };
@@ -89,6 +97,8 @@ struct BspFile {
   std::vector<TexData> texdatas;
   std::vector<int> stringTable;
   std::vector<char> stringData;
+  std::vector<Model> models;
+  std::vector<char> entText;
   bool ok = false;
 };
 
@@ -139,6 +149,10 @@ BspFile LoadBsp(const std::string& path) {
   ReadLump(f, l.ofs, l.len, bsp.stringTable);
   l = lump(LUMP_TEXDATA_STRING_DATA);
   ReadLump(f, l.ofs, l.len, bsp.stringData);
+  l = lump(LUMP_MODELS);
+  ReadLump(f, l.ofs, l.len, bsp.models);
+  l = lump(LUMP_ENTITIES);
+  ReadLump(f, l.ofs, l.len, bsp.entText);
 
   bsp.ok = !bsp.faces.empty() && !bsp.planes.empty();
   return bsp;
@@ -218,6 +232,92 @@ Vector PlanePoint(float uc, float vc, const Vector& u, const Vector& v,
   return Vector{uc * u.x + vc * v.x + dist * n.x,
                 uc * u.y + vc * v.y + dist * n.y,
                 uc * u.z + vc * v.z + dist * n.z};
+}
+
+// The entity lump is plain text: { "key" "value" ... } blocks. Collect
+// targetname + brush-model index for every entity whose model is "*N".
+struct BrushEntRef {
+  std::string targetname;
+  int model;
+};
+
+std::vector<BrushEntRef> ParseBrushEnts(const std::vector<char>& text) {
+  std::vector<BrushEntRef> out;
+  size_t i = 0, n = text.size();
+  auto quoted = [&](std::string* s) {
+    while (i < n && text[i] != '"' && text[i] != '}') ++i;
+    if (i >= n || text[i] == '}') return false;
+    size_t start = ++i;
+    while (i < n && text[i] != '"') ++i;
+    if (i >= n) return false;
+    s->assign(&text[start], i - start);
+    ++i;
+    return true;
+  };
+  while (i < n) {
+    if (text[i++] != '{') continue;
+    std::string targetname, model, key, val;
+    while (quoted(&key) && quoted(&val)) {
+      if (key == "targetname")
+        targetname = val;
+      else if (key == "model")
+        model = val;
+    }
+    if (model.size() > 1 && model[0] == '*')
+      out.push_back({targetname, std::atoi(model.c_str() + 1)});
+  }
+  return out;
+}
+
+// Every portalable face on a brush-entity model, as an entity-local rest rect.
+// One face is one panel -- no clustering. Faces reference the shared plane
+// array; side != 0 means the face looks opposite the plane normal.
+std::vector<DynamicPanelRest> ExtractDynamicRests(const BspFile& bsp) {
+  std::vector<DynamicPanelRest> out;
+  for (const auto& e : ParseBrushEnts(bsp.entText)) {
+    if (e.model <= 0 || e.model >= (int)bsp.models.size()) continue;
+    const Model& m = bsp.models[e.model];
+    for (int fi = m.firstface;
+         fi >= 0 && fi < m.firstface + m.numfaces && fi < (int)bsp.faces.size();
+         ++fi) {
+      FaceGeo g;
+      if (!ExtractFace(bsp, bsp.faces[fi], &g) || !IsPortalable(g)) continue;
+      // Outward normal from the winding (faces wind clockwise seen from the
+      // front); the shared-plane normal + side bit misorients some
+      // brush-model faces.
+      Vector nw{0, 0, 0};
+      for (size_t k = 0; k < g.verts.size(); ++k)
+        nw = nw + g.verts[k].Cross(g.verts[(k + 1) % g.verts.size()]);
+      if (nw.Length() < 1e-3f) continue;
+      g.normal = (nw * -1.0f).Normalize();
+
+      Vector u, v;
+      PlaneAxes(g.normal, &u, &v);
+      float umin = 1e30f, umax = -1e30f, vmin = 1e30f, vmax = -1e30f;
+      for (const auto& p : g.verts) {
+        umin = std::min(umin, p.Dot(u));
+        umax = std::max(umax, p.Dot(u));
+        vmin = std::min(vmin, p.Dot(v));
+        vmax = std::max(vmax, p.Dot(v));
+      }
+      float dist = g.verts.empty() ? 0.0f : g.verts[0].Dot(g.normal);
+
+      DynamicPanelRest r;
+      r.targetname = e.targetname;
+      r.normal = g.normal;
+      r.corners[0] = PlanePoint(umin, vmin, u, v, dist, g.normal);
+      r.corners[1] = PlanePoint(umax, vmin, u, v, dist, g.normal);
+      r.corners[2] = PlanePoint(umax, vmax, u, v, dist, g.normal);
+      r.corners[3] = PlanePoint(umin, vmax, u, v, dist, g.normal);
+      out.push_back(std::move(r));
+    }
+  }
+  // Deterministic order; stable so a multi-face entity keeps its face order.
+  std::stable_sort(out.begin(), out.end(),
+                   [](const DynamicPanelRest& a, const DynamicPanelRest& b) {
+                     return a.targetname < b.targetname;
+                   });
+  return out;
 }
 
 using Cell = std::pair<int, int>;
@@ -416,4 +516,15 @@ CON_COMMAND(sar_harness_bsp_geo_dump,
                  p.mark, p.center.x, p.center.y, p.center.z, p.planeNormal.x,
                  p.planeNormal.y, p.planeNormal.z);
   console->Print("bsp geo dump: %d panels.\n", (int)panels.size());
+
+  auto rests = ExtractDynamicRests(bsp);
+  for (const auto& r : rests)
+    console->Msg(
+        "    dyn \"%s\"  normal %.2f %.2f %.2f  local (%.1f %.1f %.1f)..(%.1f "
+        "%.1f %.1f)\n",
+        r.targetname.c_str(), r.normal.x, r.normal.y, r.normal.z,
+        r.corners[0].x, r.corners[0].y, r.corners[0].z, r.corners[2].x,
+        r.corners[2].y, r.corners[2].z);
+  console->Print("    %d dynamic (brush-entity) panel faces\n",
+                 (int)rests.size());
 }

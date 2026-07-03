@@ -1221,6 +1221,66 @@ CON_COMMAND(
               : "geometry lumps uncompressed — no LZMA decoder needed.");
 }
 
+// ---------------------------------------------------------------------------
+// Recon: angled-panel pose. PeTI angled panels are func_brush "*_panel_top"
+// slabs whose portalable face lives origin-local in the BSP brush-model lumps;
+// the live entity transform is the other half of the reconstruction. Run once
+// retracted and once deployed to capture both poses + the arm's anim signal.
+
+CON_COMMAND(sar_harness_angled_panel_probe,
+            "sar_harness_angled_panel_probe - abs transform, OBB, and parent "
+            "arm state (angles, m_nSequence, m_flCycle) for every *_panel_top "
+            "func_brush. Read-only; run retracted, deploy, run again.\n") {
+  if (!server || !entityList) {
+    console->Print("angled panel probe: no server/entity list yet.\n");
+    return;
+  }
+  const char* suffix = "_panel_top";
+  size_t sufLen = std::strlen(suffix);
+  int n = 0;
+  for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
+    auto info = entityList->GetEntityInfoByIndex(i);
+    if (!info || !info->m_pEntity) continue;
+    auto ent = info->m_pEntity;
+    const char* cn = server->GetEntityClassName(ent);
+    if (!cn || std::strcmp(cn, "func_brush")) continue;
+    const char* nm = server->GetEntityName(ent);
+    if (!nm) continue;
+    size_t len = std::strlen(nm);
+    if (len < sufLen || std::strcmp(nm + len - sufLen, suffix)) continue;
+
+    auto se = SE(ent);
+    Vector o = se->abs_origin();
+    QAngle a = se->abs_angles();
+    Vector mins = se->collision().OBBMins();
+    Vector maxs = se->collision().OBBMaxs();
+    console->Print("[%d] func_brush \"%s\"\n", i, nm);
+    console->Msg(
+        "    abs_origin %.1f %.1f %.1f  abs_ang(p/y/r) %.1f %.1f %.1f\n", o.x,
+        o.y, o.z, a.x, a.y, a.z);
+    console->Msg("    obb (%.1f %.1f %.1f)..(%.1f %.1f %.1f)\n", mins.x, mins.y,
+                 mins.z, maxs.x, maxs.y, maxs.z);
+
+    int pIdx = ReconReadHandleIndex(ent, "m_hMoveParent");
+    auto pInfo = pIdx >= 0 ? entityList->GetEntityInfoByIndex(pIdx) : nullptr;
+    void* parent = (pInfo && pInfo->m_pEntity) ? pInfo->m_pEntity : nullptr;
+    if (parent) {
+      const char* pc = server->GetEntityClassName(parent);
+      const char* pn = server->GetEntityName(parent);
+      QAngle pa = SE(parent)->abs_angles();
+      console->Msg(
+          "    parent [%d] %s \"%s\"  abs_ang %.1f %.1f %.1f  m_nSequence=%s "
+          "m_flCycle=%s\n",
+          pIdx, pc ? pc : "?", (pn && *pn) ? pn : "<no name>", pa.x, pa.y, pa.z,
+          ReconReadField(parent, "m_nSequence").c_str(),
+          ReconReadField(parent, "m_flCycle").c_str());
+    }
+    ++n;
+  }
+  console->Print("angled panel probe: %d panel_top func_brush%s.\n", n,
+                 n == 1 ? "" : "es");
+}
+
 // --- Fling recon: per-tick telemetry logger for characterizing Source's portal
 // funnel on a jump-into-floor-portal fling. Run in a plain, playable session
 // (no harness instance, so the game isn't paused for Act):
