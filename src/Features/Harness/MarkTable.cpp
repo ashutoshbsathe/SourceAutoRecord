@@ -1,5 +1,7 @@
 #include "MarkTable.hpp"
 
+#include <strings.h>  // strcasecmp
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -13,6 +15,7 @@
 #include "Offsets.hpp"
 #include "PuzzleAnnotate.hpp"
 #include "Utils/SDK/EntityEdict.hpp"
+#include "Utils/SDK/Handle.hpp"
 
 MarkTable markTable;
 
@@ -65,9 +68,13 @@ void MarkTable::RebuildFromWorld() {
   // spawn/despawn. An entity whose canonical name held a mark with no living
   // owner inherits it (a respawned dropper cube keeps its number); otherwise
   // a fresh mark is appended.
-  // The dropper race is spawn-then-remove within ~2 ticks; 10 rebuilds is a
-  // generous cover while keeping a genuine coexistence wait imperceptible.
-  constexpr int kInheritGrace = 10;
+  // Covers the identity-mark being briefly held by the predecessor's corpse
+  // (a fizzler dissolve runs ~2 s); the wait is invisible -- a just-released
+  // cube is simply unmarked while it falls.
+  constexpr int kInheritGrace = 150;
+  // A dropper tube settles a cube within ~20u; a full voxel of travel means
+  // it is out of any dropper, however the release was wired.
+  constexpr long kSuppressBackstopSq = 128 * 128;
 
   std::unordered_set<int> liveMarks;
   std::unordered_set<uint32_t> liveKeys;
@@ -76,9 +83,25 @@ void MarkTable::RebuildFromWorld() {
     auto it = assigned.find(c.key);
     if (it != assigned.end()) liveMarks.insert(it->second);
   }
+
+  for (auto it = suppressed.begin(); it != suppressed.end();) {
+    bool drop = !liveKeys.count(it->first);
+    if (!drop) {
+      for (const auto& c : cands) {
+        if (c.key != it->first) continue;
+        long dx = c.rx - std::lround(it->second.x);
+        long dy = c.ry - std::lround(it->second.y);
+        long dz = c.rz - std::lround(it->second.z);
+        drop = dx * dx + dy * dy + dz * dz > kSuppressBackstopSq;
+        break;
+      }
+    }
+    it = drop ? suppressed.erase(it) : std::next(it);
+  }
+
   std::vector<const Cand*> fresh;
   for (const auto& c : cands)
-    if (!assigned.count(c.key)) fresh.push_back(&c);
+    if (!assigned.count(c.key) && !suppressed.count(c.key)) fresh.push_back(&c);
   std::sort(fresh.begin(), fresh.end(), [](const Cand* a, const Cand* b) {
     if (a->index != b->index) return a->index < b->index;
     if (a->rx != b->rx) return a->rx < b->rx;
@@ -118,6 +141,51 @@ void MarkTable::RebuildFromWorld() {
   }
 }
 
+void MarkTable::OnEntityInput(void* ent, const char* className,
+                              const char* inputName) {
+  if (!ent || !className || !inputName) return;
+
+  // The dropper template pings its newborn with FireUser4: tag it as held.
+  // Retract any mark a same-tick rebuild already handed it -- nothing can
+  // have observed a mark younger than one frame.
+  if (!strcasecmp(inputName, "FireUser4")) {
+    if (!IsHarnessMarkedClass(className)) return;
+    const CBaseHandle& h = ((IHandleEntity*)ent)->GetRefEHandle();
+    uint32_t key = (static_cast<uint32_t>(h.GetEntryIndex()) << 16) |
+                   static_cast<uint16_t>(h.GetSerialNumber());
+    Vector origin = SE(ent)->abs_origin();
+    std::lock_guard<std::mutex> lock(mutex);
+    assigned.erase(key);
+    suppressed[key] = origin;
+    return;
+  }
+
+  // The dropper releases by Disable-ing the clip brush the cube rests on:
+  // unsuppress anything held inside that entity's box (the cube sits ~20u
+  // above the thin clip, hence the slack).
+  if (!strcasecmp(inputName, "Disable")) {
+    std::lock_guard<std::mutex> lock(mutex);
+    if (suppressed.empty() || !entityList) return;
+    auto se = SE(ent);
+    Vector o = se->abs_origin();
+    Vector mins = o + se->collision().OBBMins() - Vector{48, 48, 48};
+    Vector maxs = o + se->collision().OBBMaxs() + Vector{48, 48, 48};
+    for (auto it = suppressed.begin(); it != suppressed.end();) {
+      int idx = static_cast<int>(it->first >> 16);
+      auto info = entityList->GetEntityInfoByIndex(idx);
+      bool inside = false;
+      if (info && info->m_pEntity &&
+          static_cast<uint16_t>(info->m_SerialNumber) ==
+              static_cast<uint16_t>(it->first & 0xFFFF)) {
+        Vector p = SE(info->m_pEntity)->abs_origin();
+        inside = p.x >= mins.x && p.x <= maxs.x && p.y >= mins.y &&
+                 p.y <= maxs.y && p.z >= mins.z && p.z <= maxs.z;
+      }
+      it = inside ? suppressed.erase(it) : std::next(it);
+    }
+  }
+}
+
 int MarkTable::GetMark(int entityIndex, uint16_t serial) {
   uint32_t key = (static_cast<uint32_t>(entityIndex) << 16) | serial;
   std::lock_guard<std::mutex> lock(mutex);
@@ -140,6 +208,7 @@ void MarkTable::Clear() {
   reverse.clear();
   nameMark.clear();
   deferred.clear();
+  suppressed.clear();
   primed = false;
   nextMark = 1;
 }

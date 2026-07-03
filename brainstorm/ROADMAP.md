@@ -108,11 +108,12 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
   1. ✅ **Ledge fling end-to-end VERIFIED (2026-07-03)** — floor portal near an edge via `Sn@u,v` →
      `jump_into` → the money fling, freeze mid-flight. The `(u,v)`+grid unlock paid off.
   2. **D — `drop_into`** (gentle self step-through / object-drop into a ground portal).
-  2b. **⭐ Respawn-stable marks** (found 2026-07-03 via the infinite-dropper trick: a goo-fizzling
-     cube's mark grows without bound — plan-breaking + percept-lying). Design LOCKED:
-     name-keyed mark inheritance (canonical id = classname+targetname minus the `&NNNN` template
-     fixup suffix — "tied to the dropper" for free) + stop marking dissolving cubes. Two 2-min
-     recons (fixup format, dissolve field) then ~40 LOC.
+  2b. ✅ **Respawn-stable marks SHIPPED (2026-07-03)** — the infinite-dropper mark churn. Final
+     design (after two design iterations user-caught in-game): **event-driven dropper suppression**
+     (the template's `FireUser4` ping tags the tube cube unmarked — not an affordance; the clip
+     `Disable` releases it; 128u backstop) + name-keyed mark inheritance + 2.5 s grace for the
+     fizzler-corpse window. One number per dropper cube, forever; tube spares invisible.
+     Owed: the smoke assertion (with the dynamic-panel one).
      → [mark_identity_respawns.md](mark_identity_respawns.md)
   3. **Dynamic-panel build** — design LOCKED 2026-07-03 in
      [dynamic_panel_enumeration.md](dynamic_panel_enumeration.md) (class-agnostic: ALL brush-entity

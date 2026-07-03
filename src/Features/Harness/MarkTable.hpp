@@ -6,25 +6,35 @@
 #include <unordered_map>
 #include <utility>
 
+#include "Utils/SDK/Math.hpp"
+
 // Assigns a stable integer "mark" to each puzzle entity. Once seen, an entity
 // keeps its mark for the rest of the episode even as others spawn/despawn, so
 // dynamic chambers (e.g. cube droppers) never renumber existing marks mid-run.
 // New entities are appended in deterministic order (index, rounded origin as
 // tiebreak), so the same chamber yields the same assignment across runs.
-// A respawned entity (new serial) whose classname + targetname matches a
-// no-longer-live mark INHERITS that mark: a dropper respawns its cube under
-// the same name, so the "same" cube keeps one mark instead of minting a new
-// one per fizzle. Droppers spawn the replacement a tick or two BEFORE
-// removing the fizzled cube, so a newcomer whose identity-mark is still held
-// by a live predecessor stays unmarked for a short grace instead of minting
-// a fresh mark; genuine same-name coexistence times out to a fresh mark.
-// A mark still never moves off a living entity.
+//
+// Dropper handling: a cube waiting inside a dropper tube is not an affordance
+// (it can't be reached), so it carries NO mark. The dropper template pings
+// its newborn with FireUser4 -- that input suppresses the entity -- and the
+// dropper releases by Disable-ing the clip brush the cube rests on, which
+// unsuppresses it. Once out, an entity whose classname + targetname matches
+// a no-longer-live mark INHERITS that mark, so the dropper's "same" cube
+// keeps one number across respawns; while the predecessor still lives (e.g.
+// its corpse is mid-dissolve), the newcomer waits a short grace unmarked
+// rather than minting a fresh mark. Genuine same-name coexistence times out
+// to a fresh mark. A mark never moves off a living entity.
 class MarkTable {
  public:
   // Recompute marks from the live server entity list. Walks the engine entity
   // list, so it must run on the MAIN thread; gRPC threads read instead via the
   // mutex-locked GetMark / GetEntityFromMark.
   void RebuildFromWorld();
+
+  // Fed every entity input by the AcceptInput hook (game thread). FireUser4
+  // on a markable newborn tags it dropper-held; Disable on any entity
+  // releases suppressed entities resting inside that entity's box.
+  void OnEntityInput(void* ent, const char* className, const char* inputName);
 
   // Forward lookup: entity (slot index + serial) -> mark, or 0 if unmarked.
   int GetMark(int entityIndex, uint16_t serial);
@@ -47,6 +57,9 @@ class MarkTable {
   std::unordered_map<std::string, int> nameMark;
   // key -> rebuilds spent waiting for the identity-mark to vacate.
   std::unordered_map<uint32_t, int> deferred;
+  // Dropper-held entities: key -> origin at tag time. Unmarked while here;
+  // released by the clip Disable, or by the moved-a-voxel backstop.
+  std::unordered_map<uint32_t, Vector> suppressed;
   // The initial cohort never defers (same-name statics get fresh marks at
   // once); only entities appearing after the first rebuild can be respawns.
   bool primed = false;

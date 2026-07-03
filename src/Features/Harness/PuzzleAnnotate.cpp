@@ -194,6 +194,12 @@ ON_EVENT(RENDER) {
     if (!className || !IsHarnessMarkedEntity(ent, className)) continue;
     auto colorIt = kClassColors.find(className);  // gate above guarantees a hit
 
+    // An unmarked entity (dropper-held, or waiting out the inherit grace)
+    // draws nothing -- it is not an affordance.
+    int mark =
+        markTable.GetMark(i, static_cast<uint16_t>(info->m_SerialNumber));
+    if (!mark) continue;
+
     auto se = SE(ent);
     Color color = colorIt->second;
 
@@ -221,8 +227,6 @@ ON_EVENT(RENDER) {
 
     // Mark label above the box. clamp_to_screen keeps the number in the
     // viewport and on top of geometry.
-    int mark =
-        markTable.GetMark(i, static_cast<uint16_t>(info->m_SerialNumber));
     // Declutter alternates: box bottom, then either side along the camera-right
     // axis, so a crowded label can move sideways instead of only stacking.
     std::vector<Vector> alts = {origin + Vector{0, 0, mins.z}};
@@ -1266,83 +1270,6 @@ CON_COMMAND(sar_harness_angled_panel_probe,
   }
   console->Print("angled panel probe: %d panel_top func_brush%s.\n", n,
                  n == 1 ? "" : "es");
-}
-
-// --- Dissolve recon: hands-free lifecycle logger for cube respawn cycles.
-// Tracks every prop_weighted_cube per tick and prints a line on spawn,
-// remove, and any change to its lifecycle-ish fields, so one goo/fizzle cycle
-// reveals which field actually marks the dissolving corpse (and how long the
-// corpse overlaps its replacement). Missing fields are skipped silently.
-static bool g_dissolveReconActive = false;
-
-static const char* kDissolveWatchFields[] = {
-    "m_fFlags",      "m_lifeState",           "m_nRenderMode", "m_nRenderFX",
-    "m_bDissolving", "m_flDissolveStartTime", "m_takedamage",
-};
-
-ON_EVENT(POST_TICK) {
-  if (!g_dissolveReconActive || !server || !entityList || !server->gpGlobals)
-    return;
-  static std::unordered_map<uint32_t, std::string> tracked;
-  std::unordered_set<uint32_t> seen;
-  int tick = server->gpGlobals->tickcount;
-
-  for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
-    auto info = entityList->GetEntityInfoByIndex(i);
-    if (!info || !info->m_pEntity) continue;
-    auto ent = info->m_pEntity;
-    const char* cn = server->GetEntityClassName(ent);
-    if (!cn || std::strcmp(cn, "prop_weighted_cube")) continue;
-    uint32_t key = (static_cast<uint32_t>(i) << 16) |
-                   static_cast<uint16_t>(info->m_SerialNumber);
-    seen.insert(key);
-
-    std::string state;
-    for (const char* f : kDissolveWatchFields) {
-      std::string v = ReconReadField(ent, f);
-      if (v.empty()) continue;
-      state += f;
-      state += '=';
-      state += v;
-      state += ' ';
-    }
-
-    auto it = tracked.find(key);
-    if (it == tracked.end()) {
-      const char* nm = server->GetEntityName(ent);
-      console->Print("[dissolve] t%d SPAWN  [%d] \"%s\"  %s\n", tick, i,
-                     (nm && *nm) ? nm : "<no name>", state.c_str());
-      tracked[key] = std::move(state);
-    } else if (it->second != state) {
-      console->Print("[dissolve] t%d CHANGE [%d]\n    was: %s\n    now: %s\n",
-                     tick, i, it->second.c_str(), state.c_str());
-      it->second = std::move(state);
-    }
-  }
-
-  for (auto it = tracked.begin(); it != tracked.end();) {
-    if (!seen.count(it->first)) {
-      console->Print("[dissolve] t%d REMOVE [%d]  last: %s\n", tick,
-                     (int)(it->first >> 16), it->second.c_str());
-      it = tracked.erase(it);
-    } else {
-      ++it;
-    }
-  }
-}
-
-CON_COMMAND(sar_harness_dissolve_recon,
-            "sar_harness_dissolve_recon <on|off> - log every "
-            "prop_weighted_cube's spawn/remove/field changes per tick "
-            "(m_fFlags, m_lifeState, render mode/fx, dissolve fields). Turn "
-            "on, let the dropper cycle twice, turn off, dump the console.\n") {
-  if (args.ArgC() < 2 ||
-      (std::strcmp(args[1], "on") && std::strcmp(args[1], "off"))) {
-    console->Print("usage: sar_harness_dissolve_recon <on|off>\n");
-    return;
-  }
-  g_dissolveReconActive = !std::strcmp(args[1], "on");
-  console->Print("dissolve recon: %s\n", g_dissolveReconActive ? "on" : "off");
 }
 
 // --- Fling recon: per-tick telemetry logger for characterizing Source's portal

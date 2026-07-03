@@ -10,6 +10,7 @@
 #include "Features/FovChanger.hpp"
 #include "Features/FCPS.hpp"
 #include "Features/GroundFramesCounter.hpp"
+#include "Features/Harness/MarkTable.hpp"
 #include "Features/Harness/PuzzleExit.hpp"
 #include "Features/Hud/Crosshair.hpp"
 #include "Features/Hud/ScrollSpeed.hpp"
@@ -655,6 +656,9 @@ static void __cdecl AcceptInput_Hook(void *thisptr, const char *inputName, void 
 
 	// harness map-completion oracle
 	PuzzleExit::OnInput(entName, className, inputName, parameter.ToString());
+
+	// harness dropper-aware marks (tube cubes stay unmarked until released)
+	markTable.OnEntityInput(thisptr, className, inputName);
 
 	// allow reloaded fix to override some commands from point_servercommand
 	reloadedFix->OverrideInput(className, inputName, &parameter);

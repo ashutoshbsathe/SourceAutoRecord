@@ -1,95 +1,81 @@
-# Respawn-stable entity marks (the infinite-dropper churn)
+# Respawn-stable entity marks (droppers)
 
-**Problem (2026-07-03, found on `workshop/1805355826134795545/1615598981`).**
-A dropper parked over goo respawns its cube forever. `MarkTable` keys marks on
-`(entindex << 16 | serial)` and a respawn is a new serial **by design** ("marks
-only grow, never move"), so the respawning cube's mark increments without
-bound. For the frozen-LLM percept this is three separate harms: the model's
-plan references a mark that dies mid-plan (`pick_up 14` → BAD_MARK), the
-percept implies a *new object* appeared when it's semantically the same cube,
-and mark numbers inflate into noise over a long episode.
+**Problem.** `MarkTable` keys marks on `(entindex, serial)`, so every respawn
+mints a fresh mark. A dropper parked over goo (the "infinite dropper" trick,
+`workshop/1805355826134795545/1615598981`) inflates the cube's mark without
+bound; worse, catching a cube spawns a spare in the tube and the model then
+sees TWO cube marks whose numbers shuffle across generations. Three harms:
+plans reference marks that die mid-plan (`pick_up 14` → BAD_MARK), the percept
+implies new objects where the puzzle means "the same cube", and numbers
+inflate into noise.
 
-## The identity that survives respawns (recon facts)
+## Recon facts (2026-07-03, all in-game / corpus-verified)
 
-PeTI cube droppers are `cdN-*` instances: `prop_weighted_cube "cdN-box"` lives
-inside `point_template "cdN-cube_template"` with **spawnflags=0 → name fixup
-ON**, and the map's own I/O targets `cdN-box*` (wildcard). So every respawned
-cube is named `cdN-box&0000`, `cdN-box&0001`, … — same base name, rotating
-fixup suffix. (Templates with spawnflags=2, e.g. `@portalgun`, preserve names
-verbatim — no suffix. Both cases normalize the same way.)
+- **Respawned cubes reuse the exact template name** (`cdN-box`, no fixup
+  suffix) at recycled entity indexes. Identity = `classname:targetname`
+  (a trailing `&NNNN` is stripped anyway as a safeguard for
+  preserve-names-off templates).
+- **There is no dissolve state on a goo kill.** Per-tick lifecycle logging
+  showed every field frozen from spawn to remove; the kill is a direct
+  removal, and the dropper spawns the replacement **0–2 ticks before** the
+  old cube is removed. (Fizzler kills do dissolve visibly for ~2 s — the
+  corpse legally holds its mark meanwhile.) `FL_DISSOLVING` (SDK lore) never
+  fired — second lore-instead-of-recon burn this arc after the BSP plane
+  `side` bit.
+- **The dropper broadcasts both lifecycle moments as entity inputs**, which
+  SAR already intercepts via the `AcceptInput` hook:
+  - spawn: `point_template OnEntitySpawned → cdN-box* FireUser4` — the
+    template pings the newborn cube itself. Corpus: 226 instances across all
+    223 dropper-bearing workshop maps; nothing else pings cubes with it.
+  - release: the tube holds the cube on a clip brush and releases by
+    `Disable`-ing it. Corpus: 376 such outputs.
+- Same-name multiplicity is real for statics (one map has 7 live fizzler
+  brushes sharing a name), so mark reuse must be vacancy-gated.
 
-**Canonical identity = `classname + targetname` with a trailing `&<digits>`
-stripped.** This is exactly "tied to the dropper" — the base name IS the
-dropper instance's cube slot — without any dropper-specific code, and it
-covers turret droppers and any other templated respawner for free.
+## Design (shipped 2026-07-03)
 
-## Design — name-keyed mark inheritance in MarkTable
+Three cooperating rules in `MarkTable`, all engine-event-driven:
 
-1. Alongside `assigned`, keep `nameMark: canonicalName -> mark`, recorded when
-   a named entity first gets a mark.
-2. When an unseen `(index, serial)` appears: if its canonical name has a
-   recorded mark AND no live entity currently holds that mark, **inherit it**
-   instead of `nextMark++`. Otherwise a fresh mark (two live same-name cubes
-   stay distinct). Unnamed entities keep pure serial behavior.
-3. The existing invariant is preserved: a mark never moves off a *live*
-   entity; inheritance only recycles marks whose owner is gone.
+1. **Dropper suppression.** A markable entity that receives `FireUser4` is
+   tagged dropper-held and carries **no mark** — a cube inside the tube is
+   not an affordance (can't be reached), so the percept omits it entirely
+   (Python already filters `mark > 0`; annotate draws nothing for mark 0).
+   When any entity receives `Disable`, suppressed entities inside that
+   entity's box (+48u slack — the cube rests ~20u above the thin clip) are
+   released. Backstop: a suppressed entity that moves a full voxel (128u)
+   from its tag origin is released regardless of wiring — tube settle is
+   ~20u, so this cannot misfire, and it guarantees no cube stays suppressed
+   after leaving an exotically-wired dropper.
+2. **Name-keyed inheritance.** A newly marked entity whose
+   `classname:targetname` previously held a mark inherits it **iff no live
+   entity owns it**. The dropper's "same" cube keeps one number forever.
+3. **Inherit grace.** If the identity-mark is still held (fizzler corpse
+   dissolving ~2 s), the newcomer stays unmarked for up to 150 rebuilds
+   (~2.5 s) — invisible, it's just a released cube falling — then falls back
+   to a fresh mark (genuine same-name coexistence must stay distinct). The
+   initial cohort never defers, so same-name statics keep their immediate
+   fresh marks.
 
-**Overlap window.** The old cube dissolves for ~1–2 s while the replacement
-drops, so at inherit time the old mark can still be live. Without further
-work the marks *oscillate between two values* (14 ↔ 15) — already bounded,
-churn killed. The polish that makes it a single stable mark: **stop marking
-dissolving cubes** (percept-honest — a dissolving cube is no longer an
-affordance; it can't be grabbed). Needs one recon to find the dissolve
-signal (R2 below); then the fizzled cube unmarks instantly and the
-replacement inherits cleanly.
+Invariant preserved throughout: **a mark never moves off a living entity.**
 
-Rejected alternatives: mark the dropper and expose a "current cube" link
-(more percept surface, breaks when the cube is carried away, doesn't cover
-non-dropper respawns) · position/state-canonical renumbering (the original
-A3 idea — violates "marks never move mid-episode", long since decided).
+Net behavior: continuous goo loop → one mark forever. Catch → held cube
+keeps its mark, the tube spare is invisible, and the eventual replacement
+inherits the same number. Two simultaneously *free* same-name cubes (a map
+that dispenses multiples) still get distinct marks after the grace.
 
-## Recon results (2026-07-03, in-game dumps across a full respawn cycle)
+Rejected: 48u spawn-displacement as the *primary* in-dropper detector (pure
+heuristic; demoted to the never-lies backstop) · dropper-entity detection by
+name/geometry (template naming already burned us: `angledPanelN` vs `apN` vs
+`fpN`) · per-identity mark pools (bounded the numbers but kept the confusing
+`{38,41}` shuffle the suppression removes outright) · marking dissolving
+corpses out (no such state exists on the goo path).
 
-- **R1 — NO fixup suffix.** The respawned cube's name is verbatim `cdN-box`
-  every cycle (at a recycled low entity index — `[769]→[87]`). Canonical
-  identity is simply `classname:targetname`; the `&NNNN` strip stays as a
-  zero-cost safeguard for preserve-names-off templates elsewhere.
-- **R2 — inconclusive and possibly unnecessary.** No dump caught a dissolving
-  intermediate: the goo kill removes the old entity before the replacement
-  registers at human dump speed (`m_lifeState` 0 throughout). Dissolve
-  exclusion (B2) is therefore gated on actually observing the two-mark
-  oscillation after B1, not built preemptively.
-- **Bonus:** same-name multiplicity is real and common (`rfiz318-fiz` ×7 live
-  fizzler brushes, doors duplicated) — the "inherit only if the mark has no
-  live owner" gate is load-bearing.
+## Verify + remaining
 
-## Build
-
-- **B1 ✅ SHIPPED (2026-07-03)** — `CanonicalName` (classname:targetname,
-  fixup-stripped) + inherit-if-vacant branch in `MarkTable::RebuildFromWorld`;
-  `nameMark` records each identity's first mark for the episode.
-- **B2 ✅ SHIPPED (2026-07-03) — spawn-grace, after the recon overturned the
-  dissolve theory.** Post-B1 the mark alternated `38 → 42 → 38 → 44`. First
-  fix attempt (reject `FL_DISSOLVING`, bit 28 from SDK lore) **did not fire**
-  — second SDK-lore assumption burned this arc after the plane `side` bit.
-  The per-tick lifecycle logger (`sar_harness_dissolve_recon <on|off>`) then
-  settled it: **there is no dissolve state at all.** Every field is frozen
-  from spawn to remove (`m_fFlags` constant `FL_OBJECT`, `m_lifeState` 0,
-  `m_flDissolveStartTime` 0, `m_takedamage` 1); the goo kill is a direct
-  removal. The real overlap is a **spawn-before-remove race of 0–2 ticks**:
-  the dropper spawns the replacement, the old cube is removed ~2 ticks later
-  (`SPAWN t1224 → REMOVE t1226`, every cycle). Any frame's mark rebuild that
-  lands in that ~33 ms window sees both cubes and permanently mints a fresh
-  mark — landing about every other cycle, hence the alternation.
-  **Fix: inherit-grace.** A newcomer whose identity-mark is still held by a
-  live predecessor stays *unmarked* for up to 10 rebuilds (~166 ms, 5× the
-  race) instead of minting a fresh mark; genuine same-name coexistence times
-  out to fresh, and the initial cohort never defers (same-name statics keep
-  today's behavior). The bit-28 guard is deleted (dead code). Cost: a fresh
-  respawn is markless for ≲166 ms — invisible at macro-step timescales.
-- **B3** — `agentloop_smoke`: respawn-stability assertion on a dropper map
-  (owed together with the dynamic-panel assertion).
-
-Side benefit: name-keyed inheritance also makes marks stable across
-save/load (serials churn there too), which the checkpoint-deferred grammar
-will eventually want.
+- *Verify (in-game):* goo loop → one stable number. Catch → tube cube shows
+  no box/label/mark; after the held cube dies, the released cube wears the
+  same number. `sar_harness_dump_fields` still lists tube cubes (recon set
+  is mark-independent) if you need to see them.
+- **B3 (owed):** `agentloop_smoke` respawn-stability assertion on a dropper
+  map — must cover the catch scenario, not just the loop — bundled with the
+  owed dynamic-panel assertion.
