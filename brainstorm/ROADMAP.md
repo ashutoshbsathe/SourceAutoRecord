@@ -107,7 +107,13 @@ panels render `S1…S27` and `place_portal blue S1` drops a portal on the named 
   [uv_targeting_and_panels.md](uv_targeting_and_panels.md). **RESUME QUEUE (2026-07-03), priority:**
   1. ✅ **Ledge fling end-to-end VERIFIED (2026-07-03)** — floor portal near an edge via `Sn@u,v` →
      `jump_into` → the money fling, freeze mid-flight. The `(u,v)`+grid unlock paid off.
-  2. **D — `drop_into`** (gentle self step-through / object-drop into a ground portal).
+  2. **D — `drop_into`** — design WRITTEN 2026-07-03, awaiting review →
+     [jump_into_design.md](jump_into_design.md) §drop_into. Both dossier arms: gentle SELF
+     floor-entry (no jump → less height/exit velocity than `jump_into`; entry is the ONLY
+     difference) + HELD-object drop (`drop_into Pb [mark]`, mark rides `aim`); zero proto
+     changes. **Family invariant articulated there: portal verbs end AT the transit — the
+     tick-gate is the pause, momentum never touched.** D1 also removes `pass_through`'s
+     velocity-zeroing (violates the invariant).
   2b. ✅ **Respawn-stable marks SHIPPED + VERIFIED (2026-07-03)** — the infinite-dropper mark churn.
      Final design (four iterations, each user-caught or tracer-diagnosed): **event-driven dropper
      suppression** — the template's `FireUser4` ping tags the tube cube unmarked (not an

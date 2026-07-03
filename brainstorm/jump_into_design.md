@@ -18,7 +18,7 @@ Contrast:
 |---|---|---|
 | portal | any (walks in horizontally) | **floor only** (`normal.z` up) |
 | entry | horizontal push into the mouth | **jump + funnel-fall** into the mouth |
-| on transit | kill velocity + settle → **stop** | **preserve `m_vecVelocity`, freeze** (mid-flight) |
+| on transit | kill velocity + settle → **stop** (removed in drop_into D1 — see the family invariant below) | **preserve `m_vecVelocity`, freeze** (mid-flight) |
 
 ## The mechanic
 
@@ -146,7 +146,63 @@ On a miss, `NOT_ALIGNED` reports `closest Nu from mouth, peak Nu up, ended (x y 
   funnel-descent + transit-detect + freeze-with-momentum + miss diagnostics. SHIPPED (above).
 - ✅ **P2** — grammar (`jump_into <Pb|Po>`, shares `_check_portal_target` with `pass_through`) +
   `percept_grammar_smoke`; fling verified end-to-end in-game (paused mid-flight, momentum intact).
-- **Later** — `drop_into` (gentle self step-through / object-drop of a held cube).
+- **Next** — `drop_into` (below).
+
+## `drop_into` — the gentle sibling (design 2026-07-03, awaiting review)
+
+**Family invariant (all portal traversal verbs): the verb ends AT the transit.** The
+harness's tick-gating IS the pause — the world freezes with `m_vecVelocity` untouched, and
+`wait` resumes physics. No verb ever zeroes velocity or runs a settle loop; that would
+destroy exactly the momentum state the frozen model is supposed to reason about.
+`jump_into` already complies. **`pass_through` does not** (it zeroes the emerged velocity —
+shipped before this invariant was articulated); D1 removes that. Clearing the movement
+INPUT stays everywhere — that's "stop pressing forward", not physics tampering.
+
+`drop_into <Pb|Po> [mark]` — enter a **floor** portal WITHOUT a jump (self), or drop the
+**held** object into it (object). The only difference from `jump_into` is the ENTRY: no
+`+207` jump impulse means less entry height/velocity (the P0 jump-vs-walk measurement), so
+what emerges is a gentle exit, not a fling. Exit handling is identical — freeze at the
+transit tick, momentum intact.
+
+Two arms per the dossier signature `drop_into(portal, object=None)`; the object mark rides
+the existing `aim` field — **zero proto changes**. Explicit, not held-state-implicit: a
+player holding a cube may still want the SELF arm (both ride the transit together).
+
+**Self (`drop_into Pb`)** — `jump_into`'s approach minus the stop-short and the jump: gentle
+forward + per-tick aim at the mouth center, walk over the lip, fall in (the transit detector
+armed the whole way). Transit → end the verb right there, mid-emergence; detail = exit
+position + exit velocity vs the partner mouth.
+
+**Object (`drop_into Pb 14`)** — the mark must be HELD (else `NOT_HOLDING`, "pick_up first";
+interpose precedent). Carry to a stand-off `kDropStandoff` (~64u) from the mouth center on
+the player's own side — the straight march never crosses the disc; `heldKey` skipped as an
+obstacle. Aim steep-down at the center so the carry swings the object over the disc,
+`DropHeld`, then advance ticks tracking the OBJECT's single-tick position jump
+(> `kJumpTransit`) = transit; verify emergence within `kEmergeRadius` of the partner, end
+the verb with the object mid-flight (detail = its exit position + velocity), `LookBackAt`
+so the outcome is on-screen. If the player clips the disc en route and transits, abort
+`FELL_THROUGH` — the model must know its position changed.
+
+Codes: `TRANSITED` · self `NOT_AT_MOUTH` / object `NOT_IN` (tick cap hit with no transit;
+detail = current position + distance from the mouth center, the retry knob) ·
+`FELL_THROUGH` · `NOT_HOLDING` · `NOT_GROUND` · `UNLINKED` ·
+`NO_SUCH_PORTAL`/`WRONG_TARGET` · `BLOCKED` · `CANCELLED`.
+
+Reused machinery: `kFloorNormalZ` gate, the transit detector (`kJumpTransit`),
+`kEmergeRadius`, `MarchTo`/`RouteAround`, `DropHeld`, `LookBackAt`. New constant:
+`kDropStandoff` (tuned in D1 verification).
+
+### drop_into phasing
+
+- **D1 — C++ verb** in `MacroExecutor.cpp` (both arms share the gate + transit detection,
+  ~160 lines), **plus the `pass_through` fix**: delete its `m_vecVelocity` zeroing (keep
+  the input clear). `macro_repl` verify: self arm through a floor→wall pair emerges gently
+  and frozen (contrast `jump_into`'s fling from the SAME pair — the whole point); `wait`
+  lands the player; object arm pops the cube out frozen mid-flight and reports exit
+  pos+velocity; gate codes on wall/unlinked/not-held; `pass_through` emerges with its
+  walking momentum intact.
+- **D2 — Python surface**: grammar (`drop_into Pb [mark]`, shares `_check_portal_target`),
+  repl/docs strings, `percept_grammar_smoke` case.
 
 ## Open — not blockers
 
@@ -154,4 +210,3 @@ On a miss, `NOT_ALIGNED` reports `closest Nu from mouth, peak Nu up, ended (x y 
   should just work (more funnel margin) but hasn't been run through the verb — confirm when a ledge
   chamber is handy.
 - **Jump timing:** an extra jump *at entry* (vs only at launch) is a speedrun refinement — not v0.
-- Object-drop mechanics (track the cube's transit, not the player's) — the later `drop_into`.
