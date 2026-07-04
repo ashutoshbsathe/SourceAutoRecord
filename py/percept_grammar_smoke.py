@@ -192,6 +192,31 @@ def test_delete_and_serial_reuse():
     return 'delete drops entity; serial reuse clears stale fields'
 
 
+def test_fizzler_state():
+    """A fizzler projects active on/off from m_bDisabled (false=on/fizzling)."""
+
+    def snap(disabled):
+        return gs(
+            [
+                ent(
+                    9,
+                    1,
+                    'trigger_portal_cleanser',
+                    'fizzler',
+                    (0, 0, 0),
+                    mark=8,
+                    fields={'m_bDisabled': disabled},
+                )
+            ]
+        )
+
+    on = by_mark(parse_snapshot(snap(False)))
+    off = by_mark(parse_snapshot(snap(True)))
+    check(on[8]['state'] == {'active': True}, on[8]['state'])
+    check(off[8]['state'] == {'active': False}, off[8]['state'])
+    return 'fizzler active on/off projects from m_bDisabled'
+
+
 def test_validate_ok():
     """Well-formed command strings validate into the right MacroRequest."""
     ents = parse_snapshot(FULL)
@@ -275,7 +300,7 @@ def test_examples_validate():
             ]
         elif verb == 'place_portal':
             ents = [synth(tokens[2].split('@')[0], 'wall_panel')]  # the Sn panel
-        elif verb in ('pass_through', 'jump_into'):
+        elif verb in ('pass_through', 'jump_into', 'drop_into'):
             ents = [synth(tokens[1], 'prop_portal')]  # the Pb/Po portal label
         elif spec.target:  # 'any' or 'entity' -> a plain entity mark
             ents = [synth(int(tokens[1]), 'prop_floor_button')]
@@ -283,7 +308,8 @@ def test_examples_validate():
             ents = []
         r = mg.validate(spec.example, ents, held_mark=held)
         check(isinstance(r, pb.MacroRequest), f'{verb} example rejected: {r!r}')
-    check(len(mg.verb_examples()) == len(mg.VERB_SPECS), 'one example per verb')
+    visible = sum(1 for s in mg.VERB_SPECS.values() if not s.hidden)
+    check(len(mg.verb_examples()) == visible, 'one example per non-hidden verb')
     return f'{len(mg.VERB_SPECS)} verb examples valid; CAVEAT len={len(mg.CAVEAT)}'
 
 
@@ -311,14 +337,45 @@ def test_validate_target():
     return 'any-verbs take N/Sn/Pb; entity-only verbs reject panels/portals'
 
 
+def test_drop_into():
+    """drop_into: the self arm takes a placed portal; the object arm's `aim` mark
+    must be an entity that is actually held (else NOT_HOLDING / mismatch)."""
+    ents = [
+        {'mark': 'Pb', 'class': 'prop_portal', 'pos': [0.0, 0.0, 0.0]},
+        {'mark': 14, 'class': 'prop_weighted_cube', 'pos': [1.0, 0.0, 0.0]},
+    ]
+    # self arm: no object mark, portal is placed
+    r = mg.validate('drop_into Pb', ents)
+    check(isinstance(r, pb.MacroRequest) and not r.aim, f'self arm rejected: {r!r}')
+    # object arm: holding the named cube
+    r = mg.validate('drop_into Pb 14', ents, held_mark=14)
+    check(
+        isinstance(r, pb.MacroRequest) and r.aim == '14', f'object arm rejected: {r!r}'
+    )
+    # object arm rejections: nothing held, holding a different mark, no such portal
+    for text, held in (
+        ('drop_into Pb 14', None),  # NOT_HOLDING
+        ('drop_into Pb 14', 7),  # holding a different mark
+        ('drop_into Po 14', 14),  # no Po portal placed
+    ):
+        r = mg.validate(text, ents, held_mark=held)
+        check(
+            isinstance(r, str),
+            f'expected rejection for {text!r} held={held}, got {r!r}',
+        )
+    return 'drop_into: self arm + held-object arm validate; unheld/mismatch/unplaced reject'
+
+
 CHECKS = [
     ('projection', test_projection),
     ('delta_merge', test_delta_merge),
     ('delete_serial_reuse', test_delete_and_serial_reuse),
+    ('fizzler_state', test_fizzler_state),
     ('validate_ok', test_validate_ok),
     ('validate_reject', test_validate_reject),
     ('validate_target', test_validate_target),
     ('examples_validate', test_examples_validate),
+    ('drop_into', test_drop_into),
 ]
 
 

@@ -84,6 +84,26 @@ Notes:
   cube is not on a beam (interpose it first). NOT_POWERED = on the beam but the
   aim misses the target. OUT_OF_REACH = you are not next to the cube -- `go_to` it
   first, then `redirect_to`.
+- Portals (place_portal / pass_through / jump_into): portalable WALL panels are
+  labeled `S1`, `S2`, ... `place_portal blue S3` drops a blue portal on panel S3;
+  append `@u,v` (fractions 0-1) to aim at a point on the panel, e.g. `S3@0.5,0.9`
+  near its top edge. Read the axes off the panel's color-coded grid: it is WHITE
+  at (0,0), reddens along +u (toward u=1) and blues along +v (toward v=1), and is
+  magenta at (1,1) -- so a redder cell means higher u, a bluer cell higher v.
+  Place BOTH a blue and an orange portal -- the pair auto-links
+  into one doorway (re-placing a color moves that portal). Once a linked pair is
+  down (`Pb` = blue, `Po` = orange in the marks), `pass_through Pb` walks you in
+  the blue portal and out the orange. If a portal is on the FLOOR, `jump_into Pb`
+  instead flings you: you fall in and shoot out the linked portal, freezing
+  mid-air (`wait` to resume) -- stand on a ledge ABOVE a floor portal first for a
+  big fling. Use a portal pair to cross a gap, reach a high ledge, or get somewhere
+  walking can't. PLACED = portal down; NOT_PORTALABLE / CANT_FIT / OVERLAP / NO_LOS
+  = that panel/point won't take it, pick another. NOT_GROUND (from jump_into) = the
+  portal is on a wall, use pass_through.
+- A fizzler (`trigger_portal_cleanser`) with state `active: true` is ON -- it
+  destroys you, cubes, and portals passing through it; `active: false` is OFF and
+  safe to cross (its box is hidden on the frame when off). Fizzlers toggle with
+  their linked button/laser, so powering one off can open a path.
 - The environment decides when the chamber is solved and ends the run for you --
   you do NOT judge success yourself. Just keep making progress toward the exit.
   The exit is usually an elevator that carries you out over a few seconds, so if

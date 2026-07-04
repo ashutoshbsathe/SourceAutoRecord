@@ -76,6 +76,10 @@ constexpr float kJumpMoveSpeed =
     0.5f;  // gentle forward: arc lands at the mouth
            // with little horizontal for the funnel to
            // zero (a full run overshoots)
+constexpr float kDropStandoff =
+    64.0f;  // drop_into object arm: carry-stop this far in front of the mouth
+            // so the straight march never crosses the disc (the object drops
+            // over it)
 constexpr float kApproachGap =
     20.0f;  // extra standoff past an obstacle-target's footprint (hull gap +
             // post-arrival coast) so go_to stops beside it, not into it
@@ -1221,6 +1225,7 @@ portal2_harness::MacroResult MacroExecutor::Execute(
   if (verb == "place_portal") return PlacePortal(req);
   if (verb == "pass_through") return PassThrough(req);
   if (verb == "jump_into") return JumpInto(req.target());
+  if (verb == "drop_into") return DropInto(req);
 
   // press (a pedestal-button alias of interact) is not wired yet.
   r.set_ok(false);
@@ -1750,14 +1755,10 @@ portal2_harness::MacroResult MacroExecutor::PassThrough(
     AdvanceTicksBlocking(kPassBatch);
   }
 
-  // Stop dead: clear the push input AND the emerged velocity, else the transit
-  // momentum coasts the player forward through the settle and derails the next
-  // verb (e.g. a following place_portal fires from a drifted spot).
-  RunOnMainThreadSync(context_, []() {
-    SetMoveFramebulk(0, 0);
-    ServerEnt* pl = server->GetPlayer(1);
-    if (pl) pl->field<Vector>("m_vecVelocity") = {0, 0, 0};
-  });
+  // Clear the push input but keep m_vecVelocity: the player emerges with its
+  // real momentum so a follow-up verb (or `wait`) reasons about the true motion
+  // state; ground friction bleeds a grounded walk-through over the settle.
+  RunOnMainThreadSync(context_, []() { SetMoveFramebulk(0, 0); });
   AdvanceTicksBlocking(kSettle);
 
   if (!transited) {
@@ -1961,6 +1962,272 @@ portal2_harness::MacroResult MacroExecutor::JumpInto(
       "vel=(%.0f %.0f %.0f)",
       flightTicks, entryPos->x, entryPos->y, entryPos->z, exitPos->x,
       exitPos->y, exitPos->z, vel->x, vel->y, vel->z));
+  return r;
+}
+
+// drop_into <Pb|Po> [mark] -- enter a FLOOR portal WITHOUT a jump (self), or
+// drop a held object into it (object arm, mark on `aim`). Unlike jump_into
+// there is no jump impulse, so what emerges is a gentle exit, not a fling. Both
+// arms end AT the transit: input cleared, m_vecVelocity untouched, ticks
+// stopped -- the world is paused for the model, and `wait N` resumes physics.
+portal2_harness::MacroResult MacroExecutor::DropInto(
+    const portal2_harness::MacroRequest& req) {
+  portal2_harness::MacroResult r;
+  const std::string& target = req.target();
+  TargetRef ref = ClassifyTarget(target);
+  if (ref.kind != TargetRef::PORTAL) {
+    r.set_ok(false);
+    r.set_result_code(ref.kind == TargetRef::NONE ? "NO_SUCH_PORTAL"
+                                                  : "WRONG_TARGET");
+    r.set_detail("drop_into needs a portal Pb/Po, got \"" + target + "\"");
+    return r;
+  }
+  bool orange = ref.orange;
+  bool objectArm = !req.aim().empty();
+
+  auto cancelled = []() {
+    portal2_harness::MacroResult c;
+    c.set_ok(false);
+    c.set_result_code("CANCELLED");
+    return c;
+  };
+
+  // 1. Resolve the floor portal + its linked partner (both arms fall INTO a
+  // ground portal; the object arm needs the partner to confirm emergence).
+  struct Setup {
+    std::string code = "NO_SUCH_PORTAL";
+    Vector center{0, 0, 0}, normal{0, 0, 0}, partner{0, 0, 0};
+  };
+  auto s = std::make_shared<Setup>();
+  if (!RunOnMainThreadSync(context_, [s, orange]() {
+        LivePortal lp = ReadPortal(orange);
+        if (!lp.active) return;
+        if (lp.normal.z < kFloorNormalZ) {
+          s->code = "NOT_GROUND";
+          return;
+        }
+        LivePortal partner = ReadPortal(!orange);
+        if (!lp.linked || !partner.active) {
+          s->code = "UNLINKED";
+          return;
+        }
+        s->center = lp.center;
+        s->normal = lp.normal;
+        s->partner = partner.center;
+        s->code = "OK";
+      }))
+    return cancelled();
+  if (s->code != "OK") {
+    r.set_ok(false);
+    r.set_result_code(s->code);
+    r.set_detail("drop_into: " + s->code);
+    return r;
+  }
+  Vector center = s->center;
+
+  if (objectArm) {
+    // OBJECT ARM: carry the held object to a stand-off on our side of the
+    // mouth, drop it steep-down over the disc, and track ITS transit. If the
+    // player crosses the disc instead, that's FELL_THROUGH.
+    uint32_t heldKey = g_heldEntityKey.load();
+    if (!heldKey) {
+      r.set_ok(false);
+      r.set_result_code("NOT_HOLDING");
+      r.set_detail("drop_into: nothing held -- pick_up the object first");
+      return r;
+    }
+    Vector front = center + s->normal * kDropStandoff;
+    Vector partnerCenter = s->partner;
+
+    auto startFeet = std::make_shared<Vector>();
+    auto initDist = std::make_shared<float>(0.0f);
+    if (!RunOnMainThreadSync(context_, [startFeet, initDist, front]() {
+          ServerEnt* pl = server->GetPlayer(1);
+          if (!pl) return;
+          *startFeet = pl->abs_origin();
+          *initDist = Vector{front.x - startFeet->x, front.y - startFeet->y, 0}
+                          .Length2D();
+        }))
+      return cancelled();
+    MarchOutcome m = MarchTo(context_, front, kReachRadius, kGoToMaxTicks, 0,
+                             heldKey, *startFeet, *initDist);
+    if (!m.cancelled && m.code == "BLOCKED")
+      m = RouteAround(context_, front, 0, heldKey, kReachRadius, m.dist);
+    if (m.cancelled) return cancelled();
+    RunOnMainThreadSync(context_, []() { ClearFramebulk(); });
+    AdvanceTicksBlocking(kGoToSettle);
+    if (!m.reached) {
+      r.set_ok(false);
+      r.set_result_code("BLOCKED");
+      r.set_detail(Utils::ssprintf(
+          "drop_into: carry blocked %.0fu short of the mouth", m.dist));
+      return r;
+    }
+
+    // Aim steep-down at the mouth center (swings the held object out over the
+    // disc), then +use-drop it.
+    auto view = std::make_shared<QAngle>();
+    RunOnMainThreadSync(context_, [view, center]() {
+      Vector eye;
+      if (PlayerEye(&eye)) *view = AimAnglesTo(eye, center);
+    });
+    g_heldEntityKey = 0;  // hands empty for the drop
+    if (!DropHeld(context_, *view, kReleaseDropSettle)) {
+      g_heldEntityKey = heldKey;  // never released -- keep held-state truthful
+      r.set_ok(false);
+      r.set_result_code("NOT_IN");
+      r.set_detail("drop_into: could not release the held object");
+      return r;
+    }
+
+    // Track the object's single-tick position jump (a portal transit) while
+    // watching the player never crosses the disc.
+    auto prevObj = std::make_shared<Vector>();
+    auto prevFeet = std::make_shared<Vector>();
+    RunOnMainThreadSync(context_, [prevObj, prevFeet, heldKey]() {
+      ServerEnt* obj = EntFromKey(heldKey);
+      ServerEnt* pl = server->GetPlayer(1);
+      if (obj) *prevObj = obj->abs_origin();
+      if (pl) *prevFeet = pl->abs_origin();
+    });
+    auto exitObj = std::make_shared<Vector>(*prevObj);
+    auto exitVel = std::make_shared<Vector>();
+    bool transited = false, fellThrough = false;
+    float minHoriz = 1e9f;
+    for (int t = 0; !transited && !fellThrough && t < kJumpMaxTicks; ++t) {
+      AdvanceTicksBlocking(1);
+      auto res = std::make_shared<int>(0);  // 1 obj transit, 2 player transit
+      if (!RunOnMainThreadSync(
+              context_, [prevObj, prevFeet, exitObj, exitVel, heldKey, res]() {
+                ServerEnt* obj = EntFromKey(heldKey);
+                ServerEnt* pl = server->GetPlayer(1);
+                if (pl) {
+                  Vector f = pl->abs_origin();
+                  if ((f - *prevFeet).Length() > kJumpTransit) *res = 2;
+                  *prevFeet = f;
+                }
+                if (obj) {
+                  Vector p = obj->abs_origin();
+                  if (*res != 2 && (p - *prevObj).Length() > kJumpTransit) {
+                    *res = 1;
+                    *exitObj = p;
+                    *exitVel = obj->field<Vector>("m_vecVelocity");
+                  }
+                  *prevObj = p;
+                }
+              }))
+        return cancelled();
+      if (*res == 1) transited = true;
+      if (*res == 2) fellThrough = true;
+      minHoriz = std::min(
+          minHoriz,
+          Vector{prevObj->x - center.x, prevObj->y - center.y, 0}.Length2D());
+    }
+
+    RunOnMainThreadSync(context_, []() { ClearFramebulk(); });
+    if (fellThrough) {
+      r.set_ok(false);
+      r.set_result_code("FELL_THROUGH");
+      r.set_detail("drop_into: the player clipped the disc and transited");
+      return r;
+    }
+    if (!transited) {
+      r.set_ok(false);
+      r.set_result_code("NOT_IN");
+      r.set_detail(Utils::ssprintf(
+          "drop_into: object never entered -- closest %.0fu from center, at "
+          "(%.0f %.0f %.0f)",
+          minHoriz, prevObj->x, prevObj->y, prevObj->z));
+      return r;
+    }
+
+    // Emerged near the partner? Freeze the object mid-flight (momentum intact)
+    // and face it so the outcome is on-screen.
+    bool emerged =
+        Vector{exitObj->x - partnerCenter.x, exitObj->y - partnerCenter.y, 0}
+            .Length2D() < kEmergeRadius;
+    LookBackAt(context_, heldKey);
+    r.set_ok(emerged);
+    r.set_result_code(emerged ? "TRANSITED" : "NOT_IN");
+    r.set_detail(Utils::ssprintf(
+        "drop_into: object %s at (%.0f %.0f %.0f) vel=(%.0f %.0f %.0f)",
+        emerged ? "TRANSITED" : "emerged off-partner", exitObj->x, exitObj->y,
+        exitObj->z, exitVel->x, exitVel->y, exitVel->z));
+    return r;
+  }
+
+  // SELF ARM: walk gently into the floor portal (no jump -> gentle emergence).
+  // The transit detector is armed before the first step so the walk-in transit
+  // is caught wherever it lands.
+  auto prev = std::make_shared<Vector>();
+  auto exitPos = std::make_shared<Vector>();
+  RunOnMainThreadSync(context_, [prev]() {
+    ServerEnt* pl = server->GetPlayer(1);
+    if (pl) *prev = pl->abs_origin();
+  });
+  auto detect = [&]() -> int {  // 1 transited, 0 not, -1 stream dropped
+    auto j = std::make_shared<bool>(false);
+    if (!RunOnMainThreadSync(context_, [prev, j, exitPos]() {
+          ServerEnt* pl = server->GetPlayer(1);
+          if (!pl) return;
+          Vector p = pl->abs_origin();
+          if ((p - *prev).Length() > kJumpTransit) {
+            *j = true;
+            *exitPos = p;
+          }
+          *prev = p;
+        }))
+      return -1;
+    return *j ? 1 : 0;
+  };
+
+  bool transited = false;
+  float minHoriz = 1e9f;
+  for (int t = 0; !transited && t < kJumpRunTicks; ++t) {
+    if (!RunOnMainThreadSync(context_, [center]() {
+          ServerEnt* pl = server->GetPlayer(1);
+          if (!pl) return;
+          Vector eye;
+          if (PlayerEye(&eye)) ApplyAbsoluteView(AimAnglesTo(eye, center));
+          SetMoveFramebulk(0, kJumpMoveSpeed);
+        }))
+      return cancelled();
+    AdvanceTicksBlocking(1);
+    int tr = detect();
+    if (tr < 0) return cancelled();
+    transited = (tr == 1);
+    minHoriz = std::min(
+        minHoriz, Vector{prev->x - center.x, prev->y - center.y, 0}.Length2D());
+  }
+
+  if (!transited) {
+    RunOnMainThreadSync(context_, []() { ClearFramebulk(); });
+    r.set_ok(false);
+    r.set_result_code("NOT_AT_MOUTH");
+    r.set_detail(Utils::ssprintf(
+        "drop_into: never entered the mouth -- closest %.0fu from center, "
+        "ended (%.0f %.0f %.0f)",
+        minHoriz, prev->x, prev->y, prev->z));
+    return r;
+  }
+
+  // Freeze at the transit tick: clear the input, LEAVE m_vecVelocity (the
+  // emerged momentum), advance nothing. `wait N` resumes the fall.
+  auto vel = std::make_shared<Vector>();
+  auto pos = std::make_shared<Vector>(*exitPos);
+  RunOnMainThreadSync(context_, [vel, pos]() {
+    SetMoveFramebulk(0, 0);
+    ServerEnt* pl = server->GetPlayer(1);
+    if (pl) {
+      *vel = pl->field<Vector>("m_vecVelocity");
+      *pos = pl->abs_origin();
+    }
+  });
+  r.set_ok(true);
+  r.set_result_code("TRANSITED");
+  r.set_detail(Utils::ssprintf(
+      "drop_into: transited to (%.0f %.0f %.0f) vel=(%.0f %.0f %.0f)", pos->x,
+      pos->y, pos->z, vel->x, vel->y, vel->z));
   return r;
 }
 

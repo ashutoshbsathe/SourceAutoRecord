@@ -18,6 +18,33 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 
 ---
 
+## Top of mind (2026-07-04) — drop_into PARKED; pivot to a GEMINI-EVAL PUSH on the shipped tools
+
+**Decision (2026-07-04): `drop_into` is BUILT but PARKED.** Both arms (self floor-entry +
+held-object drop) landed on `yeeh` — compiles, `percept_grammar_smoke` 8/8, adversarial static
+review clean (every correctness/concurrency scare refuted by the skeptics). But it would slow
+the eval push, so it stays in-tree, unpushed, **in-game verify not run**. `jump_into` was NOT
+touched. Detail: [jump_into_design.md](jump_into_design.md) (§drop_into, marked BUILT).
+
+**The fork it forced — `pass_through` momentum (applied, one risk open).** The drop_into "family
+invariant" (portal verbs never zero velocity) required deleting `pass_through`'s `m_vecVelocity=0`
+(that zero was added in `45ff8ec6` to stop residual velocity derailing a follow-up verb). The
+invariant is re-scoped so it's coherent: **never-zero-velocity is universal; freeze-mid-flight,
+no-settle applies only to the fling verbs** (jump_into/drop_into); pass_through arrives grounded
+and settles (friction bleeds walk-speed). ⚠️ **Unverified:** removing the zero may re-surface the
+`place_portal`-after-`pass_through` drift quirk — watch for it in the eval; fallback = restore the
+zero (1 line). See [[drop-into-parked-passthrough-fork]] in memory.
+
+**NOW — prep the shipped tools (`place_portal`/`pass_through`/`jump_into`) for a gemini-agent run
+on a couple of maps.** First blocker = **fizzler legibility** (the model gets confused): (1) the
+percept carries **no fizzler on/off** (`trigger_portal_cleanser.m_bDisabled` isn't in
+`kCuratedStatusFields` and `_project_state` doesn't project it), and (2) a **deactivated fizzler's
+annotation box persists** (no state gate in `PuzzleAnnotate` draw). Fix = curate `m_bDisabled` +
+project `active` + skip the box when disabled (mark stays in the table → stable number on
+re-power). In flight 2026-07-04.
+
+---
+
 ## Top of mind (2026-06-30) — PORTALS SHIPPED: place_portal works; next frontier = portal-aware traversal
 
 `place_portal(color, surface)` is **shipped end-to-end and verified in-game** — with `sar_harness_annotate 1`,

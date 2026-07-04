@@ -53,6 +53,8 @@ class Verb:
     ticks_max: int | None = None  # set => required `ticks` in [1, ticks_max]
     dirs: tuple | None = None  # set => required `dir` from this set
     look: bool = False  # set => required signed `yaw` + optional `pitch` (15deg)
+    hidden: bool = False  # keep out of the model-facing prompt (parked verb; the
+    # executor + validator still accept it, so macro_repl can drive it by hand)
 
 
 # doc = the signature line; example/hint = the per-verb teaching shown in the
@@ -148,6 +150,18 @@ VERB_SPECS = {
         'jump into floor portal Pb; you fly out the linked portal and pause '
         'mid-air -- `wait` to resume falling.',
     ),
+    'drop_into': Verb(
+        'Enter a FLOOR portal (Pb/Po) WITHOUT a jump: you step in and emerge '
+        'gently out the linked portal (not a fling), frozen mid-emergence -- '
+        '`wait` resumes. Add a held-object mark to instead DROP that object into '
+        'the portal while you stay put (pick_up it first). Fails NOT_GROUND '
+        '(portal not on the floor) / NOT_HOLDING / NOT_AT_MOUTH / NOT_IN / '
+        'FELL_THROUGH / UNLINKED / BLOCKED / NO_SUCH_PORTAL.',
+        'drop_into Pb',
+        'step into floor portal Pb (gentle, no fling); or `drop_into Pb 14` to '
+        'drop the held cube 14 into it while you stay put.',
+        hidden=True,  # PARKED: built + reviewed, not yet verified in-game
+    ),
     'move': Verb(
         'Hold a movement direction for N ticks.',
         'move forward 10',
@@ -204,6 +218,10 @@ def build_macro(verb, args):
         m.target = args[1]  # wall panel Sn
     elif verb in ('pass_through', 'jump_into'):
         m.target = args[0]  # Pb/Po
+    elif verb == 'drop_into':
+        m.target = args[0]  # Pb/Po
+        if len(args) > 1:
+            m.aim = args[1]  # held object to drop (self arm omits it)
     elif verb == 'move':
         m.dir = args[0]
         m.ticks = int(args[1])
@@ -345,6 +363,26 @@ def _check_portal_target(req, by_mark):
     return req
 
 
+def _check_drop_into(req, held_mark, by_mark):
+    """drop_into: a placed floor portal Pb/Po (the floor-vs-wall gate is the
+    executor's job); the object arm adds a held-object mark on `aim` that must
+    match what is actually held."""
+    res = _check_portal_target(req, by_mark)
+    if res is not req:
+        return res
+    if req.aim:
+        if _target_kind(req.aim) != 'entity':
+            return f'drop_into: object must be an entity mark, got {req.aim!r}'
+        if held_mark is None:
+            return 'drop_into: nothing is being held; pick_up the object first'
+        if int(req.aim) != held_mark:
+            return (
+                f'drop_into: holding mark {held_mark}, not {req.aim}; '
+                'drop what you hold'
+            )
+    return req
+
+
 def validate(text, entities, held_mark=None):
     """Parse a command string ('go_to 7') and check it against grammar + percept.
 
@@ -374,6 +412,8 @@ def validate(text, entities, held_mark=None):
         return _check_place_portal(req, by_mark)
     if verb in ('pass_through', 'jump_into'):
         return _check_portal_target(req, by_mark)
+    if verb == 'drop_into':
+        return _check_drop_into(req, held_mark, by_mark)
     if spec.target:
         err = _check_target(verb, spec, req.target, by_mark)
         if err:
@@ -402,6 +442,8 @@ def _signature(verb, spec):
         return 'place_portal <blue|orange> <Sn>'
     if verb in ('pass_through', 'jump_into'):
         return f'{verb} <Pb|Po>'
+    if verb == 'drop_into':
+        return 'drop_into <Pb|Po> [object mark]'
     args = []
     if spec.target == 'any':
         args.append('<target: N|Sn|Pb|Po>')
@@ -419,10 +461,13 @@ def _signature(verb, spec):
 
 
 def verb_signatures():
-    """One 'verb <args>: doc' line per verb for the system prompt (single source)."""
-    return [f'{_signature(v, s)}: {s.doc}' for v, s in VERB_SPECS.items()]
+    """One 'verb <args>: doc' line per verb for the system prompt (single source).
+    Hidden (parked) verbs are omitted -- the model is not offered them."""
+    return [
+        f'{_signature(v, s)}: {s.doc}' for v, s in VERB_SPECS.items() if not s.hidden
+    ]
 
 
 def verb_examples():
-    """One '<example>  # <hint>' line per verb: every verb shown once, valid."""
-    return [f'{s.example}  # {s.hint}' for s in VERB_SPECS.values()]
+    """One '<example>  # <hint>' line per non-hidden verb, shown once, valid."""
+    return [f'{s.example}  # {s.hint}' for s in VERB_SPECS.values() if not s.hidden]

@@ -201,6 +201,14 @@ ON_EVENT(RENDER) {
     if (!mark) continue;
 
     auto se = SE(ent);
+
+    // A deactivated fizzler has no kill field -- skip its box/number so it does
+    // not read as an active hazard. The mark stays assigned (stable number when
+    // it powers back on); the percept still lists it with active=false.
+    if (!strcmp(className, "trigger_portal_cleanser") &&
+        se->field<bool>("m_bDisabled"))
+      continue;
+
     Color color = colorIt->second;
 
     Vector origin = se->abs_origin();

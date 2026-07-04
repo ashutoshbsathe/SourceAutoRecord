@@ -43,4 +43,6 @@ class MacroExecutor {
   portal2_harness::MacroResult PassThrough(
       const portal2_harness::MacroRequest& req);
   portal2_harness::MacroResult JumpInto(const std::string& target);
+  portal2_harness::MacroResult DropInto(
+      const portal2_harness::MacroRequest& req);
 };

@@ -161,6 +161,8 @@ const CuratedStatusField kCuratedStatusFields[] = {
     {"point_laser_target", "m_bPowered", HDEM_BOOL},    // catcher/relay sensor
     {"trigger_catapult", "m_bDisabled",
      HDEM_BOOL},  // faith plate: false=active
+    {"trigger_portal_cleanser", "m_bDisabled",
+     HDEM_BOOL},  // fizzler: false=on/fizzling
 };
 }  // namespace
 

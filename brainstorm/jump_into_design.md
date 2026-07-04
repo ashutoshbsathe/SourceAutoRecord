@@ -148,15 +148,20 @@ On a miss, `NOT_ALIGNED` reports `closest Nu from mouth, peak Nu up, ended (x y 
   `percept_grammar_smoke`; fling verified end-to-end in-game (paused mid-flight, momentum intact).
 - **Next** — `drop_into` (below).
 
-## `drop_into` — the gentle sibling (design 2026-07-03, awaiting review)
+## `drop_into` — the gentle sibling (BUILT 2026-07-04; in-game verify pending)
 
-**Family invariant (all portal traversal verbs): the verb ends AT the transit.** The
-harness's tick-gating IS the pause — the world freezes with `m_vecVelocity` untouched, and
-`wait` resumes physics. No verb ever zeroes velocity or runs a settle loop; that would
-destroy exactly the momentum state the frozen model is supposed to reason about.
-`jump_into` already complies. **`pass_through` does not** (it zeroes the emerged velocity —
-shipped before this invariant was articulated); D1 removes that. Clearing the movement
-INPUT stays everywhere — that's "stop pressing forward", not physics tampering.
+**Family invariant (all portal traversal verbs): never destroy the emerged momentum.**
+No verb zeroes `m_vecVelocity` — that would erase exactly the state the frozen model is
+supposed to reason about. Clearing the movement INPUT stays everywhere — that's "stop
+pressing forward", not physics tampering. Two shapes then follow from what the verb leaves
+you doing:
+- **The fling verbs (`jump_into`, `drop_into`) end AT the transit, frozen mid-flight** —
+  they advance no further ticks, so the harness tick-gate IS the pause; `wait N` resumes
+  the fall with momentum intact.
+- **`pass_through` arrives grounded** (walk in, walk out) so it runs its short settle —
+  ground friction bleeds the walk-speed naturally, which is physics, not zeroing. It must
+  still not *zero* velocity (it did, shipped before this invariant; **D1 removes that**),
+  so an airborne emergence keeps its momentum.
 
 `drop_into <Pb|Po> [mark]` — enter a **floor** portal WITHOUT a jump (self), or drop the
 **held** object into it (object). The only difference from `jump_into` is the ENTRY: no
@@ -194,15 +199,19 @@ Reused machinery: `kFloorNormalZ` gate, the transit detector (`kJumpTransit`),
 
 ### drop_into phasing
 
-- **D1 — C++ verb** in `MacroExecutor.cpp` (both arms share the gate + transit detection,
-  ~160 lines), **plus the `pass_through` fix**: delete its `m_vecVelocity` zeroing (keep
-  the input clear). `macro_repl` verify: self arm through a floor→wall pair emerges gently
-  and frozen (contrast `jump_into`'s fling from the SAME pair — the whole point); `wait`
-  lands the player; object arm pops the cube out frozen mid-flight and reports exit
-  pos+velocity; gate codes on wall/unlinked/not-held; `pass_through` emerges with its
-  walking momentum intact.
-- **D2 — Python surface**: grammar (`drop_into Pb [mark]`, shares `_check_portal_target`),
-  repl/docs strings, `percept_grammar_smoke` case.
+- **D1 — C++ verb** in `MacroExecutor.cpp` (both arms share the floor-portal gate + a
+  transit detector; one new constant `kDropStandoff`), **plus the `pass_through` fix**:
+  deleted its `m_vecVelocity` zeroing (input-clear stays). **BUILT — compiles + links; adversarial
+  static review clean (no correctness bug survived skeptic verification).** `macro_repl` verify
+  (PENDING, in-game): self arm through a floor→wall pair emerges gently and frozen (contrast
+  `jump_into`'s fling from the SAME pair — the whole point); `wait` lands the player; object
+  arm pops the cube out frozen mid-flight and reports exit pos+velocity; gate codes on
+  wall/unlinked/not-held; `pass_through` emerges with its walking momentum intact. ⚠️ watch
+  for the residual-velocity drift (removing the zero may re-surface the `place_portal`-after-
+  `pass_through` drift quirk; friction over the settle should cover the grounded case).
+- **D2 — Python surface**: grammar (`drop_into Pb [mark]`, `_check_drop_into` wraps
+  `_check_portal_target` + a held-object gate), repl/docs strings, `percept_grammar_smoke`
+  case. **BUILT — smoke 8/8.**
 
 ## Open — not blockers
 
