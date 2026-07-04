@@ -111,6 +111,12 @@ def _frame(obs, idx):
     )
 
 
+def _is_target(mark, target):
+    """True if a percept mark (int entity, or 'S1'/'Pb' panel/portal) is the
+    action's target -- a percept label string, so compare as strings."""
+    return bool(target) and str(mark) == str(target)
+
+
 def _percept(marks, target):
     """One row per mark; the action's target mark is highlighted."""
     rows = []
@@ -121,7 +127,7 @@ def _percept(marks, target):
             f'<span class="chip">{html.escape(f"{k}:{v}")}</span>'
             for k, v in state.items()
         )
-        hot = ' hot' if target and m.get('mark') == target else ''
+        hot = ' hot' if _is_target(m.get('mark'), target) else ''
         rows.append(
             f'<div class="mark{hot}"><span class="mn">[{m.get("mark")}]</span>'
             f'<span class="mc">{html.escape(m.get("class", ""))}</span>'
@@ -163,7 +169,7 @@ def _map(header, steps, idx, ctx):
         proj, (w, h) = ctx
         s = steps[idx]
         acc = _accepted(s)
-        target = _action(acc).mark if acc else 0
+        target = _action(acc).target if acc else ''
         out = [f'<svg class="map" viewBox="0 0 {w} {h}">']
         pts = ' '.join(
             '%.1f,%.1f' % proj(steps[i].obs.player.x, steps[i].obs.player.y)
@@ -173,7 +179,7 @@ def _map(header, steps, idx, ctx):
         for m in json.loads(s.obs.percept_json or '[]'):
             p = m.get('pos') or [0, 0, 0]
             mx, my = proj(p[0], p[1])
-            cls = 'mk hot' if target and m.get('mark') == target else 'mk'
+            cls = 'mk hot' if _is_target(m.get('mark'), target) else 'mk'
             out.append(f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="3.5" class="{cls}"/>')
             out.append(
                 f'<text x="{mx + 5:.1f}" y="{my + 3:.1f}" class="mlbl">{m.get("mark")}</text>'
@@ -255,7 +261,7 @@ def _card(header, steps, idx, ctx):
     a = _action(acc) if acc else None
     r = _result(acc) if acc else None
     ok = bool(r.ok) if r else False
-    target = (a.mark if a else 0) or None
+    target = (a.target if a else '') or None
     verb = html.escape(_verb(a)) if a else '(no valid action)'
     badge = (
         f'<span class="badge {"ok" if ok else "bad"}">'

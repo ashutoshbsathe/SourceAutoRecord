@@ -108,10 +108,18 @@ players : 1 humans, 0 bots (1 max) (not hibernating)
 #  6 1 "StackSmasher789" STEAM_1:1:503036455 04:05 33 0 active 10000 loopback
 #end
 
+# raw thoughts at above chamber on the first try at 2026/07/04 11:10 AM
+* go_to couldn't walk around stairs
+* redirect_to "paused" the cube in place still meaning it allowed for crazy angles with cube in the air
+* the model doesn't seem to pay ANY attention to the image?
+* a potential jump_down the ledge verb?
+* the dropper tube cube is STILL annotated?
+* `pass_through` didn't pause immediately after passing through? can we not listen to some event where player passes through the portal and pause at that exact tick?
+
 hostname: StackSmasher789
 version : 2.0.0.1/2001 8928 secure  
 udp/ip  :  192.168.1.26:27015 os(Linux) type(listen)
-map     : workshop/596996616964103777/1361778957 at: 1775 x, -256 y, 577 z
+map     : workshop/596996616964103777/1361778957 at: 1775 x, -256 y, 577 z <-- no elements #1
 players : 1 humans, 0 bots (1 max) (not hibernating)
 
 # userid name uniqueid connected ping loss state rate adr
