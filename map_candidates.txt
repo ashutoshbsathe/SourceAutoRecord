@@ -101,7 +101,7 @@ players : 1 humans, 0 bots (1 max) (not hibernating)
 hostname: StackSmasher789
 version : 2.0.0.1/2001 8928 secure  
 udp/ip  :  192.168.1.26:27015 os(Linux) type(listen)
-map     : workshop/927053855830294446/1522623535 at: 776 x, 350 y, 192 z
+map     : workshop/927053855830294446/1522623535 at: 776 x, 350 y, 192 z <-- azorae's stride remake
 players : 1 humans, 0 bots (1 max) (not hibernating)
 
 # userid name uniqueid connected ping loss state rate adr
