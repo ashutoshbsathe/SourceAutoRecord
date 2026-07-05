@@ -1,5 +1,6 @@
 #include "NavSkeleton.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include "BspFilePanelSource.hpp"
@@ -11,6 +12,45 @@
 #include "Offsets.hpp"
 #include "Utils/SDK/EntityEdict.hpp"
 #include "Utils/SDK/Trace.hpp"
+
+namespace {
+// Height bands for a step between adjacent floor surfaces (tunable; the path
+// visualizer is the arbiter). Up beyond kStepUp needs a jump/fling (no edge);
+// down beyond kMaxDrop is unsafe (no edge).
+constexpr float kWalkFlat = 8.0f;   // |dz| <= this: same level
+constexpr float kStepUp = 24.0f;    // walkable step up
+constexpr float kMaxDrop = 128.0f;  // walk off a ledge down
+constexpr float kAdjGap = 4.0f;  // XY AABBs within this (both axes): adjacent
+
+bool XyAdjacent(const NavSkeleton::Surface& a, const NavSkeleton::Surface& b) {
+  return a.mins.x - kAdjGap <= b.maxs.x && b.mins.x - kAdjGap <= a.maxs.x &&
+         a.mins.y - kAdjGap <= b.maxs.y && b.mins.y - kAdjGap <= a.maxs.y;
+}
+
+// Edge type stepping from fromZ to toZ; 0xFF = not connectable on foot.
+uint8_t BandEdge(float fromZ, float toZ) {
+  float dz = toZ - fromZ;
+  if (std::fabs(dz) <= kWalkFlat) return NavSkeleton::WALK;
+  if (dz > 0) return dz <= kStepUp ? NavSkeleton::STEP_UP : 0xFF;
+  if (-dz <= kStepUp) return NavSkeleton::STEP_DOWN;
+  return -dz <= kMaxDrop ? NavSkeleton::DROP : 0xFF;
+}
+
+const char* EdgeName(uint8_t t) {
+  switch (t) {
+    case NavSkeleton::WALK:
+      return "walk";
+    case NavSkeleton::STEP_UP:
+      return "up";
+    case NavSkeleton::STEP_DOWN:
+      return "down";
+    case NavSkeleton::DROP:
+      return "drop";
+    default:
+      return "?";
+  }
+}
+}  // namespace
 
 void NavSkeleton::Build(const std::string& mapName) {
   surfaces_.clear();
@@ -27,7 +67,28 @@ void NavSkeleton::Build(const std::string& mapName) {
     s.poly = {fs.corners[0], fs.corners[1], fs.corners[2], fs.corners[3]};
     surfaces_.push_back(std::move(s));
   }
-  // TODO: banded/gated edges + dynamic brush surfaces.
+  BuildEdges();
+  // TODO: dynamic brush surfaces + gates.
+}
+
+void NavSkeleton::BuildEdges() {
+  edges_.clear();
+  for (size_t i = 0; i < surfaces_.size(); ++i)
+    for (size_t j = i + 1; j < surfaces_.size(); ++j) {
+      const Surface& a = surfaces_[i];
+      const Surface& b = surfaces_[j];
+      if (!XyAdjacent(a, b)) continue;
+      float vx =
+          (std::max(a.mins.x, b.mins.x) + std::min(a.maxs.x, b.maxs.x)) * 0.5f;
+      float vy =
+          (std::max(a.mins.y, b.mins.y) + std::min(a.maxs.y, b.maxs.y)) * 0.5f;
+      uint8_t ab = BandEdge(a.z, b.z);
+      if (ab != 0xFF)
+        edges_.push_back(Edge{a.id, b.id, ab, Vector{vx, vy, a.z}, 0});
+      uint8_t ba = BandEdge(b.z, a.z);
+      if (ba != 0xFF)
+        edges_.push_back(Edge{b.id, a.id, ba, Vector{vx, vy, b.z}, 0});
+    }
 }
 
 NavSkeleton::PlanResult NavSkeleton::Plan(const Vector& start,
@@ -56,6 +117,18 @@ CON_COMMAND(sar_harness_nav_dump,
   for (const NavSkeleton::Surface& s : surfaces)
     console->Msg("    #%u z=%.0f  x[%.0f..%.0f] y[%.0f..%.0f]\n", s.id, s.z,
                  s.mins.x, s.maxs.x, s.mins.y, s.maxs.y);
+
+  const std::vector<NavSkeleton::Edge>& edges = nav.Edges();
+  int byType[6] = {0};
+  for (const NavSkeleton::Edge& e : edges)
+    if (e.type < 6) byType[e.type]++;
+  console->Print("nav_dump: %d edges (walk %d up %d down %d drop %d)\n",
+                 (int)edges.size(), byType[NavSkeleton::WALK],
+                 byType[NavSkeleton::STEP_UP], byType[NavSkeleton::STEP_DOWN],
+                 byType[NavSkeleton::DROP]);
+  if (args.ArgC() > 1)  // any arg: also dump the edge list
+    for (const NavSkeleton::Edge& e : edges)
+      console->Msg("    #%u -%s-> #%u\n", e.from, EdgeName(e.type), e.to);
 
   ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
   if (!pl) {

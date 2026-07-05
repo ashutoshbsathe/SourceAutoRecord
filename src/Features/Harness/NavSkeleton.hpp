@@ -55,8 +55,11 @@ class NavSkeleton {
   PlanResult Plan(const Vector& start, const Vector& target);
   bool Ready() const { return !surfaces_.empty(); }
   const std::vector<Surface>& Surfaces() const { return surfaces_; }
+  const std::vector<Edge>& Edges() const { return edges_; }
 
  private:
+  void BuildEdges();  // adjacency + height-banded edges over surfaces_
+
   std::vector<Surface> surfaces_;
   std::vector<Edge> edges_;
   std::vector<Gate> gates_;
