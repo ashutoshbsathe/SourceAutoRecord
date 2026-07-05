@@ -50,14 +50,42 @@ const char* EdgeName(uint8_t t) {
       return "?";
   }
 }
+
+// A player hull can rest at `center`: solid floor just under the candidate z
+// (rejects no-collision render faces) and the standing hull isn't wedged into a
+// wall or a too-steep slope (an axis-aligned box won't sit flush on a tilt).
+// Main thread (engine traces).
+bool CanStand(const Vector& center, const Vector& mins, const Vector& maxs) {
+  CTraceFilterSimple filter;
+  filter.SetPassEntity(server->GetPlayer(1));
+  Vector top{center.x, center.y, center.z + 8.0f};
+  QAngle down{90, 0, 0};
+  CGameTrace tr;
+  if (!engine->Trace(top, down, 24.0f, MASK_PLAYERSOLID, filter, tr))
+    return false;
+  Vector at{center.x, center.y, tr.endpos.z + 2.0f};
+  CGameTrace hull;
+  return !engine->TraceHull(at, at, mins, maxs, MASK_PLAYERSOLID, filter, hull);
+}
 }  // namespace
 
 void NavSkeleton::Build(const std::string& mapName) {
   surfaces_.clear();
   edges_.clear();
   gates_.clear();
+  // Player hull for the walkability gate; skip the gate if there's no live
+  // player to size/seat it against (keep the raw BSP candidates).
+  ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
+  Vector hmins, hmaxs;
+  if (pl) {
+    hmins = pl->collision().OBBMins();
+    hmaxs = pl->collision().OBBMaxs();
+  }
   uint32_t id = 0;
   for (const FloorSurface& fs : EnumerateFloorSurfaces(mapName)) {
+    Vector center{(fs.mins.x + fs.maxs.x) * 0.5f,
+                  (fs.mins.y + fs.maxs.y) * 0.5f, fs.z};
+    if (pl && !CanStand(center, hmins, hmaxs)) continue;
     Surface s;
     s.id = id++;
     s.normal = fs.normal;
@@ -115,8 +143,10 @@ CON_COMMAND(sar_harness_nav_dump,
   const std::vector<NavSkeleton::Surface>& surfaces = nav.Surfaces();
   console->Print("nav_dump: %d floor surfaces\n", (int)surfaces.size());
   for (const NavSkeleton::Surface& s : surfaces)
-    console->Msg("    #%u z=%.0f  x[%.0f..%.0f] y[%.0f..%.0f]\n", s.id, s.z,
-                 s.mins.x, s.maxs.x, s.mins.y, s.maxs.y);
+    console->Msg(
+        "    #%u z=%.0f n=%.2f,%.2f,%.2f  x[%.0f..%.0f] y[%.0f..%.0f]\n", s.id,
+        s.z, s.normal.x, s.normal.y, s.normal.z, s.mins.x, s.maxs.x, s.mins.y,
+        s.maxs.y);
 
   const std::vector<NavSkeleton::Edge>& edges = nav.Edges();
   int byType[6] = {0};
