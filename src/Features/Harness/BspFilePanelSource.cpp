@@ -486,7 +486,14 @@ std::vector<FloorSurface> ClusterFloors(const BspFile& bsp) {
     std::vector<FaceGeo> faces;
   };
   std::map<std::string, Group> byPlane;
-  for (const auto& f : bsp.faces) {
+  // Worldspawn faces only. Brush-entity faces (movers, angled panels) sit at
+  // their compile pose in the lump and are posed live elsewhere.
+  if (bsp.models.empty()) return {};
+  const Model& world = bsp.models[0];
+  int lastFace =
+      std::min((int)bsp.faces.size(), world.firstface + world.numfaces);
+  for (int fi = world.firstface; fi < lastFace; ++fi) {
+    const Face& f = bsp.faces[fi];
     FaceGeo g;
     if (!ExtractFloorFace(bsp, f, &g) || !IsFloor(g)) continue;
     char key[64];
