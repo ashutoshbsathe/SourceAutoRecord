@@ -51,21 +51,32 @@ const char* EdgeName(uint8_t t) {
   }
 }
 
-// A player hull can rest at `center`: solid floor just under the candidate z
-// (rejects no-collision render faces) and the standing hull isn't wedged into a
-// wall or a too-steep slope (an axis-aligned box won't sit flush on a tilt).
-// Main thread (engine traces).
-bool CanStand(const Vector& center, const Vector& mins, const Vector& maxs) {
+// A player hull can rest somewhere on the surface. Sample a grid across its
+// bounds (not just the center, so a floor wrapping a pillar isn't rejected
+// because its bbox center lands on the pillar) and keep it if any point has
+// solid floor just under it (rejects no-collision faces) and the standing hull
+// fits there (not startsolid in a wall / low ceiling / too-steep tilt an
+// axis-aligned box can't sit flush on). Main thread (engine traces).
+bool CanStand(const Vector& bmin, const Vector& bmax, float z,
+              const Vector& hmin, const Vector& hmax) {
   CTraceFilterSimple filter;
   filter.SetPassEntity(server->GetPlayer(1));
-  Vector top{center.x, center.y, center.z + 8.0f};
-  QAngle down{90, 0, 0};
-  CGameTrace tr;
-  if (!engine->Trace(top, down, 24.0f, MASK_PLAYERSOLID, filter, tr))
-    return false;
-  Vector at{center.x, center.y, tr.endpos.z + 2.0f};
-  CGameTrace hull;
-  return !engine->TraceHull(at, at, mins, maxs, MASK_PLAYERSOLID, filter, hull);
+  for (float fx = 0.2f; fx <= 0.81f; fx += 0.3f)
+    for (float fy = 0.2f; fy <= 0.81f; fy += 0.3f) {
+      float x = bmin.x + (bmax.x - bmin.x) * fx;
+      float y = bmin.y + (bmax.y - bmin.y) * fy;
+      Vector top{x, y, z + 8.0f};
+      QAngle down{90, 0, 0};
+      CGameTrace tr;
+      if (!engine->Trace(top, down, 24.0f, MASK_PLAYERSOLID, filter, tr))
+        continue;
+      Vector at{x, y, tr.endpos.z + 2.0f};
+      CGameTrace hull;
+      if (!engine->TraceHull(at, at, hmin, hmax, MASK_PLAYERSOLID, filter,
+                             hull))
+        return true;
+    }
+  return false;
 }
 }  // namespace
 
@@ -83,9 +94,7 @@ void NavSkeleton::Build(const std::string& mapName) {
   }
   uint32_t id = 0;
   for (const FloorSurface& fs : EnumerateFloorSurfaces(mapName)) {
-    Vector center{(fs.mins.x + fs.maxs.x) * 0.5f,
-                  (fs.mins.y + fs.maxs.y) * 0.5f, fs.z};
-    if (pl && !CanStand(center, hmins, hmaxs)) continue;
+    if (pl && !CanStand(fs.mins, fs.maxs, fs.z, hmins, hmaxs)) continue;
     Surface s;
     s.id = id++;
     s.normal = fs.normal;
