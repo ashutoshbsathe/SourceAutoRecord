@@ -458,6 +458,122 @@ std::vector<PanelDesc> ClusterPanels(const BspFile& bsp) {
   return panels;
 }
 
+// SURF flags a floor face must not carry: SKY2D|SKY|TRIGGER|NODRAW|HINT|SKIP.
+const int kSurfFloorReject = 0x2 | 0x4 | 0x40 | 0x80 | 0x100 | 0x200;
+
+// Outward (up-facing) normal from the winding -- the shared-plane normal + side
+// bit misorient some faces, so a floor's true normal comes from the verts.
+bool ExtractFloorFace(const BspFile& bsp, const Face& f, FaceGeo* out) {
+  if (!ExtractFace(bsp, f, out) || out->verts.size() < 3) return false;
+  Vector nw{0, 0, 0};
+  for (size_t k = 0; k < out->verts.size(); ++k)
+    nw = nw + out->verts[k].Cross(out->verts[(k + 1) % out->verts.size()]);
+  if (nw.Length() < 1e-3f) return false;
+  out->normal = (nw * -1.0f).Normalize();
+  out->dist = out->verts[0].Dot(out->normal);
+  return true;
+}
+
+bool IsFloor(const FaceGeo& g) {
+  return g.normal.z > 0.7f && !(g.flags & kSurfFloorReject);
+}
+
+// TODO: share the plane-group + cell-cluster core with ClusterPanels.
+std::vector<FloorSurface> ClusterFloors(const BspFile& bsp) {
+  struct Group {
+    Vector normal;
+    float dist;
+    std::vector<FaceGeo> faces;
+  };
+  std::map<std::string, Group> byPlane;
+  for (const auto& f : bsp.faces) {
+    FaceGeo g;
+    if (!ExtractFloorFace(bsp, f, &g) || !IsFloor(g)) continue;
+    char key[64];
+    std::snprintf(key, sizeof(key), "%.2f,%.2f,%.2f,%ld", g.normal.x,
+                  g.normal.y, g.normal.z, std::lround(g.dist));
+    Group& grp = byPlane[key];
+    grp.normal = g.normal;
+    grp.dist = g.dist;
+    grp.faces.push_back(std::move(g));
+  }
+
+  struct Raw {
+    long zR;
+    float umin, vmin;
+    FloorSurface s;
+  };
+  std::vector<Raw> raw;
+  for (auto& kv : byPlane) {
+    Group& grp = kv.second;
+    Vector u, vv;
+    PlaneAxes(grp.normal, &u, &vv);
+
+    std::set<Cell> cells;
+    for (const auto& fg : grp.faces) {
+      float umin = 1e30f, umax = -1e30f, vmin = 1e30f, vmax = -1e30f;
+      for (const auto& p : fg.verts) {
+        float du = p.Dot(u), dv = p.Dot(vv);
+        umin = std::min(umin, du);
+        umax = std::max(umax, du);
+        vmin = std::min(vmin, dv);
+        vmax = std::max(vmax, dv);
+      }
+      int cu0 = (int)std::floor(umin / kTile);
+      int cu1 = (int)std::floor((umax - 1e-3f) / kTile);
+      int cv0 = (int)std::floor(vmin / kTile);
+      int cv1 = (int)std::floor((vmax - 1e-3f) / kTile);
+      for (int cu = cu0; cu <= cu1; ++cu)
+        for (int cv = cv0; cv <= cv1; ++cv) cells.insert({cu, cv});
+    }
+
+    for (const auto& blob : ConnectedComponents(cells)) {
+      int mincu = blob[0].first, maxcu = blob[0].first;
+      int mincv = blob[0].second, maxcv = blob[0].second;
+      for (const Cell& c : blob) {
+        mincu = std::min(mincu, c.first);
+        maxcu = std::max(maxcu, c.first);
+        mincv = std::min(mincv, c.second);
+        maxcv = std::max(maxcv, c.second);
+      }
+      float umin = mincu * kTile, umax = (maxcu + 1) * kTile;
+      float vmin = mincv * kTile, vmax = (maxcv + 1) * kTile;
+      Vector center = PlanePoint((umin + umax) / 2, (vmin + vmax) / 2, u, vv,
+                                 grp.dist, grp.normal);
+      if (std::fabs(center.x) < 1.0f && std::fabs(center.y) < 1.0f &&
+          std::fabs(center.z) < 1.0f)
+        continue;  // PeTI origin-instance geometry
+
+      FloorSurface s;
+      s.normal = grp.normal;
+      s.z = center.z;
+      s.corners[0] = PlanePoint(umin, vmin, u, vv, grp.dist, grp.normal);
+      s.corners[1] = PlanePoint(umax, vmin, u, vv, grp.dist, grp.normal);
+      s.corners[2] = PlanePoint(umax, vmax, u, vv, grp.dist, grp.normal);
+      s.corners[3] = PlanePoint(umin, vmax, u, vv, grp.dist, grp.normal);
+      s.mins = s.maxs = s.corners[0];
+      for (const Vector& c : s.corners) {
+        s.mins.x = std::min(s.mins.x, c.x);
+        s.mins.y = std::min(s.mins.y, c.y);
+        s.mins.z = std::min(s.mins.z, c.z);
+        s.maxs.x = std::max(s.maxs.x, c.x);
+        s.maxs.y = std::max(s.maxs.y, c.y);
+        s.maxs.z = std::max(s.maxs.z, c.z);
+      }
+      raw.push_back({std::lround(center.z), umin, vmin, s});
+    }
+  }
+
+  std::sort(raw.begin(), raw.end(), [](const Raw& a, const Raw& b) {
+    if (a.zR != b.zR) return a.zR < b.zR;
+    if (a.umin != b.umin) return a.umin < b.umin;
+    return a.vmin < b.vmin;
+  });
+  std::vector<FloorSurface> out;
+  for (auto& r : raw) out.push_back(r.s);
+  return out;
+}
+
 }  // namespace
 
 void PlaneAxes(Vector n, Vector* u, Vector* v) {
@@ -482,6 +598,12 @@ std::vector<PanelDesc> BspFilePanelSource::EnumeratePanels(
   BspFile bsp;
   if (!LoadByMap(mapName, &bsp)) return {};
   return ClusterPanels(bsp);
+}
+
+std::vector<FloorSurface> EnumerateFloorSurfaces(const std::string& mapName) {
+  BspFile bsp;
+  if (!LoadByMap(mapName, &bsp)) return {};
+  return ClusterFloors(bsp);
 }
 
 std::vector<DynamicPanelRest> BspFilePanelSource::EnumerateDynamicRests(

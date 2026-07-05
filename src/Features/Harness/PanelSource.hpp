@@ -39,6 +39,17 @@ struct DynamicPanelRest {
                       // (umin,vmin)(umax,vmin)(umax,vmax)(umin,vmax)
 };
 
+// One walkable floor surface: a cluster of contiguous, coplanar floor faces
+// (normal.z > ~0.7). z is the stand height; corners are the in-plane bounding
+// rect, mins/maxs the world AABB.
+struct FloorSurface {
+  Vector normal;
+  float z;
+  Vector mins;
+  Vector maxs;
+  Vector corners[4];  // (umin,vmin)(umax,vmin)(umax,vmax)(umin,vmax)
+};
+
 // Supplies a chamber's portalable panels. A sidecar backs this today; a runtime
 // BSP/trace walk swaps in behind the same interface.
 class IPanelSource {

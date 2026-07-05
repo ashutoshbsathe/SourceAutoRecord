@@ -12,3 +12,7 @@ class BspFilePanelSource : public IPanelSource {
   std::vector<DynamicPanelRest> EnumerateDynamicRests(
       const std::string& mapName);
 };
+
+// Walkable floor surfaces (contiguous coplanar floor faces) parsed from the
+// map's .bsp -- the static node set for the go_to surface graph.
+std::vector<FloorSurface> EnumerateFloorSurfaces(const std::string& mapName);

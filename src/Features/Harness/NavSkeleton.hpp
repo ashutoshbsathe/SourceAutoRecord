@@ -54,6 +54,7 @@ class NavSkeleton {
   void Build(const std::string& mapName);
   PlanResult Plan(const Vector& start, const Vector& target);
   bool Ready() const { return !surfaces_.empty(); }
+  const std::vector<Surface>& Surfaces() const { return surfaces_; }
 
  private:
   std::vector<Surface> surfaces_;
