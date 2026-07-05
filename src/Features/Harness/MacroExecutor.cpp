@@ -34,6 +34,7 @@
 #include "Utils/SDK/EntityEdict.hpp"
 #include "Utils/SDK/Trace.hpp"
 #include "Variable.hpp"
+#include "verbs/GoTo.hpp"
 
 Variable sar_harness_goto_debug(
     "sar_harness_goto_debug", "0",
@@ -1213,7 +1214,7 @@ portal2_harness::MacroResult MacroExecutor::Execute(
   const std::string& verb = req.verb();
   if (verb == "aim_at") return AimAt(req.target());
   if (verb == "look") return Look(req.yaw(), req.pitch());
-  if (verb == "go_to") return GoTo(req.target());
+  if (verb == "go_to") return verbs::GoTo({this, context_}, req.target());
   if (verb == "move") return Move(req.dir(), req.ticks());
   if (verb == "wait") return Wait(req.ticks());
   if (verb == "done") return Done();

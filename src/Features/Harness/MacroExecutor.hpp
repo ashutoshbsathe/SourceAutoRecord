@@ -17,12 +17,14 @@ class MacroExecutor {
   portal2_harness::MacroResult Execute(
       const portal2_harness::MacroRequest& req);
 
+  // Entry for the go_to verb (verbs/GoTo.cpp).
+  portal2_harness::MacroResult GoTo(const std::string& target);
+
  private:
   grpc::ServerContext* context_;
 
   portal2_harness::MacroResult AimAt(const std::string& target);
   portal2_harness::MacroResult Look(int yaw, int pitch);
-  portal2_harness::MacroResult GoTo(const std::string& target);
   portal2_harness::MacroResult Move(const std::string& dir, int ticks);
   portal2_harness::MacroResult Wait(int ticks);
   portal2_harness::MacroResult Done();
