@@ -17,14 +17,6 @@
 #include "Utils/SDK/Trace.hpp"
 
 namespace {
-// Height bands for a step between adjacent floor surfaces (tunable; the path
-// visualizer is the arbiter). Up beyond kStepUp needs a jump/fling (no edge);
-// down beyond kMaxDrop is unsafe (no edge).
-constexpr float kWalkFlat = 8.0f;   // |dz| <= this: same level
-constexpr float kStepUp = 24.0f;    // walkable step up
-constexpr float kMaxDrop = 128.0f;  // walk off a ledge down
-constexpr float kAdjGap = 4.0f;  // XY AABBs within this (both axes): adjacent
-
 // Flood lattice. Climb between neighbor cells is capped at engine step height
 // on flat ground, but at a full slope-rise when either cell is inclined (a
 // walkable-limit 45.57deg slope rises ~33u per 32u cell; a 27.9deg stair ramp
@@ -32,25 +24,14 @@ constexpr float kAdjGap = 4.0f;  // XY AABBs within this (both axes): adjacent
 // so kZSeparate splits them unambiguously.
 constexpr float kCell = NavSkeleton::kCellSize;
 constexpr float kLift = 2.0f;
+constexpr float kWalkFlat = 8.0f;  // |dz| <= this: same level
 constexpr float kStepClimb = 18.0f;
 constexpr float kSlopeClimb = 34.0f;
+constexpr float kMaxDrop = 128.0f;
 constexpr float kFlatNz = 0.95f;
 constexpr float kZSeparate = 36.0f;
 constexpr uint32_t kMaxCells = 100000;
-
-bool XyAdjacent(const NavSkeleton::Surface& a, const NavSkeleton::Surface& b) {
-  return a.mins.x - kAdjGap <= b.maxs.x && b.mins.x - kAdjGap <= a.maxs.x &&
-         a.mins.y - kAdjGap <= b.maxs.y && b.mins.y - kAdjGap <= a.maxs.y;
-}
-
-// Edge type stepping from fromZ to toZ; 0xFF = not connectable on foot.
-uint8_t BandEdge(float fromZ, float toZ) {
-  float dz = toZ - fromZ;
-  if (std::fabs(dz) <= kWalkFlat) return NavSkeleton::WALK;
-  if (dz > 0) return dz <= kStepUp ? NavSkeleton::STEP_UP : 0xFF;
-  if (-dz <= kStepUp) return NavSkeleton::STEP_DOWN;
-  return -dz <= kMaxDrop ? NavSkeleton::DROP : 0xFF;
-}
+constexpr uint32_t kMinLevel = 8;  // smaller clusters chain into connector runs
 
 const char* EdgeName(uint8_t t) {
   switch (t) {
@@ -66,67 +47,18 @@ const char* EdgeName(uint8_t t) {
       return "?";
   }
 }
-
-// A player hull can rest somewhere on the surface. Sample a grid across its
-// bounds (not just the center, so a floor wrapping a pillar isn't rejected
-// because its bbox center lands on the pillar) and keep it if any point has
-// solid floor just under it (rejects no-collision faces) and the standing hull
-// fits there (not startsolid in a wall / low ceiling / too-steep tilt an
-// axis-aligned box can't sit flush on). Main thread (engine traces).
-bool CanStand(const Vector& bmin, const Vector& bmax, float z,
-              const Vector& hmin, const Vector& hmax) {
-  CTraceFilterSimple filter;
-  filter.SetPassEntity(server->GetPlayer(1));
-  for (float fx = 0.2f; fx <= 0.81f; fx += 0.3f)
-    for (float fy = 0.2f; fy <= 0.81f; fy += 0.3f) {
-      float x = bmin.x + (bmax.x - bmin.x) * fx;
-      float y = bmin.y + (bmax.y - bmin.y) * fy;
-      Vector top{x, y, z + 8.0f};
-      QAngle down{90, 0, 0};
-      CGameTrace tr;
-      if (!engine->Trace(top, down, 24.0f, MASK_PLAYERSOLID, filter, tr))
-        continue;
-      Vector at{x, y, tr.endpos.z + 2.0f};
-      CGameTrace hull;
-      if (!engine->TraceHull(at, at, hmin, hmax, MASK_PLAYERSOLID, filter,
-                             hull))
-        return true;
-    }
-  return false;
-}
 }  // namespace
 
 void NavSkeleton::Build(const std::string& mapName) {
-  surfaces_.clear();
-  edges_.clear();
   gates_.clear();
-  // Player hull for the walkability gate; skip the gate if there's no live
-  // player to size/seat it against (keep the raw BSP candidates).
   ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
-  Vector hmins, hmaxs;
-  if (pl) {
-    hmins = pl->collision().OBBMins();
-    hmaxs = pl->collision().OBBMaxs();
-  }
-  uint32_t id = 0;
   std::vector<Vector> seeds;
   if (pl) seeds.push_back(pl->abs_origin());
-  for (const FloorSurface& fs : EnumerateFloorSurfaces(mapName)) {
+  for (const FloorSurface& fs : EnumerateFloorSurfaces(mapName))
     seeds.push_back(Vector{(fs.mins.x + fs.maxs.x) * 0.5f,
                            (fs.mins.y + fs.maxs.y) * 0.5f, fs.z});
-    if (pl && !CanStand(fs.mins, fs.maxs, fs.z, hmins, hmaxs)) continue;
-    Surface s;
-    s.id = id++;
-    s.normal = fs.normal;
-    s.z = fs.z;
-    s.mins = fs.mins;
-    s.maxs = fs.maxs;
-    s.poly = {fs.corners[0], fs.corners[1], fs.corners[2], fs.corners[3]};
-    surfaces_.push_back(std::move(s));
-  }
-  BuildEdges();
   Flood(seeds);
-  // TODO: dynamic brush surfaces + gates.
+  // TODO: deploy-state gates on cluster edges.
 }
 
 // Seeded BFS over the lattice: a cell exists iff the standing player hull
@@ -136,6 +68,8 @@ void NavSkeleton::Build(const std::string& mapName) {
 // seed it. Movers are traced at their live pose. Main thread.
 void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
   cells_.clear();
+  clusters_.clear();
+  clusterEdges_.clear();
   floodMs_ = 0;
   floodCapped_ = false;
   ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
@@ -231,34 +165,101 @@ void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
       uint32_t ni = found >= 0 ? (uint32_t)found : add(nx, ny, z, nz);
       if (walk) {
         cells_[i].walkMask |= 1 << d;
+        cells_[i].nbr[d] = ni;
         cells_[ni].walkMask |= 1 << (d ^ 1);
+        cells_[ni].nbr[d ^ 1] = i;
       } else {
         cells_[i].dropMask |= 1 << d;
+        cells_[i].nbr[d] = ni;
       }
     }
   }
+  Cluster();
   floodMs_ = std::chrono::duration<float, std::milli>(
                  std::chrono::steady_clock::now() - t0)
                  .count();
 }
 
-void NavSkeleton::BuildEdges() {
-  edges_.clear();
-  for (size_t i = 0; i < surfaces_.size(); ++i)
-    for (size_t j = i + 1; j < surfaces_.size(); ++j) {
-      const Surface& a = surfaces_[i];
-      const Surface& b = surfaces_[j];
-      if (!XyAdjacent(a, b)) continue;
-      float vx =
-          (std::max(a.mins.x, b.mins.x) + std::min(a.maxs.x, b.maxs.x)) * 0.5f;
-      float vy =
-          (std::max(a.mins.y, b.mins.y) + std::min(a.maxs.y, b.maxs.y)) * 0.5f;
-      uint8_t ab = BandEdge(a.z, b.z);
-      if (ab != 0xFF)
-        edges_.push_back(Edge{a.id, b.id, ab, Vector{vx, vy, a.z}, 0});
-      uint8_t ba = BandEdge(b.z, a.z);
-      if (ba != 0xFF)
-        edges_.push_back(Edge{b.id, a.id, ba, Vector{vx, vy, b.z}, 0});
+// Collapse cells into the legible graph: flat walk links (|dz| <= kWalkFlat)
+// union into level clusters, then crossing links whose pass-1 clusters are
+// BOTH small union transitively — a staircase of treads or a chain of ramp
+// cells becomes one connector run, but runs never absorb into a level.
+// Smallness is judged on pre-merge sizes by design. Crossing links become
+// typed directed cluster edges, deduped per (from, to, type).
+void NavSkeleton::Cluster() {
+  clusters_.clear();
+  clusterEdges_.clear();
+  if (cells_.empty()) return;
+
+  std::vector<uint32_t> parent(cells_.size());
+  for (uint32_t i = 0; i < parent.size(); ++i) parent[i] = i;
+  auto root = [&](uint32_t v) {
+    while (parent[v] != v) v = parent[v] = parent[parent[v]];
+    return v;
+  };
+  auto join = [&](uint32_t a, uint32_t b) { parent[root(a)] = root(b); };
+
+  for (uint32_t i = 0; i < cells_.size(); ++i)
+    for (int d = 0; d < 4; ++d)
+      if (cells_[i].walkMask & 1 << d) {
+        uint32_t j = cells_[i].nbr[d];
+        if (std::fabs(cells_[j].z - cells_[i].z) <= kWalkFlat) join(i, j);
+      }
+
+  std::vector<uint32_t> size(cells_.size(), 0);
+  for (uint32_t i = 0; i < cells_.size(); ++i) size[root(i)]++;
+  for (uint32_t i = 0; i < cells_.size(); ++i)
+    for (int d = 0; d < 4; ++d)
+      if (cells_[i].walkMask & 1 << d) {
+        uint32_t ri = root(i), rj = root(cells_[i].nbr[d]);
+        if (ri != rj && size[ri] < kMinLevel && size[rj] < kMinLevel)
+          join(ri, rj);
+      }
+
+  std::unordered_map<uint32_t, uint32_t> idOf;
+  for (uint32_t i = 0; i < cells_.size(); ++i) {
+    FloodCell& c = cells_[i];
+    float x0 = c.cx * kCell, y0 = c.cy * kCell;
+    uint32_t r = root(i);
+    auto it = idOf.find(r);
+    if (it == idOf.end()) {
+      it = idOf.emplace(r, (uint32_t)clusters_.size()).first;
+      clusters_.push_back(CellCluster{(uint32_t)clusters_.size(), 0, c.z, c.z,
+                                      Vector{x0, y0, c.z},
+                                      Vector{x0 + kCell, y0 + kCell, c.z}});
+    }
+    CellCluster& cl = clusters_[it->second];
+    cl.cells++;
+    cl.zMin = std::min(cl.zMin, c.z);
+    cl.zMax = std::max(cl.zMax, c.z);
+    cl.mins.x = std::min(cl.mins.x, x0);
+    cl.mins.y = std::min(cl.mins.y, y0);
+    cl.mins.z = std::min(cl.mins.z, c.z);
+    cl.maxs.x = std::max(cl.maxs.x, x0 + kCell);
+    cl.maxs.y = std::max(cl.maxs.y, y0 + kCell);
+    cl.maxs.z = std::max(cl.maxs.z, c.z);
+    c.cluster = it->second;
+  }
+
+  std::unordered_map<uint64_t, bool> seen;
+  auto emit = [&](uint32_t from, uint32_t to, uint8_t type, const Vector& via) {
+    uint64_t key = ((uint64_t)from << 34) | ((uint64_t)to << 4) | type;
+    if (seen.emplace(key, true).second)
+      clusterEdges_.push_back(Edge{from, to, type, via, 0});
+  };
+  for (const FloodCell& c : cells_)
+    for (int d = 0; d < 4; ++d) {
+      if (!((c.walkMask | c.dropMask) & 1 << d)) continue;
+      const FloodCell& n = cells_[c.nbr[d]];
+      if (n.cluster == c.cluster) continue;
+      float dz = n.z - c.z;
+      uint8_t type = c.dropMask & 1 << d ? DROP
+                     : std::fabs(dz) <= kWalkFlat
+                         ? WALK
+                         : (dz > 0 ? STEP_UP : STEP_DOWN);
+      Vector via{(c.cx + n.cx + 1) * kCell * 0.5f,
+                 (c.cy + n.cy + 1) * kCell * 0.5f, std::max(c.z, n.z)};
+      emit(c.cluster, n.cluster, type, via);
     }
 }
 
@@ -267,38 +268,21 @@ NavSkeleton::PlanResult NavSkeleton::Plan(const Vector& start,
   (void)start;
   PlanResult r;
   r.target = target;
-  // TODO: global surface A* + local within-surface routing.
+  // TODO: global cluster A* + local within-cluster routing.
   return r;
 }
 
-// Parse the current map's floor surfaces and print each surface's z + XY
-// bounds, then the BSP-z vs down-trace delta at the player's feet -- the check
-// that BSP floor z is where the body actually stands. Read-only.
+// Build the nav flood for the current map and print cell, cluster and edge
+// stats. Read-only.
 CON_COMMAND(sar_harness_nav_dump,
-            "sar_harness_nav_dump - list the go_to floor surfaces (z + bounds) "
-            "and the BSP-z vs down-trace delta at the player's feet.\n") {
+            "sar_harness_nav_dump - build the go_to nav flood and print cell, "
+            "cluster and edge stats.\n") {
   if (!engine) {
     console->Print("nav_dump: no engine.\n");
     return;
   }
   NavSkeleton nav;
   nav.Build(engine->GetCurrentMapName());
-  const std::vector<NavSkeleton::Surface>& surfaces = nav.Surfaces();
-  console->Print("nav_dump: %d floor surfaces\n", (int)surfaces.size());
-  for (const NavSkeleton::Surface& s : surfaces)
-    console->Msg(
-        "    #%u z=%.0f n=%.2f,%.2f,%.2f  x[%.0f..%.0f] y[%.0f..%.0f]\n", s.id,
-        s.z, s.normal.x, s.normal.y, s.normal.z, s.mins.x, s.maxs.x, s.mins.y,
-        s.maxs.y);
-
-  const std::vector<NavSkeleton::Edge>& edges = nav.Edges();
-  int byType[6] = {0};
-  for (const NavSkeleton::Edge& e : edges)
-    if (e.type < 6) byType[e.type]++;
-  console->Print("nav_dump: %d edges (walk %d up %d down %d drop %d)\n",
-                 (int)edges.size(), byType[NavSkeleton::WALK],
-                 byType[NavSkeleton::STEP_UP], byType[NavSkeleton::STEP_DOWN],
-                 byType[NavSkeleton::DROP]);
 
   const std::vector<NavSkeleton::FloodCell>& cells = nav.Cells();
   int walkLinks = 0, dropLinks = 0;
@@ -317,51 +301,17 @@ CON_COMMAND(sar_harness_nav_dump,
         "(%.0f ms)%s\n",
         (int)cells.size(), zMin, zMax, walkLinks / 2, dropLinks, nav.FloodMs(),
         nav.FloodCapped() ? "  CAPPED" : "");
-  if (args.ArgC() > 1)  // any arg: also dump the edge list
-    for (const NavSkeleton::Edge& e : edges)
-      console->Msg("    #%u -%s-> #%u\n", e.from, EdgeName(e.type), e.to);
 
-  ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
-  if (!pl) {
-    console->Print("    (no player; load a map for the floorZ delta)\n");
-    return;
-  }
-  Vector feet = pl->abs_origin();
-  CTraceFilterSimple filter;
-  filter.SetPassEntity(pl);
-  Vector top{feet.x, feet.y, feet.z + 40.0f};
-  QAngle down{90, 0, 0};
-  CGameTrace tr;
-  if (!engine->Trace(top, down, 200.0f, MASK_PLAYERSOLID, filter, tr)) {
-    console->Print(
-        "    feet %.0f %.0f %.0f: no floor under a 200u down-trace\n", feet.x,
-        feet.y, feet.z);
-    return;
-  }
-  float traceZ = tr.endpos.z;
-
-  const NavSkeleton::Surface* best = nullptr;
-  float bestDz = 1e30f;
-  for (const NavSkeleton::Surface& s : surfaces) {
-    if (feet.x < s.mins.x || feet.x > s.maxs.x || feet.y < s.mins.y ||
-        feet.y > s.maxs.y)
-      continue;
-    float dz = std::fabs(s.z - traceZ);
-    if (dz < bestDz) {
-      bestDz = dz;
-      best = &s;
-    }
-  }
-  if (!best) {
-    console->Print(
-        "    feet %.0f %.0f %.0f: trace floor z=%.1f, NO enumerated surface "
-        "covers the feet\n",
-        feet.x, feet.y, feet.z, traceZ);
-    return;
-  }
-  console->Print(
-      "    feet %.0f %.0f %.0f: trace z=%.1f  surface #%u z=%.1f  delta=%.1f\n",
-      feet.x, feet.y, feet.z, traceZ, best->id, best->z, best->z - traceZ);
+  const std::vector<NavSkeleton::CellCluster>& clusters = nav.Clusters();
+  console->Print("nav_dump: %d clusters, %d cluster edges\n",
+                 (int)clusters.size(), (int)nav.ClusterEdges().size());
+  for (const NavSkeleton::CellCluster& cl : clusters)
+    console->Msg("    C%u %u cells z[%.0f..%.0f] x[%.0f..%.0f] y[%.0f..%.0f]\n",
+                 cl.id, cl.cells, cl.zMin, cl.zMax, cl.mins.x, cl.maxs.x,
+                 cl.mins.y, cl.maxs.y);
+  for (const NavSkeleton::Edge& e : nav.ClusterEdges())
+    console->Msg("    C%u -%s-> C%u @ %.0f %.0f %.0f\n", e.from,
+                 EdgeName(e.type), e.to, e.via.x, e.via.y, e.via.z);
 }
 
 // Time the engine trace kinds a floor flood issues: ray down-trace,

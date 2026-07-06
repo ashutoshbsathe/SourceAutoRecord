@@ -5,10 +5,11 @@
 
 #include "Utils/SDK/Math.hpp"
 
-// Multi-Z walkable-surface graph for go_to. Surfaces are parsed from the map
-// .bsp; edges are height-banded transitions between them, some gated on a live
-// mover pose. A plan is a global surface route refined by local within-surface
-// routing, returned as steps the follower and the path visualizer both consume.
+// Multi-Z walkable-cell graph for go_to, built by a seeded hull-trace flood
+// over the live map (BSP floor faces only seed it). Cells cluster into flat
+// levels + connector runs (stairs, ramps) joined by typed edges, some gated
+// on a live mover pose. A plan is a global cluster route refined locally,
+// returned as steps the follower and the path visualizer both consume.
 class NavSkeleton {
  public:
   static constexpr float kCellSize = 32.0f;  // flood lattice pitch
@@ -17,18 +18,10 @@ class NavSkeleton {
   enum PlanCode : uint8_t { SUCCESS, REACHED_PROJECTION, NO_ROUTE, STUCK };
   enum BlockReason : uint8_t { NONE, NO_FLOOR, IN_WALL, SEVERED, ABOVE_REACH };
 
-  struct Surface {
-    uint32_t id = 0;
-    Vector normal{0, 0, 1};
-    float z = 0;
-    Vector mins, maxs;
-    std::vector<Vector> poly;  // outer winding, world space
-    uint32_t dynEnt = 0;  // 0 = static world; else the brush entity posing it
-  };
   struct Edge {
-    uint32_t from = 0, to = 0;
+    uint32_t from = 0, to = 0;  // cluster ids
     uint8_t type = WALK;
-    Vector via;         // transition point between the two surfaces
+    Vector via;         // transition point between the two clusters
     uint32_t gate = 0;  // 0 = always-open; else index into gates_
   };
   struct Gate {
@@ -37,22 +30,37 @@ class NavSkeleton {
     uint32_t button = 0;  // controlling button, surfaced as an agent hint
   };
 
+  static constexpr uint32_t kNoCell = 0xFFFFFFFF;
+
   // One 32u lattice cell the trace flood proved standable. walkMask/dropMask
   // record which of the 4 neighbors (+x,-x,+y,-y) the body can reach: walk
   // links are bidirectional (set on both cells), drops are outgoing only.
+  // nbr[d] resolves the linked cell's index for either link kind.
   struct FloodCell {
     int cx = 0, cy = 0;
     float z = 0;
     float nz = 1;  // floor normal z at the cell
     uint8_t walkMask = 0;
     uint8_t dropMask = 0;
+    uint32_t nbr[4] = {kNoCell, kNoCell, kNoCell, kNoCell};
+    uint32_t cluster = 0;
+  };
+
+  // A maximal group of flood cells: a flat level (walk-linked at |dz| <=
+  // walk-flat) or a chain of small clusters merged into one connector run
+  // (stair treads, ramp cells).
+  struct CellCluster {
+    uint32_t id = 0;
+    uint32_t cells = 0;
+    float zMin = 0, zMax = 0;
+    Vector mins, maxs;
   };
 
   struct PlanStep {
     Vector pos;
     float floorZ = 0;
     uint8_t edgeType = WALK;
-    uint32_t surface = 0;
+    uint32_t cluster = 0;
   };
   struct PlanResult {
     std::vector<PlanStep> steps;  // goal last
@@ -66,21 +74,21 @@ class NavSkeleton {
 
   void Build(const std::string& mapName);
   PlanResult Plan(const Vector& start, const Vector& target);
-  bool Ready() const { return !surfaces_.empty(); }
-  const std::vector<Surface>& Surfaces() const { return surfaces_; }
-  const std::vector<Edge>& Edges() const { return edges_; }
+  bool Ready() const { return !cells_.empty(); }
   const std::vector<FloodCell>& Cells() const { return cells_; }
+  const std::vector<CellCluster>& Clusters() const { return clusters_; }
+  const std::vector<Edge>& ClusterEdges() const { return clusterEdges_; }
   float FloodMs() const { return floodMs_; }
   bool FloodCapped() const { return floodCapped_; }
 
  private:
-  void BuildEdges();  // adjacency + height-banded edges over surfaces_
   void Flood(const std::vector<Vector>& seeds);
+  void Cluster();  // cells -> level clusters + connector runs + typed edges
 
-  std::vector<Surface> surfaces_;
-  std::vector<Edge> edges_;
   std::vector<Gate> gates_;
   std::vector<FloodCell> cells_;
+  std::vector<CellCluster> clusters_;
+  std::vector<Edge> clusterEdges_;
   float floodMs_ = 0;
   bool floodCapped_ = false;
 };
