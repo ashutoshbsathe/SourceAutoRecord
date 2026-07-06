@@ -35,6 +35,17 @@ class NavSkeleton {
     uint32_t button = 0;  // controlling button, surfaced as an agent hint
   };
 
+  // One 32u lattice cell the trace flood proved standable. walkMask/dropMask
+  // record which of the 4 neighbors (+x,-x,+y,-y) the body can reach: walk
+  // links are bidirectional (set on both cells), drops are outgoing only.
+  struct FloodCell {
+    int cx = 0, cy = 0;
+    float z = 0;
+    float nz = 1;  // floor normal z at the cell
+    uint8_t walkMask = 0;
+    uint8_t dropMask = 0;
+  };
+
   struct PlanStep {
     Vector pos;
     float floorZ = 0;
@@ -56,11 +67,18 @@ class NavSkeleton {
   bool Ready() const { return !surfaces_.empty(); }
   const std::vector<Surface>& Surfaces() const { return surfaces_; }
   const std::vector<Edge>& Edges() const { return edges_; }
+  const std::vector<FloodCell>& Cells() const { return cells_; }
+  float FloodMs() const { return floodMs_; }
+  bool FloodCapped() const { return floodCapped_; }
 
  private:
   void BuildEdges();  // adjacency + height-banded edges over surfaces_
+  void Flood(const std::vector<Vector>& seeds);
 
   std::vector<Surface> surfaces_;
   std::vector<Edge> edges_;
   std::vector<Gate> gates_;
+  std::vector<FloodCell> cells_;
+  float floodMs_ = 0;
+  bool floodCapped_ = false;
 };

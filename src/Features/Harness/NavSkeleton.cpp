@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <unordered_map>
 
 #include "BspFilePanelSource.hpp"
 #include "Command.hpp"
@@ -23,6 +24,19 @@ constexpr float kWalkFlat = 8.0f;   // |dz| <= this: same level
 constexpr float kStepUp = 24.0f;    // walkable step up
 constexpr float kMaxDrop = 128.0f;  // walk off a ledge down
 constexpr float kAdjGap = 4.0f;  // XY AABBs within this (both axes): adjacent
+
+// Flood lattice. Climb between neighbor cells is capped at engine step height
+// on flat ground, but at a full slope-rise when either cell is inclined (a
+// walkable-limit 45.57deg slope rises ~33u per 32u cell; a 27.9deg stair ramp
+// ~17u). Distinct stacked floors in one column are >=72u apart (hull height),
+// so kZSeparate splits them unambiguously.
+constexpr float kCell = 32.0f;
+constexpr float kLift = 2.0f;
+constexpr float kStepClimb = 18.0f;
+constexpr float kSlopeClimb = 34.0f;
+constexpr float kFlatNz = 0.95f;
+constexpr float kZSeparate = 36.0f;
+constexpr uint32_t kMaxCells = 100000;
 
 bool XyAdjacent(const NavSkeleton::Surface& a, const NavSkeleton::Surface& b) {
   return a.mins.x - kAdjGap <= b.maxs.x && b.mins.x - kAdjGap <= a.maxs.x &&
@@ -95,7 +109,11 @@ void NavSkeleton::Build(const std::string& mapName) {
     hmaxs = pl->collision().OBBMaxs();
   }
   uint32_t id = 0;
+  std::vector<Vector> seeds;
+  if (pl) seeds.push_back(pl->abs_origin());
   for (const FloorSurface& fs : EnumerateFloorSurfaces(mapName)) {
+    seeds.push_back(Vector{(fs.mins.x + fs.maxs.x) * 0.5f,
+                           (fs.mins.y + fs.maxs.y) * 0.5f, fs.z});
     if (pl && !CanStand(fs.mins, fs.maxs, fs.z, hmins, hmaxs)) continue;
     Surface s;
     s.id = id++;
@@ -107,7 +125,121 @@ void NavSkeleton::Build(const std::string& mapName) {
     surfaces_.push_back(std::move(s));
   }
   BuildEdges();
+  Flood(seeds);
   // TODO: dynamic brush surfaces + gates.
+}
+
+// Seeded BFS over the lattice: a cell exists iff the standing player hull
+// rests there (down-ray finds a walkable-slope floor, zero-length hull fits
+// above it), an edge iff a swept hull passes between neighbor centers at the
+// higher floor. The trace is the walkability authority; BSP floor faces only
+// seed it. Movers are traced at their live pose. Main thread.
+void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
+  cells_.clear();
+  floodMs_ = 0;
+  floodCapped_ = false;
+  ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
+  if (!pl || !engine) return;
+  auto t0 = std::chrono::steady_clock::now();
+
+  Vector hmin = pl->collision().OBBMins();
+  Vector hmax = pl->collision().OBBMaxs();
+  hmax.z = std::max(hmax.z, 72.0f);  // standing hull even if built ducked
+  CTraceFilterSimple filter;
+  filter.SetPassEntity(pl);
+
+  std::unordered_map<uint64_t, std::vector<uint32_t>> columns;
+  auto colKey = [](int cx, int cy) {
+    return (uint64_t)(uint32_t)cx << 32 | (uint32_t)cy;
+  };
+  auto center = [](int c) { return c * kCell + kCell * 0.5f; };
+
+  // A box on a slope rests on its uphill corner, above the center-ray hit by
+  // up to half-width * slope gradient; the fit and the link sweep must sit
+  // that high or any incline past ~7deg reads startsolid.
+  float halfW = (hmax.x - hmin.x) * 0.5f;
+  auto hullLift = [halfW](float nz) {
+    return kLift + halfW * std::sqrt(2.0f * (1.0f - nz * nz)) / nz;
+  };
+
+  auto probe = [&](int cx, int cy, float fromZ, float* z, float* nz) {
+    Vector top{center(cx), center(cy), fromZ + kSlopeClimb + kLift};
+    QAngle down{90, 0, 0};
+    CGameTrace tr;
+    if (!engine->Trace(top, down, kSlopeClimb + kMaxDrop + 4.0f,
+                       MASK_PLAYERSOLID, filter, tr))
+      return false;
+    if (tr.startsolid || tr.plane.normal.z < 0.7f) return false;
+    CGameTrace liq;  // goo/water above the floor: lethal, not walkable
+    if (engine->Trace(top, down, kSlopeClimb + kMaxDrop + 4.0f, MASK_WATER,
+                      filter, liq) &&
+        liq.endpos.z > tr.endpos.z)
+      return false;
+    Vector at{center(cx), center(cy),
+              tr.endpos.z + hullLift(tr.plane.normal.z)};
+    CGameTrace hull;
+    if (engine->TraceHull(at, at, hmin, hmax, MASK_PLAYERSOLID, filter, hull))
+      return false;
+    *z = tr.endpos.z;
+    *nz = tr.plane.normal.z;
+    return true;
+  };
+  auto find = [&](int cx, int cy, float z) -> int {
+    auto it = columns.find(colKey(cx, cy));
+    if (it == columns.end()) return -1;
+    for (uint32_t i : it->second)
+      if (std::fabs(cells_[i].z - z) < kZSeparate) return (int)i;
+    return -1;
+  };
+  auto add = [&](int cx, int cy, float z, float nz) {
+    cells_.push_back(FloodCell{cx, cy, z, nz, 0, 0});
+    columns[colKey(cx, cy)].push_back((uint32_t)cells_.size() - 1);
+    return (uint32_t)cells_.size() - 1;
+  };
+
+  for (const Vector& s : seeds) {
+    int cx = (int)std::floor(s.x / kCell), cy = (int)std::floor(s.y / kCell);
+    float z, nz;
+    if (!probe(cx, cy, s.z, &z, &nz)) continue;
+    if (find(cx, cy, z) < 0) add(cx, cy, z, nz);
+  }
+
+  static const int DX[4] = {1, -1, 0, 0}, DY[4] = {0, 0, 1, -1};
+  for (uint32_t i = 0; i < cells_.size(); ++i) {
+    if (cells_.size() >= kMaxCells) {
+      floodCapped_ = true;
+      break;
+    }
+    FloodCell c = cells_[i];  // add() below reallocates cells_
+    for (int d = 0; d < 4; ++d) {
+      if (c.walkMask & 1 << d) continue;  // linked when the neighbor expanded
+      int nx = c.cx + DX[d], ny = c.cy + DY[d];
+      float z, nz;
+      if (!probe(nx, ny, c.z, &z, &nz)) continue;
+      float dz = z - c.z;
+      float climb = c.nz > kFlatNz && nz > kFlatNz ? kStepClimb : kSlopeClimb;
+      bool walk = std::fabs(dz) <= climb;
+      if (!walk && (dz > 0 || -dz > kMaxDrop)) continue;
+      float sz = std::max(c.z + hullLift(c.nz), z + hullLift(nz));
+      Vector from{center(c.cx), center(c.cy), sz};
+      Vector to{center(nx), center(ny), sz};
+      CGameTrace sweep;
+      if (engine->TraceHull(from, to, hmin, hmax, MASK_PLAYERSOLID, filter,
+                            sweep))
+        continue;
+      int found = find(nx, ny, z);
+      uint32_t ni = found >= 0 ? (uint32_t)found : add(nx, ny, z, nz);
+      if (walk) {
+        cells_[i].walkMask |= 1 << d;
+        cells_[ni].walkMask |= 1 << (d ^ 1);
+      } else {
+        cells_[i].dropMask |= 1 << d;
+      }
+    }
+  }
+  floodMs_ = std::chrono::duration<float, std::milli>(
+                 std::chrono::steady_clock::now() - t0)
+                 .count();
 }
 
 void NavSkeleton::BuildEdges() {
@@ -167,6 +299,24 @@ CON_COMMAND(sar_harness_nav_dump,
                  (int)edges.size(), byType[NavSkeleton::WALK],
                  byType[NavSkeleton::STEP_UP], byType[NavSkeleton::STEP_DOWN],
                  byType[NavSkeleton::DROP]);
+
+  const std::vector<NavSkeleton::FloodCell>& cells = nav.Cells();
+  int walkLinks = 0, dropLinks = 0;
+  float zMin = 1e30f, zMax = -1e30f;
+  for (const NavSkeleton::FloodCell& c : cells) {
+    walkLinks += __builtin_popcount(c.walkMask);
+    dropLinks += __builtin_popcount(c.dropMask);
+    zMin = std::min(zMin, c.z);
+    zMax = std::max(zMax, c.z);
+  }
+  if (cells.empty())
+    console->Print("nav_dump: flood 0 cells (%.0f ms)\n", nav.FloodMs());
+  else
+    console->Print(
+        "nav_dump: flood %d cells z[%.0f..%.0f], %d walk + %d drop links "
+        "(%.0f ms)%s\n",
+        (int)cells.size(), zMin, zMax, walkLinks / 2, dropLinks, nav.FloodMs(),
+        nav.FloodCapped() ? "  CAPPED" : "");
   if (args.ArgC() > 1)  // any arg: also dump the edge list
     for (const NavSkeleton::Edge& e : edges)
       console->Msg("    #%u -%s-> #%u\n", e.from, EdgeName(e.type), e.to);
