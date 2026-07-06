@@ -1,7 +1,9 @@
 #include "NavSkeleton.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdlib>
 
 #include "BspFilePanelSource.hpp"
 #include "Command.hpp"
@@ -210,4 +212,98 @@ CON_COMMAND(sar_harness_nav_dump,
   console->Print(
       "    feet %.0f %.0f %.0f: trace z=%.1f  surface #%u z=%.1f  delta=%.1f\n",
       feet.x, feet.y, feet.z, traceZ, best->id, best->z, best->z - traceZ);
+}
+
+// Time the engine trace kinds a floor flood issues: ray down-trace,
+// zero-length hull fit, 32u swept hull. Origins are scattered over a 512u
+// square around the player so the collision tree isn't cache-hot from
+// repeating one segment (that would report an optimistic lower bound).
+// Blocks the main thread for the duration.
+CON_COMMAND(sar_harness_trace_bench,
+            "sar_harness_trace_bench [n] - time n of each engine trace kind "
+            "(ray down, hull fit, swept hull) scattered around the player. "
+            "Blocks the main thread.\n") {
+  ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
+  if (!pl) {
+    console->Print("trace_bench: no player.\n");
+    return;
+  }
+  long nArg = args.ArgC() > 1 ? std::strtol(args[1], nullptr, 10) : 10000;
+  int n = (int)std::max(1L, std::min(nArg, 100000L));
+
+  CTraceFilterSimple filter;
+  filter.SetPassEntity(pl);
+  Vector feet = pl->abs_origin();
+  Vector hmin = pl->collision().OBBMins();
+  Vector hmax = pl->collision().OBBMaxs();
+  QAngle down{90, 0, 0};
+  CGameTrace tr;
+  auto jx = [](int i) { return float((i & 63) - 32) * 8.0f; };
+  auto jy = [](int i) { return float(((i >> 6) & 63) - 32) * 8.0f; };
+
+  console->Print("trace_bench: n=%d scattered +-256u around %.0f %.0f %.0f\n",
+                 n, feet.x, feet.y, feet.z);
+  auto bench = [&](const char* name, auto&& fn) {
+    int hit = 0, solid = 0;
+    auto t0 = std::chrono::steady_clock::now();
+    for (int i = 0; i < n; ++i) {
+      if (fn(i)) hit++;
+      if (tr.startsolid) solid++;
+    }
+    auto t1 = std::chrono::steady_clock::now();
+    double us = std::chrono::duration<double, std::micro>(t1 - t0).count() / n;
+    console->Print(
+        "    %-10s %8.2f us/trace  (100k = %.0f ms)  hit %d/%d startsolid "
+        "%d\n",
+        name, us, us * 100.0, hit, n, solid);
+  };
+  bench("ray down", [&](int i) {
+    Vector top{feet.x + jx(i), feet.y + jy(i), feet.z + 40.0f};
+    return engine->Trace(top, down, 200.0f, MASK_PLAYERSOLID, filter, tr);
+  });
+  bench("hull fit", [&](int i) {
+    Vector at{feet.x + jx(i), feet.y + jy(i), feet.z + 2.0f};
+    return engine->TraceHull(at, at, hmin, hmax, MASK_PLAYERSOLID, filter, tr);
+  });
+  bench("hull sweep", [&](int i) {
+    Vector at{feet.x + jx(i), feet.y + jy(i), feet.z + 2.0f};
+    Vector fwd{at.x + 32.0f, at.y, at.z};
+    return engine->TraceHull(at, fwd, hmin, hmax, MASK_PLAYERSOLID, filter, tr);
+  });
+}
+
+// What is the player standing on? Down-trace at the feet, print the hit
+// entity, material, plane normal, contents. Sees invisible collision
+// (playerclip, TOOLSINVISIBLE brush entities) that render geometry doesn't.
+CON_COMMAND(sar_harness_trace_down,
+            "sar_harness_trace_down [dist] - down-trace at the player's feet "
+            "(MASK_PLAYERSOLID); print hit entity, material, normal, "
+            "contents.\n") {
+  ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
+  if (!pl) {
+    console->Print("trace_down: no player.\n");
+    return;
+  }
+  float dist = args.ArgC() > 1 ? (float)std::atof(args[1]) : 200.0f;
+  CTraceFilterSimple filter;
+  filter.SetPassEntity(pl);
+  Vector feet = pl->abs_origin();
+  Vector top{feet.x, feet.y, feet.z + 40.0f};
+  QAngle down{90, 0, 0};
+  CGameTrace tr;
+  if (!engine->Trace(top, down, dist + 40.0f, MASK_PLAYERSOLID, filter, tr)) {
+    console->Print("trace_down: no hit within %.0fu below the feet\n", dist);
+    return;
+  }
+  const char* cls = tr.m_pEnt ? server->GetEntityClassName(tr.m_pEnt) : nullptr;
+  const char* name = tr.m_pEnt ? server->GetEntityName(tr.m_pEnt) : nullptr;
+  console->Print(
+      "trace_down: hit z=%.1f (feet dz=%.1f)\n"
+      "    normal   %.3f %.3f %.3f\n"
+      "    entity   %s \"%s\"\n"
+      "    material %s  contents 0x%x%s\n",
+      tr.endpos.z, feet.z - tr.endpos.z, tr.plane.normal.x, tr.plane.normal.y,
+      tr.plane.normal.z, cls && *cls ? cls : "(world)", name ? name : "",
+      tr.surface.name ? tr.surface.name : "?", (unsigned)tr.contents,
+      tr.startsolid ? "  STARTSOLID" : "");
 }

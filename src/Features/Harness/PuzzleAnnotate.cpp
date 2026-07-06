@@ -482,12 +482,14 @@ static std::vector<ReconField> ReconCollect(void* ent) {
 static std::unordered_map<std::string, std::string> g_reconBaseline;
 
 CON_COMMAND(sar_harness_dump_fields,
-            "sar_harness_dump_fields [diff|reset] - status-bearing fields for "
-            "every puzzle entity (recon for the status resolver). No arg: full "
-            "dump + store baseline. 'diff': only fields changed since the last "
-            "dump (run it after a state change). 'reset': clear the baseline. "
-            "Each field is tagged [net] (snapshotter sees it) or [dm ] "
-            "(datamap-only, currently missed).\n") {
+            "sar_harness_dump_fields [diff|reset|<name>] - status-bearing "
+            "fields for every puzzle entity (recon for the status resolver). "
+            "No arg: full dump + store baseline. 'diff': only fields changed "
+            "since the last dump (run it after a state change). 'reset': "
+            "clear the baseline. Any other arg: targetname substring, dump "
+            "matching entities regardless of class. Each field is tagged "
+            "[net] (snapshotter sees it) or [dm ] (datamap-only, currently "
+            "missed).\n") {
   if (args.ArgC() == 2 && !std::strcmp(args[1], "reset")) {
     g_reconBaseline.clear();
     console->Print("recon baseline cleared.\n");
@@ -503,6 +505,7 @@ CON_COMMAND(sar_harness_dump_fields,
     console->Print("no baseline yet; run sar_harness_dump_fields first.\n");
     diff = false;
   }
+  const char* nameFilter = args.ArgC() == 2 && !diff ? args[1] : nullptr;
 
   std::unordered_map<std::string, std::string> current;
   int changes = 0;
@@ -514,14 +517,17 @@ CON_COMMAND(sar_harness_dump_fields,
     auto ent = info->m_pEntity;
     const char* className = server->GetEntityClassName(ent);
     if (!className) continue;
-    // Recon set = the mark/annotate classes plus the laser chain props
-    // (catcher/relay) that kClassColors omits.
-    bool reconClass = kClassColors.find(className) != kClassColors.end() ||
-                      !std::strcmp(className, "prop_laser_catcher") ||
-                      !std::strcmp(className, "prop_laser_relay");
-    if (!reconClass) continue;
-
     const char* targetName = server->GetEntityName(ent);
+    if (nameFilter) {
+      if (!targetName || !std::strstr(targetName, nameFilter)) continue;
+    } else {
+      // Recon set = the mark/annotate classes plus the laser chain props
+      // (catcher/relay) that kClassColors omits.
+      bool reconClass = kClassColors.find(className) != kClassColors.end() ||
+                        !std::strcmp(className, "prop_laser_catcher") ||
+                        !std::strcmp(className, "prop_laser_relay");
+      if (!reconClass) continue;
+    }
     bool headerPrinted = false;
     auto header = [&]() {
       if (headerPrinted) return;
