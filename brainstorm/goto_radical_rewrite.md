@@ -1,11 +1,40 @@
 <!-- Radical rewrite design + implementation plan for go_to locomotion. Written 2026-07-05. Sequel to
 goto_planner_deep_dive.md (the "why the current stack is broken" half — read that first). Design
 settled with the user across a judge-panel + several review passes; §9 logs every decision. Forcing
-function: azorae_stride_postmortem.md (single-Z go_to drowned ~24% of a run's budget). STATUS: design
-FROZEN, decisions logged (§9); implementation plan in §6 awaiting green-light on P0. No code written
-yet. -->
+function: azorae_stride_postmortem.md (single-Z go_to drowned ~24% of a run's budget). STATUS: P0-P2
+built (last commit 8ab002a5); PARKED mid-P2 — the visualizer exposed that the BSP-face floor primitive
+is wrong, and the proposed reachability-flood cleanup was rejected. Read §0 (TOP OF MIND) first: next
+is a recon on how to find flat surfaces + connecting stairs reliably before resuming. -->
 
 # Radical rewrite: `NavSkeleton` — a BSP-backed multi-Z surface-graph go_to
+
+## 0. TOP OF MIND — picking up 2026-07-06 (parked mid-P2)
+
+Where we stopped: the P2 visualizer works and is doing its job — it revealed that the
+**BSP-face + hull-fit filter can't cleanly find the walkable floor.** `CanStand` (3×3
+grid hull-fit, `NavSkeleton.cpp`) rejects exactly two things: faces with no collision
+(down-trace misses) and faces boxed in by a wall (`startsolid`). It **cannot** reject a
+*real, solid, small, up-facing* surface with air above — angled wall panels, laser-receiver
+tops, ledges, railing caps all pass, because *locally* a 16u decorative ledge is identical
+to the floor. So the graph is still visually messy (stairs not marked, wall slabs marked).
+
+The cleanup I proposed — **coalesce WALK-connected faces into level-nodes + flood-fill
+reachability from the player to drop islands** — the user does **not** like. Reasons it's
+unsatisfying: it's a global patch bolted over a bad per-face primitive (fixes the symptom,
+not the "what is a floor" question); reachability-from-player is state-dependent and fragile;
+and it still leans on `normal.z>0.7` render faces as the source of truth.
+
+**Preferred direction (user, to explore tomorrow): lead with a RECON**, the way we did for
+status fields / BSP I-O. Before committing to any graph-cleanup heuristic, reconnoiter how
+to find **flat walkable surfaces more reliably** and how to detect the **stairs / connectors**
+that join them — i.e. get the primitive right (what geometry/attributes actually mark a
+standable floor and a step) instead of over-generating render faces and filtering after.
+Open questions for the recon: is there a better source than LUMP_FACES (collision brushes /
+`phys` / `playerclip`, the nav-mesh Valve ships, or a runtime standable-sweep)? what cleanly
+separates a step-riser+tread pair from a decorative slab? can we key on material / brush
+contents rather than `normal.z`? Recon first, decide the primitive, *then* resume P2→P3.
+
+Nothing committed since `8ab002a5`; hold all further commits until the primitive is settled.
 
 ## 1. Why a radical rewrite is justified NOW (and wasn't before)
 
