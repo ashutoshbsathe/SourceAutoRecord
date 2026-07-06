@@ -18,6 +18,38 @@ cover: Demaine et al. 2018 (cube+button+door alone is PSPACE-complete).
 
 ---
 
+## Top of mind (2026-07-06) — FLOOD PRIMITIVE SHIPPED: NavSkeleton F1–F4, old surface graph deleted
+
+**The "what is a floor" question is answered, shipped, and verified in-game.** The recon
+([nav_floor_primitive_recon.md](nav_floor_primitive_recon.md)) settled it: **a seeded runtime
+hull-trace flood IS the primitive** — the same `MASK_PLAYERSOLID` query the player's movement
+code issues — with BSP floor faces demoted to a seed list. Two facts forced it: the PeTI stair
+ramp is an invisible all-TOOLSINVISIBLE `func_door` with **zero** render faces (present in 80/278
+local workshop eval maps), and no static BSP attribute encodes floor-vs-ledge — floor-ness is a
+reachability property (Valve's own `.nav` is structurally blind here: generation traces through
+`func_door` and its mask skips playerclip). In-game probes closed every unknown: 1.2–1.8 µs/trace
+→ synchronous flood 20–180 ms/chamber; ramp solid at normal.z 0.884; deploy gate =
+`m_toggle_state` (datamap-only, 1 = deployed); retracted stairs leave a FLAT walkable floor —
+deploy toggles a *connector*, not a hole.
+
+**Shipped `06c0809f…a0424d56`:** trace recon probes (`trace_bench` / `trace_down` /
+`dump_fields <name>`) → **F1** flood core (32u lattice, dual climb cap 18u flat / 34u slope,
+slope support-offset lift — review caught startsolid-on-any-slope pre-commit, the same defect
+that made `CanStand` stair-blind; goo-above-floor rejection) → **F2** cell-carpet lens
+(`sar_harness_nav_draw_cells`) → **F3** cluster graph (union-find flat levels + connector runs,
+typed directed edges) → **F4** "delete *": Surface graph / `CanStand` / old visualizer gone,
+one system remains. Verified on azorae stride — stairs carpeted (screenshot in
+`noteworthy_trajectories/`). Legacy GoToPlanner/MarchTo intentionally alive until P5's swap.
+
+**NEXT:** nit sweep (footprint-based chain-merge for wide treads, empty-flood latch fix,
+via-is-advisory note) → **P3** deploy-state gates on cluster edges → **P4** two-level A*
+(global clusters / local cells) + `PlanResult` + ghost path → **P5** pure-pursuit follower +
+DELETE GoToPlanner/MarchTo/VFH + distinct terminal codes → **P6** py grammar +
+`agentloop_smoke` → azorae stride acceptance rerun. Detail + resume point:
+[goto_radical_rewrite.md](goto_radical_rewrite.md) §0.
+
+---
+
 ## Top of mind (2026-07-04) — drop_into PARKED; pivot to a GEMINI-EVAL PUSH on the shipped tools
 
 **Decision (2026-07-04): `drop_into` is BUILT but PARKED.** Both arms (self floor-entry +

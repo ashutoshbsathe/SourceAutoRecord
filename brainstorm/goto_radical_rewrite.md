@@ -1,40 +1,52 @@
 <!-- Radical rewrite design + implementation plan for go_to locomotion. Written 2026-07-05. Sequel to
 goto_planner_deep_dive.md (the "why the current stack is broken" half — read that first). Design
 settled with the user across a judge-panel + several review passes; §9 logs every decision. Forcing
-function: azorae_stride_postmortem.md (single-Z go_to drowned ~24% of a run's budget). STATUS: P0-P2
-built (last commit 8ab002a5); PARKED mid-P2 — the visualizer exposed that the BSP-face floor primitive
-is wrong, and the proposed reachability-flood cleanup was rejected. Read §0 (TOP OF MIND) first: next
-is a recon on how to find flat surfaces + connecting stairs reliably before resuming. -->
+function: azorae_stride_postmortem.md (single-Z go_to drowned ~24% of a run's budget). STATUS: the
+floor primitive was RESOLVED by recon (nav_floor_primitive_recon.md) and the flood layer F1-F4 is
+SHIPPED through a0424d56 — flood cells + cluster graph replaced the BSP-face surface graph (deleted).
+Read §0 for the resume point; §1-§9 below predate the flood and read "Surface" where the shipped
+code says "CellCluster". -->
 
 # Radical rewrite: `NavSkeleton` — a BSP-backed multi-Z surface-graph go_to
 
-## 0. TOP OF MIND — picking up 2026-07-06 (parked mid-P2)
+## 0. TOP OF MIND — 2026-07-06 close: flood primitive SHIPPED (F1–F4), resume at nit sweep → P3
 
-Where we stopped: the P2 visualizer works and is doing its job — it revealed that the
-**BSP-face + hull-fit filter can't cleanly find the walkable floor.** `CanStand` (3×3
-grid hull-fit, `NavSkeleton.cpp`) rejects exactly two things: faces with no collision
-(down-trace misses) and faces boxed in by a wall (`startsolid`). It **cannot** reject a
-*real, solid, small, up-facing* surface with air above — angled wall panels, laser-receiver
-tops, ledges, railing caps all pass, because *locally* a 16u decorative ledge is identical
-to the floor. So the graph is still visually messy (stairs not marked, wall slabs marked).
+The mid-P2 park resolved in one day. The recon
+([nav_floor_primitive_recon.md](nav_floor_primitive_recon.md)) replaced the BSP-face
+primitive outright: **walkability = a seeded runtime hull-trace flood** (down-ray +
+standing-hull fit per 32u cell, swept-hull links, dual climb cap 18u flat / 34u slope,
+one-way DROP ≤128u, goo rejected); BSP floor faces are only the seed list. Shipped and
+user-verified in-game (screenshot `noteworthy_trajectories/Screenshot_20260706_224555.png`):
 
-The cleanup I proposed — **coalesce WALK-connected faces into level-nodes + flood-fill
-reachability from the player to drop islands** — the user does **not** like. Reasons it's
-unsatisfying: it's a global patch bolted over a bad per-face primitive (fixes the symptom,
-not the "what is a floor" question); reachability-from-player is state-dependent and fragile;
-and it still leans on `normal.z>0.7` render faces as the source of truth.
+- **F1** `NavSkeleton::Flood` (`5167a7ba`) — critical pre-commit review catch: a hull fit
+  at ray-z+2 startsolids on any slope >~7° (a box rests on its uphill corner); the slope
+  support-offset lift fixed it and retroactively explains why `CanStand` never saw stairs.
+- **F2** cell-carpet lens (`f5e6bae3`) — `sar_harness_nav_draw_cells`, radius default 1024,
+  ≤0 = whole map; toggling `sar_harness_nav_draw` re-floods at live entity state.
+- **F3+F4** (`a0424d56`) — cluster graph (union-find flat levels + small-cluster connector
+  runs, typed directed edges, `nav_dump` prints it) and **wholesale deletion** of the old
+  system (`Surface`/`CanStand`/`BuildEdges`/old visualizer). Terminology map for the rest
+  of this doc: Surface → `CellCluster`, surface edges → cluster edges; the two-level plan
+  (global A* / local routing) now means global-over-clusters / local-over-cells (`nbr[4]`
+  is populated for exactly this).
 
-**Preferred direction (user, to explore tomorrow): lead with a RECON**, the way we did for
-status fields / BSP I-O. Before committing to any graph-cleanup heuristic, reconnoiter how
-to find **flat walkable surfaces more reliably** and how to detect the **stairs / connectors**
-that join them — i.e. get the primitive right (what geometry/attributes actually mark a
-standable floor and a step) instead of over-generating render faces and filtering after.
-Open questions for the recon: is there a better source than LUMP_FACES (collision brushes /
-`phys` / `playerclip`, the nav-mesh Valve ships, or a runtime standable-sweep)? what cleanly
-separates a step-riser+tread pair from a decorative slab? can we key on material / brush
-contents rather than `normal.z`? Recon first, decide the primitive, *then* resume P2→P3.
-
-Nothing committed since `8ab002a5`; hold all further commits until the primitive is settled.
+**Resume here — in order:**
+1. **Nit sweep** (review found 0 bugs, 8 nits): wide treads (≥8 cells) defeat the
+   count-based chain-merge → one cluster per tread (correct graph, noisy nodes; judge
+   smallness by XY footprint instead); NavVisualize latches an empty build if RENDER fires
+   before the player exists (latch only on `Ready()`); dead includes; dead WALK arm in the
+   cluster-edge type ternary; assert the `nbr` overwrite invariant (4u margin: 72u hull vs
+   2×34u climb).
+2. **P3 gates**: deploy-state gates on cluster edges. Recon facts ready: PeTI stairs gate =
+   `m_toggle_state` **datamap-only** (1 = deployed = door CLOSED — relay semantics inverted,
+   fire `-ramp_up/down_relay` not the door), retracted stairs leave flat walkable floor
+   (gate toggles the connector only).
+3. **P4 A***: global cluster route / local cell route; `PlanResult` + ghost path. Caveat
+   from review: edge `via` is ADVISORY (dedupe keeps one arbitrary crossing when two
+   doorways join the same cluster pair) — local cell routing stays authoritative.
+4. **P5 follower + swap** (delete GoToPlanner/MarchTo/VFH/RouteAround — still alive and
+   serving `go_to` until this lands), **P6** py grammar + `agentloop_smoke`, then the
+   azorae stride end-to-end acceptance rerun.
 
 ## 1. Why a radical rewrite is justified NOW (and wasn't before)
 
