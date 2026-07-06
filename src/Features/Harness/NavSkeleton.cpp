@@ -30,7 +30,7 @@ constexpr float kAdjGap = 4.0f;  // XY AABBs within this (both axes): adjacent
 // walkable-limit 45.57deg slope rises ~33u per 32u cell; a 27.9deg stair ramp
 // ~17u). Distinct stacked floors in one column are >=72u apart (hull height),
 // so kZSeparate splits them unambiguously.
-constexpr float kCell = 32.0f;
+constexpr float kCell = NavSkeleton::kCellSize;
 constexpr float kLift = 2.0f;
 constexpr float kStepClimb = 18.0f;
 constexpr float kSlopeClimb = 34.0f;

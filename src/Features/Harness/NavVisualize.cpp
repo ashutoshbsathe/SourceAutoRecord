@@ -2,9 +2,11 @@
 #include <string>
 #include <vector>
 
+#include "Entity.hpp"
 #include "Event.hpp"
 #include "Features/OverlayRender.hpp"
 #include "Modules/Engine.hpp"
+#include "Modules/Server.hpp"
 #include "NavSkeleton.hpp"
 #include "Variable.hpp"
 
@@ -20,6 +22,10 @@ Variable sar_harness_nav_draw_labels("sar_harness_nav_draw_labels", "0", 0, 1,
 Variable sar_harness_nav_draw_xray(
     "sar_harness_nav_draw_xray", "0", 0, 1,
     "Draw the nav graph with no depth test (through walls).\n");
+Variable sar_harness_nav_draw_cells(
+    "sar_harness_nav_draw_cells", "0", -1, 100000,
+    "Draw the flood cell carpet instead of the surface graph: cells within "
+    "this radius (units) of the player. -1 = whole map, 0 = off.\n");
 
 namespace {
 NavSkeleton g_nav;
@@ -48,7 +54,10 @@ Color EdgeColor(uint8_t t) {
 }  // namespace
 
 ON_EVENT(RENDER) {
-  if (!sar_harness_nav_draw.GetBool() || !engine) return;
+  if (!sar_harness_nav_draw.GetBool() || !engine) {
+    g_navMap.clear();  // toggling the draw back on rebuilds at live state
+    return;
+  }
   std::string map = engine->GetCurrentMapName();
   if (map != g_navMap) {
     g_nav.Build(map);
@@ -57,6 +66,61 @@ ON_EVENT(RENDER) {
   const std::vector<NavSkeleton::Surface>& surfaces = g_nav.Surfaces();
   if (surfaces.empty()) return;
   bool xray = sar_harness_nav_draw_xray.GetBool();
+  bool drops = sar_harness_nav_draw_drops.GetBool();
+
+  // Cell-carpet lens: the flood lattice itself, height-shaded, one inset quad
+  // per cell so coverage holes read as gaps. Replaces the surface-graph view.
+  float cellR = sar_harness_nav_draw_cells.GetFloat();
+  const std::vector<NavSkeleton::FloodCell>& cells = g_nav.Cells();
+  if (cellR != 0 && !cells.empty()) {
+    ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
+    Vector eye = pl ? pl->abs_origin() : Vector{0, 0, 0};
+    bool all = cellR < 0 || !pl;
+
+    float minZ = cells[0].z, maxZ = cells[0].z;
+    for (const NavSkeleton::FloodCell& c : cells) {
+      minZ = std::min(minZ, c.z);
+      maxZ = std::max(maxZ, c.z);
+    }
+    float span = maxZ - minZ;
+    constexpr int kBuckets = 12;
+    MeshId fill[kBuckets];
+    for (int b = 0; b < kBuckets; ++b) {
+      float t = (b + 0.5f) / kBuckets;
+      Color c{(uint8_t)(60 + t * 160), 90, (uint8_t)(220 - t * 160), 60};
+      fill[b] = OverlayRender::createMesh(RenderCallback::constant(c, xray),
+                                          RenderCallback::none);
+    }
+    MeshId dropMesh = OverlayRender::createMesh(
+        RenderCallback::none,
+        RenderCallback::constant(EdgeColor(NavSkeleton::DROP), xray));
+
+    constexpr float kPitch = NavSkeleton::kCellSize;
+    constexpr float kHalf = kPitch * 0.5f - 2.0f;
+    static const int DX[4] = {1, -1, 0, 0}, DY[4] = {0, 0, 1, -1};
+    for (const NavSkeleton::FloodCell& c : cells) {
+      float x = (c.cx + 0.5f) * kPitch, y = (c.cy + 0.5f) * kPitch;
+      if (!all) {
+        float dx = x - eye.x, dy = y - eye.y, dz = c.z - eye.z;
+        if (dx * dx + dy * dy + dz * dz > cellR * cellR) continue;
+      }
+      float t = span > 1.0f ? (c.z - minZ) / span : 0.5f;
+      int b = std::min(kBuckets - 1, (int)(t * kBuckets));
+      float z = c.z + 1.0f;
+      OverlayRender::addQuad(fill[b], Vector{x - kHalf, y - kHalf, z},
+                             Vector{x + kHalf, y - kHalf, z},
+                             Vector{x + kHalf, y + kHalf, z},
+                             Vector{x - kHalf, y + kHalf, z},
+                             /*cull_back*/ false);
+      if (drops)
+        for (int d = 0; d < 4; ++d)
+          if (c.dropMask & 1 << d)
+            OverlayRender::addLine(
+                dropMesh, Vector{x, y, z + 1.0f},
+                Vector{x + DX[d] * kPitch, y + DY[d] * kPitch, z + 1.0f});
+    }
+    return;
+  }
 
   // Surface fills, shaded by height (low = blue, high = red), bucketed so a few
   // meshes carry all the quads.
@@ -87,7 +151,6 @@ ON_EVENT(RENDER) {
   }
 
   // Edges as lines between surface centers, one mesh per type.
-  bool drops = sar_harness_nav_draw_drops.GetBool();
   MeshId em[6];
   for (int t = 0; t < 6; ++t)
     em[t] = OverlayRender::createMesh(

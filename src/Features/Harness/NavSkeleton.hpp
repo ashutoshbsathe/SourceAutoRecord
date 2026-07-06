@@ -11,6 +11,8 @@
 // routing, returned as steps the follower and the path visualizer both consume.
 class NavSkeleton {
  public:
+  static constexpr float kCellSize = 32.0f;  // flood lattice pitch
+
   enum EdgeType : uint8_t { WALK, STEP_UP, STEP_DOWN, DROP, PORTAL, FLING };
   enum PlanCode : uint8_t { SUCCESS, REACHED_PROJECTION, NO_ROUTE, STUCK };
   enum BlockReason : uint8_t { NONE, NO_FLOOR, IN_WALL, SEVERED, ABOVE_REACH };
