@@ -234,23 +234,26 @@ struct BrushEntRef {
   int model;
 };
 
+// Next quoted token in an entity block; false at block end or EOF.
+bool NextQuoted(const std::vector<char>& text, size_t* i, std::string* s) {
+  size_t n = text.size();
+  while (*i < n && text[*i] != '"' && text[*i] != '}') ++*i;
+  if (*i >= n || text[*i] == '}') return false;
+  size_t start = ++*i;
+  while (*i < n && text[*i] != '"') ++*i;
+  if (*i >= n) return false;
+  s->assign(&text[start], *i - start);
+  ++*i;
+  return true;
+}
+
 std::vector<BrushEntRef> ParseBrushEnts(const std::vector<char>& text) {
   std::vector<BrushEntRef> out;
   size_t i = 0, n = text.size();
-  auto quoted = [&](std::string* s) {
-    while (i < n && text[i] != '"' && text[i] != '}') ++i;
-    if (i >= n || text[i] == '}') return false;
-    size_t start = ++i;
-    while (i < n && text[i] != '"') ++i;
-    if (i >= n) return false;
-    s->assign(&text[start], i - start);
-    ++i;
-    return true;
-  };
   while (i < n) {
     if (text[i++] != '{') continue;
     std::string targetname, model, key, val;
-    while (quoted(&key) && quoted(&val)) {
+    while (NextQuoted(text, &i, &key) && NextQuoted(text, &i, &val)) {
       if (key == "targetname")
         targetname = val;
       else if (key == "model")
@@ -260,6 +263,34 @@ std::vector<BrushEntRef> ParseBrushEnts(const std::vector<char>& text) {
     // driven by I/O), so they are skipped rather than mis-posed.
     if (!targetname.empty() && model.size() > 1 && model[0] == '*')
       out.push_back({targetname, std::atoi(model.c_str() + 1)});
+  }
+  return out;
+}
+
+// Entity I/O lives in the same blocks as repeated output keys:
+// "OnPressed" "target,input,param,delay,refires" (comma or 0x1b separated).
+std::vector<IoLink> ExtractIoLinks(const std::vector<char>& text) {
+  std::vector<IoLink> out;
+  size_t i = 0, n = text.size();
+  while (i < n) {
+    if (text[i++] != '{') continue;
+    std::string cls, name, key, val;
+    std::vector<std::string> targets;
+    while (NextQuoted(text, &i, &key) && NextQuoted(text, &i, &val)) {
+      if (key == "classname")
+        cls = val;
+      else if (key == "targetname")
+        name = val;
+      else if (key.compare(0, 2, "On") == 0) {
+        // separator-less "On*" keys are plain keyvalues (OnTriggerChanceN),
+        // not outputs
+        size_t sep = val.find_first_of(",\x1b");
+        if (sep != std::string::npos) targets.push_back(val.substr(0, sep));
+      }
+    }
+    if (name.empty()) continue;
+    for (const std::string& t : targets)
+      if (!t.empty()) out.push_back({name, cls, t});
   }
   return out;
 }
@@ -552,14 +583,13 @@ std::vector<FloorSurface> ClusterFloors(const BspFile& bsp) {
         continue;  // PeTI origin-instance geometry
 
       FloorSurface s;
-      s.normal = grp.normal;
       s.z = center.z;
-      s.corners[0] = PlanePoint(umin, vmin, u, vv, grp.dist, grp.normal);
-      s.corners[1] = PlanePoint(umax, vmin, u, vv, grp.dist, grp.normal);
-      s.corners[2] = PlanePoint(umax, vmax, u, vv, grp.dist, grp.normal);
-      s.corners[3] = PlanePoint(umin, vmax, u, vv, grp.dist, grp.normal);
-      s.mins = s.maxs = s.corners[0];
-      for (const Vector& c : s.corners) {
+      Vector corners[4] = {PlanePoint(umin, vmin, u, vv, grp.dist, grp.normal),
+                           PlanePoint(umax, vmin, u, vv, grp.dist, grp.normal),
+                           PlanePoint(umax, vmax, u, vv, grp.dist, grp.normal),
+                           PlanePoint(umin, vmax, u, vv, grp.dist, grp.normal)};
+      s.mins = s.maxs = corners[0];
+      for (const Vector& c : corners) {
         s.mins.x = std::min(s.mins.x, c.x);
         s.mins.y = std::min(s.mins.y, c.y);
         s.mins.z = std::min(s.mins.z, c.z);
@@ -611,6 +641,12 @@ std::vector<FloorSurface> EnumerateFloorSurfaces(const std::string& mapName) {
   BspFile bsp;
   if (!LoadByMap(mapName, &bsp)) return {};
   return ClusterFloors(bsp);
+}
+
+std::vector<IoLink> EnumerateIoLinks(const std::string& mapName) {
+  BspFile bsp;
+  if (!LoadByMap(mapName, &bsp)) return {};
+  return ExtractIoLinks(bsp.entText);
 }
 
 std::vector<DynamicPanelRest> BspFilePanelSource::EnumerateDynamicRests(

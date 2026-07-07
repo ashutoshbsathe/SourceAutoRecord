@@ -9,7 +9,7 @@ code says "CellCluster". -->
 
 # Radical rewrite: `NavSkeleton` — a BSP-backed multi-Z surface-graph go_to
 
-## 0. TOP OF MIND — 2026-07-06 close: flood primitive SHIPPED (F1–F4), resume at nit sweep → P3
+## 0. TOP OF MIND — 2026-07-07 close: nit sweep + P3 gates SHIPPED, resume at P4 A*
 
 The mid-P2 park resolved in one day. The recon
 ([nav_floor_primitive_recon.md](nav_floor_primitive_recon.md)) replaced the BSP-face
@@ -31,22 +31,37 @@ user-verified in-game (screenshot `noteworthy_trajectories/Screenshot_20260706_2
   is populated for exactly this).
 
 **Resume here — in order:**
-1. **Nit sweep** (review found 0 bugs, 8 nits): wide treads (≥8 cells) defeat the
-   count-based chain-merge → one cluster per tread (correct graph, noisy nodes; judge
-   smallness by XY footprint instead); NavVisualize latches an empty build if RENDER fires
-   before the player exists (latch only on `Ready()`); dead includes; dead WALK arm in the
-   cluster-edge type ternary; assert the `nbr` overwrite invariant (4u margin: 72u hull vs
-   2×34u climb).
-2. **P3 gates**: deploy-state gates on cluster edges. Recon facts ready: PeTI stairs gate =
-   `m_toggle_state` **datamap-only** (1 = deployed = door CLOSED — relay semantics inverted,
-   fire `-ramp_up/down_relay` not the door), retracted stairs leave flat walkable floor
-   (gate toggles the connector only).
+1. **Nit sweep — DONE 2026-07-07**: narrow-axis-span chain-merge (`kRunSpan` = 2 cells;
+   wide treads merge, ≤64u catwalks now count as runs — accepted); NavVisualize latches
+   only on `Ready()` and `Build` skips the .bsp parse without a player; dead includes /
+   WALK arm removed; `nbr` overwrite invariant asserted (live assert, no NDEBUG);
+   `FloorSurface` trimmed to z/mins/maxs (normal/corners had zero readers).
+2. **P3 gates — SHIPPED 2026-07-07 (verified in-game on azorae stride: retracting
+   stairs46 removed the connector cluster + its gated edges, ramp folded into walkable
+   floor; the stairs-only upper platform correctly dropped out as unreachable), REFRAMED**: the
+   flood traces movers at live pose, so live-pose gating happens for free (retracted stairs
+   = no connector cells = no edge) and a Gate is **annotation, not a plan-time filter**:
+   `{mover targetname, z at flood time, controlling button}`. Cells resting on a named
+   brush entity (`m_ModelName` starts `*`; named movable props excluded) carry the gate;
+   a cluster edge is gated iff either crossing cell is. Freshness = **flood-per-plan**
+   (`go_to` rebuilds per call, 20–180 ms; cached-graph + staleness check deferred).
+   Buttons via `EnumerateIoLinks` (**1-hop** entText connections parse, `srcClass`
+   contains "button") — PeTI stairs' button→relay→door chain stays unresolved in v0
+   (transitive inference is the `py/bsp_recon` sidecar's job; recon facts on
+   `m_toggle_state`/relays above remain valid for whoever needs to *drive* the stairs).
+   Post-verify notes: retracted step slabs are named func_brushes, so floor cells over
+   them pick up silent intra-cluster gates (harmless, arguably true); the visualizer
+   refreshes on map change / draw-toggle only — a moverZ-drift auto-refresh (~15 LOC)
+   is an accepted-if-wanted nicety.
 3. **P4 A***: global cluster route / local cell route; `PlanResult` + ghost path. Caveat
    from review: edge `via` is ADVISORY (dedupe keeps one arbitrary crossing when two
    doorways join the same cluster pair) — local cell routing stays authoritative.
 4. **P5 follower + swap** (delete GoToPlanner/MarchTo/VFH/RouteAround — still alive and
-   serving `go_to` until this lands), **P6** py grammar + `agentloop_smoke`, then the
-   azorae stride end-to-end acceptance rerun.
+   serving `go_to` until this lands), then the **laser-verb gravity fix** (interpose/redirect
+   teleport-snaps must leave the cube under live gravity — the vphysics-sleep freeze lets a
+   mid-air cube reach any point; POWERED-while-frozen is fake, see
+   [azorae_stride_postmortem.md](azorae_stride_postmortem.md)), **P6** py grammar +
+   `agentloop_smoke`, then the azorae stride end-to-end acceptance rerun.
 
 ## 1. Why a radical rewrite is justified NOW (and wasn't before)
 

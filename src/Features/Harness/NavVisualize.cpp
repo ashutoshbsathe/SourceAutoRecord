@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -90,10 +89,10 @@ ON_EVENT(RENDER) {
   std::string map = engine->GetCurrentMapName();
   if (map != g_navMap) {
     g_nav.Build(map);
+    if (!g_nav.Ready()) return;  // no player yet: retry next frame
     g_navMap = map;
   }
   const std::vector<NavSkeleton::FloodCell>& cells = g_nav.Cells();
-  if (cells.empty()) return;
   bool xray = sar_harness_nav_draw_xray.GetBool();
   bool drops = sar_harness_nav_draw_drops.GetBool();
 

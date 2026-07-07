@@ -21,13 +21,14 @@ class NavSkeleton {
   struct Edge {
     uint32_t from = 0, to = 0;  // cluster ids
     uint8_t type = WALK;
-    Vector via;         // transition point between the two clusters
-    uint32_t gate = 0;  // 0 = always-open; else index into gates_
+    Vector via;  // one crossing point, advisory: dedupe keeps an arbitrary
+                 // one when several doorways join the same cluster pair
+    uint32_t gate = 0;  // 0 = always-open; else 1-based index into gates_
   };
   struct Gate {
-    uint32_t ctrlEnt = 0;  // mover whose live pose enables the edge
-    float enableZ = 0;
-    uint32_t button = 0;  // controlling button, surfaced as an agent hint
+    std::string mover;   // targetname of the brush entity the crossing rests on
+    float moverZ = 0;    // z at flood time: the pose this edge exists under
+    std::string button;  // a button wired to the mover in the map's I/O
   };
 
   static constexpr uint32_t kNoCell = 0xFFFFFFFF;
@@ -44,6 +45,7 @@ class NavSkeleton {
     uint8_t dropMask = 0;
     uint32_t nbr[4] = {kNoCell, kNoCell, kNoCell, kNoCell};
     uint32_t cluster = 0;
+    uint32_t gate = 0;  // as Edge::gate, for the mover this cell rests on
   };
 
   // A maximal group of flood cells: a flat level (walk-linked at |dz| <=
@@ -78,6 +80,7 @@ class NavSkeleton {
   const std::vector<FloodCell>& Cells() const { return cells_; }
   const std::vector<CellCluster>& Clusters() const { return clusters_; }
   const std::vector<Edge>& ClusterEdges() const { return clusterEdges_; }
+  const std::vector<Gate>& Gates() const { return gates_; }
   float FloodMs() const { return floodMs_; }
   bool FloodCapped() const { return floodCapped_; }
 

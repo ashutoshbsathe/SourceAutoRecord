@@ -1,7 +1,9 @@
 #include "NavSkeleton.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <chrono>
+#include <climits>
 #include <cmath>
 #include <cstdlib>
 #include <unordered_map>
@@ -12,8 +14,6 @@
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
 #include "Modules/Server.hpp"
-#include "Offsets.hpp"
-#include "Utils/SDK/EntityEdict.hpp"
 #include "Utils/SDK/Trace.hpp"
 
 namespace {
@@ -31,7 +31,8 @@ constexpr float kMaxDrop = 128.0f;
 constexpr float kFlatNz = 0.95f;
 constexpr float kZSeparate = 36.0f;
 constexpr uint32_t kMaxCells = 100000;
-constexpr uint32_t kMinLevel = 8;  // smaller clusters chain into connector runs
+constexpr int kRunSpan = 2;  // clusters at most this many cells across their
+                             // narrow axis chain into connector runs
 
 const char* EdgeName(uint8_t t) {
   switch (t) {
@@ -53,12 +54,20 @@ void NavSkeleton::Build(const std::string& mapName) {
   gates_.clear();
   ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
   std::vector<Vector> seeds;
-  if (pl) seeds.push_back(pl->abs_origin());
-  for (const FloorSurface& fs : EnumerateFloorSurfaces(mapName))
-    seeds.push_back(Vector{(fs.mins.x + fs.maxs.x) * 0.5f,
-                           (fs.mins.y + fs.maxs.y) * 0.5f, fs.z});
+  if (pl) {  // Flood needs the player's hull; don't parse the .bsp without one
+    seeds.push_back(pl->abs_origin());
+    for (const FloorSurface& fs : EnumerateFloorSurfaces(mapName))
+      seeds.push_back(Vector{(fs.mins.x + fs.maxs.x) * 0.5f,
+                             (fs.mins.y + fs.maxs.y) * 0.5f, fs.z});
+  }
   Flood(seeds);
-  // TODO: deploy-state gates on cluster edges.
+  // Direct button->mover wirings annotate the gates; button->relay->mover
+  // chains stay unresolved here (transitive inference is the sidecar's job).
+  if (!gates_.empty())
+    for (const IoLink& l : EnumerateIoLinks(mapName))
+      if (l.srcClass.find("button") != std::string::npos)
+        for (Gate& g : gates_)
+          if (g.button.empty() && g.mover == l.target) g.button = l.src;
 }
 
 // Seeded BFS over the lattice: a cell exists iff the standing player hull
@@ -96,7 +105,27 @@ void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
     return kLift + halfW * std::sqrt(2.0f * (1.0f - nz * nz)) / nz;
   };
 
-  auto probe = [&](int cx, int cy, float fromZ, float* z, float* nz) {
+  // Cells resting on a named brush entity (stairs, lifts, flip panels) carry
+  // a gate: the flood already traces the mover's live pose, so the gate is
+  // annotation (which mover, which button), not a plan-time filter. Named
+  // movable props are not map machinery and stay gate-free.
+  std::unordered_map<std::string, uint32_t> gateOf;
+  auto moverGate = [&](void* ent) -> uint32_t {
+    if (!ent) return 0;
+    const char* nm = server->GetEntityName(ent);
+    if (!nm || !*nm) return 0;
+    const char* mdl = SE(ent)->field<char*>("m_ModelName");
+    if (!mdl || mdl[0] != '*') return 0;
+    auto it = gateOf.find(nm);
+    if (it == gateOf.end()) {
+      gates_.push_back(Gate{nm, SE(ent)->abs_origin().z, {}});
+      it = gateOf.emplace(nm, (uint32_t)gates_.size()).first;
+    }
+    return it->second;
+  };
+
+  auto probe = [&](int cx, int cy, float fromZ, float* z, float* nz,
+                   uint32_t* gate) {
     Vector top{center(cx), center(cy), fromZ + kSlopeClimb + kLift};
     QAngle down{90, 0, 0};
     CGameTrace tr;
@@ -116,6 +145,7 @@ void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
       return false;
     *z = tr.endpos.z;
     *nz = tr.plane.normal.z;
+    *gate = moverGate(tr.m_pEnt);
     return true;
   };
   auto find = [&](int cx, int cy, float z) -> int {
@@ -125,8 +155,10 @@ void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
       if (std::fabs(cells_[i].z - z) < kZSeparate) return (int)i;
     return -1;
   };
-  auto add = [&](int cx, int cy, float z, float nz) {
-    cells_.push_back(FloodCell{cx, cy, z, nz, 0, 0});
+  auto add = [&](int cx, int cy, float z, float nz, uint32_t gate) {
+    FloodCell fc{cx, cy, z, nz};
+    fc.gate = gate;
+    cells_.push_back(fc);
     columns[colKey(cx, cy)].push_back((uint32_t)cells_.size() - 1);
     return (uint32_t)cells_.size() - 1;
   };
@@ -134,8 +166,9 @@ void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
   for (const Vector& s : seeds) {
     int cx = (int)std::floor(s.x / kCell), cy = (int)std::floor(s.y / kCell);
     float z, nz;
-    if (!probe(cx, cy, s.z, &z, &nz)) continue;
-    if (find(cx, cy, z) < 0) add(cx, cy, z, nz);
+    uint32_t g;
+    if (!probe(cx, cy, s.z, &z, &nz, &g)) continue;
+    if (find(cx, cy, z) < 0) add(cx, cy, z, nz, g);
   }
 
   static const int DX[4] = {1, -1, 0, 0}, DY[4] = {0, 0, 1, -1};
@@ -149,7 +182,8 @@ void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
       if (c.walkMask & 1 << d) continue;  // linked when the neighbor expanded
       int nx = c.cx + DX[d], ny = c.cy + DY[d];
       float z, nz;
-      if (!probe(nx, ny, c.z, &z, &nz)) continue;
+      uint32_t g;
+      if (!probe(nx, ny, c.z, &z, &nz, &g)) continue;
       float dz = z - c.z;
       float climb = c.nz > kFlatNz && nz > kFlatNz ? kStepClimb : kSlopeClimb;
       bool walk = std::fabs(dz) <= climb;
@@ -162,8 +196,11 @@ void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
                             sweep))
         continue;
       int found = find(nx, ny, z);
-      uint32_t ni = found >= 0 ? (uint32_t)found : add(nx, ny, z, nz);
+      uint32_t ni = found >= 0 ? (uint32_t)found : add(nx, ny, z, nz, g);
       if (walk) {
+        // A second link into ni's slot needs two floors of one column within
+        // 2*kSlopeClimb (68u) of ni; standable floors sit >= 72u apart.
+        assert(cells_[ni].nbr[d ^ 1] == kNoCell);
         cells_[i].walkMask |= 1 << d;
         cells_[i].nbr[d] = ni;
         cells_[ni].walkMask |= 1 << (d ^ 1);
@@ -182,10 +219,13 @@ void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
 
 // Collapse cells into the legible graph: flat walk links (|dz| <= kWalkFlat)
 // union into level clusters, then crossing links whose pass-1 clusters are
-// BOTH small union transitively — a staircase of treads or a chain of ramp
+// BOTH narrow union transitively — a staircase of treads or a chain of ramp
 // cells becomes one connector run, but runs never absorb into a level.
-// Smallness is judged on pre-merge sizes by design. Crossing links become
-// typed directed cluster edges, deduped per (from, to, type).
+// Narrowness is the cluster's narrow-axis span (a tread stays narrow however
+// wide the stair), judged pre-merge by design. Crossing links become typed
+// directed cluster edges, deduped per (from, to, type); the first crossing's
+// via and gate win (both advisory). An edge is gated iff either crossing
+// cell rests on a mover.
 void NavSkeleton::Cluster() {
   clusters_.clear();
   clusterEdges_.clear();
@@ -206,14 +246,23 @@ void NavSkeleton::Cluster() {
         if (std::fabs(cells_[j].z - cells_[i].z) <= kWalkFlat) join(i, j);
       }
 
-  std::vector<uint32_t> size(cells_.size(), 0);
-  for (uint32_t i = 0; i < cells_.size(); ++i) size[root(i)]++;
+  std::vector<int> x0(cells_.size(), INT_MAX), x1(cells_.size(), INT_MIN);
+  std::vector<int> y0(cells_.size(), INT_MAX), y1(cells_.size(), INT_MIN);
+  for (uint32_t i = 0; i < cells_.size(); ++i) {
+    uint32_t r = root(i);
+    x0[r] = std::min(x0[r], cells_[i].cx);
+    x1[r] = std::max(x1[r], cells_[i].cx);
+    y0[r] = std::min(y0[r], cells_[i].cy);
+    y1[r] = std::max(y1[r], cells_[i].cy);
+  }
+  auto narrow = [&](uint32_t r) {
+    return std::min(x1[r] - x0[r], y1[r] - y0[r]) < kRunSpan;
+  };
   for (uint32_t i = 0; i < cells_.size(); ++i)
     for (int d = 0; d < 4; ++d)
       if (cells_[i].walkMask & 1 << d) {
         uint32_t ri = root(i), rj = root(cells_[i].nbr[d]);
-        if (ri != rj && size[ri] < kMinLevel && size[rj] < kMinLevel)
-          join(ri, rj);
+        if (ri != rj && narrow(ri) && narrow(rj)) join(ri, rj);
       }
 
   std::unordered_map<uint32_t, uint32_t> idOf;
@@ -242,24 +291,24 @@ void NavSkeleton::Cluster() {
   }
 
   std::unordered_map<uint64_t, bool> seen;
-  auto emit = [&](uint32_t from, uint32_t to, uint8_t type, const Vector& via) {
+  auto emit = [&](uint32_t from, uint32_t to, uint8_t type, const Vector& via,
+                  uint32_t gate) {
     uint64_t key = ((uint64_t)from << 34) | ((uint64_t)to << 4) | type;
     if (seen.emplace(key, true).second)
-      clusterEdges_.push_back(Edge{from, to, type, via, 0});
+      clusterEdges_.push_back(Edge{from, to, type, via, gate});
   };
   for (const FloodCell& c : cells_)
     for (int d = 0; d < 4; ++d) {
       if (!((c.walkMask | c.dropMask) & 1 << d)) continue;
       const FloodCell& n = cells_[c.nbr[d]];
       if (n.cluster == c.cluster) continue;
+      // walk links at |dz| <= kWalkFlat never cross clusters (pass 1 joins
+      // them), so a crossing walk link is always a step
       float dz = n.z - c.z;
-      uint8_t type = c.dropMask & 1 << d ? DROP
-                     : std::fabs(dz) <= kWalkFlat
-                         ? WALK
-                         : (dz > 0 ? STEP_UP : STEP_DOWN);
+      uint8_t type = c.dropMask & 1 << d ? DROP : dz > 0 ? STEP_UP : STEP_DOWN;
       Vector via{(c.cx + n.cx + 1) * kCell * 0.5f,
                  (c.cy + n.cy + 1) * kCell * 0.5f, std::max(c.z, n.z)};
-      emit(c.cluster, n.cluster, type, via);
+      emit(c.cluster, n.cluster, type, via, c.gate ? c.gate : n.gate);
     }
 }
 
@@ -303,15 +352,24 @@ CON_COMMAND(sar_harness_nav_dump,
         nav.FloodCapped() ? "  CAPPED" : "");
 
   const std::vector<NavSkeleton::CellCluster>& clusters = nav.Clusters();
-  console->Print("nav_dump: %d clusters, %d cluster edges\n",
-                 (int)clusters.size(), (int)nav.ClusterEdges().size());
+  console->Print("nav_dump: %d clusters, %d cluster edges, %d gates\n",
+                 (int)clusters.size(), (int)nav.ClusterEdges().size(),
+                 (int)nav.Gates().size());
   for (const NavSkeleton::CellCluster& cl : clusters)
     console->Msg("    C%u %u cells z[%.0f..%.0f] x[%.0f..%.0f] y[%.0f..%.0f]\n",
                  cl.id, cl.cells, cl.zMin, cl.zMax, cl.mins.x, cl.maxs.x,
                  cl.mins.y, cl.maxs.y);
-  for (const NavSkeleton::Edge& e : nav.ClusterEdges())
-    console->Msg("    C%u -%s-> C%u @ %.0f %.0f %.0f\n", e.from,
-                 EdgeName(e.type), e.to, e.via.x, e.via.y, e.via.z);
+  for (const NavSkeleton::Edge& e : nav.ClusterEdges()) {
+    std::string gate;
+    if (e.gate) {
+      const NavSkeleton::Gate& g = nav.Gates()[e.gate - 1];
+      gate =
+          "  [" + g.mover + (g.button.empty() ? "" : " btn " + g.button) + "]";
+    }
+    console->Msg("    C%u -%s-> C%u @ %.0f %.0f %.0f%s\n", e.from,
+                 EdgeName(e.type), e.to, e.via.x, e.via.y, e.via.z,
+                 gate.c_str());
+  }
 }
 
 // Time the engine trace kinds a floor flood issues: ray down-trace,

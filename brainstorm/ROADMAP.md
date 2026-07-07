@@ -41,10 +41,17 @@ typed directed edges) → **F4** "delete *": Surface graph / `CanStand` / old vi
 one system remains. Verified on azorae stride — stairs carpeted (screenshot in
 `noteworthy_trajectories/`). Legacy GoToPlanner/MarchTo intentionally alive until P5's swap.
 
-**NEXT:** nit sweep (footprint-based chain-merge for wide treads, empty-flood latch fix,
-via-is-advisory note) → **P3** deploy-state gates on cluster edges → **P4** two-level A*
-(global clusters / local cells) + `PlanResult` + ghost path → **P5** pure-pursuit follower +
-DELETE GoToPlanner/MarchTo/VFH + distinct terminal codes → **P6** py grammar +
+**Shipped 2026-07-07:** nit sweep (narrow-axis chain-merge, Ready()-latch, dead code,
+nbr assert) + **P3 gates**, reframed — the flood traces live pose so a Gate is annotation
+{mover, z, button}, not a plan-time filter; flood-per-plan freshness; 1-hop button parse
+(`EnumerateIoLinks`). Verified on azorae stride (retract → connector + gated edges vanish).
+Detail: [goto_radical_rewrite.md](goto_radical_rewrite.md) §0.
+
+**NEXT:** **P4** A* + `PlanResult` + ghost path → **P5** pure-pursuit follower +
+DELETE GoToPlanner/MarchTo/VFH + distinct terminal codes → **laser-verb gravity honesty**
+(interpose/redirect teleport-snaps must leave the cube under live gravity — the vphysics-sleep
+freeze lets a mid-air cube reach any point and POWERED-while-frozen is fake, see
+[azorae_stride_postmortem.md](azorae_stride_postmortem.md)) → **P6** py grammar +
 `agentloop_smoke` → azorae stride acceptance rerun. Detail + resume point:
 [goto_radical_rewrite.md](goto_radical_rewrite.md) §0.
 
