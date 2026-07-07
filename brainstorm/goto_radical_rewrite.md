@@ -70,8 +70,29 @@ user-verified in-game (screenshot `noteworthy_trajectories/Screenshot_20260706_2
    at standPos, amber residual stub both signs). Review: 4 confirmed findings fixed, 2
    refuted; integration lens incomplete (session limit) — its risk spots hand-checked.
    Prior caveat stands: edge `via` is ADVISORY — cell routing is authoritative.
-4. **P5 follower + swap** (delete GoToPlanner/MarchTo/VFH/RouteAround — still alive and
-   serving `go_to` until this lands), then the **laser-verb gravity fix** (interpose/redirect
+4. **P5 follower + swap — RECON DONE + PLAN DRAFTED 2026-07-08, awaiting user sign-off**
+   on two calls: (a) hard cutover to SUCCESS/REACHED_PROJECTION/NO_ROUTE/STUCK (breaks
+   agentloop_smoke whitelist + gemini prompt until P6 — P6 lands immediately after, one
+   smoke run verifies both); (b) skip the HELD entity in the flood's trace filter (held
+   cube culls cells under it → carry plan through a doorway can false-NO_ROUTE; needs a
+   skip-two-entities filter, fallback = accept detour). Plan: **P5.1** `FollowTo(context,
+   dest, reachRadius, tickBudget) → FollowOutcome` (mirrors MarchOutcome fields) in
+   MacroExecutor.cpp anon-ns — Build+Plan → waypoint follow (24u advance, straight-line
+   heading, NO VFH), view-then-move per 4-tick batch (ApplyAbsoluteView clears the
+   framebulk: move AFTER it), leg-stall → re-Build+re-Plan ×2 → STUCK, 3D arrival vs
+   plan.standPos, stop = clear+velocity-zero+24 settle; GoTo = resolve (keep grabbable
+   standoff inflation) → FollowTo → new codes. **P5.2** interpose/pass_through(≤80u
+   tolerance)/drop_into swap MarchTo+RouteAround → FollowTo (~15 LOC). **P5.3** DELETE:
+   GoToPlanner.{hpp,cpp} whole (its 3 recon cmds incl laser_reachability_test are
+   recon-complete), MarchTo/VFH/RouteAround/InjectObstacles/wedge machinery + both
+   duplicate obstacle-class lists + sar_harness_goto_plan. KEEP: CheckEdge (Move uses),
+   TargetFootprint (standoff), kGoToTickBatch/MaxTicks/Settle/ReachRadius, kStuckEps,
+   kProbeHeight/kStepDownMax (FindPlayerStandoff), kApproachGap, InterposeGate (reword
+   its MarchTo comment); repurpose sar_harness_goto_debug for the follower (autoexec.cfg:14
+   sets it). `interact` calls MacroExecutor::GoTo and branches on reached — keep signature.
+   Full recon (interface codes table, actuation recipe, deletion inventory w/ file:line):
+   session transcript 2026-07-08; key facts re-derivable via nav docs + MacroExecutor.
+   Then the **laser-verb gravity fix** (interpose/redirect
    teleport-snaps must leave the cube under live gravity — the vphysics-sleep freeze lets a
    mid-air cube reach any point; POWERED-while-frozen is fake, see
    [azorae_stride_postmortem.md](azorae_stride_postmortem.md)), **P6** py grammar +
