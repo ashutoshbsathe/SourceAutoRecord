@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "Utils/SDK/Math.hpp"
@@ -16,7 +17,14 @@ class NavSkeleton {
 
   enum EdgeType : uint8_t { WALK, STEP_UP, STEP_DOWN, DROP, PORTAL, FLING };
   enum PlanCode : uint8_t { SUCCESS, REACHED_PROJECTION, NO_ROUTE, STUCK };
-  enum BlockReason : uint8_t { NONE, NO_FLOOR, IN_WALL, SEVERED, ABOVE_REACH };
+  enum BlockReason : uint8_t {
+    NONE,
+    NO_FLOOR,
+    IN_WALL,
+    SEVERED,
+    ABOVE_REACH,
+    BELOW_REACH,
+  };
 
   struct Edge {
     uint32_t from = 0, to = 0;  // cluster ids
@@ -75,7 +83,7 @@ class NavSkeleton {
   };
 
   void Build(const std::string& mapName);
-  PlanResult Plan(const Vector& start, const Vector& target);
+  PlanResult Plan(const Vector& start, const Vector& target) const;
   bool Ready() const { return !cells_.empty(); }
   const std::vector<FloodCell>& Cells() const { return cells_; }
   const std::vector<CellCluster>& Clusters() const { return clusters_; }
@@ -87,11 +95,18 @@ class NavSkeleton {
  private:
   void Flood(const std::vector<Vector>& seeds);
   void Cluster();  // cells -> level clusters + connector runs + typed edges
+  static uint64_t ColKey(int cx, int cy);
+  uint32_t CellAt(int cx, int cy, float z) const;  // kNoCell if none
 
   std::vector<Gate> gates_;
   std::vector<FloodCell> cells_;
   std::vector<CellCluster> clusters_;
   std::vector<Edge> clusterEdges_;
+  std::unordered_map<uint64_t, std::vector<uint32_t>> columns_;
   float floodMs_ = 0;
   bool floodCapped_ = false;
 };
+
+// Ghost-path handoff: sar_harness_nav_plan stores its result here; the nav
+// visualizer draws it while sar_harness_nav_draw is on and this map is live.
+void NavGhostSet(const NavSkeleton::PlanResult& plan, const std::string& map);

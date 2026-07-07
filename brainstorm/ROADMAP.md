@@ -47,7 +47,12 @@ nbr assert) + **P3 gates**, reframed — the flood traces live pose so a Gate is
 (`EnumerateIoLinks`). Verified on azorae stride (retract → connector + gated edges vanish).
 Detail: [goto_radical_rewrite.md](goto_radical_rewrite.md) §0.
 
-**NEXT:** **P4** A* + `PlanResult` + ghost path → **P5** pure-pursuit follower +
+**Shipped 2026-07-08:** **P4 planner** — flat single-source Dijkstra over flood cells
+(two-level cluster A* dropped by design; clusters = annotation), two-tier goal resolve
+with mandatory projection reasons (new `BELOW_REACH`), `sar_harness_nav_plan <x y z|mark>`
++ ghost-path overlay. Verified in-game (stair descent routes, tower → projection+reason).
+
+**NEXT:** **P5** pure-pursuit follower +
 DELETE GoToPlanner/MarchTo/VFH + distinct terminal codes → **laser-verb gravity honesty**
 (interpose/redirect teleport-snaps must leave the cube under live gravity — the vphysics-sleep
 freeze lets a mid-air cube reach any point and POWERED-while-frozen is fake, see

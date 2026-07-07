@@ -6,11 +6,14 @@
 #include <climits>
 #include <cmath>
 #include <cstdlib>
+#include <queue>
 #include <unordered_map>
 
 #include "BspFilePanelSource.hpp"
 #include "Command.hpp"
 #include "Entity.hpp"
+#include "Features/EntityList.hpp"
+#include "MarkTable.hpp"
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
 #include "Modules/Server.hpp"
@@ -34,6 +37,15 @@ constexpr uint32_t kMaxCells = 100000;
 constexpr int kRunSpan = 2;  // clusters at most this many cells across their
                              // narrow axis chain into connector runs
 
+// Route costs (units of path length) and the goal's actionable envelope: a
+// stand cell counts as arrival when the target is within arm's reach of the
+// body standing there.
+constexpr float kDropExtra = 64.0f;  // prefer stairs over a comparable ledge
+constexpr float kReachXy = 64.0f;
+constexpr float kReachUp = 88.0f;    // target at most this far above the floor
+constexpr float kReachDown = 16.0f;  // ... or this far below it
+constexpr float kInf = 1e30f;
+
 const char* EdgeName(uint8_t t) {
   switch (t) {
     case NavSkeleton::WALK:
@@ -48,7 +60,49 @@ const char* EdgeName(uint8_t t) {
       return "?";
   }
 }
+
+const char* PlanName(uint8_t c) {
+  switch (c) {
+    case NavSkeleton::SUCCESS:
+      return "SUCCESS";
+    case NavSkeleton::REACHED_PROJECTION:
+      return "REACHED_PROJECTION";
+    case NavSkeleton::NO_ROUTE:
+      return "NO_ROUTE";
+    default:
+      return "STUCK";
+  }
+}
+
+const char* BlockName(uint8_t b) {
+  switch (b) {
+    case NavSkeleton::NO_FLOOR:
+      return "NO_FLOOR";
+    case NavSkeleton::IN_WALL:
+      return "IN_WALL";
+    case NavSkeleton::SEVERED:
+      return "SEVERED";
+    case NavSkeleton::ABOVE_REACH:
+      return "ABOVE_REACH";
+    case NavSkeleton::BELOW_REACH:
+      return "BELOW_REACH";
+    default:
+      return "NONE";
+  }
+}
 }  // namespace
+
+uint64_t NavSkeleton::ColKey(int cx, int cy) {
+  return (uint64_t)(uint32_t)cx << 32 | (uint32_t)cy;
+}
+
+uint32_t NavSkeleton::CellAt(int cx, int cy, float z) const {
+  auto it = columns_.find(ColKey(cx, cy));
+  if (it == columns_.end()) return kNoCell;
+  for (uint32_t i : it->second)
+    if (std::fabs(cells_[i].z - z) < kZSeparate) return i;
+  return kNoCell;
+}
 
 void NavSkeleton::Build(const std::string& mapName) {
   gates_.clear();
@@ -79,6 +133,7 @@ void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
   cells_.clear();
   clusters_.clear();
   clusterEdges_.clear();
+  columns_.clear();
   floodMs_ = 0;
   floodCapped_ = false;
   ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
@@ -91,10 +146,6 @@ void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
   CTraceFilterSimple filter;
   filter.SetPassEntity(pl);
 
-  std::unordered_map<uint64_t, std::vector<uint32_t>> columns;
-  auto colKey = [](int cx, int cy) {
-    return (uint64_t)(uint32_t)cx << 32 | (uint32_t)cy;
-  };
   auto center = [](int c) { return c * kCell + kCell * 0.5f; };
 
   // A box on a slope rests on its uphill corner, above the center-ray hit by
@@ -148,18 +199,11 @@ void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
     *gate = moverGate(tr.m_pEnt);
     return true;
   };
-  auto find = [&](int cx, int cy, float z) -> int {
-    auto it = columns.find(colKey(cx, cy));
-    if (it == columns.end()) return -1;
-    for (uint32_t i : it->second)
-      if (std::fabs(cells_[i].z - z) < kZSeparate) return (int)i;
-    return -1;
-  };
   auto add = [&](int cx, int cy, float z, float nz, uint32_t gate) {
     FloodCell fc{cx, cy, z, nz};
     fc.gate = gate;
     cells_.push_back(fc);
-    columns[colKey(cx, cy)].push_back((uint32_t)cells_.size() - 1);
+    columns_[ColKey(cx, cy)].push_back((uint32_t)cells_.size() - 1);
     return (uint32_t)cells_.size() - 1;
   };
 
@@ -168,7 +212,7 @@ void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
     float z, nz;
     uint32_t g;
     if (!probe(cx, cy, s.z, &z, &nz, &g)) continue;
-    if (find(cx, cy, z) < 0) add(cx, cy, z, nz, g);
+    if (CellAt(cx, cy, z) == kNoCell) add(cx, cy, z, nz, g);
   }
 
   static const int DX[4] = {1, -1, 0, 0}, DY[4] = {0, 0, 1, -1};
@@ -195,8 +239,8 @@ void NavSkeleton::Flood(const std::vector<Vector>& seeds) {
       if (engine->TraceHull(from, to, hmin, hmax, MASK_PLAYERSOLID, filter,
                             sweep))
         continue;
-      int found = find(nx, ny, z);
-      uint32_t ni = found >= 0 ? (uint32_t)found : add(nx, ny, z, nz, g);
+      uint32_t found = CellAt(nx, ny, z);
+      uint32_t ni = found != kNoCell ? found : add(nx, ny, z, nz, g);
       if (walk) {
         // A second link into ni's slot needs two floors of one column within
         // 2*kSlopeClimb (68u) of ni; standable floors sit >= 72u apart.
@@ -312,12 +356,169 @@ void NavSkeleton::Cluster() {
     }
 }
 
+// Single-source shortest path over the whole flood (walk links symmetric,
+// drops directed), then two-tier goal resolution: the cheapest reachable
+// cell inside the target's actionable envelope wins (SUCCESS); with none,
+// the reachable cell nearest the target is its projection and the plan
+// walks there anyway (REACHED_PROJECTION + residuals). The cluster graph is
+// the legible/annotation layer; routing runs on cells.
 NavSkeleton::PlanResult NavSkeleton::Plan(const Vector& start,
-                                          const Vector& target) {
-  (void)start;
+                                          const Vector& target) const {
   PlanResult r;
   r.target = target;
-  // TODO: global cluster A* + local within-cluster routing.
+  r.standPos = start;
+  if (cells_.empty()) {
+    r.blockReason = NO_FLOOR;
+    return r;
+  }
+
+  auto centerOf = [this](uint32_t i) {
+    const FloodCell& c = cells_[i];
+    return Vector{(c.cx + 0.5f) * kCell, (c.cy + 0.5f) * kCell, c.z};
+  };
+
+  // start = the feet's own column when it holds a standable cell (grounded,
+  // on a prop, or airborne over it); neighbor columns only back it up,
+  // scored by 3D distance and never above the feet by more than a mountable
+  // step (an adjacent ledge must not capture the start).
+  int scx = (int)std::floor(start.x / kCell);
+  int scy = (int)std::floor(start.y / kCell);
+  uint32_t sc = kNoCell;
+  float bestDz = kInf;
+  if (auto it = columns_.find(ColKey(scx, scy)); it != columns_.end())
+    for (uint32_t i : it->second) {
+      float dz = start.z - cells_[i].z;  // positive: cell below the feet
+      if (dz < -kSlopeClimb || dz > kMaxDrop) continue;
+      if (std::fabs(dz) < bestDz) {
+        bestDz = std::fabs(dz);
+        sc = i;
+      }
+    }
+  if (sc == kNoCell) {
+    float best = kInf;
+    for (int dy = -1; dy <= 1; ++dy)
+      for (int dx = -1; dx <= 1; ++dx) {
+        if (!dx && !dy) continue;
+        auto it = columns_.find(ColKey(scx + dx, scy + dy));
+        if (it == columns_.end()) continue;
+        for (uint32_t i : it->second) {
+          float dz = start.z - cells_[i].z;
+          if (dz < -kStepClimb || dz > kMaxDrop) continue;
+          Vector p = centerOf(i);
+          float d = (p.x - start.x) * (p.x - start.x) +
+                    (p.y - start.y) * (p.y - start.y) + dz * dz;
+          if (d < best) {
+            best = d;
+            sc = i;
+          }
+        }
+      }
+  }
+  if (sc == kNoCell) {
+    r.blockReason = NO_FLOOR;
+    return r;
+  }
+
+  std::vector<float> dist(cells_.size(), kInf);
+  std::vector<uint32_t> prev(cells_.size(), kNoCell);
+  using QE = std::pair<float, uint32_t>;
+  std::priority_queue<QE, std::vector<QE>, std::greater<QE>> pq;
+  dist[sc] = 0;
+  pq.push({0, sc});
+  while (!pq.empty()) {
+    auto [d, i] = pq.top();
+    pq.pop();
+    if (d > dist[i]) continue;
+    const FloodCell& c = cells_[i];
+    for (int k = 0; k < 4; ++k) {
+      if (!((c.walkMask | c.dropMask) & 1 << k)) continue;
+      uint32_t j = c.nbr[k];
+      float w = kCell + std::fabs(cells_[j].z - c.z) +
+                (c.dropMask & 1 << k ? kDropExtra : 0.0f);
+      if (d + w < dist[j]) {
+        dist[j] = d + w;
+        prev[j] = i;
+        pq.push({dist[j], j});
+      }
+    }
+  }
+
+  uint32_t goal = kNoCell;
+  bool actionable = false;  // does any actionable cell exist, reachable or not
+  float bestCost = kInf;
+  for (uint32_t i = 0; i < cells_.size(); ++i) {
+    Vector p = centerOf(i);
+    float dx = p.x - target.x, dy = p.y - target.y, dz = target.z - p.z;
+    if (dx * dx + dy * dy > kReachXy * kReachXy || dz < -kReachDown ||
+        dz > kReachUp)
+      continue;
+    actionable = true;
+    if (dist[i] < bestCost) {
+      bestCost = dist[i];
+      goal = i;
+    }
+  }
+  if (goal != kNoCell) {
+    r.code = SUCCESS;
+    r.reached = true;
+  } else {
+    float best = kInf;
+    for (uint32_t i = 0; i < cells_.size(); ++i) {
+      if (dist[i] >= kInf) continue;
+      Vector p = centerOf(i);
+      float dx = p.x - target.x, dy = p.y - target.y, dz = p.z - target.z;
+      float d3 = dx * dx + dy * dy + dz * dz;
+      if (d3 < best) {
+        best = d3;
+        goal = i;
+      }
+    }
+    r.code = REACHED_PROJECTION;
+    // Every projection carries a reason; NO_FLOOR here means the target has
+    // no stand cell within lateral reach anywhere (hovering over a gap).
+    float dz = target.z - cells_[goal].z;
+    r.blockReason = actionable         ? SEVERED
+                    : dz > kReachUp    ? ABOVE_REACH
+                    : dz < -kReachDown ? BELOW_REACH
+                                       : NO_FLOOR;
+  }
+
+  Vector g = centerOf(goal);
+  r.standPos = g;
+  r.residualDxy = std::sqrt((target.x - g.x) * (target.x - g.x) +
+                            (target.y - g.y) * (target.y - g.y));
+  r.residualDz = target.z - g.z;
+
+  std::vector<uint32_t> chain;
+  for (uint32_t i = goal; i != kNoCell; i = prev[i]) chain.push_back(i);
+  std::reverse(chain.begin(), chain.end());
+
+  auto linkType = [this](uint32_t a, uint32_t b) -> uint8_t {
+    const FloodCell& ca = cells_[a];
+    for (int k = 0; k < 4; ++k) {
+      if (ca.nbr[k] != b) continue;
+      if (ca.dropMask & 1 << k) return DROP;
+      float dz = cells_[b].z - ca.z;
+      return std::fabs(dz) <= kWalkFlat ? WALK : dz > 0 ? STEP_UP : STEP_DOWN;
+    }
+    return WALK;
+  };
+  auto emit = [&](uint32_t i, uint8_t type) {
+    r.steps.push_back(
+        PlanStep{centerOf(i), cells_[i].z, type, cells_[i].cluster});
+  };
+  emit(chain[0], WALK);
+  // a step per heading or travel-type change; straight same-type runs skip
+  for (size_t k = 1; k < chain.size(); ++k) {
+    uint8_t t = linkType(chain[k - 1], chain[k]);
+    if (k + 1 < chain.size() && linkType(chain[k], chain[k + 1]) == t &&
+        cells_[chain[k + 1]].cx - cells_[chain[k]].cx ==
+            cells_[chain[k]].cx - cells_[chain[k - 1]].cx &&
+        cells_[chain[k + 1]].cy - cells_[chain[k]].cy ==
+            cells_[chain[k]].cy - cells_[chain[k - 1]].cy)
+      continue;
+    emit(chain[k], t);
+  }
   return r;
 }
 
@@ -369,6 +570,62 @@ CON_COMMAND(sar_harness_nav_dump,
     console->Msg("    C%u -%s-> C%u @ %.0f %.0f %.0f%s\n", e.from,
                  EdgeName(e.type), e.to, e.via.x, e.via.y, e.via.z,
                  gate.c_str());
+  }
+}
+
+// Flood the current map and plan a route from the player's feet to a point
+// or a marked entity. Prints the plan and hands it to the nav visualizer as
+// a ghost path. Read-only: nothing moves.
+CON_COMMAND(sar_harness_nav_plan,
+            "sar_harness_nav_plan <x y z | mark> - flood the map and plan a "
+            "walk route from the player to the point (or marked entity); "
+            "print the steps and store the ghost path for the nav draw. "
+            "Read-only.\n") {
+  ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
+  if (!pl || !engine) {
+    console->Print("nav_plan: no player.\n");
+    return;
+  }
+  Vector target;
+  if (args.ArgC() == 4) {
+    target = Vector{(float)std::atof(args[1]), (float)std::atof(args[2]),
+                    (float)std::atof(args[3])};
+  } else if (args.ArgC() == 2) {
+    auto [idx, ser] = markTable.GetEntityFromMark(std::atoi(args[1]));
+    CEntInfo* info = idx >= 0 ? entityList->GetEntityInfoByIndex(idx) : nullptr;
+    if (!info || !info->m_pEntity ||
+        static_cast<uint16_t>(info->m_SerialNumber) != ser) {
+      console->Print("nav_plan: bad mark %s.\n", args[1]);
+      return;
+    }
+    target = SE(info->m_pEntity)->abs_origin();
+  } else {
+    console->Print("nav_plan: expected <x y z> or <mark>.\n");
+    return;
+  }
+
+  NavSkeleton nav;
+  nav.Build(engine->GetCurrentMapName());
+  auto t0 = std::chrono::steady_clock::now();
+  NavSkeleton::PlanResult r = nav.Plan(pl->abs_origin(), target);
+  float planMs = std::chrono::duration<float, std::milli>(
+                     std::chrono::steady_clock::now() - t0)
+                     .count();
+  NavGhostSet(r, engine->GetCurrentMapName());
+
+  console->Print("nav_plan: %s%s%s  (flood %.0f ms, plan %.1f ms)\n",
+                 PlanName(r.code), r.blockReason ? " / " : "",
+                 r.blockReason ? BlockName(r.blockReason) : "", nav.FloodMs(),
+                 planMs);
+  console->Print(
+      "    target %.0f %.0f %.0f  stand %.0f %.0f %.0f  residual dz %.0f "
+      "dxy %.0f\n",
+      target.x, target.y, target.z, r.standPos.x, r.standPos.y, r.standPos.z,
+      r.residualDz, r.residualDxy);
+  for (size_t i = 0; i < r.steps.size(); ++i) {
+    const NavSkeleton::PlanStep& s = r.steps[i];
+    console->Msg("    %2d. %-4s to %.0f %.0f %.0f (C%u)\n", (int)i,
+                 EdgeName(s.edgeType), s.pos.x, s.pos.y, s.pos.z, s.cluster);
   }
 }
 

@@ -28,6 +28,8 @@ Variable sar_harness_nav_draw_xray(
 namespace {
 NavSkeleton g_nav;
 std::string g_navMap;
+NavSkeleton::PlanResult g_ghost;
+std::string g_ghostMap;
 
 constexpr int kPalette = 24;
 
@@ -80,6 +82,11 @@ Vector Centroid(const NavSkeleton::CellCluster& cl) {
           cl.zMax + 4.0f};
 }
 }  // namespace
+
+void NavGhostSet(const NavSkeleton::PlanResult& plan, const std::string& map) {
+  g_ghost = plan;
+  g_ghostMap = map;
+}
 
 ON_EVENT(RENDER) {
   if (!sar_harness_nav_draw.GetBool() || !engine) {
@@ -145,4 +152,22 @@ ON_EVENT(RENDER) {
                              /*visibility_scale*/ true, /*no_depth*/ true,
                              OverlayRender::TextAlign::CENTER, {220, 220, 220},
                              /*bg_col*/ {0, 0, 0, 160}, /*clamp*/ false, {});
+
+  // Ghost path from the last nav_plan: segments colored like cluster edges by
+  // travel type, a white cross at the stand point, an amber up-stub showing
+  // the leftover dz when the plan only reached the target's projection.
+  if (g_ghost.steps.empty() || g_ghostMap != map) return;
+  Vector lift{0, 0, 8.0f};
+  for (size_t i = 1; i < g_ghost.steps.size(); ++i)
+    OverlayRender::addLine(em[g_ghost.steps[i].edgeType % 6],
+                           g_ghost.steps[i - 1].pos + lift,
+                           g_ghost.steps[i].pos + lift);
+  MeshId gm = OverlayRender::createMesh(
+      RenderCallback::none, RenderCallback::constant({255, 255, 255}, xray));
+  Vector s = g_ghost.standPos + lift;
+  OverlayRender::addLine(gm, s + Vector{-12, -12, 0}, s + Vector{12, 12, 0});
+  OverlayRender::addLine(gm, s + Vector{-12, 12, 0}, s + Vector{12, -12, 0});
+  if (!g_ghost.reached && std::fabs(g_ghost.residualDz) > 1.0f)
+    OverlayRender::addLine(em[NavSkeleton::STEP_DOWN], s,
+                           s + Vector{0, 0, g_ghost.residualDz});
 }

@@ -9,7 +9,7 @@ code says "CellCluster". -->
 
 # Radical rewrite: `NavSkeleton` — a BSP-backed multi-Z surface-graph go_to
 
-## 0. TOP OF MIND — 2026-07-07 close: nit sweep + P3 gates SHIPPED, resume at P4 A*
+## 0. TOP OF MIND — 2026-07-08: P4 planner SHIPPED, resume at P5 follower + THE SWAP
 
 The mid-P2 park resolved in one day. The recon
 ([nav_floor_primitive_recon.md](nav_floor_primitive_recon.md)) replaced the BSP-face
@@ -53,9 +53,23 @@ user-verified in-game (screenshot `noteworthy_trajectories/Screenshot_20260706_2
    them pick up silent intra-cluster gates (harmless, arguably true); the visualizer
    refreshes on map change / draw-toggle only — a moverZ-drift auto-refresh (~15 LOC)
    is an accepted-if-wanted nicety.
-3. **P4 A***: global cluster route / local cell route; `PlanResult` + ghost path. Caveat
-   from review: edge `via` is ADVISORY (dedupe keeps one arbitrary crossing when two
-   doorways join the same cluster pair) — local cell routing stays authoritative.
+3. **P4 planner — SHIPPED 2026-07-08 (verified in-game: stair descent SUCCESS, elevator
+   tower REACHED_PROJECTION + reason, ghost ribbon correct, re-flood tracks retracted
+   stairs), FLAT**: user
+   approved dropping the two-level cluster A* — routing is one single-source Dijkstra
+   over flood cells (walk symmetric, drops directed +64 cost; clusters stay the
+   legibility/annotation layer). `Plan(start, target) const`: start = feet's own column
+   first, neighbor columns 3D-scored and capped at step height above the feet (review
+   catch: |dz|-only scoring resolved starts to arbitrary corner columns / unmountable
+   ledges); two-tier goal = cheapest reachable cell in the actionable envelope
+   (kReachXy 64 / up 88 / down 16) → SUCCESS, else nearest reachable = projection →
+   REACHED_PROJECTION where every projection now carries a reason (SEVERED /
+   ABOVE_REACH / new BELOW_REACH / NO_FLOOR-laterally; review catch: NONE read as clean
+   arrival). Steps emit at heading/type changes. `sar_harness_nav_plan <x y z | mark>`
+   prints the plan + hands a ghost path to the nav draw (edge-type colors, white cross
+   at standPos, amber residual stub both signs). Review: 4 confirmed findings fixed, 2
+   refuted; integration lens incomplete (session limit) — its risk spots hand-checked.
+   Prior caveat stands: edge `via` is ADVISORY — cell routing is authoritative.
 4. **P5 follower + swap** (delete GoToPlanner/MarchTo/VFH/RouteAround — still alive and
    serving `go_to` until this lands), then the **laser-verb gravity fix** (interpose/redirect
    teleport-snaps must leave the cube under live gravity — the vphysics-sleep freeze lets a
