@@ -66,11 +66,12 @@ Notes:
   arrived. Bearing is degrees off your facing (+ = left).
 - {caveat}
 - `last_result` is feedback. SUCCESS/COMPLETED = the verb did what you asked.
-  ADVANCED = you walked toward the mark but a wall/edge stopped you partway
-  (`moved` units shows how far) -- you are at a NEW position now, so re-read the
-  percept and re-plan; do NOT just repeat the same move. A failure like
-  STUCK/BLOCKED/WALL/EDGE/BAD_MARK means you did NOT move -- try a different
-  approach (e.g. `look` for an opening, then `move`, or pick a nearer mark).
+  REACHED_PROJECTION = go_to walked to the nearest reachable spot (beside a solid
+  target, or short of an out-of-reach ledge; `moved` units shows how far) -- you
+  are at a NEW position now, so re-read the percept and re-plan; do NOT just
+  repeat the same move. A failure like STUCK/NO_ROUTE/WALL/EDGE/BAD_MARK means you
+  did NOT reach it -- try a different approach (e.g. `look` for an opening, then
+  `move`, or pick a nearer mark).
   SEATED = a held cube is now resting on the button you released onto (success).
   NOT_FAIR/NOT_SEATED = the cube was only dropped, not placed -- get within reach
   of the button (and clear of walls/fizzlers) and release again.

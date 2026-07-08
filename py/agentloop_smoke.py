@@ -293,10 +293,10 @@ def check_move(ctx):
 
 def check_go_to(ctx):
     """go_to walks toward the farthest mark and must make real progress (or
-    reach it). An immediate BLOCKED/STUCK with no headway is treated as a
-    FAILURE -- it usually means the guard false-fired on open ground or the
-    march is broken (the regression this check exists to catch). Resets first for
-    a clean spawn; needs a chamber whose farthest mark is roughly walk-reachable."""
+    reach it). An immediate NO_ROUTE/STUCK with no headway is treated as a
+    FAILURE -- it usually means the flood misread open ground or the follower is
+    broken (the regression this check exists to catch). Resets first for a clean
+    spawn; needs a chamber whose farthest mark is roughly walk-reachable."""
     reset_to_spawn(ctx)
     ctx.harness.start_agent_loop()
     try:
@@ -328,7 +328,7 @@ def check_go_to(ctx):
     require(env.success, f'go_to step RPC failed: {env.error_message}')
     mr = env.macro_result
     require(
-        mr.result_code in ('SUCCESS', 'ADVANCED', 'STUCK', 'BLOCKED', 'UNREACHABLE'),
+        mr.result_code in ('SUCCESS', 'REACHED_PROJECTION', 'STUCK', 'NO_ROUTE'),
         f'unexpected go_to result_code {mr.result_code!r}',
     )
     ctx.observations.append(gamestate_dict(env.state, f'macro.go_to[{best.mark}]'))

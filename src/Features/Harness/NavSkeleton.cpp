@@ -445,7 +445,7 @@ NavSkeleton::PlanResult NavSkeleton::Plan(const Vector& start,
 
   uint32_t goal = kNoCell;
   bool actionable = false;  // does any actionable cell exist, reachable or not
-  float bestCost = kInf;
+  float bestToTarget = kInf;
   for (uint32_t i = 0; i < cells_.size(); ++i) {
     Vector p = centerOf(i);
     float dx = p.x - target.x, dy = p.y - target.y, dz = target.z - p.z;
@@ -453,8 +453,16 @@ NavSkeleton::PlanResult NavSkeleton::Plan(const Vector& start,
         dz > kReachUp)
       continue;
     actionable = true;
-    if (dist[i] < bestCost) {
-      bestCost = dist[i];
+    if (dist[i] >= kInf)
+      continue;  // in envelope but unreachable: counts for
+                 // the SEVERED reason below, not as a goal
+    // Closest reachable cell to the target wins (same metric as the projection
+    // branch), so a walk ENDS beside the target -- picking the
+    // cheapest-to-reach envelope cell instead parks the body at the near
+    // boundary (~kReachXy off).
+    float toTarget = dx * dx + dy * dy + dz * dz;
+    if (toTarget < bestToTarget) {
+      bestToTarget = toTarget;
       goal = i;
     }
   }

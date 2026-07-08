@@ -8,7 +8,6 @@
 #include <cstring>
 #include <memory>
 #include <string>
-#include <unordered_set>
 
 #include "Command.hpp"
 #include "Entity.hpp"
@@ -17,7 +16,6 @@
 #include "Features/Tas/TasController.hpp"
 #include "Features/Tas/TasPlayer.hpp"
 #include "Features/Tas/TasScript.hpp"
-#include "GoToPlanner.hpp"
 #include "Harness.hpp"
 #include "HarnessThread.hpp"
 #include "LaserGeometry.hpp"
@@ -25,6 +23,7 @@
 #include "Modules/Console.hpp"
 #include "Modules/Engine.hpp"
 #include "Modules/Server.hpp"
+#include "NavSkeleton.hpp"
 #include "Offsets.hpp"
 #include "PortalRead.hpp"
 #include "Scheduler.hpp"
@@ -38,7 +37,7 @@
 
 Variable sar_harness_goto_debug(
     "sar_harness_goto_debug", "0",
-    "Log per-batch go_to VFH steering (heading, clearance, feet move).\n");
+    "Log per-batch go_to flood-follow steering (waypoint, heading, dist).\n");
 
 namespace {
 
@@ -53,6 +52,9 @@ constexpr int kGoToTickBatch = 4;   // ticks advanced per march iteration
 constexpr int kGoToMaxTicks = 400;  // give up after this many ticks
 constexpr int kGoToSettle = 24;  // ticks to bleed off walk velocity at the end
 constexpr float kReachRadius = 48.0f;  // horizontal dist that counts as arrived
+constexpr float kGoToReach = 32.0f;  // go_to stops this near the target's stand
+                                     // cell -- tighter than kReachRadius so a
+                                     // follow-up pick_up/interact is in range
 // pass_through: approach the mouth, then push straight in until the engine
 // transits the body (feet jump to the far side).
 constexpr float kMouthStandoff = 28.0f;  // approach point in front of the mouth
@@ -81,30 +83,17 @@ constexpr float kDropStandoff =
     64.0f;  // drop_into object arm: carry-stop this far in front of the mouth
             // so the straight march never crosses the disc (the object drops
             // over it)
-constexpr float kApproachGap =
-    20.0f;  // extra standoff past an obstacle-target's footprint (hull gap +
-            // post-arrival coast) so go_to stops beside it, not into it
-constexpr float kLegRadius = 24.0f;  // looser arrival for an A* waypoint
-constexpr int kMaxReplans = 2;       // A* re-plans on a dynamically-blocked leg
-constexpr float kStuckEps = 1.0f;    // <this much progress/iter twice = stuck
+constexpr int kMaxReplans = 2;  // re-Build+re-Plan attempts on a stalled follow
+constexpr float kFollowAdvance =
+    24.0f;  // advance to the next plan waypoint within this 2D distance
+constexpr float kFollowStallEps =
+    2.0f;  // per-batch feet move under this counts as no progress
+constexpr int kFollowStallBatches =
+    8;  // consecutive no-progress batches -> re-plan (then STUCK)
+constexpr float kStuckEps = 1.0f;      // <this much progress/iter twice = stuck
 constexpr float kProbeHeight = 18.0f;  // lift the edge ray to ~step height
 constexpr float kStepAhead = 24.0f;    // edge ray is cast this far ahead
 constexpr float kStepDownMax = 64.0f;  // no floor within this below = edge
-// go_to VFH steering (see ChooseVfhHeading) + global-stall termination.
-constexpr float kGoToProgressEps = 4.0f;  // min closest-approach gain
-constexpr int kVfhBins = 24;              // clearance rays around the circle
-constexpr float kVfhProbeDist = 96.0f;    // per-ray clearance horizon (units)
-constexpr float kVfhClearMin = 40.0f;     // a bin is passable at/above this
-constexpr float kVfhClearWeight = 0.15f;  // clearance bonus vs goal-angle cost
-constexpr float kVfhHystBonus = 15.0f;    // deg-equiv bias to hold last heading
-constexpr int kGoToGlobalStall = 40;      // no-progress batches -> BLOCKED
-// Wedge detector: a move the point-ray says is clear but the feet don't take
-// (rim/lip/hull-clip the ray misses) blocks that heading for a cooldown, so the
-// next pick veers/backs out instead of pushing into it forever.
-constexpr float kWedgeEps = 3.0f;  // batch feet-move below this = stuck
-constexpr int kWedgeStuckBatches =
-    2;                              // no-move batches before a heading blocks
-constexpr int kWedgeCooldown = 16;  // batches a wedged heading stays blocked
 
 // Interaction-verb tuning (pick_up / release / interact).
 constexpr int kSettle = 20;       // ticks to let a grab/drop/use resolve
@@ -761,364 +750,208 @@ std::string CheckEdge(void* player, const Vector& feet, float worldYaw) {
   return "";
 }
 
-// Open distance along world yaw from `from`, capped at maxDist (point ray).
-// Main thread.
-float RayClearance(void* player, const Vector& from, float worldYaw,
-                   float maxDist) {
-  CTraceFilterSimple filter;
-  filter.SetPassEntity(player);
-  Vector pos = from;
-  QAngle ang{0, worldYaw, 0};
-  CGameTrace tr;
-  if (!engine->Trace(pos, ang, maxDist, MASK_PLAYERSOLID, filter, tr))
-    return maxDist;
-  return tr.fraction * maxDist;
-}
-
-// World yaw -> nearest VFH bin index in [0, kVfhBins).
-int VfhBin(float yaw) {
-  constexpr float binDeg = 360.0f / kVfhBins;
-  int b = static_cast<int>(std::lround(yaw / binDeg)) % kVfhBins;
-  return b < 0 ? b + kVfhBins : b;
-}
-
-// Props go_to routes around instead of shoving: cubes, boxes, turrets, buttons.
-bool IsGoToObstacleClass(const char* cls) {
-  if (!cls) return false;
-  return !std::strcmp(cls, "prop_weighted_cube") ||
-         !std::strcmp(cls, "prop_monster_box") ||
-         !std::strcmp(cls, "npc_portal_turret_floor") ||
-         !std::strcmp(cls, "prop_floor_button") ||
-         !std::strcmp(cls, "prop_floor_cube_button") ||
-         !std::strcmp(cls, "prop_floor_ball_button") ||
-         !std::strcmp(cls, "prop_under_floor_button") ||
-         !std::strcmp(cls, "prop_button");
-}
-
-// Footprint of an obstacle-class go_to target: its OBB centre -> *outCenter,
-// its circle radius returned (or -1 if targetKey is unset / not an obstacle
-// prop). Lets the obstacle stamps skip whatever the target's footprint overlaps
-// -- the button a cube is seated on -- so a route can actually reach a
-// cube-on-button. Main thread.
-float TargetFootprint(uint32_t targetKey, Vector* outCenter) {
-  if (!targetKey) return -1;
-  CEntInfo* info = entityList->GetEntityInfoByIndex(targetKey >> 16);
-  if (!info || !info->m_pEntity ||
-      static_cast<uint16_t>(info->m_SerialNumber) !=
-          static_cast<uint16_t>(targetKey))
-    return -1;
-  if (!IsGoToObstacleClass(server->GetEntityClassName(info->m_pEntity)))
-    return -1;
-  ServerEnt* se = SE(info->m_pEntity);
-  ICollideable& coll = se->collision();
-  Vector mn = coll.OBBMins(), mx = coll.OBBMaxs();
-  *outCenter = se->abs_origin() + (mn + mx) * 0.5f;
-  return 0.5f * Vector{mx.x - mn.x, mx.y - mn.y, 0}.Length2D();
-}
-
-// Lower each VFH bin's clearance to the free distance toward any obstacle prop
-// covering that bearing (footprint circle + player half-width), so go_to keeps
-// a >=kVfhClearMin standoff. Skips the target, anything its footprint overlaps,
-// and the held cube. Main thread.
-void InjectObstacles(float* clear, const Vector& feet, float playerHalfWidth,
-                     uint32_t targetKey, uint32_t heldKey) {
-  constexpr float binDeg = 360.0f / kVfhBins;
-  Vector tC{0, 0, 0};
-  float tR = TargetFootprint(targetKey, &tC);  // <0 => no overlap-skip
-  for (int i = 0; i < Offsets::NUM_ENT_ENTRIES; ++i) {
-    CEntInfo* info = entityList->GetEntityInfoByIndex(i);
-    if (!info || !info->m_pEntity) continue;
-    uint32_t key = PackEntKey(i, static_cast<uint16_t>(info->m_SerialNumber));
-    if (key == targetKey || key == heldKey) continue;
-    if (!IsGoToObstacleClass(server->GetEntityClassName(info->m_pEntity)))
-      continue;
-
-    ServerEnt* se = SE(info->m_pEntity);
-    ICollideable& coll = se->collision();
-    Vector mins = coll.OBBMins(), maxs = coll.OBBMaxs();
-    Vector center = se->abs_origin() + (mins + maxs) * 0.5f;
-    float footprintR =  // the obstacle's own circle (no body inflation)
-        0.5f * Vector{maxs.x - mins.x, maxs.y - mins.y, 0}.Length2D();
-    if (tR >=
-        0) {  // skip an obstacle overlapping the target (cube on a button)
-      float dxt = center.x - tC.x, dyt = center.y - tC.y;
-      if (dxt * dxt + dyt * dyt < (tR + footprintR) * (tR + footprintR))
-        continue;
-    }
-    Vector d{center.x - feet.x, center.y - feet.y, 0};
-    float dist = d.Length2D();
-    float radius = footprintR + playerHalfWidth;  // + player body
-    float freeDist = std::max(0.0f, dist - radius);
-    float halfWidth =  // overlap -> block the whole 90 deg arc toward it
-        (dist > radius) ? RAD2DEG(std::asin(radius / dist)) : 90.0f;
-    int span = static_cast<int>(std::ceil(halfWidth / binDeg));
-    int centerBin = VfhBin(RAD2DEG(std::atan2(d.y, d.x)));
-    for (int k = -span; k <= span; ++k) {
-      int b = ((centerBin + k) % kVfhBins + kVfhBins) % kVfhBins;
-      if (freeDist < clear[b]) clear[b] = freeDist;
-    }
+// A NavSkeleton projection reason as a word, for a go_to detail string.
+const char* NavReasonWord(uint8_t reason) {
+  switch (reason) {
+    case NavSkeleton::SEVERED:
+      return "severed";
+    case NavSkeleton::ABOVE_REACH:
+      return "above reach";
+    case NavSkeleton::BELOW_REACH:
+      return "below reach";
+    case NavSkeleton::NO_FLOOR:
+      return "no floor";
+    default:
+      return "none";
   }
 }
 
-struct VfhPick {
-  bool found = false;   // false => every heading is boxed or a cliff this batch
-  float yaw = 0;        // world heading the body should strafe toward
-  float clearance = 0;  // chosen bin's open distance (debug telemetry)
+// The result of one FollowTo: where the body ended up and why it stopped.
+// The codes are the NavSkeleton plan codes plus NO_PLAYER; a plan that reaches
+// the real goal is SUCCESS+reached, the nearest-reachable projection is
+// REACHED_PROJECTION, a stalled follow that never arrives is STUCK.
+struct FollowOutcome {
+  std::string code = "NO_ROUTE";  // SUCCESS/REACHED_PROJECTION/NO_ROUTE/STUCK/
+                                  // NO_PLAYER
+  bool reached = false;           // arrived AND the plan reached the real goal
+  bool cancelled = false;     // stream dropped; caller skips its own cleanup
+  float dist = 0;             // final 2D distance to the goal target
+  Vector finalFeet{0, 0, 0};  // for moved-distance telemetry
+  uint8_t blockReason = NavSkeleton::NONE;  // why a projection, for the detail
 };
 
-// 360 deg VFH: one clearance ray per bin; pick the highest-scoring passable,
-// non-cliff bin. Score = -|angle-to-goal| (dominant) + clearance + hysteresis.
-// Bins flagged in wedgeTtl (physically stuck, ray-invisible) are skipped.
-// Main thread.
-VfhPick ChooseVfhHeading(void* player, const Vector& feet, float goalBearing,
-                         float lastYaw, bool haveLast, const int* wedgeTtl,
-                         float playerHalfWidth, uint32_t targetKey,
-                         uint32_t heldKey) {
-  constexpr float binDeg = 360.0f / kVfhBins;
-  Vector probe = feet + Vector{0, 0, kProbeHeight};
-  float clear[kVfhBins];
-  for (int i = 0; i < kVfhBins; i++)
-    clear[i] = RayClearance(player, probe, i * binDeg, kVfhProbeDist);
-  // Analytic obstacle footprints (props the rays would shove) on top of the ray
-  // clearances, so the chosen valley routes around them.
-  InjectObstacles(clear, feet, playerHalfWidth, targetKey, heldKey);
-
-  for (int guard = 0; guard < kVfhBins; guard++) {
-    int best = -1;
-    float bestScore = 0;
-    for (int i = 0; i < kVfhBins; i++) {
-      if (clear[i] < kVfhClearMin || wedgeTtl[i] > 0) continue;
-      float yaw = i * binDeg;
-      float s = -std::fabs(NormalizeYaw(yaw - goalBearing)) +
-                kVfhClearWeight * clear[i];
-      if (haveLast && std::fabs(NormalizeYaw(yaw - lastYaw)) < binDeg * 0.5f)
-        s += kVfhHystBonus;
-      if (best < 0 || s > bestScore) {
-        best = i;
-        bestScore = s;
-      }
-    }
-    if (best < 0) return {};  // fully boxed
-    float yaw = best * binDeg;
-    if (CheckEdge(player, feet, yaw).empty()) return {true, yaw, clear[best]};
-    clear[best] = 0;  // cliff -> drop this bin and re-pick
-  }
-  return {};
-}
-
-// One VFH march leg's result. GoTo turns it into the MacroResult; the A* layer
-// chains legs and decrements the tick budget across them.
-struct MarchOutcome {
-  std::string code = "BLOCKED";  // SUCCESS / BLOCKED / NO_PLAYER (cap->BLOCKED)
-  bool reached = false;
-  bool cancelled = false;  // stream dropped mid-march; caller skips settle
-  float dist = 0;          // 2D dist to target at loop exit (pre-settle)
-  int ticksUsed = 0;       // ticks advanced; the cross-leg budget decrement
-};
-
-// One VFH march leg: strafe the body toward the freest goal-ward heading with
-// the camera held on `target`, advancing ticks in batches until arrival, a
-// global stall, the tick budget, or a dropped stream. Per-leg state (wedge ttl,
-// bestDist, lastYaw, stallBatches) starts fresh here, so chained legs don't
-// bleed stall into each other. The caller owns the post-march settle + result.
-MarchOutcome MarchTo(grpc::ServerContext* context, const Vector& target,
-                     float reachRadius, int tickBudget, uint32_t targetKey,
-                     uint32_t heldKey, const Vector& startFeet,
-                     float initialDist) {
-  MarchOutcome out;
-  out.dist = initialDist;
-  float bestDist = initialDist;  // closest 2D approach so far (global)
-  int stallBatches = 0;          // batches since bestDist last improved
-  float lastYaw = 0;             // committed heading (hysteresis)
-  bool haveLast = false;
-
-  struct Step {
-    bool noPlayer = false;
-    bool reached = false;
-    bool commandedMove = false;  // a strafe was issued (vs a boxed hold)
-    float dist = 0;
-    float chosenYaw = 0;
-    Vector feet{0, 0, 0};  // for per-batch displacement
-  };
-  struct WedgeState {
-    int ttl[kVfhBins] = {};  // per-bin physical-block countdown
-    int stuckRun = 0;  // consecutive no-move batches on a committed heading
-  };
-
-  auto wedge = std::make_shared<WedgeState>();
-  Vector prevFeet = startFeet;
-  bool lastCommandedMove = false;
-  int t = 0;
-  for (; t < tickBudget; t += kGoToTickBatch) {
-    auto step = std::make_shared<Step>();
-    bool ok = RunOnMainThreadSync(
-        context, [step, target, lastYaw, haveLast, lastCommandedMove, prevFeet,
-                  wedge, t, bestDist, targetKey, heldKey, reachRadius]() {
-          ServerEnt* pl = server->GetPlayer(1);
-          if (!pl) {
-            step->noPlayer = true;
-            return;
-          }
-          Vector feet = pl->abs_origin();
-          step->feet = feet;
-          Vector forward{target.x - feet.x, target.y - feet.y, 0};
-          step->dist = forward.Length2D();
-          if (step->dist <= reachRadius) {
-            step->reached = true;
-            return;
-          }
-          // Wedge feedback: decay blocks, and if last batch commanded a move
-          // the feet didn't take (a rim/lip/hull-clip the ray missed), block
-          // that heading (+/-1 bin: the hull is wider than a ray) so this pick
-          // veers off it.
-          float moved =
-              Vector{feet.x - prevFeet.x, feet.y - prevFeet.y, 0}.Length2D();
-          for (int i = 0; i < kVfhBins; i++)
-            if (wedge->ttl[i] > 0) wedge->ttl[i]--;
-          if (lastCommandedMove) {
-            wedge->stuckRun = (moved < kWedgeEps) ? wedge->stuckRun + 1 : 0;
-            if (wedge->stuckRun >= kWedgeStuckBatches) {
-              int b = VfhBin(lastYaw);
-              wedge->ttl[b] = wedge->ttl[(b + 1) % kVfhBins] =
-                  wedge->ttl[(b + kVfhBins - 1) % kVfhBins] = kWedgeCooldown;
-              wedge->stuckRun =
-                  0;  // give the next heading its own grace window
-            }
-          }
-          Vector up{0, 0, 1};
-          QAngle a{0, 0, 0};
-          Math::VectorAngles(forward, up, &a);
-          float goalBearing = a.y;
-          step->chosenYaw = goalBearing;
-          Vector pmax = pl->collision().OBBMaxs();
-          float playerHalfWidth = std::max(pmax.x, pmax.y);
-          VfhPick pick =
-              ChooseVfhHeading(pl, feet, goalBearing, lastYaw, haveLast,
-                               wedge->ttl, playerHalfWidth, targetKey, heldKey);
-          // Camera on the target; ApplyAbsoluteView clears the framebulk, so a
-          // boxed batch (no pick) holds.
-          ApplyAbsoluteView(QAngle{0, goalBearing, 0});
-          if (pick.found) {
-            step->chosenYaw = pick.yaw;
-            step->commandedMove = true;
-            float delta = DEG2RAD(NormalizeYaw(pick.yaw - goalBearing));
-            SetMoveFramebulk(-std::sin(delta), std::cos(delta));  // body-frame
-          }
-          if (sar_harness_goto_debug.GetBool()) {
-            int wb = 0;
-            for (int i = 0; i < kVfhBins; i++)
-              if (wedge->ttl[i] > 0) wb++;
-            console->Print(
-                "goto t=%d dist=%.0f best=%.0f hdg=%+.0f clr=%.0f moved=%.1f "
-                "wb=%d%s\n",
-                t, step->dist, bestDist,
-                NormalizeYaw(step->chosenYaw - goalBearing), pick.clearance,
-                moved, wb, pick.found ? "" : " BOXED");
-          }
-        });
-    if (!ok) {
-      out.cancelled = true;
-      out.ticksUsed = t;
-      return out;  // out.dist carries the last-good finalDist
-    }
-    if (step->noPlayer) {
-      out.code = "NO_PLAYER";
-      break;
-    }
-    out.dist = step->dist;
-    if (step->reached) {
-      out.reached = true;
-      out.code = "SUCCESS";
-      break;
-    }
-    // Regress is allowed (backing out of a pocket), so only a long global stall
-    // -- not one bad batch -- blocks.
-    if (step->dist < bestDist - kGoToProgressEps) {
-      bestDist = step->dist;
-      stallBatches = 0;
-    } else if (++stallBatches >= kGoToGlobalStall) {
-      out.code = "BLOCKED";
-      break;
-    }
-    lastYaw = step->chosenYaw;
-    haveLast = true;
-    lastCommandedMove = step->commandedMove;
-    prevFeet = step->feet;
-
-    AdvanceTicksBlocking(kGoToTickBatch);
-  }
-  out.ticksUsed = t;
-  return out;
-}
-
-// After a straight march BLOCKED, route around the pocket with A*: plan over
-// the lazy hull-probed grid, then march each waypoint leg through the same
-// MarchTo. Intermediate waypoints use a loose arrival radius; the final leg
-// targets the real mark. A dynamically-blocked leg (a door/cube that moved)
-// re-plans from the current feet, capped at kMaxReplans. A fresh kGoToMaxTicks
-// budget is shared across the legs so a long route can't run unbounded.
-// gRPC-thread only.
-MarchOutcome RouteAround(grpc::ServerContext* context, const Vector& target,
-                         uint32_t targetKey, uint32_t heldKey,
-                         float reachRadius, float initialDist) {
-  MarchOutcome out;  // defaults to BLOCKED
-  out.dist = initialDist;
-  int budget = kGoToMaxTicks;
+// Walk the body to `dest` over the NavSkeleton flood. Build + Plan a cell route
+// from the live feet, then follow its waypoints in a straight line -- no local
+// avoidance, because the flood already carved a path around every solid (props
+// included). A leg that stops making progress re-Builds and re-Plans, up to
+// kMaxReplans times, before giving up as STUCK. Arrival is a 3D test against
+// the plan's standPos (the goal cell, or the nearest reachable projection when
+// the goal is off the graph). Owns the terminal stop: clears input, zeroes walk
+// velocity, settles. gRPC thread only (it advances ticks).
+FollowOutcome FollowTo(grpc::ServerContext* context, const Vector& dest,
+                       float reachRadius, int tickBudget) {
+  FollowOutcome out;
+  int budget = tickBudget;  // ticks shared across re-plans
 
   for (int attempt = 0; attempt <= kMaxReplans; ++attempt) {
-    // Read feet + plan a route on the main thread (the planner traces the
-    // world).
-    auto legs = std::make_shared<std::vector<Vector>>();
+    // Flood + plan at the live pose: movers/props are wherever they are now.
+    auto plan = std::make_shared<NavSkeleton::PlanResult>();
     auto startFeet = std::make_shared<Vector>();
-    bool ran = RunOnMainThreadSync(context, [legs, startFeet, target, targetKey,
-                                             heldKey]() {
-      ServerEnt* pl = server->GetPlayer(1);
-      if (!pl) return;
-      *startFeet = pl->abs_origin();
-      GoToPlanner planner(pl->collision().OBBMins(), pl->collision().OBBMaxs(),
-                          startFeet->z, targetKey, heldKey);
-      *legs = planner.Plan(*startFeet, target);
-    });
+    auto havePlayer = std::make_shared<bool>(false);
+    bool ran =
+        RunOnMainThreadSync(context, [plan, startFeet, havePlayer, dest]() {
+          ServerEnt* pl = server->GetPlayer(1);
+          if (!pl) return;
+          *havePlayer = true;
+          *startFeet = pl->abs_origin();
+          NavSkeleton nav;
+          nav.Build(engine->GetCurrentMapName());
+          *plan = nav.Plan(*startFeet, dest);
+        });
     if (!ran) {
       out.cancelled = true;
       return out;
     }
-    if (legs->empty()) return out;  // no route exists -> BLOCKED
+    if (!*havePlayer) {
+      out.code = "NO_PLAYER";
+      break;
+    }
+    if (attempt == 0) out.finalFeet = *startFeet;  // honest moved=0 on a bail
+    out.blockReason = plan->blockReason;
+    if (plan->code == NavSkeleton::NO_ROUTE) {
+      out.code = "NO_ROUTE";
+      break;
+    }
 
-    bool blockedLeg = false;
-    Vector from = *startFeet;
-    for (size_t i = 0; i < legs->size(); ++i) {
-      bool last = (i + 1 == legs->size());
-      Vector legTarget = last ? target : (*legs)[i];
-      float radius = last ? reachRadius : kLegRadius;
-      float d =
-          Vector{legTarget.x - from.x, legTarget.y - from.y, 0}.Length2D();
-      MarchOutcome leg = MarchTo(context, legTarget, radius, budget, targetKey,
-                                 heldKey, from, d);
-      if (leg.cancelled) {
+    Vector stand = plan->standPos;
+    size_t wp = 0;  // next unreached waypoint in plan->steps
+    int stallBatches = 0;
+    Vector prevFeet{0, 0, 0};
+    bool havePrev = false;
+    bool arrived = false, noPlayer = false, stalled = false;
+
+    for (; budget > 0; budget -= kGoToTickBatch) {
+      struct Step {
+        bool noPlayer = false;
+        bool arrived = false;
+        bool stuck = false;
+        size_t wp = 0;
+        Vector feet{0, 0, 0};
+      };
+      auto step = std::make_shared<Step>();
+      step->wp = wp;
+      bool ok = RunOnMainThreadSync(
+          context, [step, plan, stand, dest, reachRadius, prevFeet, havePrev,
+                    budget, tickBudget]() {
+            ServerEnt* pl = server->GetPlayer(1);
+            if (!pl) {
+              step->noPlayer = true;
+              return;
+            }
+            Vector feet = pl->abs_origin();
+            step->feet = feet;
+            if (Vector{feet.x - stand.x, feet.y - stand.y, feet.z - stand.z}
+                    .Length() <= reachRadius) {
+              step->arrived = true;
+              return;
+            }
+            // No-progress detector: the flood proved this walkable, so feet
+            // that won't move mean we're wedged on something dynamic ->
+            // re-plan.
+            if (havePrev &&
+                Vector{feet.x - prevFeet.x, feet.y - prevFeet.y, 0}.Length2D() <
+                    kFollowStallEps)
+              step->stuck = true;
+            // Advance past any waypoint we're already on top of, then steer at
+            // the next one (or straight at standPos once past the last).
+            size_t w = step->wp;
+            const auto& steps = plan->steps;
+            while (w < steps.size() &&
+                   Vector{steps[w].pos.x - feet.x, steps[w].pos.y - feet.y, 0}
+                           .Length2D() <= kFollowAdvance)
+              w++;
+            step->wp = w;
+            Vector aim = (w < steps.size()) ? steps[w].pos : stand;
+            Vector fwd{aim.x - feet.x, aim.y - feet.y, 0};
+            Vector up{0, 0, 1};
+            QAngle a{0, 0, 0};
+            Math::VectorAngles(fwd, up, &a);
+            ApplyAbsoluteView(QAngle{0, a.y, 0});  // clears the framebulk...
+            SetMoveFramebulk(0, 1);                // ...so drive AFTER it
+            if (sar_harness_goto_debug.GetBool())
+              console->Print(
+                  "follow t=%d wp=%zu/%zu hdg=%+.0f dist=%.0f\n",
+                  tickBudget - budget, w, steps.size(), a.y,
+                  Vector{dest.x - feet.x, dest.y - feet.y, 0}.Length2D());
+          });
+      if (!ok) {
         out.cancelled = true;
         return out;
       }
-      budget -= leg.ticksUsed;
-      out.dist = leg.dist;
-      from = legTarget;
-      if (leg.code == "NO_PLAYER") {
-        out.code = "NO_PLAYER";
-        return out;
-      }
-      if (last && leg.reached) {
-        out.reached = true;
-        out.code = "SUCCESS";
-        return out;
-      }
-      if (leg.code == "BLOCKED") {  // dynamic block -> re-plan from here
-        blockedLeg = true;
+      if (step->noPlayer) {
+        noPlayer = true;
         break;
       }
-      if (budget <= 0) return out;  // budget spent -> BLOCKED
+      if (step->arrived) {
+        arrived = true;
+        break;
+      }
+      wp = step->wp;
+      if (step->stuck) {
+        if (++stallBatches >= kFollowStallBatches) {
+          stalled = true;
+          break;
+        }
+      } else {
+        stallBatches = 0;
+      }
+      prevFeet = step->feet;
+      havePrev = true;
+      AdvanceTicksBlocking(kGoToTickBatch);
     }
-    if (!blockedLeg) break;  // all legs marched, final not reached -> BLOCKED
+
+    if (noPlayer) {
+      out.code = "NO_PLAYER";
+      break;
+    }
+    if (arrived) {
+      out.reached = (plan->code == NavSkeleton::SUCCESS);
+      out.code = out.reached ? "SUCCESS" : "REACHED_PROJECTION";
+      break;
+    }
+    if (budget <= 0) {  // spent the whole budget without arriving
+      out.code = "STUCK";
+      break;
+    }
+    // stalled -> the loop re-plans; the last attempt falls through to STUCK.
+    if (stalled && attempt == kMaxReplans) out.code = "STUCK";
   }
+
+  // Terminal stop (unconditional): kill input + walk velocity, then settle, so
+  // no drive latches into the next verb and any inherited momentum (e.g. a
+  // coast out of pass_through) is shed even on an immediate arrival.
+  // Player-guarded; the framebulk clear still scrubs a latched drive with no
+  // player.
+  Scheduler::OnMainThread([]() {
+    ClearFramebulk();
+    ServerEnt* pl = server->GetPlayer(1);
+    if (pl) pl->field<Vector>("m_vecVelocity") = {0, 0, 0};
+  });
+  AdvanceTicksBlocking(kGoToSettle);
+  auto feet = std::make_shared<Vector>(out.finalFeet);
+  auto dist = std::make_shared<float>(out.dist);
+  bool finRan = RunOnMainThreadSync(context, [feet, dist, dest]() {
+    ServerEnt* pl = server->GetPlayer(1);
+    if (!pl) return;
+    *feet = pl->abs_origin();
+    *dist = Vector{dest.x - feet->x, dest.y - feet->y, 0}.Length2D();
+  });
+  if (!finRan) {
+    out.cancelled = true;
+    return out;
+  }
+  out.dist = *dist;
+  out.finalFeet = *feet;
   return out;
 }
 
@@ -1149,9 +982,8 @@ std::string InterposeGate(void* emitter, void* cube, float percent,
   // A seat in slime/goo wrongly passes NO_FLOOR -- the down-trace lands on the
   // goo-bottom brush. Needs a point-contents read to catch.
 
-  // Reachability is the carry's job: interpose marches to the seat with the
-  // same VFH as go_to (MarchTo + RouteAround) and reports BLOCKED if it can't
-  // get there.
+  // Reachability is the carry's job: interpose follows the flood route to the
+  // seat (same backend as go_to) and reports BLOCKED if it can't get there.
   return "SEAT_OK";
 }
 
@@ -1317,13 +1149,11 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
   };
 
   // 1. Gate (main thread): resolve the emitter mark + held cube, compute the
-  // seat + march start, or bail with the first failing reject.
+  // seat, or bail with the first failing reject.
   struct Gate {
     std::string code = "BAD_MARK";
     Vector seat{0, 0, 0};
     float beamLen = 0;
-    Vector startFeet{0, 0, 0};
-    float initialDist = 0;
   };
   auto g = std::make_shared<Gate>();
   bool ran = RunOnMainThreadSync(context_, [g, emitterMark, percent]() {
@@ -1336,11 +1166,6 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
     if (!ResolveMarkInfo(emitterMark, &eInfo, &g->code)) return;
     g->code = InterposeGate(eInfo->m_pEntity, (void*)cube, percent, &g->seat,
                             &g->beamLen);
-    if (g->code != "SEAT_OK") return;
-    Vector feet = server->GetPlayer(1)->abs_origin();
-    g->startFeet = feet;
-    g->initialDist =
-        Vector{g->seat.x - feet.x, g->seat.y - feet.y, 0}.Length2D();
   });
   if (!ran) return cancelled();
   if (g->code != "SEAT_OK") {
@@ -1350,16 +1175,13 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
     return r;
   }
 
-  // 2. Carry the held cube to the seat (go_to backend; skip the carried cube in
-  // the obstacle histogram).
+  // 2. Carry the held cube to the seat (flood follower). The held cube is not
+  // skipped in the flood, so a cube blocking the only doorway can leave us
+  // short
+  // -- reported as a carry BLOCKED below.
   uint32_t heldKey = g_heldEntityKey.load();
-  MarchOutcome m = MarchTo(context_, g->seat, kReachRadius, kGoToMaxTicks, 0,
-                           heldKey, g->startFeet, g->initialDist);
-  if (!m.cancelled && m.code == "BLOCKED")
-    m = RouteAround(context_, g->seat, 0, heldKey, kReachRadius, m.dist);
+  FollowOutcome m = FollowTo(context_, g->seat, kReachRadius, kGoToMaxTicks);
   if (m.cancelled) return cancelled();
-  Scheduler::OnMainThread([]() { ClearFramebulk(); });
-  AdvanceTicksBlocking(kGoToSettle);
   if (!m.reached) {
     r.set_ok(false);
     r.set_result_code("BLOCKED");
@@ -1677,7 +1499,6 @@ portal2_harness::MacroResult MacroExecutor::PassThrough(
   struct Setup {
     std::string code = "NO_SUCH_PORTAL";
     Vector center{0, 0, 0}, front{0, 0, 0}, startFeet{0, 0, 0};
-    float initialDist = 0;
   };
   auto s = std::make_shared<Setup>();
   if (!RunOnMainThreadSync(context_, [s, orange]() {
@@ -1693,9 +1514,6 @@ portal2_harness::MacroResult MacroExecutor::PassThrough(
         s->center = lp.center;
         s->front = lp.center + lp.normal * kMouthStandoff;
         s->startFeet = pl->abs_origin();
-        s->initialDist =
-            Vector{s->front.x - s->startFeet.x, s->front.y - s->startFeet.y, 0}
-                .Length2D();
         s->code = "OK";
       }))
     return cancelled();
@@ -1706,12 +1524,9 @@ portal2_harness::MacroResult MacroExecutor::PassThrough(
     return r;
   }
 
-  // 2. Walk to the mouth's front cell (go_to backend). BLOCKED only if the
-  // march leaves us too far to reach the disc by pushing.
-  MarchOutcome m = MarchTo(context_, s->front, kReachRadius, kGoToMaxTicks, 0,
-                           0, s->startFeet, s->initialDist);
-  if (!m.cancelled && m.code == "BLOCKED")
-    m = RouteAround(context_, s->front, 0, 0, kReachRadius, m.dist);
+  // 2. Walk to the mouth's front cell (flood follower). BLOCKED only if it
+  // leaves us too far to reach the disc by pushing.
+  FollowOutcome m = FollowTo(context_, s->front, kReachRadius, kGoToMaxTicks);
   if (m.cancelled) return cancelled();
   if (!m.reached && m.dist > kMouthReach) {
     r.set_ok(false);
@@ -1720,7 +1535,7 @@ portal2_harness::MacroResult MacroExecutor::PassThrough(
     return r;
   }
 
-  // 3. Push straight into the mouth (VFH off) until the engine transits.
+  // 3. Push straight into the mouth until the engine transits.
   auto prevFeet = std::make_shared<Vector>(s->startFeet);
   RunOnMainThreadSync(context_, [prevFeet]() {
     ServerEnt* pl = server->GetPlayer(1);
@@ -2040,23 +1855,8 @@ portal2_harness::MacroResult MacroExecutor::DropInto(
     Vector front = center + s->normal * kDropStandoff;
     Vector partnerCenter = s->partner;
 
-    auto startFeet = std::make_shared<Vector>();
-    auto initDist = std::make_shared<float>(0.0f);
-    if (!RunOnMainThreadSync(context_, [startFeet, initDist, front]() {
-          ServerEnt* pl = server->GetPlayer(1);
-          if (!pl) return;
-          *startFeet = pl->abs_origin();
-          *initDist = Vector{front.x - startFeet->x, front.y - startFeet->y, 0}
-                          .Length2D();
-        }))
-      return cancelled();
-    MarchOutcome m = MarchTo(context_, front, kReachRadius, kGoToMaxTicks, 0,
-                             heldKey, *startFeet, *initDist);
-    if (!m.cancelled && m.code == "BLOCKED")
-      m = RouteAround(context_, front, 0, heldKey, kReachRadius, m.dist);
+    FollowOutcome m = FollowTo(context_, front, kReachRadius, kGoToMaxTicks);
     if (m.cancelled) return cancelled();
-    RunOnMainThreadSync(context_, []() { ClearFramebulk(); });
-    AdvanceTicksBlocking(kGoToSettle);
     if (!m.reached) {
       r.set_ok(false);
       r.set_result_code("BLOCKED");
@@ -2426,50 +2226,21 @@ portal2_harness::MacroResult MacroExecutor::Done() {
 portal2_harness::MacroResult MacroExecutor::GoTo(const std::string& target) {
   portal2_harness::MacroResult r;
 
-  // Resolve the target once and capture the starting distance, so an early
-  // cancel reports a real distance, not 0.
+  // Resolve the target + capture the start feet (for moved_dist), so an early
+  // cancel still reports honest telemetry. No standoff math -- the flood
+  // already stops the follow at the nearest cell beside a solid target.
   struct Resolve {
     bool ok = false;
     std::string code = "BAD_MARK";
     Vector center{0, 0, 0};
-    Vector startFeet{0, 0, 0};  // for moved_dist (distance actually walked)
-    float initialDist = 0;
-    uint32_t targetKey = 0;  // skip the destination in the obstacle histogram
-    float reachRadius = kReachRadius;  // standoff (bigger for obstacle targets)
+    Vector startFeet{0, 0, 0};
   };
   auto res = std::make_shared<Resolve>();
   bool ran = RunOnMainThreadSync(context_, [res, target]() {
     if (!ResolveTarget(target, &res->center, &res->code)) return;
     res->ok = true;
-    TargetRef ref = ClassifyTarget(target);
-    if (ref.kind == TargetRef::ENTITY) {
-      auto [idx, ser] = markTable.GetEntityFromMark(ref.mark);
-      if (idx >= 0)
-        res->targetKey = PackEntKey(idx, static_cast<uint16_t>(ser));
-    }
     ServerEnt* pl = server->GetPlayer(1);
-    if (pl) {
-      Vector feet = pl->abs_origin();
-      res->startFeet = feet;
-      res->initialDist =
-          Vector{res->center.x - feet.x, res->center.y - feet.y, 0}.Length2D();
-      // Stand off only from a PUSHABLE entity (cube/box/turret) at its
-      // footprint edge + body + gap, so the approach stops beside it instead of
-      // bulldozing it. A button is immovable and a follow-up release needs a
-      // CLOSE approach to reach it, so it keeps the plain kReachRadius. A
-      // panel/portal target has no footprint -- plain kReachRadius too.
-      CEntInfo* tInfo = nullptr;
-      std::string tcode;
-      Vector tC;
-      float tR = TargetFootprint(res->targetKey, &tC);
-      if (ref.kind == TargetRef::ENTITY && tR >= 0 &&
-          ResolveMarkInfo(ref.mark, &tInfo, &tcode) &&
-          IsGrabbableClass(server->GetEntityClassName(tInfo->m_pEntity))) {
-        Vector pmx = pl->collision().OBBMaxs();
-        res->reachRadius =
-            std::max(kReachRadius, tR + std::max(pmx.x, pmx.y) + kApproachGap);
-      }
-    }
+    if (pl) res->startFeet = pl->abs_origin();
   });
   if (!ran) {
     r.set_ok(false);
@@ -2483,76 +2254,39 @@ portal2_harness::MacroResult MacroExecutor::GoTo(const std::string& target) {
     return r;
   }
 
-  // VFH march to the resolved target. targetKey/heldKey skip the destination
-  // and any carried cube in the obstacle histogram.
+  // Follow the flood route to the resolved target (the follower owns the stop).
+  // kGoToReach is tight so a follow-up pick_up/interact lands in grab range;
+  // the flood's stand cell already sits beside a solid target.
   Vector dest = res->center;
-  uint32_t heldKey = g_heldEntityKey.load();
-  MarchOutcome m =
-      MarchTo(context_, dest, res->reachRadius, kGoToMaxTicks, res->targetKey,
-              heldKey, res->startFeet, res->initialDist);
-  // Straight march stalled in a pocket -> route around it with A* (continues
-  // from the blocked feet, so the plan stays short and well under the cell
-  // cap).
-  if (!m.cancelled && m.code == "BLOCKED")
-    m = RouteAround(context_, dest, res->targetKey, heldKey, res->reachRadius,
-                    m.dist);
+  FollowOutcome m = FollowTo(context_, dest, kGoToReach, kGoToMaxTicks);
   if (m.cancelled) {
     r.set_ok(false);
     r.set_result_code("CANCELLED");
     r.set_final_dist(m.dist);
     return r;
   }
-  bool reached = m.reached;
-  std::string code = m.code;
-  float finalDist = m.dist;
+  // finalFeet is unread when the player vanished before the first plan, so a
+  // NO_PLAYER move is honestly zero rather than |startFeet| off the origin.
+  float moved = m.code == "NO_PLAYER"
+                    ? 0.0f
+                    : Vector{m.finalFeet.x - res->startFeet.x,
+                             m.finalFeet.y - res->startFeet.y, 0}
+                          .Length2D();
 
-  // Stop: zero the framebulk AND the walk velocity, then settle. Friction alone
-  // let the player coast ~28u past the standoff into the target (wedging it
-  // against a prop+wall, a hard stuck) -- killing m_vecVelocity stops it dead
-  // at the standoff so the next verb has clean room.
-  Scheduler::OnMainThread([]() {
-    ClearFramebulk();
-    ServerEnt* pl = server->GetPlayer(1);
-    if (pl) pl->field<Vector>("m_vecVelocity") = {0, 0, 0};
-  });
-  AdvanceTicksBlocking(kGoToSettle);
-  Vector finalFeet = res->startFeet;
-  {
-    auto fin = std::make_shared<float>(finalDist);
-    auto feet = std::make_shared<Vector>(res->startFeet);
-    bool finRan = RunOnMainThreadSync(context_, [fin, feet, dest]() {
-      ServerEnt* pl = server->GetPlayer(1);
-      if (pl) {
-        *feet = pl->abs_origin();
-        *fin = Vector{dest.x - feet->x, dest.y - feet->y, 0}.Length2D();
-      }
-    });
-    if (!finRan) {  // stream dropped during settle -- don't claim a result
-      r.set_ok(false);
-      r.set_result_code("CANCELLED");
-      r.set_final_dist(finalDist);
-      return r;
-    }
-    finalDist = *fin;
-    finalFeet = *feet;
-  }
-  float moved =
-      Vector{finalFeet.x - res->startFeet.x, finalFeet.y - res->startFeet.y, 0}
-          .Length2D();
-
-  // Covered real ground but didn't arrive -> ADVANCED, so the model re-plans
-  // from the new spot instead of repeating the verb.
-  bool advanced = !reached && moved > kReachRadius && code == "BLOCKED";
-  r.set_ok(reached || advanced);
-  r.set_result_code(advanced ? "ADVANCED" : code);
-  r.set_reached(reached);
-  r.set_final_dist(finalDist);
+  // SUCCESS = at the goal. REACHED_PROJECTION = at the nearest reachable point
+  // (beside a solid target, or short of an out-of-reach ledge) -- progress the
+  // model re-plans from. NO_ROUTE / STUCK are honest failures.
+  bool ok = m.reached || m.code == "REACHED_PROJECTION";
+  r.set_ok(ok);
+  r.set_result_code(m.code);
+  r.set_reached(m.reached);
+  r.set_final_dist(m.dist);
   r.set_moved_dist(moved);
-  if (advanced)
-    r.set_detail(Utils::ssprintf("advanced %.0f units, %.0f to go (%s)", moved,
-                                 finalDist, code.c_str()));
+  if (m.code == "REACHED_PROJECTION")
+    r.set_detail(Utils::ssprintf("nearest reachable point (%s), %.0fu to go",
+                                 NavReasonWord(m.blockReason), m.dist));
   else
-    r.set_detail(Utils::ssprintf("dist=%.0f after march", finalDist));
+    r.set_detail(Utils::ssprintf("dist=%.0f after follow", m.dist));
   return r;
 }
 
@@ -3092,72 +2826,6 @@ portal2_harness::MacroResult MacroExecutor::Interact(
   r.set_result_code("SUCCESS");
   r.set_detail("interacted with mark " + target);
   return r;
-}
-
-// Debug: A* a route to a mark and print it over the occupancy grid (. walkable,
-// # blocked/obstacle, o route, @ player, * goal). The route should bend around
-// cubes/walls. Does NOT move the player -- a read-only verify gate. The grid
-// is WORLD-absolute (+y/north at top), not view-relative.
-CON_COMMAND(sar_harness_goto_plan,
-            "sar_harness_goto_plan <mark> [radius] - A* a route to a mark and "
-            "print it over the grid (does not move the player). go_to "
-            "planner.\n") {
-  if (args.ArgC() < 2) {
-    console->Print("usage: sar_harness_goto_plan <mark> [radius]\n");
-    return;
-  }
-  ServerEnt* pl = server ? server->GetPlayer(1) : nullptr;
-  if (!pl) {
-    console->Print("goto_plan: no player.\n");
-    return;
-  }
-  int mark = std::atoi(args[1]);
-  int radius = args.ArgC() > 2 ? std::atoi(args[2]) : 12;
-  if (radius < 1) radius = 1;
-  if (radius > 40) radius = 40;
-
-  Vector center;
-  std::string code;
-  if (!ResolveMarkCenter(mark, &center, &code)) {
-    console->Print("goto_plan: mark %d -> %s\n", mark, code.c_str());
-    return;
-  }
-  Vector feet = pl->abs_origin();
-  auto [idx, ser] = markTable.GetEntityFromMark(mark);
-  uint32_t targetKey =
-      idx >= 0 ? PackEntKey(idx, static_cast<uint16_t>(ser)) : 0;
-  ICollideable& coll = pl->collision();
-  GoToPlanner planner(coll.OBBMins(), coll.OBBMaxs(), feet.z, targetKey,
-                      g_heldEntityKey.load());
-  std::vector<Vector> path = planner.Plan(feet, center);
-
-  console->Print("goto_plan mark=%d: %zu waypoints to (%.0f,%.0f)\n", mark,
-                 path.size(), center.x, center.y);
-  if (path.empty()) {
-    console->Print("  no route (blocked, off-grid, or cap hit).\n");
-    return;
-  }
-  std::unordered_set<uint32_t> onPath;
-  for (const Vector& w : path)
-    onPath.insert(
-        GoToPlanner::CellKey(GoToPlanner::CellX(w.x), GoToPlanner::CellY(w.y)));
-  int pcx = GoToPlanner::CellX(feet.x), pcy = GoToPlanner::CellY(feet.y);
-  int gcx = GoToPlanner::CellX(center.x), gcy = GoToPlanner::CellY(center.y);
-  for (int dy = radius; dy >= -radius; --dy) {  // +y (north) at top
-    std::string row;
-    for (int dx = -radius; dx <= radius; ++dx) {
-      int cx = pcx + dx, cy = pcy + dy;
-      if (cx == pcx && cy == pcy)
-        row += '@';
-      else if (cx == gcx && cy == gcy)
-        row += '*';
-      else if (onPath.count(GoToPlanner::CellKey(cx, cy)))
-        row += 'o';
-      else
-        row += planner.At(cx, cy).state == GoToPlanner::WALKABLE ? '.' : '#';
-    }
-    console->Print("%s\n", row.c_str());
-  }
 }
 
 // Debug: print where `release` would place the held cube to seat it on a button

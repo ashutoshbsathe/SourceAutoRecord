@@ -30,15 +30,17 @@ GRABBABLE_CLASSES = frozenset(
 )
 
 
-# The one warning that doesn't fit a single verb's doc: go_to/interact auto-march
-# in a straight line and need a clear path. Surfaced verbatim in the prompt so the
-# model stops blindly retrying a STUCK go_to (the bug that motivated this).
+# The one warning that doesn't fit a single verb's doc: go_to/interact auto-route
+# to a mark and need a reachable target. Surfaced verbatim in the prompt so the
+# model stops blindly retrying a NO_ROUTE go_to (the bug that motivated this).
 CAVEAT = (
     '`go_to`/`interact` route AROUND obstacles (cubes, buttons, walls) to reach a '
-    'mark -- they fail BLOCKED only when NO walk path exists, or ADVANCED when a '
-    'gap/edge stops them partway. On BLOCKED/ADVANCED you are at a NEW spot: '
-    're-read the percept and try a nearer in-view mark, or `look`+`move` toward '
-    "the opening -- don't blindly repeat the same command."
+    'mark. NO_ROUTE = no walk path exists; REACHED_PROJECTION = it walked to the '
+    'nearest reachable spot (beside a solid target, or short of one on a ledge '
+    'you cannot reach on foot); STUCK = physically wedged. On '
+    'REACHED_PROJECTION/STUCK you are at a NEW spot: re-read the percept and try '
+    'a nearer in-view mark, or `look`+`move` toward the opening -- do not blindly '
+    'repeat the same command.'
 )
 
 
@@ -70,8 +72,9 @@ VERB_SPECS = {
     'go_to': Verb(
         'Walk to a target (mark N, panel Sn, or portal Pb/Po), routing AROUND '
         'obstacles (cubes, buttons, walls). Stops just BESIDE a cube/box it is '
-        'sent to (it will not shove it). BLOCKED only if no walk path exists; '
-        'ADVANCED if a gap/edge stopped it short.',
+        'sent to (it will not shove it). NO_ROUTE if no walk path exists; '
+        'REACHED_PROJECTION if it reached the nearest spot short of an '
+        'out-of-reach target; STUCK if physically wedged.',
         'go_to 3',
         'walk to mark 3, routing around anything in the way.',
         target='any',
