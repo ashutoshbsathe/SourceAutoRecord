@@ -84,6 +84,12 @@ void MarkTable::RebuildFromWorld() {
   // seat), so the threshold must be far past that; six voxels is decisively
   // outside any dropper.
   constexpr long kSuppressBackstopSq = 768 * 768;
+  // A fresh same-name cube at a still-live mark's BIRTH origin is a dropper
+  // respawn (stock droppers ping FireUser4 to tag it; custom-Hammer ones
+  // don't). This is the "reappeared where the prior one was born" radius --
+  // tight enough that a genuine second cube placed elsewhere is excluded.
+  // Tunable.
+  constexpr long kRespawnBirthSq = 96 * 96;
 
   std::unordered_set<int> liveMarks;
   std::unordered_set<uint32_t> liveKeys;
@@ -131,11 +137,32 @@ void MarkTable::RebuildFromWorld() {
         if (!liveMarks.count(nm->second)) {
           mark = nm->second;
           inherited = true;
-        } else if (primed && deferred[c->key]++ < kInheritGrace) {
-          if (deferred[c->key] == 1 && sar_harness_mark_debug.GetBool())
-            console->Print("[markdbg] deferring [%d] %s (mark %d busy)\n",
-                           c->index, c->cname.c_str(), nm->second);
-          continue;  // predecessor still live; stay unmarked and retry
+        } else {
+          // The name's mark is still LIVE (coexistence). A same-name cube back
+          // at that mark's birth origin is a dropper respawn -- suppress it so
+          // no phantom mark churns; the 768u backstop above frees it if it is
+          // ever used (moves off the spawn). Otherwise defer to the inherit
+          // grace (a genuine second cube placed elsewhere).
+          auto nb = nameBirth.find(c->cname);
+          if (nb != nameBirth.end()) {
+            long dx = c->rx - std::lround(nb->second.x);
+            long dy = c->ry - std::lround(nb->second.y);
+            long dz = c->rz - std::lround(nb->second.z);
+            if (dx * dx + dy * dy + dz * dz < kRespawnBirthSq) {
+              suppressed[c->key] =
+                  Vector{(float)c->rx, (float)c->ry, (float)c->rz};
+              if (sar_harness_mark_debug.GetBool())
+                console->Print("[markdbg] respawn-suppressed [%d] %s @ birth\n",
+                               c->index, c->cname.c_str());
+              continue;
+            }
+          }
+          if (primed && deferred[c->key]++ < kInheritGrace) {
+            if (deferred[c->key] == 1 && sar_harness_mark_debug.GetBool())
+              console->Print("[markdbg] deferring [%d] %s (mark %d busy)\n",
+                             c->index, c->cname.c_str(), nm->second);
+            continue;  // predecessor still live; stay unmarked and retry
+          }
         }
       }
     }
@@ -143,7 +170,11 @@ void MarkTable::RebuildFromWorld() {
     assigned[c->key] = mark;
     liveMarks.insert(mark);
     deferred.erase(c->key);
-    if (!c->cname.empty()) nameMark.emplace(c->cname, mark);
+    if (!c->cname.empty()) {
+      nameMark.emplace(c->cname, mark);
+      nameBirth.emplace(c->cname,
+                        Vector{(float)c->rx, (float)c->ry, (float)c->rz});
+    }
     if (primed && sar_harness_mark_debug.GetBool())
       console->Print("[markdbg] mark %d -> [%d] %s (%s)\n", mark, c->index,
                      c->cname.empty() ? "<unnamed>" : c->cname.c_str(),
@@ -229,6 +260,7 @@ void MarkTable::Clear() {
   forward.clear();
   reverse.clear();
   nameMark.clear();
+  nameBirth.clear();
   deferred.clear();
   suppressed.clear();
   primed = false;

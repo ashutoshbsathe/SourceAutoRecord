@@ -55,6 +55,10 @@ class MarkTable {
   // "classname:targetname" -> the first mark handed to that identity, for
   // respawn inheritance. Only consulted when that mark has no live owner.
   std::unordered_map<std::string, int> nameMark;
+  // "classname:targetname" -> the origin its first cube was born at. A fresh
+  // same-name cube reappearing here while the mark is still live is a dropper
+  // respawn (suppress it) rather than a genuine second cube (mark it).
+  std::unordered_map<std::string, Vector> nameBirth;
   // key -> rebuilds spent waiting for the identity-mark to vacate.
   std::unordered_map<uint32_t, int> deferred;
   // Dropper-held entities: key -> origin at tag time. Unmarked while here;
