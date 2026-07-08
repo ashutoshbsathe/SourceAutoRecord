@@ -1065,53 +1065,42 @@ portal2_harness::MacroResult MacroExecutor::Execute(
   return r;
 }
 
-std::string MacroExecutor::RedirectConfirm(uint32_t cubeKey, int targetMark,
-                                           float* residual) {
+bool MacroExecutor::AimCube(uint32_t cubeKey, const Vector& aimPoint,
+                            float* residual) {
   *residual = 0;
   // Re-centre on the cube's settled position now (it already passed the on-beam
   // gate), so a tossed cube is pulled back to it -- not chased wherever it
-  // drifted.
+  // drifted. Re-seat with +X aimed at the point, then settle so the beam
+  // re-propagates. The seat is flat (yaw-only) and frozen -> deterministic.
   auto seat = std::make_shared<Vector>(Vector{0, 0, 0});
   if (!RunOnMainThreadSync(context_, [seat, cubeKey]() {
         ServerEnt* cube = EntFromKey(cubeKey);
         if (cube) *seat = cube->abs_origin();
       }))
-    return "CANCELLED";
-  // Re-seat with +X aimed at the target, then settle so the beam re-propagates
-  // and the target latches. The seat is flat (yaw-only) and frozen, so the pose
-  // is deterministic -- one pass, no re-roll.
-  if (!RunOnMainThreadSync(context_, [cubeKey, targetMark, seat]() {
+    return false;
+  if (!RunOnMainThreadSync(context_, [cubeKey, aimPoint, seat]() {
         ServerEnt* cube = EntFromKey(cubeKey);
-        CEntInfo* tInfo = nullptr;
-        std::string code;
-        if (!cube || !ResolveMarkInfo(targetMark, &tInfo, &code)) return;
-        QAngle yaw =
-            ComputeRedirectYaw(*seat, EntityCenter(SE(tInfo->m_pEntity)));
-        SeatEntity((void*)cube, *seat, yaw);
+        if (cube)
+          SeatEntity((void*)cube, *seat, ComputeRedirectYaw(*seat, aimPoint));
       }))
-    return "CANCELLED";
+    return false;
   AdvanceTicksBlocking(kSeatSettle);
-  auto powered = std::make_shared<bool>(false);
   auto res = std::make_shared<float>(0.0f);
-  if (!RunOnMainThreadSync(context_, [powered, res, cubeKey, targetMark]() {
+  if (!RunOnMainThreadSync(context_, [res, cubeKey, aimPoint]() {
         ServerEnt* cube = EntFromKey(cubeKey);
-        CEntInfo* tInfo = nullptr;
-        std::string code;
-        if (!cube || !ResolveMarkInfo(targetMark, &tInfo, &code)) return;
-        ServerEnt* target = SE(tInfo->m_pEntity);
-        *powered = target->field<bool>("m_bPowered");
+        if (!cube) return;
         // residual: the cube's +X (its redirect axis) vs the ideal direction.
         Vector fwd;
         Math::AngleVectors(cube->abs_angles(), &fwd);
-        Vector ideal = EntityCenter(target) - cube->abs_origin();
+        Vector ideal = aimPoint - cube->abs_origin();
         Math::VectorNormalize(ideal);
         float dot = fwd.x * ideal.x + fwd.y * ideal.y + fwd.z * ideal.z;
         dot = std::max(-1.0f, std::min(1.0f, dot));
         *res = std::acos(dot) * 57.2958f;
       }))
-    return "CANCELLED";
+    return false;
   *residual = *res;
-  return *powered ? "POWERED" : "NOT_POWERED";
+  return true;
 }
 
 portal2_harness::MacroResult MacroExecutor::Interpose(
@@ -1126,14 +1115,8 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
                  req.target() + "\"");
     return r;
   }
-  int targetMark = 0;  // optional redirect aim (`aim`)
-  if (!req.aim().empty() &&
-      !RequireEntityMark(req.aim(), &targetMark, &tcode)) {
-    r.set_ok(false);
-    r.set_result_code(tcode);
-    r.set_detail("interpose aim must be a mark, got \"" + req.aim() + "\"");
-    return r;
-  }
+  std::string aim = req.aim();  // optional redirect aim -- any position mark,
+  bool hasAim = !aim.empty();   // resolved + validated in the gate below
   float percent = req.percent();
 
   auto cancelled = []() {
@@ -1148,10 +1131,11 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
   struct Gate {
     std::string code = "BAD_MARK";
     Vector seat{0, 0, 0};
+    Vector aimPoint{0, 0, 0};  // resolved `aim`, if given
     float beamLen = 0;
   };
   auto g = std::make_shared<Gate>();
-  bool ran = RunOnMainThreadSync(context_, [g, emitterMark, percent]() {
+  bool ran = RunOnMainThreadSync(context_, [g, emitterMark, percent, aim]() {
     ServerEnt* cube = HeldCube();
     if (!cube) {
       g->code = "NOT_HOLDING";
@@ -1159,6 +1143,7 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
     }
     CEntInfo* eInfo = nullptr;
     if (!ResolveMarkInfo(emitterMark, &eInfo, &g->code)) return;
+    if (!aim.empty() && !ResolveTarget(aim, &g->aimPoint, &g->code)) return;
     g->code = InterposeGate(eInfo->m_pEntity, (void*)cube, percent, &g->seat,
                             &g->beamLen);
   });
@@ -1215,56 +1200,35 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
       }))
     return cancelled();
 
-  // 4. Re-seat at the known seat (with +X aimed at `aim` if given), then
-  // confirm the hull intercepts the beam (and powers the target). Re-seating at
-  // g->seat
-  // -- not the cube's drifted origin -- re-centres a cube that walked off. The
-  // seat is flat (yaw-only) and frozen, so the pose is deterministic: one pass.
-  struct Conf {
-    bool intercept = false;
-    bool powered = false;
-    float residual = 0;
-  };
-  auto c = std::make_shared<Conf>();
-  bool ranSeat = RunOnMainThreadSync(context_, [g, heldKey, targetMark]() {
+  // 4. Re-seat at the known seat (with +X aimed at the point if an aim was
+  // given), then confirm the hull intercepts the emitter's beam. Re-seating at
+  // g->seat -- not the cube's drifted origin -- re-centres a cube that walked
+  // off. The seat is flat (yaw-only) and frozen, so the pose is deterministic.
+  // Whether the aim then powers a downstream target is percept state (the
+  // observe returns each target's `powered`), so it is not re-confirmed here.
+  bool ranSeat = RunOnMainThreadSync(context_, [g, heldKey, hasAim]() {
     ServerEnt* cube = EntFromKey(heldKey);
     if (!cube) return;
-    QAngle yaw{0, 0, 0};
-    if (targetMark) {
-      CEntInfo* tInfo = nullptr;
-      std::string code;
-      if (ResolveMarkInfo(targetMark, &tInfo, &code))
-        yaw = ComputeRedirectYaw(g->seat, EntityCenter(SE(tInfo->m_pEntity)));
-    }
+    QAngle yaw =
+        hasAim ? ComputeRedirectYaw(g->seat, g->aimPoint) : QAngle{0, 0, 0};
     SeatEntity((void*)cube, g->seat, yaw);
   });
   if (!ranSeat) return cancelled();
   AdvanceTicksBlocking(kSeatSettle);
+  auto intercept = std::make_shared<bool>(false);
   bool ranC =
-      RunOnMainThreadSync(context_, [c, g, heldKey, emitterMark, targetMark]() {
+      RunOnMainThreadSync(context_, [intercept, heldKey, emitterMark]() {
         ServerEnt* cube = EntFromKey(heldKey);
         CEntInfo* eInfo = nullptr;
         std::string code;
         if (!cube || !ResolveMarkInfo(emitterMark, &eInfo, &code)) return;
-        c->intercept = ConfirmInterception(eInfo->m_pEntity, (void*)cube);
-        if (!targetMark) return;
-        CEntInfo* tInfo = nullptr;
-        if (!ResolveMarkInfo(targetMark, &tInfo, &code)) return;
-        ServerEnt* target = SE(tInfo->m_pEntity);
-        c->powered = target->field<bool>("m_bPowered");
-        Vector fwd;
-        Math::AngleVectors(cube->abs_angles(), &fwd);
-        Vector ideal = EntityCenter(target) - cube->abs_origin();
-        Math::VectorNormalize(ideal);
-        float dot = fwd.x * ideal.x + fwd.y * ideal.y + fwd.z * ideal.z;
-        dot = std::max(-1.0f, std::min(1.0f, dot));
-        c->residual = std::acos(dot) * 57.2958f;
+        *intercept = ConfirmInterception(eInfo->m_pEntity, (void*)cube);
       });
   if (!ranC) return cancelled();
 
   LookBackAt(context_, heldKey);  // face the cube so its beam state is visible
 
-  if (!c->intercept) {
+  if (!*intercept) {
     r.set_ok(false);
     r.set_result_code("NOT_INTERCEPTING");
     r.set_detail(
@@ -1272,19 +1236,11 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
                         g->seat.x, g->seat.y, g->seat.z));
     return r;
   }
-  if (targetMark && !c->powered) {
-    r.set_ok(false);
-    r.set_result_code("NOT_POWERED");
-    r.set_detail(Utils::ssprintf(
-        "interpose: on beam but target dark (%.1f deg off)", c->residual));
-    return r;
-  }
   r.set_ok(true);
-  r.set_result_code(targetMark ? "POWERED" : "ON_BEAM");
-  r.set_detail(
-      Utils::ssprintf("interpose: cube %s at (%.0f %.0f %.0f)",
-                      targetMark ? "on beam, target powered" : "on beam",
-                      g->seat.x, g->seat.y, g->seat.z));
+  r.set_result_code("ON_BEAM");
+  r.set_detail(Utils::ssprintf("interpose: cube on beam at (%.0f %.0f %.0f)%s",
+                               g->seat.x, g->seat.y, g->seat.z,
+                               hasAim ? ", aimed" : ""));
   return r;
 }
 
@@ -2028,31 +1984,32 @@ portal2_harness::MacroResult MacroExecutor::RedirectTo(
     const portal2_harness::MacroRequest& req) {
   portal2_harness::MacroResult r;
   int cubeMark;
-  int targetMark;
   std::string tcode;
-  if (!RequireEntityMark(req.target(), &cubeMark, &tcode) ||
-      !RequireEntityMark(req.aim(), &targetMark, &tcode)) {
+  if (!RequireEntityMark(req.target(), &cubeMark, &tcode)) {
     r.set_ok(false);
     r.set_result_code(tcode);
-    r.set_detail("redirect_to needs a cube mark (target) + a laser mark (aim)");
+    r.set_detail("redirect_to target must be a cube mark, got \"" +
+                 req.target() + "\"");
     return r;
   }
+  std::string aim = req.aim();
 
   // Gate (main thread): the object must be a type-2 reflector cube currently
   // catching a beam, within arm's reach of the player (re-aiming a cube means
-  // physically re-placing it -- no across-the-room teleport-rotate); the target
-  // must resolve. No movement -- yaw-only atom.
+  // physically re-placing it -- no across-the-room teleport-rotate); the aim
+  // must resolve to a point (any mark -- entity, portal Pb/Po, or panel
+  // Sn@u,v). No movement -- yaw-only atom.
   struct Gate {
     std::string code = "BAD_MARK";
     uint32_t cubeKey = 0;
+    Vector aimPoint{0, 0, 0};
     float reach = 0;
   };
   auto g = std::make_shared<Gate>();
-  bool ran = RunOnMainThreadSync(context_, [g, cubeMark, targetMark]() {
+  bool ran = RunOnMainThreadSync(context_, [g, cubeMark, aim]() {
     CEntInfo* cInfo = nullptr;
-    CEntInfo* tInfo = nullptr;
     if (!ResolveMarkInfo(cubeMark, &cInfo, &g->code)) return;
-    if (!ResolveMarkInfo(targetMark, &tInfo, &g->code)) return;
+    if (!ResolveTarget(aim, &g->aimPoint, &g->code)) return;
     void* cube = cInfo->m_pEntity;
     if (SE(cube)->field<int>("m_nCubeType") != 2) {
       g->code = "NOT_REFLECTOR";
@@ -2093,19 +2050,19 @@ portal2_harness::MacroResult MacroExecutor::RedirectTo(
     return r;
   }
 
+  // Aim the beam at the point. Whether a downstream target lit up is percept
+  // state (the observe returns each target's `powered`), so the verb only
+  // reports that it aimed, and how far off.
   float residual = 0;
-  std::string code = RedirectConfirm(g->cubeKey, targetMark, &residual);
-  if (code == "CANCELLED") {
+  if (!AimCube(g->cubeKey, g->aimPoint, &residual)) {
     r.set_ok(false);
     r.set_result_code("CANCELLED");
     return r;
   }
-  r.set_ok(code == "POWERED");
-  r.set_result_code(code);
-  r.set_detail(code == "POWERED"
-                   ? "redirect_to: target powered"
-                   : Utils::ssprintf("redirect_to: target dark (%.1f deg off)",
-                                     residual));
+  r.set_ok(true);
+  r.set_result_code("AIMED");
+  r.set_detail(
+      Utils::ssprintf("redirect_to: beam aimed (%.1f deg off)", residual));
   return r;
 }
 

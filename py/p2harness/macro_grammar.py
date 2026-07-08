@@ -106,27 +106,29 @@ VERB_SPECS = {
         target='optional',
     ),
     'interpose': Verb(
-        'Seat the cube you are HOLDING onto a laser beam to block it. Give the '
-        'emitter mark and how far along its beam to place the cube (percent 0-1 '
-        'from the emitter). Optionally add an aim mark to also point the redirect '
-        'at it. Fails NO_FLOOR (over a pit), NOT_REACHABLE (no walk path), '
+        'Seat the cube you are HOLDING onto a laser beam. Give the emitter mark '
+        'and how far along its beam to place the cube (percent 0-1 from the '
+        'emitter). Optionally add an aim position (mark N, portal Pb/Po, or panel '
+        'Sn@u,v) to also point the redirect there. Reports ON_BEAM once the cube '
+        'catches the beam; whether that powers a downstream target shows in the '
+        'percept. Fails NO_FLOOR (over a pit), NOT_REACHABLE (no walk path), '
         'NOT_INTERCEPTING (the cube misses the beam).',
         'interpose 4 0.5',
-        'holding a cube, seat it halfway (0.5) along laser-emitter mark 4 to '
-        'block the beam; add a third mark to redirect at a target.',
+        'holding a cube, seat it halfway (0.5) along laser-emitter mark 4; add a '
+        'third position (a mark or portal Pb) to also aim the redirect.',
     ),
     'redirect_to': Verb(
-        'Aim a cube ALREADY seated on a laser beam so it redirects the beam to a '
-        'target and powers it. The cube rests FLAT, so it redirects only in the '
-        'HORIZONTAL plane -- it CANNOT aim the beam up or down to a target at a '
-        'different height (route the beam through a portal for that). You must be '
-        'standing next to the cube (re-aiming means re-placing it) -- else '
-        'OUT_OF_REACH, so go_to the cube first. The cube must already be on a beam '
-        '(interpose it first) -- else NOT_SEATED; NOT_POWERED if the aim cannot '
-        'reach, including a target at a different height.',
+        'Aim a cube ALREADY seated on a laser beam at a position -- a mark N, a '
+        'portal Pb/Po, or a panel Sn@u,v -- redirecting the beam there. Reports '
+        'AIMED (with how far off); whether a laser target then lights shows as its '
+        '`powered` state in the NEXT percept. The cube rests FLAT (horizontal '
+        'redirect only) -- to send a beam UP or DOWN, aim it into a portal and '
+        'place the exit portal facing the target. Stand next to the cube -- else '
+        'OUT_OF_REACH, so go_to it first; the cube must be on a beam already '
+        '(interpose it) -- else NOT_SEATED.',
         'redirect_to 6 9',
-        'a reflector cube already on a beam (mark 6): aim it at laser-target mark '
-        '9 to power it; interpose it onto the beam first.',
+        'reflector cube on a beam (mark 6): aim it at laser-target 9 (or a portal '
+        'Pb); read the target `powered` state next percept.',
     ),
     'place_portal': Verb(
         'Place a portal of a color (blue|orange) on a portalable wall panel, '
@@ -288,9 +290,24 @@ def _check_target(verb, spec, target, by_mark):
     return None
 
 
+def _check_aim_position(verb, aim, by_mark):
+    """A laser-verb aim: ANY position mark present in the percept -- an entity, a
+    portal Pb/Po, or a panel Sn (optionally Sn@u,v). The cube's beam is pointed at
+    that point; a point_laser_target reports POWERED, any other aim reports AIMED
+    (aim a beam at a portal to route it through the pair). Error string or None."""
+    base, uverr = _panel_base(aim)
+    if uverr:
+        return f'{verb}: {uverr}'
+    if _target_kind(base) is None:
+        return f'{verb}: bad aim {aim!r}; want a mark N, panel Sn, or portal Pb/Po'
+    if _lookup(base, by_mark) is None:
+        return f'{verb}: no aim {aim}; present: {_present(by_mark)}'
+    return None
+
+
 def _check_interpose(req, held_mark, by_mark):
     """interpose checks: holding a cube, a valid laser-emitter target, percent in
-    range, and a valid aim target if given. Error string or the ready req."""
+    range, and a valid aim position if given. Error string or the ready req."""
     if held_mark is None:
         return 'interpose: nothing is being held; pick_up a cube first'
     em = _lookup(req.target, by_mark)
@@ -300,25 +317,20 @@ def _check_interpose(req, held_mark, by_mark):
         return f'interpose: {req.target} is a {em["class"]}, not a laser emitter'
     if not 0.0 <= req.percent <= 1.0:
         return f'interpose: percent must be in [0, 1], got {req.percent}'
-    if req.aim and _lookup(req.aim, by_mark) is None:
-        return f'interpose: no aim target {req.aim}'
+    if req.aim:
+        return _check_aim_position('interpose', req.aim, by_mark) or req
     return req
 
 
 def _check_redirect(req, by_mark):
-    """redirect_to checks: a placed reflector cube (target) + a laser-target
-    (aim). Error string or the ready req."""
+    """redirect_to checks: a placed reflector cube (target) + an aim position
+    (any mark -- entity, portal, or panel). Error string or the ready req."""
     cube = _lookup(req.target, by_mark)
     if cube is None:
         return f'redirect_to: no cube {req.target}; present: {_present(by_mark)}'
     if cube['class'] != 'prop_weighted_cube':
         return f'redirect_to: {req.target} is a {cube["class"]}, not a cube'
-    tgt = _lookup(req.aim, by_mark)
-    if tgt is None:
-        return f'redirect_to: no laser target {req.aim}'
-    if tgt['class'] != 'point_laser_target':
-        return f'redirect_to: {req.aim} is a {tgt["class"]}, not a laser target'
-    return req
+    return _check_aim_position('redirect_to', req.aim, by_mark) or req
 
 
 def _panel_base(target):

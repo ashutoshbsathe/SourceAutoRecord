@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "Utils/SDK/Math.hpp"
 #include "harness.pb.h"
 
 // Runs one semantic verb (aim_at / look / go_to / move / pick_up / ...) against
@@ -34,10 +35,12 @@ class MacroExecutor {
   portal2_harness::MacroResult Interpose(
       const portal2_harness::MacroRequest& req);
   // Yaw a seated cube's +X at a target and confirm power, re-seating to retry
-  // the occasional settle jank. Returns POWERED / NOT_POWERED / CANCELLED;
-  // *residual = degrees the cube's +X ends off the target.
-  std::string RedirectConfirm(uint32_t cubeKey, int targetMark,
-                              float* residual);
+  // Re-seat the reflector cube flat with its +X aimed at `aimPoint` (a world
+  // point resolved by the caller from any mark), then settle so the beam
+  // re-propagates. *residual = degrees the cube's +X ends off the aim. False on
+  // a dropped stream. The caller interprets the outcome (a laser target reads
+  // m_bPowered; any other aim just directed the beam).
+  bool AimCube(uint32_t cubeKey, const Vector& aimPoint, float* residual);
   portal2_harness::MacroResult RedirectTo(
       const portal2_harness::MacroRequest& req);
   portal2_harness::MacroResult PlacePortal(

@@ -76,18 +76,19 @@ Notes:
   NOT_FAIR/NOT_SEATED = the cube was only dropped, not placed -- get within reach
   of the button (and clear of walls/fizzlers) and release again.
 - Lasers (interpose / redirect_to): to redirect a beam, `pick_up` a reflector
-  cube, `interpose` it onto an emitter's beam, then `redirect_to` aim it at a
-  laser target to power it (or pass `interpose` a target mark to do both at
-  once). ON_BEAM = the cube is on the beam (now `redirect_to` a target). POWERED
-  = the target is lit (success). NOT_INTERCEPTING = the cube missed the beam (try
-  a different percent along it). NO_FLOOR/NOT_REACHABLE = no floor or no walk path
-  at that beam point (pick another percent). NOT_SEATED (from `redirect_to`) = the
-  cube is not on a beam (interpose it first). NOT_POWERED = on the beam but the
-  aim misses the target. A reflector cube rests FLAT, so it redirects the beam
-  only HORIZONTALLY -- it cannot aim UP or DOWN, so NOT_POWERED at a higher/lower
-  target usually means exactly that; route the beam through a portal to change its
-  height. OUT_OF_REACH = you are not next to the cube -- `go_to` it first, then
-  `redirect_to`.
+  cube, `interpose` it onto an emitter's beam, then `redirect_to` aim it at ANY
+  position -- a laser target mark N, or a portal Pb/Po (or pass `interpose` an aim
+  to do both at once). These verbs report the ACTION, not the result: `interpose`
+  -> ON_BEAM (the cube caught the beam), `redirect_to` -> AIMED (with how far
+  off). To see whether a laser TARGET is lit, read that target's `powered` state
+  in the percept -- the verbs do NOT report it. NOT_INTERCEPTING = the cube missed
+  the beam (try a different percent). NO_FLOOR/NOT_REACHABLE = no floor or walk
+  path at that beam point (pick another percent). NOT_SEATED (redirect_to) = the
+  cube is not on a beam (interpose it first). OUT_OF_REACH = you are not next to
+  the cube -- `go_to` it first. A reflector cube rests FLAT, so it redirects the
+  beam only HORIZONTALLY -- it cannot aim UP or DOWN. To send a beam to a
+  higher/lower target, aim it INTO a portal (`redirect_to <cube> Pb`) and place
+  the exit portal facing the target.
 - Portals (place_portal / pass_through / jump_into): every portalable panel --
   WALL, FLOOR, or angled surface -- is labeled `S1`, `S2`, ... (a floor portal
   faces UP, a wall portal faces sideways; a beam or fling exits a portal along
