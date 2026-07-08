@@ -88,12 +88,15 @@ Notes:
   target usually means exactly that; route the beam through a portal to change its
   height. OUT_OF_REACH = you are not next to the cube -- `go_to` it first, then
   `redirect_to`.
-- Portals (place_portal / pass_through / jump_into): portalable WALL panels are
-  labeled `S1`, `S2`, ... `place_portal blue S3` drops a blue portal on panel S3;
-  append `@u,v` (fractions 0-1) to aim at a point on the panel, e.g. `S3@0.5,0.9`
-  near its top edge. Read the axes off the panel's color-coded grid: it is WHITE
-  at (0,0), reddens along +u (toward u=1) and blues along +v (toward v=1), and is
-  magenta at (1,1) -- so a redder cell means higher u, a bluer cell higher v.
+- Portals (place_portal / pass_through / jump_into): every portalable panel --
+  WALL, FLOOR, or angled surface -- is labeled `S1`, `S2`, ... (a floor portal
+  faces UP, a wall portal faces sideways; a beam or fling exits a portal along
+  the surface's facing direction). `place_portal blue S3` drops a blue portal on
+  the CENTER of panel S3; append `@u,v` (fractions 0-1) to aim at a precise point
+  on the panel, e.g. `S3@0.5,0.9` near its top edge, `S3@0,0` at a corner. Read
+  the axes off the panel's color-coded grid: it is WHITE at (0,0), reddens along
+  +u (toward u=1) and blues along +v (toward v=1), and is magenta at (1,1) -- so a
+  redder cell means higher u, a bluer cell higher v.
   Place BOTH a blue and an orange portal -- the pair auto-links
   into one doorway (re-placing a color moves that portal). Once a linked pair is
   down (`Pb` = blue, `Po` = orange in the marks), `pass_through Pb` walks you in
