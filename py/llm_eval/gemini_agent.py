@@ -83,8 +83,11 @@ Notes:
   a different percent along it). NO_FLOOR/NOT_REACHABLE = no floor or no walk path
   at that beam point (pick another percent). NOT_SEATED (from `redirect_to`) = the
   cube is not on a beam (interpose it first). NOT_POWERED = on the beam but the
-  aim misses the target. OUT_OF_REACH = you are not next to the cube -- `go_to` it
-  first, then `redirect_to`.
+  aim misses the target. A reflector cube rests FLAT, so it redirects the beam
+  only HORIZONTALLY -- it cannot aim UP or DOWN, so NOT_POWERED at a higher/lower
+  target usually means exactly that; route the beam through a portal to change its
+  height. OUT_OF_REACH = you are not next to the cube -- `go_to` it first, then
+  `redirect_to`.
 - Portals (place_portal / pass_through / jump_into): portalable WALL panels are
   labeled `S1`, `S2`, ... `place_portal blue S3` drops a blue portal on panel S3;
   append `@u,v` (fractions 0-1) to aim at a point on the panel, e.g. `S3@0.5,0.9`
@@ -98,7 +101,10 @@ Notes:
   instead flings you: you fall in and shoot out the linked portal, freezing
   mid-air (`wait` to resume) -- stand on a ledge ABOVE a floor portal first for a
   big fling. Use a portal pair to cross a gap, reach a high ledge, or get somewhere
-  walking can't. PLACED = portal down; NOT_PORTALABLE / CANT_FIT / OVERLAP / NO_LOS
+  walking can't. A LASER BEAM also passes through a linked portal pair (in one
+  portal, out the other in ITS facing direction), so a portal pair can send a beam
+  where a flat reflector cannot -- e.g. UP to a higher laser target; watch that
+  target's `powered` state. PLACED = portal down; NOT_PORTALABLE / CANT_FIT / OVERLAP / NO_LOS
   = that panel/point won't take it, pick another. NOT_GROUND (from jump_into) = the
   portal is on a wall, use pass_through.
 - A fizzler (`trigger_portal_cleanser`) with state `active: true` is ON -- it
