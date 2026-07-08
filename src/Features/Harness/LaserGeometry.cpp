@@ -85,6 +85,12 @@ QAngle ComputeRedirectYaw(const Vector& seat, const Vector& target) {
   Vector up{0, 0, 1};
   QAngle ang{0, 0, 0};
   Math::VectorAngles(aim, up, &ang);
-  ang.z = 0;
+  // A reflector cube rests FLAT on its seat: yaw is the only pose it can hold.
+  // Pitch/roll would tilt it off the surface -- a tilt only a frozen (asleep)
+  // cube fakes. Zero both so +X aims at the target's HORIZONTAL bearing; an
+  // elevated catcher then honestly reads NOT_POWERED (a flat cube cannot aim
+  // the beam up) instead of powering off an impossible frozen tilt.
+  ang.x = 0;  // pitch
+  ang.z = 0;  // roll
   return ang;
 }
