@@ -9,7 +9,7 @@ code says "CellCluster". -->
 
 # Radical rewrite: `NavSkeleton` — a BSP-backed multi-Z surface-graph go_to
 
-## 0. TOP OF MIND — 2026-07-08: P4 planner SHIPPED, resume at P5 follower + THE SWAP
+## 0. TOP OF MIND — 2026-07-08: P5 follower + THE SWAP BUILT (in-game verify pending), old stack DELETED
 
 The mid-P2 park resolved in one day. The recon
 ([nav_floor_primitive_recon.md](nav_floor_primitive_recon.md)) replaced the BSP-face
@@ -70,29 +70,66 @@ user-verified in-game (screenshot `noteworthy_trajectories/Screenshot_20260706_2
    at standPos, amber residual stub both signs). Review: 4 confirmed findings fixed, 2
    refuted; integration lens incomplete (session limit) — its risk spots hand-checked.
    Prior caveat stands: edge `via` is ADVISORY — cell routing is authoritative.
-4. **P5 follower + swap — RECON DONE + PLAN DRAFTED 2026-07-08, awaiting user sign-off**
-   on two calls: (a) hard cutover to SUCCESS/REACHED_PROJECTION/NO_ROUTE/STUCK (breaks
-   agentloop_smoke whitelist + gemini prompt until P6 — P6 lands immediately after, one
-   smoke run verifies both); (b) skip the HELD entity in the flood's trace filter (held
-   cube culls cells under it → carry plan through a doorway can false-NO_ROUTE; needs a
-   skip-two-entities filter, fallback = accept detour). Plan: **P5.1** `FollowTo(context,
-   dest, reachRadius, tickBudget) → FollowOutcome` (mirrors MarchOutcome fields) in
-   MacroExecutor.cpp anon-ns — Build+Plan → waypoint follow (24u advance, straight-line
-   heading, NO VFH), view-then-move per 4-tick batch (ApplyAbsoluteView clears the
-   framebulk: move AFTER it), leg-stall → re-Build+re-Plan ×2 → STUCK, 3D arrival vs
-   plan.standPos, stop = clear+velocity-zero+24 settle; GoTo = resolve (keep grabbable
-   standoff inflation) → FollowTo → new codes. **P5.2** interpose/pass_through(≤80u
-   tolerance)/drop_into swap MarchTo+RouteAround → FollowTo (~15 LOC). **P5.3** DELETE:
-   GoToPlanner.{hpp,cpp} whole (its 3 recon cmds incl laser_reachability_test are
-   recon-complete), MarchTo/VFH/RouteAround/InjectObstacles/wedge machinery + both
-   duplicate obstacle-class lists + sar_harness_goto_plan. KEEP: CheckEdge (Move uses),
-   TargetFootprint (standoff), kGoToTickBatch/MaxTicks/Settle/ReachRadius, kStuckEps,
-   kProbeHeight/kStepDownMax (FindPlayerStandoff), kApproachGap, InterposeGate (reword
-   its MarchTo comment); repurpose sar_harness_goto_debug for the follower (autoexec.cfg:14
-   sets it). `interact` calls MacroExecutor::GoTo and branches on reached — keep signature.
-   Full recon (interface codes table, actuation recipe, deletion inventory w/ file:line):
-   session transcript 2026-07-08; key facts re-derivable via nav docs + MacroExecutor.
-   Then the **laser-verb gravity fix** (interpose/redirect
+4. **P5 follower + THE SWAP — BUILT 2026-07-08 (compiles + links; IN-GAME VERIFY PENDING),
+   both sign-off calls resolved:** (a) blessed the breakage window (P6 grammar sync folded
+   in this session, below); (b) **held-entity flood skip PUNTED** — the flood still skips
+   only the player, so a carried cube can false-NO_ROUTE a carry (accepted detour, 1-line
+   fallback if it bites). Built on `yeeh`, unpushed, **not committed** (awaiting the in-game
+   eyeball). Net −282 LOC in MacroExecutor + 570 LOC of GoToPlanner gone.
+   - **P5.1** `FollowTo(context, dest, reachRadius, tickBudget) → FollowOutcome` in
+     MacroExecutor.cpp anon-ns: Build+Plan the flood → straight-line waypoint follow
+     (`kFollowAdvance` 24u, NO VFH), view-then-move per 4-tick batch (ApplyAbsoluteView
+     clears the framebulk → drive AFTER), no-progress detector (`kFollowStallEps`/
+     `kFollowStallBatches`) → re-Build+re-Plan ×`kMaxReplans` → STUCK, 3D arrival vs
+     `plan.standPos`. Codes SUCCESS / REACHED_PROJECTION / NO_ROUTE / STUCK (+ NO_PLAYER /
+     CANCELLED). **As-built: FollowTo OWNS the stop** (unconditional clear + velocity-zero
+     + settle) so all 4 callers dropped theirs.
+   - **P5.2** interpose / pass_through (keeps its ≤`kMouthReach` tolerance) / drop_into
+     swapped MarchTo+RouteAround → FollowTo.
+   - **P5.3 DELETE:** GoToPlanner.{hpp,cpp} whole, MarchTo/RouteAround/ChooseVfhHeading/
+     InjectObstacles/RayClearance/VfhBin/VfhPick + all VFH/wedge constants,
+     `sar_harness_goto_plan` (replaced by `sar_harness_nav_plan`). **As-built KEEP list
+     revised:** `TargetFootprint`+`IsGoToObstacleClass`+`kApproachGap` also DELETED (the
+     grabbable-standoff inflation that used them is obsolete — see review #2 below), so
+     **both** obstacle-class lists are now gone as the recon wanted. Kept: `CheckEdge`
+     (Move), `InterposeGate` (comment reworded), `kGoTo*`/`kStuckEps`/`kProbe*`/`kStepDown*`;
+     `sar_harness_goto_debug` repurposed for the follower.
+   - **Adversarial review (4-lens workflow + per-finding verify): 5 confirmed, 0 refuted,
+     all FIXED.** #1/#3 (terminal stop): the initial `drove`-gated stop skipped velocity-zero
+     on immediate arrival (coast-into-target after pass_through) and framebulk-clear on
+     mid-follow NO_PLAYER → made the stop **unconditional**, NO_PLAYER breaks through it,
+     `finalFeet` defaults to start feet (honest moved=0). #2 (MEDIUM): the grabbable-standoff
+     reachRadius was center-calibrated but FollowTo arrives at `standPos` (offset beside the
+     solid) → double standoff → follow-up pick_up OUT_OF_REACH → **deleted the inflation**
+     (flood provides the standoff for free) and go_to now passes `kGoToReach`=32 (tighter
+     than 48) so a grab lands in range. #4/#5 (P6 sync, folded in per sign-off (a)):
+     `agentloop_smoke` go_to whitelist + `macro_grammar` CAVEAT/doc + `gemini_agent` notes
+     updated to the new codes (BLOCKED/ADVANCED retired).
+   - **Second review round (focused on the fix delta): 2 more confirmed, both FIXED.**
+     **⭐ P4 goal-selection bug (load-bearing for ALL callers):** `NavSkeleton::Plan`'s SUCCESS
+     branch picked the *cheapest-to-reach* envelope cell (min Dijkstra cost) while the
+     projection branch picked *closest-to-target* — so a SUCCESS `standPos` parked at the
+     envelope's **near boundary (~kReachXy=64u short of the target)**, not beside it. That
+     defeated `kGoToReach`=32 (feet ended ~96u from a cube center → pick_up straddled
+     `kGrabRange`=96) AND would have stopped interpose/pass_through/drop_into ~64u short of
+     their seat/mouth-front. **Fix: SUCCESS now also picks the closest-to-target reachable
+     cell** (consistent with the projection branch) — a walk ENDS beside its target. The
+     second fix: `moved_dist` was `|startFeet|` (not 0) on a pre-plan NO_PLAYER → guarded.
+     ⚠️ **The Plan change touches P4** (verified for stair-descent/tower, but NOT for
+     stop-close-to-a-solid) — re-verify `sar_harness_nav_plan` puts the goal cross beside the
+     target, not ~64u short.
+   - **Behavior note (NOT a code shift):** `go_to <cube/button>` still returns **SUCCESS**
+     (reached=true) — the flood can't stand *on* the solid, but a side cell within the 64u
+     `kReachXy` envelope is reachable, so `Plan` picks it as the SUCCESS goal (standPos beside
+     the solid, ~one lattice step off center). What changed is only the stop *distance* (now
+     standPos-based, not center-based) — hence the `kGoToReach`=32 fix so a follow-up grab
+     lands. **REACHED_PROJECTION fires only for genuinely unreachable targets** (no reachable
+     cell in the envelope: a high ledge, a severed gap, over goo). So `interact`→button (gates
+     on `reached`) and `go_to`→cube→`pick_up` both keep working. `interact` still calls
+     MacroExecutor::GoTo (signature unchanged).
+
+   **NEXT:** in-game verify (azorae stride + a cube-grab chamber) → one `agentloop_smoke`
+   run (confirms the P6 sync) → commit. Then the **laser-verb gravity fix** (interpose/redirect
    teleport-snaps must leave the cube under live gravity — the vphysics-sleep freeze lets a
    mid-air cube reach any point; POWERED-while-frozen is fake, see
    [azorae_stride_postmortem.md](azorae_stride_postmortem.md)), **P6** py grammar +

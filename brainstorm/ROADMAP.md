@@ -52,12 +52,23 @@ Detail: [goto_radical_rewrite.md](goto_radical_rewrite.md) §0.
 with mandatory projection reasons (new `BELOW_REACH`), `sar_harness_nav_plan <x y z|mark>`
 + ghost-path overlay. Verified in-game (stair descent routes, tower → projection+reason).
 
-**NEXT:** **P5** pure-pursuit follower +
-DELETE GoToPlanner/MarchTo/VFH + distinct terminal codes → **laser-verb gravity honesty**
-(interpose/redirect teleport-snaps must leave the cube under live gravity — the vphysics-sleep
-freeze lets a mid-air cube reach any point and POWERED-while-frozen is fake, see
-[azorae_stride_postmortem.md](azorae_stride_postmortem.md)) → **P6** py grammar +
-`agentloop_smoke` → azorae stride acceptance rerun. Detail + resume point:
+**Shipped 2026-07-08 (BUILT, in-game verify pending):** **P5** flood follower `FollowTo`
++ DELETE of the whole old stack (GoToPlanner/MarchTo/VFH/RouteAround, −850 LOC) + new
+terminal codes SUCCESS/REACHED_PROJECTION/NO_ROUTE/STUCK. 4-lens adversarial review: 5
+confirmed findings, all fixed (terminal-stop unconditional; grabbable-standoff inflation
+deleted + `kGoToReach`=32 so a follow-up grab lands; P6 grammar sync folded in). A second
+focused round caught 2 more: **a P4 `Plan` goal-selection bug** (SUCCESS picked cheapest-to-
+reach, not closest-to-target → `standPos` parked ~64u short of the target for *every* caller)
+now fixed to match the projection branch (walk ends beside its target — re-verify `nav_plan`);
++ a `moved_dist` NO_PLAYER guard. Held-cube flood skip PUNTED (accepted detour). `go_to
+<cube/button>` returns SUCCESS (stops beside the solid); REACHED_PROJECTION is reserved for
+genuinely unreachable targets (high ledge / severed gap).
+
+**NEXT:** in-game verify (azorae stride + a cube-grab chamber) + one `agentloop_smoke` run
+→ commit → **laser-verb gravity honesty** (interpose/redirect teleport-snaps must leave the
+cube under live gravity — the vphysics-sleep freeze lets a mid-air cube reach any point and
+POWERED-while-frozen is fake, see [azorae_stride_postmortem.md](azorae_stride_postmortem.md))
+→ azorae stride acceptance rerun. Detail + resume point:
 [goto_radical_rewrite.md](goto_radical_rewrite.md) §0.
 
 ---
