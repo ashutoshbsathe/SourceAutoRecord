@@ -105,8 +105,6 @@ constexpr int kDropTries =
     3;  // +use drop pulses to retry if the hand stays full
 constexpr int kSeatSettle = 32;    // ticks for the press to register post-seat
 constexpr int kSeatDwellGap = 16;  // ticks between the two press reads
-constexpr int kRedirectTries =
-    3;  // redirect re-seat attempts (re-rolls ~2% settle jank)
 constexpr int kButtonRiseTicks = 12;  // ticks for a button to rise once the
                                       // player steps off it
 
@@ -1070,53 +1068,50 @@ portal2_harness::MacroResult MacroExecutor::Execute(
 std::string MacroExecutor::RedirectConfirm(uint32_t cubeKey, int targetMark,
                                            float* residual) {
   *residual = 0;
-  // The seat to re-centre on each attempt: the cube's settled position now (it
-  // already passed the on-beam gate). Captured once, so a tossed cube is pulled
-  // back to it -- not chased wherever it drifted.
+  // Re-centre on the cube's settled position now (it already passed the on-beam
+  // gate), so a tossed cube is pulled back to it -- not chased wherever it
+  // drifted.
   auto seat = std::make_shared<Vector>(Vector{0, 0, 0});
   if (!RunOnMainThreadSync(context_, [seat, cubeKey]() {
         ServerEnt* cube = EntFromKey(cubeKey);
         if (cube) *seat = cube->abs_origin();
       }))
     return "CANCELLED";
-  for (int attempt = 0; attempt < kRedirectTries; ++attempt) {
-    // Re-seat at the captured seat with +X aimed at the target, then settle so
-    // the beam re-propagates and the target latches.
-    if (!RunOnMainThreadSync(context_, [cubeKey, targetMark, seat]() {
-          ServerEnt* cube = EntFromKey(cubeKey);
-          CEntInfo* tInfo = nullptr;
-          std::string code;
-          if (!cube || !ResolveMarkInfo(targetMark, &tInfo, &code)) return;
-          QAngle yaw =
-              ComputeRedirectYaw(*seat, EntityCenter(SE(tInfo->m_pEntity)));
-          SeatEntity((void*)cube, *seat, yaw);
-        }))
-      return "CANCELLED";
-    AdvanceTicksBlocking(kSeatSettle);
-    auto powered = std::make_shared<bool>(false);
-    auto res = std::make_shared<float>(0.0f);
-    if (!RunOnMainThreadSync(context_, [powered, res, cubeKey, targetMark]() {
-          ServerEnt* cube = EntFromKey(cubeKey);
-          CEntInfo* tInfo = nullptr;
-          std::string code;
-          if (!cube || !ResolveMarkInfo(targetMark, &tInfo, &code)) return;
-          ServerEnt* target = SE(tInfo->m_pEntity);
-          *powered = target->field<bool>("m_bPowered");
-          // residual: the cube's +X (its redirect axis) vs the ideal direction.
-          Vector fwd;
-          Math::AngleVectors(cube->abs_angles(), &fwd);
-          Vector ideal = EntityCenter(target) - cube->abs_origin();
-          Math::VectorNormalize(ideal);
-          float dot = fwd.x * ideal.x + fwd.y * ideal.y + fwd.z * ideal.z;
-          dot = std::max(-1.0f, std::min(1.0f, dot));
-          *res = std::acos(dot) * 57.2958f;
-        }))
-      return "CANCELLED";
-    *residual = *res;
-    if (*powered) return "POWERED";
-    // else re-apply next iteration (re-rolls the ~2% settle jank)
-  }
-  return "NOT_POWERED";
+  // Re-seat with +X aimed at the target, then settle so the beam re-propagates
+  // and the target latches. The seat is flat (yaw-only) and frozen, so the pose
+  // is deterministic -- one pass, no re-roll.
+  if (!RunOnMainThreadSync(context_, [cubeKey, targetMark, seat]() {
+        ServerEnt* cube = EntFromKey(cubeKey);
+        CEntInfo* tInfo = nullptr;
+        std::string code;
+        if (!cube || !ResolveMarkInfo(targetMark, &tInfo, &code)) return;
+        QAngle yaw =
+            ComputeRedirectYaw(*seat, EntityCenter(SE(tInfo->m_pEntity)));
+        SeatEntity((void*)cube, *seat, yaw);
+      }))
+    return "CANCELLED";
+  AdvanceTicksBlocking(kSeatSettle);
+  auto powered = std::make_shared<bool>(false);
+  auto res = std::make_shared<float>(0.0f);
+  if (!RunOnMainThreadSync(context_, [powered, res, cubeKey, targetMark]() {
+        ServerEnt* cube = EntFromKey(cubeKey);
+        CEntInfo* tInfo = nullptr;
+        std::string code;
+        if (!cube || !ResolveMarkInfo(targetMark, &tInfo, &code)) return;
+        ServerEnt* target = SE(tInfo->m_pEntity);
+        *powered = target->field<bool>("m_bPowered");
+        // residual: the cube's +X (its redirect axis) vs the ideal direction.
+        Vector fwd;
+        Math::AngleVectors(cube->abs_angles(), &fwd);
+        Vector ideal = EntityCenter(target) - cube->abs_origin();
+        Math::VectorNormalize(ideal);
+        float dot = fwd.x * ideal.x + fwd.y * ideal.y + fwd.z * ideal.z;
+        dot = std::max(-1.0f, std::min(1.0f, dot));
+        *res = std::acos(dot) * 57.2958f;
+      }))
+    return "CANCELLED";
+  *residual = *res;
+  return *powered ? "POWERED" : "NOT_POWERED";
 }
 
 portal2_harness::MacroResult MacroExecutor::Interpose(
@@ -1220,55 +1215,52 @@ portal2_harness::MacroResult MacroExecutor::Interpose(
       }))
     return cancelled();
 
-  // 4. Re-seat at the known seat (with +X aimed at `aim` if given) until the
-  // hull intercepts the beam (and powers the target), re-rolling the random
-  // vphysics settle jank each attempt. Re-seating at g->seat -- not the cube's
-  // drifted origin -- re-centres a cube that walked off the previous try.
+  // 4. Re-seat at the known seat (with +X aimed at `aim` if given), then
+  // confirm the hull intercepts the beam (and powers the target). Re-seating at
+  // g->seat
+  // -- not the cube's drifted origin -- re-centres a cube that walked off. The
+  // seat is flat (yaw-only) and frozen, so the pose is deterministic: one pass.
   struct Conf {
     bool intercept = false;
     bool powered = false;
     float residual = 0;
   };
   auto c = std::make_shared<Conf>();
-  for (int attempt = 0; attempt < kRedirectTries; ++attempt) {
-    bool ranSeat = RunOnMainThreadSync(context_, [g, heldKey, targetMark]() {
-      ServerEnt* cube = EntFromKey(heldKey);
-      if (!cube) return;
-      QAngle yaw{0, 0, 0};
-      if (targetMark) {
-        CEntInfo* tInfo = nullptr;
+  bool ranSeat = RunOnMainThreadSync(context_, [g, heldKey, targetMark]() {
+    ServerEnt* cube = EntFromKey(heldKey);
+    if (!cube) return;
+    QAngle yaw{0, 0, 0};
+    if (targetMark) {
+      CEntInfo* tInfo = nullptr;
+      std::string code;
+      if (ResolveMarkInfo(targetMark, &tInfo, &code))
+        yaw = ComputeRedirectYaw(g->seat, EntityCenter(SE(tInfo->m_pEntity)));
+    }
+    SeatEntity((void*)cube, g->seat, yaw);
+  });
+  if (!ranSeat) return cancelled();
+  AdvanceTicksBlocking(kSeatSettle);
+  bool ranC =
+      RunOnMainThreadSync(context_, [c, g, heldKey, emitterMark, targetMark]() {
+        ServerEnt* cube = EntFromKey(heldKey);
+        CEntInfo* eInfo = nullptr;
         std::string code;
-        if (ResolveMarkInfo(targetMark, &tInfo, &code))
-          yaw = ComputeRedirectYaw(g->seat, EntityCenter(SE(tInfo->m_pEntity)));
-      }
-      SeatEntity((void*)cube, g->seat, yaw);
-    });
-    if (!ranSeat) return cancelled();
-    AdvanceTicksBlocking(kSeatSettle);
-    *c = Conf{};
-    bool ranC = RunOnMainThreadSync(
-        context_, [c, g, heldKey, emitterMark, targetMark]() {
-          ServerEnt* cube = EntFromKey(heldKey);
-          CEntInfo* eInfo = nullptr;
-          std::string code;
-          if (!cube || !ResolveMarkInfo(emitterMark, &eInfo, &code)) return;
-          c->intercept = ConfirmInterception(eInfo->m_pEntity, (void*)cube);
-          if (!targetMark) return;
-          CEntInfo* tInfo = nullptr;
-          if (!ResolveMarkInfo(targetMark, &tInfo, &code)) return;
-          ServerEnt* target = SE(tInfo->m_pEntity);
-          c->powered = target->field<bool>("m_bPowered");
-          Vector fwd;
-          Math::AngleVectors(cube->abs_angles(), &fwd);
-          Vector ideal = EntityCenter(target) - cube->abs_origin();
-          Math::VectorNormalize(ideal);
-          float dot = fwd.x * ideal.x + fwd.y * ideal.y + fwd.z * ideal.z;
-          dot = std::max(-1.0f, std::min(1.0f, dot));
-          c->residual = std::acos(dot) * 57.2958f;
-        });
-    if (!ranC) return cancelled();
-    if (c->intercept && (!targetMark || c->powered)) break;  // good this try
-  }
+        if (!cube || !ResolveMarkInfo(emitterMark, &eInfo, &code)) return;
+        c->intercept = ConfirmInterception(eInfo->m_pEntity, (void*)cube);
+        if (!targetMark) return;
+        CEntInfo* tInfo = nullptr;
+        if (!ResolveMarkInfo(targetMark, &tInfo, &code)) return;
+        ServerEnt* target = SE(tInfo->m_pEntity);
+        c->powered = target->field<bool>("m_bPowered");
+        Vector fwd;
+        Math::AngleVectors(cube->abs_angles(), &fwd);
+        Vector ideal = EntityCenter(target) - cube->abs_origin();
+        Math::VectorNormalize(ideal);
+        float dot = fwd.x * ideal.x + fwd.y * ideal.y + fwd.z * ideal.z;
+        dot = std::max(-1.0f, std::min(1.0f, dot));
+        c->residual = std::acos(dot) * 57.2958f;
+      });
+  if (!ranC) return cancelled();
 
   LookBackAt(context_, heldKey);  // face the cube so its beam state is visible
 
