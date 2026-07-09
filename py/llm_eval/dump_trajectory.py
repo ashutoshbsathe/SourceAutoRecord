@@ -33,6 +33,10 @@ def _decode_action(b):
         d['target'] = m.target
     if m.aim:
         d['aim'] = m.aim
+    if m.percent:
+        d['percent'] = round(m.percent, 3)
+    if m.color:
+        d['color'] = m.color
     if m.ticks:
         d['ticks'] = m.ticks
     if m.dir:
